@@ -2,15 +2,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from .config import settings
 
-database_url = settings.database_url
-
-# Railway fornece "postgresql://", mas o projeto utiliza Psycopg 3.
-if database_url.startswith("postgresql://"):
-database_url = database_url.replace(
-"postgresql://",
-"postgresql+psycopg://",
-1,
-)
+database_url = settings.database_url.replace("postgresql://", "postgresql+psycopg://", 1) if settings.database_url.startswith("postgresql://") else settings.database_url
 
 connect_args = (
 {"check_same_thread": False}
