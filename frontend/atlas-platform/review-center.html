@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATLAS OS Review Center</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f4f6f8;color:#20242a}
+header{background:#111827;color:#fff;padding:18px 28px}
+main{max-width:1100px;margin:24px auto;padding:0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:#fff;padding:18px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+input,textarea{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 12px}
+button{padding:10px 14px;border:0;border-radius:8px;cursor:pointer;background:#111827;color:#fff}
+.candidate{border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:10px}
+pre{white-space:pre-wrap;word-break:break-word;background:#f3f4f6;padding:12px;border-radius:8px;max-height:420px;overflow:auto}
+.muted{color:#6b7280;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+<h1>ATLAS OS — Review Center</h1>
+<div class="muted">Organização, autenticação, triagem, revisão, materialização e proposta Git.</div>
+</header>
+<main>
+<div class="grid">
+<section class="card">
+<h2>Configuração</h2>
+<input id="api" value="http://127.0.0.1:8000">
+<input id="token" placeholder="JWT access token">
+<input id="org" placeholder="Organization ID">
+<h2>Novo intake</h2>
+<input id="title" value="ATLAS knowledge intake">
+<textarea id="content" rows="14" placeholder="# Decision&#10;&#10;..."></textarea>
+<button onclick="createWorkflow()">Processar</button>
+<p id="message" class="muted"></p>
+</section>
+<section class="card">
+<h2>Workflow</h2>
+<div id="workflow">Nenhum workflow carregado.</div>
+</section>
+</div>
+</main>
+<script>
+let current=null;
+function base(){return document.getElementById("api").value}
+function headers(){return {"Content-Type":"application/json","Authorization":"Bearer "+document.getElementById("token").value}}
+function org(){return document.getElementById("org").value}
+async function createWorkflow(){
+ const r=await fetch(`${base()}/api/organizations/${org()}/workflows`,{
+  method:"POST",headers:headers(),
+  body:JSON.stringify({title:title.value,content:content.value,source_name:"review-center",source_type:"chat"})
+ });
+ current=await r.json(); render();
+}
+function render(){
+ const e=document.getElementById("workflow");
+ if(!current){e.textContent="Nenhum workflow carregado.";return}
+ let h=`<p><b>Estado:</b> ${current.state}</p><p class="muted">${current.id}</p>`;
+ current.candidates.forEach((c,i)=>{
+  h+=`<div class="candidate"><label><input type="checkbox" id="c${i}" checked> <b>${c.candidate_type}: ${c.title}</b></label><p>${c.summary}</p></div>`;
+ });
+ if(current.state==="review_required")h+=`<button onclick="review()">Guardar revisão</button>`;
+ if(current.state==="approved")h+=`<button onclick="materialize()">Materializar</button>`;
+ if(current.state==="commit_proposed")h+=`<button onclick="proposal()">Ver proposta Git</button>`;
+ h+=`<pre>${JSON.stringify(current,null,2)}</pre>`;
+ e.innerHTML=h;
+}
+async function review(){
+ const approvals={}; current.candidates.forEach((c,i)=>approvals[c.id]=document.getElementById("c"+i).checked);
+ const r=await fetch(`${base()}/api/organizations/${org()}/workflows/${current.id}/review`,{
+  method:"POST",headers:headers(),body:JSON.stringify({approvals,comment:"Reviewed in ATLAS OS Review Center"})
+ });
+ current=await r.json(); render();
+}
+async function materialize(){
+ const r=await fetch(`${base()}/api/organizations/${org()}/workflows/${current.id}/materialize`,{method:"POST",headers:headers()});
+ current=await r.json(); render();
+}
+async function proposal(){
+ const r=await fetch(`${base()}/api/organizations/${org()}/workflows/${current.id}/repository-proposal`,{headers:headers()});
+ const data=await r.json(); alert(JSON.stringify(data,null,2));
+}
+</script>
+</body>
+</html>

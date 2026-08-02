@@ -1,0 +1,58 @@
+name: ATLAS Chat Bridge
+
+on:
+  workflow_dispatch:
+    inputs:
+      transcript_file:
+        description: "Repository-relative chat transcript (.md/.txt/.json)"
+        required: true
+        default: "docs/atlas/chat-drop/conversation.md"
+      base_branch:
+        description: "Base branch"
+        required: true
+        default: "feature/ske-core"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ingest-chat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e ".[test]"
+
+      - name: Run bridge and engine tests
+        run: |
+          pytest backend/tests/test_atlas_knowledge_engine.py
+          pytest backend/tests/test_atlas_chat_bridge.py
+
+      - name: Process transcript locally in workflow workspace
+        run: |
+          python -m app.atlas_chat_bridge.cli ingest \
+            --input "${{ inputs.transcript_file }}" \
+            --repo . \
+            --apply
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: atlas/chat-intake-${{ github.run_id }}
+          base: ${{ inputs.base_branch }}
+          title: "[ATLAS Chat Bridge] Governed chat intake"
+          body: |
+            Conversation content was processed by ATLAS Chat Bridge and ATLAS Knowledge Engine.
+            Human review is mandatory before merge.
+          commit-message: "ATLAS chat intake: process governed conversation"
+          draft: true

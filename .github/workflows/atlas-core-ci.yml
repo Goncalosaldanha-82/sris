@@ -1,0 +1,71 @@
+name: ATLAS Core CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/ske-core
+      - main
+    paths:
+      - "backend/**"
+      - "migrations/**"
+      - "pyproject.toml"
+      - "alembic.ini"
+      - ".github/workflows/atlas-core-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "migrations/**"
+      - "pyproject.toml"
+      - "alembic.ini"
+
+permissions:
+  contents: read
+
+jobs:
+  core-validation:
+    runs-on: ubuntu-latest
+
+    env:
+      ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/atlas-ci/atlas-tests.db
+      ATLAS_REPOSITORY_ROOT: /tmp/atlas-ci/repository
+      ATLAS_JWT_SECRET: atlas-ci-test-secret-change-before-production
+      ATLAS_ENV: test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Prepare CI directories
+        run: |
+          mkdir -p /tmp/atlas-ci
+          mkdir -p /tmp/atlas-ci/repository
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install ATLAS Core
+        run: python -m pip install -e ".[test]"
+
+      - name: Verify package imports
+        run: |
+          python -c "import app; print('ATLAS package import OK')"
+          python -c "import app.main; print('ATLAS API import OK')"
+
+      - name: Run migration test
+        run: python -m pytest backend/tests/test_alembic_migrations.py
+
+      - name: Run Repository Engine tests
+        run: python -m pytest backend/tests/test_atlas_repository_engine.py
+
+      - name: Run integrated platform workflow test
+        run: python -m pytest backend/tests/test_atlas_platform_workflow.py
+
+      - name: Check Alembic heads
+        run: python -m alembic heads

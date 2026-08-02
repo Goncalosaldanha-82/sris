@@ -1,0 +1,44 @@
+name: ATLAS Repository Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_file:
+        description: "Repository-relative Markdown or JSON input file"
+        required: true
+        default: "docs/atlas/inbox/update.md"
+      base_branch:
+        description: "Base branch for the draft pull request"
+        required: true
+        default: "feature/ske-core"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare-governed-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e ".[test]"
+
+      - name: Run agent tests
+        run: pytest backend/tests/test_atlas_repository_agent.py
+
+      - name: Create governed draft pull request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m app.atlas_agent.cli             --input "${{ inputs.source_file }}"             --repo .             --mode github             --base-branch "${{ inputs.base_branch }}"

@@ -1,0 +1,13 @@
+PROJECT ATLAS — INSTALAÇÃO ÚNICA
+
+1. Confirmar no GitHub Desktop que a branch ativa é feature/ske-core.
+2. Clicar em Repository > Show in Explorer.
+3. Abrir esta pasta descompactada.
+4. Selecionar TODO o conteúdo dentro desta pasta (não a pasta exterior).
+5. Copiar e colar na raiz local do repositório sris.
+6. Quando o Windows perguntar por pastas com o mesmo nome, escolher Combinar/Mesclar.
+7. Voltar ao GitHub Desktop e confirmar os ficheiros novos.
+8. Commit: Add Project ATLAS consolidation and Repository Agent v0.1
+9. Push origin.
+
+Não apagar ficheiros existentes. Não trabalhar na branch main.

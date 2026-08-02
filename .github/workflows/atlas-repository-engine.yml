@@ -1,0 +1,24 @@
+name: ATLAS Repository Engine
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/ske-core
+    paths:
+      - "backend/app/atlas_repository_engine/**"
+      - "backend/tests/test_atlas_repository_engine.py"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[test]"
+      - run: pytest backend/tests/test_atlas_repository_engine.py

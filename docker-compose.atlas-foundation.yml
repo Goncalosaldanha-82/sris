@@ -1,0 +1,33 @@
+services:
+  atlas-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn app.atlas_platform.api:app --host 0.0.0.0 --port 8000
+    environment:
+      ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas@postgres:5432/atlas
+      ATLAS_JWT_SECRET: change-this-in-production
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: atlas
+    ports:
+      - "5432:5432"
+    volumes:
+      - atlas_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas -d atlas"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  atlas_postgres_data:

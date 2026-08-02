@@ -1,47 +1,27 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: sris
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d sris"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${OBJECT_STORAGE_ACCESS_KEY:?set OBJECT_STORAGE_ACCESS_KEY in .env}
-      MINIO_ROOT_PASSWORD: ${OBJECT_STORAGE_SECRET_KEY:?set OBJECT_STORAGE_SECRET_KEY in .env}
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9001:9001"
-  app:
+  atlas-api:
     build: .
-    env_file: .env
-    ports:
-      - "8000:8000"
+    command: sh -c "python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas@postgres:5432/atlas
+      ATLAS_JWT_SECRET: ${ATLAS_JWT_SECRET:-change-this-before-production}
+      ATLAS_REPOSITORY_ROOT: /workspace
+    ports: ["8000:8000"]
+    volumes: [".:/workspace"]
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
-      minio:
-        condition: service_started
-    volumes:
-      - ./backups:/backups
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: atlas
+    volumes: ["atlas_postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas -d atlas"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
+  atlas_postgres_data:
