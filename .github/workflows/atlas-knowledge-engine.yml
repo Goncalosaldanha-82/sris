@@ -1,0 +1,44 @@
+name: ATLAS Knowledge Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_file:
+        description: "Repository-relative Markdown or JSON intake file"
+        required: true
+        default: "docs/atlas/inbox/knowledge-intake.md"
+      base_branch:
+        description: "Base branch"
+        required: true
+        default: "feature/ske-core"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  process-knowledge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e ".[test]"
+
+      - name: Run engine tests
+        run: pytest backend/tests/test_atlas_knowledge_engine.py
+
+      - name: Create governed draft pull request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python -m app.atlas_knowledge_engine.cli             --input "${{ inputs.source_file }}"             --repo .             --mode github             --base-branch "${{ inputs.base_branch }}"
