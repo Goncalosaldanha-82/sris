@@ -1,0 +1,32 @@
+{
+  "title": "Project ATLAS repository governance",
+  "source_name": "example-changeset.json",
+  "author": "Gonçalo Saldanha with ATLAS Repository Agent",
+  "items": [
+    {
+      "kind": "decision",
+      "title": "GitHub is the official source of truth",
+      "summary": "Structural content must be committed to the repository.",
+      "state": "adopted",
+      "affected_assets": [
+        "ATLAS",
+        "ASM",
+        "SRIS"
+      ],
+      "limitations": [
+        "Human approval remains mandatory"
+      ]
+    },
+    {
+      "kind": "risk",
+      "title": "Conversation-only content loss",
+      "summary": "Important context may disappear if it is not versioned.",
+      "state": "active",
+      "affected_assets": [
+        "ATLAS"
+      ]
+    }
+  ],
+  "overall_summary": "Establish repository-centred continuity governance.",
+  "requires_human_approval": true
+}

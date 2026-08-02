@@ -1,0 +1,27 @@
+{
+  "name": "ATLAS Repository Agent",
+  "version": "0.1.0",
+  "created": "2026-08-02",
+  "files": [
+    ".github/workflows/atlas-repository-agent.yml",
+    "INTEGRATION.md",
+    "backend/app/atlas_agent/__init__.py",
+    "backend/app/atlas_agent/cli.py",
+    "backend/app/atlas_agent/document_updater.py",
+    "backend/app/atlas_agent/extractor.py",
+    "backend/app/atlas_agent/github_client.py",
+    "backend/app/atlas_agent/models.py",
+    "backend/app/atlas_agent/repository.py",
+    "backend/app/atlas_agent/service.py",
+    "backend/tests/test_atlas_repository_agent.py",
+    "docs/atlas-agent/README.md",
+    "docs/atlas/inbox/example-changeset.json",
+    "docs/atlas/inbox/example-update.md",
+    "scripts/run_atlas_repository_agent.py"
+  ],
+  "safety": {
+    "direct_push_to_base": false,
+    "human_merge_required": true,
+    "automatic_foundational_rewrite": false
+  }
+}
