@@ -1,0 +1,12 @@
+<!doctype html><html lang="pt"><meta charset="utf-8"><title>ATLAS OS</title>
+<style>body{font-family:system-ui;background:#f4f6f8;margin:0}header{background:#111827;color:white;padding:20px}main{max-width:1000px;margin:20px auto}.card{background:white;padding:18px;border-radius:12px;margin-bottom:16px}textarea,input{width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px}button{padding:10px 14px;border:0;border-radius:8px;background:#111827;color:white}.c{border:1px solid #ddd;padding:10px;margin:8px 0}</style>
+<header><h1>ATLAS OS — Intake & Review Center</h1></header><main>
+<div class="card"><input id="title" value="ATLAS intake"><textarea id="content" rows="14" placeholder="# Decision&#10;&#10;..."></textarea><button onclick="run()">Processar</button></div>
+<div class="card" id="out">Sem workflow.</div></main>
+<script>
+const API="http://127.0.0.1:8792"; let w=null;
+async function run(){let r=await fetch(API+"/workflows",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:title.value,content:content.value,source_name:"review-center"})});w=await r.json();render()}
+function render(){if(!w)return;let h=`<b>Estado:</b> ${w.state}<p>${w.workflow_id}</p>`;w.candidates.forEach((c,i)=>h+=`<div class=c><label><input type=checkbox id=x${i} checked> ${c.type}: <b>${c.title}</b></label><p>${c.summary}</p></div>`);if(w.state==="review_required")h+=`<button onclick=review()>Aprovar seleção</button>`;if(w.state==="approved")h+=`<button onclick=mat()>Materializar</button>`;h+=`<pre>${JSON.stringify(w,null,2)}</pre>`;out.innerHTML=h}
+async function review(){let a={};w.candidates.forEach((c,i)=>a[c.candidate_id]=document.getElementById("x"+i).checked);let r=await fetch(`${API}/workflows/${w.workflow_id}/review`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({approvals:a})});w=await r.json();render()}
+async function mat(){let r=await fetch(`${API}/workflows/${w.workflow_id}/materialize`,{method:"POST"});w=await r.json();render()}
+</script></html>
