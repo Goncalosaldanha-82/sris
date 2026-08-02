@@ -1,0 +1,35 @@
+name: ATLAS Database Migrations
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/ske-core
+    paths:
+      - "migrations/**"
+      - "alembic.ini"
+      - "backend/app/atlas_platform/models.py"
+      - "backend/app/atlas_platform/workflow_models.py"
+      - "backend/tests/test_alembic_migrations.py"
+
+permissions:
+  contents: read
+
+jobs:
+  migration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e ".[test]"
+
+      - name: Test migrations
+        run: pytest backend/tests/test_alembic_migrations.py
+
+      - name: Check migration heads
+        run: python -m alembic heads
