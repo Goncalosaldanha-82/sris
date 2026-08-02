@@ -11,6 +11,7 @@ def run_alembic(repo_root: Path, *args: str, database_url: str) -> None:
     env = os.environ.copy()
     env["ATLAS_DATABASE_URL"] = database_url
     env["PYTHONPATH"] = str(repo_root / "backend")
+
     result = subprocess.run(
         [sys.executable, "-m", "alembic", *args],
         cwd=repo_root,
@@ -18,23 +19,37 @@ def run_alembic(repo_root: Path, *args: str, database_url: str) -> None:
         capture_output=True,
         text=True,
     )
+
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
+
+
+def table_names(database_url: str) -> set[str]:
+    engine = create_engine(database_url)
+
+    try:
+        with engine.connect() as connection:
+            return set(inspect(connection).get_table_names())
+    finally:
+        # Essential on Windows: closes pooled SQLite handles before
+        # TemporaryDirectory attempts to delete the database file.
+        engine.dispose()
 
 
 def test_upgrade_and_downgrade_initial_schema() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
-    with TemporaryDirectory() as tmp:
+    with TemporaryDirectory(prefix="atlas-migrations-") as tmp:
         database_path = Path(tmp) / "fresh-atlas-migrations.db"
-        if database_path.exists():
-            database_path.unlink()
+        database_url = f"sqlite+pysqlite:///{database_path.as_posix()}"
 
-        database_url = f"sqlite+pysqlite:///{database_path}"
+        run_alembic(
+            repo_root,
+            "upgrade",
+            "head",
+            database_url=database_url,
+        )
 
-        run_alembic(repo_root, "upgrade", "head", database_url=database_url)
-
-        engine = create_engine(database_url)
-        tables = set(inspect(engine).get_table_names())
+        tables = table_names(database_url)
 
         expected = {
             "alembic_version",
@@ -48,8 +63,15 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "workflow_history",
             "repository_changes",
         }
+
         assert expected.issubset(tables)
 
-        run_alembic(repo_root, "downgrade", "base", database_url=database_url)
-        remaining = set(inspect(engine).get_table_names())
-        assert remaining == {"alembic_version"}
+        run_alembic(
+            repo_root,
+            "downgrade",
+            "base",
+            database_url=database_url,
+        )
+
+        remaining = table_names(database_url)
+        assert remaining in (set(), {"alembic_version"})
