@@ -1,11 +1,10 @@
 {
-  "name": "ATLAS Core",
-  "version": "1.0.0",
+  "name": "ATLAS Core v1.1 — CI & Test Infrastructure",
+  "version": "1.1.0",
   "created": "2026-08-02",
-  "files": 147,
+  "root_cause_fixed": "sqlite3.OperationalError: unable to open database file",
   "validation": {
-    "editable_install_no_deps": "passed",
-    "backend/tests/test_alembic_migrations.py": "passed",
-    "backend/tests/test_atlas_repository_engine.py": "passed"
+    "static_package_review": "passed",
+    "full_runtime_validation": "must run in repository via VERIFY script and GitHub Actions"
   }
 }

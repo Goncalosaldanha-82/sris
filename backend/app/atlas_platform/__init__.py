@@ -1,1 +1,4 @@
-"""ATLAS platform package. Import API explicitly from app.atlas_platform.api."""
+"""ATLAS Platform package.
+
+No eager API or database import is performed here.
+"""

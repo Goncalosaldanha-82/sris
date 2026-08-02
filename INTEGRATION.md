@@ -1,14 +1,26 @@
-# ATLAS Core v1.0 — Integration
+# Integration
 
-1. Back up `C:\Users\barba\Documents\GitHub\sris`.
-2. Copy all package contents into the repository root.
-3. Replace structural files: `pyproject.toml`, `MANIFEST.in`, `Dockerfile`, `docker-compose.yml`, `.env.example`, and both ATLAS CI workflows.
-4. Merge existing subsystem folders under `backend/app`.
-5. Run `scripts/VERIFY_ATLAS_CORE.cmd`.
-6. Commit only after verification passes.
+Copy all files into the root of the `sris` repository and replace existing files.
+
+Required replacements:
+
+```text
+backend/app/atlas_platform/config.py
+backend/app/atlas_platform/database.py
+backend/app/atlas_platform/__init__.py
+backend/tests/conftest.py
+.github/workflows/atlas-core-ci.yml
+.github/workflows/atlas-database-migrations.yml
+```
+
+Run locally:
+
+```text
+scripts/VERIFY_ATLAS_CORE_v1_1.cmd
+```
 
 Commit summary:
 
 ```text
-Consolidate ATLAS Core v1.0 architecture and packaging
+Fix ATLAS Core CI database isolation and test infrastructure
 ```

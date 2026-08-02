@@ -6,8 +6,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from .config import settings
+from .config import ensure_sqlite_parent, settings
 
+
+ensure_sqlite_parent(settings.database_url)
 
 is_sqlite = settings.database_url.startswith("sqlite")
 is_memory_sqlite = settings.database_url in {
@@ -16,9 +18,7 @@ is_memory_sqlite = settings.database_url in {
     "sqlite:///:memory:",
 }
 
-engine_kwargs: dict = {
-    "pool_pre_ping": True,
-}
+engine_kwargs: dict = {"pool_pre_ping": True}
 
 if is_sqlite:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
@@ -26,10 +26,7 @@ if is_sqlite:
 if is_memory_sqlite:
     engine_kwargs["poolclass"] = StaticPool
 
-engine = create_engine(
-    settings.database_url,
-    **engine_kwargs,
-)
+engine = create_engine(settings.database_url, **engine_kwargs)
 
 SessionLocal = sessionmaker(
     bind=engine,

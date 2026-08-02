@@ -1,20 +1,42 @@
 name: ATLAS Database Migrations
+
 on:
   workflow_dispatch:
   push:
-    branches: [feature/ske-core]
-    paths: ["migrations/**", "alembic.ini", "pyproject.toml", "backend/app/atlas_platform/**", "backend/tests/test_alembic_migrations.py"]
+    branches:
+      - feature/ske-core
+    paths:
+      - "migrations/**"
+      - "alembic.ini"
+      - "pyproject.toml"
+      - "backend/app/atlas_platform/**"
+      - "backend/tests/test_alembic_migrations.py"
+      - ".github/workflows/atlas-database-migrations.yml"
+
 permissions:
   contents: read
+
 jobs:
   migration-test:
     runs-on: ubuntu-latest
+
+    env:
+      ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/atlas-migrations.db
+      ATLAS_REPOSITORY_ROOT: /tmp/atlas-ci/repository
+      ATLAS_JWT_SECRET: atlas-ci-test-secret-change-before-production
+      ATLAS_ENV: test
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
+          cache: "pip"
+
+      - name: Prepare CI directories
+        run: mkdir -p /tmp/atlas-ci/repository
+
       - run: python -m pip install --upgrade pip setuptools wheel
       - run: python -m pip install -e ".[test]"
       - run: python -m pytest backend/tests/test_alembic_migrations.py
