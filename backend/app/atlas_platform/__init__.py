@@ -1,3 +1,1 @@
-from .api import app
-
-__all__ = ["app"]
+"""ATLAS platform package. Import API explicitly from app.atlas_platform.api."""

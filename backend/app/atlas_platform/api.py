@@ -4,8 +4,10 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .audit import record_audit
+from . import workflow_models  # noqa: F401
+from .workflow_api import router as workflow_router
 from .auth import current_user, require_org_role
-from .database import Base, engine, get_db
+from .database import get_db
 from .models import KnowledgeObject, Membership, Organization, Role, User
 from .schemas import (
     KnowledgeObjectCreate,
@@ -21,13 +23,13 @@ from .schemas import (
 from .security import create_access_token, hash_password, verify_password
 
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="ATLAS Platform API",
     version="0.1.0",
     description="Authentication, organizations, RBAC and unified knowledge model.",
 )
+
+app.include_router(workflow_router)
 
 
 @app.get("/health")
