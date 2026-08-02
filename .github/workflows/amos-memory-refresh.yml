@@ -1,0 +1,48 @@
+name: AMOS Memory Refresh
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/ske-core
+    paths:
+      - "docs/atlas/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh-memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/ske-core
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e ".[test]"
+
+      - name: Run AMOS tests
+        run: pytest backend/tests/test_amos.py
+
+      - name: Refresh AMOS memory
+        run: |
+          python -m app.amos.cli --repo . refresh
+          python -m app.amos.cli --repo . snapshot
+
+      - name: Create draft pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: atlas/amos-refresh-${{ github.run_id }}
+          base: feature/ske-core
+          title: "[AMOS] Refresh institutional memory"
+          body: |
+            AMOS regenerated the institutional memory status and snapshot.
+            Human review is mandatory before merge.
+          commit-message: "AMOS: refresh institutional memory"
+          draft: true
