@@ -1,0 +1,48 @@
+name: ATLAS Intelligence Core
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/ske-core
+    paths:
+      - "docs/atlas/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  analyze-memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/ske-core
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e ".[test]"
+
+      - name: Run AIC tests
+        run: pytest backend/tests/test_atlas_intelligence_core.py
+
+      - name: Bootstrap AMOS and run AIC
+        run: |
+          python -m app.amos.cli --repo . bootstrap
+          python -m app.atlas_intelligence_core.cli --repo . analyze --no-refresh
+
+      - name: Create draft pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: atlas/aic-analysis-${{ github.run_id }}
+          base: feature/ske-core
+          title: "[AIC] Institutional intelligence analysis"
+          body: |
+            ATLAS Intelligence Core generated analytical findings over AMOS memory.
+            Findings are provisional and require human review.
+          commit-message: "AIC: update institutional intelligence report"
+          draft: true
