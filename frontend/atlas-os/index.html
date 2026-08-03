@@ -1,12 +1,2189 @@
-<!doctype html><html lang="pt"><meta charset="utf-8"><title>ATLAS OS</title>
-<style>body{font-family:system-ui;background:#f4f6f8;margin:0}header{background:#111827;color:white;padding:20px}main{max-width:1000px;margin:20px auto}.card{background:white;padding:18px;border-radius:12px;margin-bottom:16px}textarea,input{width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px}button{padding:10px 14px;border:0;border-radius:8px;background:#111827;color:white}.c{border:1px solid #ddd;padding:10px;margin:8px 0}</style>
-<header><h1>ATLAS OS — Intake & Review Center</h1></header><main>
-<div class="card"><input id="title" value="ATLAS intake"><textarea id="content" rows="14" placeholder="# Decision&#10;&#10;..."></textarea><button onclick="run()">Processar</button></div>
-<div class="card" id="out">Sem workflow.</div></main>
-<script>
-const API="http://127.0.0.1:8792"; let w=null;
-async function run(){let r=await fetch(API+"/workflows",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:title.value,content:content.value,source_name:"review-center"})});w=await r.json();render()}
-function render(){if(!w)return;let h=`<b>Estado:</b> ${w.state}<p>${w.workflow_id}</p>`;w.candidates.forEach((c,i)=>h+=`<div class=c><label><input type=checkbox id=x${i} checked> ${c.type}: <b>${c.title}</b></label><p>${c.summary}</p></div>`);if(w.state==="review_required")h+=`<button onclick=review()>Aprovar seleção</button>`;if(w.state==="approved")h+=`<button onclick=mat()>Materializar</button>`;h+=`<pre>${JSON.stringify(w,null,2)}</pre>`;out.innerHTML=h}
-async function review(){let a={};w.candidates.forEach((c,i)=>a[c.candidate_id]=document.getElementById("x"+i).checked);let r=await fetch(`${API}/workflows/${w.workflow_id}/review`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({approvals:a})});w=await r.json();render()}
-async function mat(){let r=await fetch(`${API}/workflows/${w.workflow_id}/materialize`,{method:"POST"});w=await r.json();render()}
-</script></html>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>SRIS Enterprise — Mission Intelligence Center</title>
+
+  <style>
+    :root {
+      --bg: #f2f1ec;
+      --surface: rgba(255, 255, 255, 0.88);
+      --surface-solid: #ffffff;
+      --surface-soft: #f7f6f2;
+
+      --ink: #18221d;
+      --ink-soft: #55615a;
+      --ink-muted: #879089;
+
+      --forest: #234b3a;
+      --forest-2: #315f49;
+      --forest-3: #48745c;
+
+      --sage: #dbe4dc;
+      --sage-soft: #edf2ed;
+
+      --gold: #b6975e;
+      --gold-soft: #eee6d7;
+
+      --warning: #9a6b24;
+      --danger: #a44d45;
+      --success: #3f7658;
+
+      --border: rgba(35, 75, 58, 0.12);
+      --border-strong: rgba(35, 75, 58, 0.2);
+
+      --shadow:
+        0 18px 60px rgba(30, 49, 39, 0.08),
+        0 3px 12px rgba(30, 49, 39, 0.05);
+
+      --sidebar-width: 256px;
+      --radius: 18px;
+      --radius-small: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(84, 122, 96, 0.16), transparent 34%),
+        radial-gradient(circle at 95% 100%, rgba(182, 151, 94, 0.14), transparent 30%),
+        var(--bg);
+      color: var(--ink);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* LOGIN */
+
+    .login-screen {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(420px, 0.92fr) minmax(520px, 1.08fr);
+    }
+
+    .login-visual {
+      position: relative;
+      overflow: hidden;
+      padding: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background:
+        linear-gradient(
+          145deg,
+          rgba(11, 29, 22, 0.94),
+          rgba(26, 66, 48, 0.88)
+        ),
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.16), transparent 30%);
+      color: white;
+    }
+
+    .login-visual::before,
+    .login-visual::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(2px);
+      pointer-events: none;
+    }
+
+    .login-visual::before {
+      width: 520px;
+      height: 520px;
+      right: -180px;
+      top: -160px;
+      background: rgba(181, 205, 189, 0.11);
+    }
+
+    .login-visual::after {
+      width: 380px;
+      height: 380px;
+      left: -140px;
+      bottom: -120px;
+      background: rgba(214, 188, 138, 0.09);
+    }
+
+    .brand-mark {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-symbol {
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      font-family: Georgia, serif;
+      font-size: 19px;
+      letter-spacing: -1px;
+    }
+
+    .brand-name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 25px;
+      letter-spacing: 0.13em;
+    }
+
+    .brand-subtitle {
+      margin-top: 3px;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      opacity: 0.66;
+    }
+
+    .login-statement {
+      position: relative;
+      z-index: 2;
+      max-width: 720px;
+      padding: 80px 0;
+    }
+
+    .eyebrow {
+      margin-bottom: 18px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .login-statement h1 {
+      margin: 0;
+      max-width: 700px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(48px, 6vw, 86px);
+      line-height: 0.98;
+      font-weight: 400;
+      letter-spacing: -0.045em;
+    }
+
+    .login-statement p {
+      margin: 28px 0 0;
+      max-width: 620px;
+      font-size: 17px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.72);
+    }
+
+    .login-principles {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .principle {
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.045);
+      backdrop-filter: blur(12px);
+    }
+
+    .principle strong {
+      display: block;
+      font-family: Georgia, serif;
+      font-size: 16px;
+      font-weight: 400;
+    }
+
+    .principle span {
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+    }
+
+    .login-panel {
+      padding: 48px;
+      display: grid;
+      place-items: center;
+    }
+
+    .login-card {
+      width: min(480px, 100%);
+      padding: 42px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: rgba(255,255,255,0.83);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px);
+    }
+
+    .login-card h2 {
+      margin: 0;
+      font-family: Georgia, serif;
+      font-size: 36px;
+      font-weight: 400;
+      letter-spacing: -0.025em;
+    }
+
+    .login-card > p {
+      margin: 12px 0 32px;
+      color: var(--ink-soft);
+      line-height: 1.6;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--border-strong);
+      border-radius: 11px;
+      background: rgba(255,255,255,0.9);
+      color: var(--ink);
+      outline: none;
+      transition: 0.2s ease;
+    }
+
+    .field input,
+    .field select {
+      height: 48px;
+      padding: 0 14px;
+    }
+
+    .field textarea {
+      min-height: 150px;
+      padding: 14px;
+      resize: vertical;
+    }
+
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus {
+      border-color: var(--forest-3);
+      box-shadow: 0 0 0 4px rgba(72, 116, 92, 0.1);
+    }
+
+    .primary-button,
+    .secondary-button,
+    .text-button,
+    .icon-button {
+      border: 0;
+      transition: 0.2s ease;
+    }
+
+    .primary-button {
+      width: 100%;
+      height: 50px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--forest), var(--forest-2));
+      color: white;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(35, 75, 58, 0.18);
+    }
+
+    .primary-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(35, 75, 58, 0.24);
+    }
+
+    .secondary-button {
+      height: 44px;
+      padding: 0 16px;
+      border: 1px solid var(--border-strong);
+      border-radius: 11px;
+      background: var(--surface-solid);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .secondary-button:hover {
+      border-color: var(--forest-3);
+      color: var(--forest);
+    }
+
+    .demo-button {
+      margin-top: 12px;
+      width: 100%;
+      height: 46px;
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      background: transparent;
+      color: var(--forest);
+      font-weight: 700;
+    }
+
+    .demo-button:hover {
+      background: var(--sage-soft);
+    }
+
+    .login-feedback {
+      min-height: 22px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--danger);
+    }
+
+    .login-footnote {
+      margin-top: 26px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--ink-muted);
+    }
+
+    /* APP */
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(243, 245, 240, 0.96),
+          rgba(235, 239, 232, 0.96)
+        );
+      backdrop-filter: blur(20px);
+    }
+
+    .sidebar-brand {
+      padding: 4px 10px 26px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .sidebar-logo {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--forest);
+      color: white;
+      font-family: Georgia, serif;
+    }
+
+    .sidebar-brand strong {
+      display: block;
+      font-family: Georgia, serif;
+      font-size: 19px;
+      letter-spacing: 0.08em;
+    }
+
+    .sidebar-brand span {
+      display: block;
+      margin-top: 3px;
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+
+    .nav-group-label {
+      padding: 14px 12px 8px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+
+    .nav-item {
+      width: 100%;
+      min-height: 46px;
+      margin-bottom: 4px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--ink-soft);
+      text-align: left;
+      font-weight: 650;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.62);
+      color: var(--ink);
+    }
+
+    .nav-item.active {
+      background: var(--surface-solid);
+      color: var(--forest);
+      box-shadow: 0 4px 16px rgba(35, 75, 58, 0.08);
+    }
+
+    .nav-icon {
+      width: 24px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding: 14px 8px 0;
+    }
+
+    .system-status {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.54);
+    }
+
+    .system-status-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--ink-soft);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      margin-right: 6px;
+      display: inline-block;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(63,118,88,0.12);
+    }
+
+    .main-area {
+      min-width: 0;
+      padding: 0 34px 48px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: 82px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(242, 241, 236, 0.78);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-context {
+      min-width: 0;
+    }
+
+    .topbar-context strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .topbar-context span {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-chip {
+      height: 42px;
+      padding: 0 12px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.75);
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--forest);
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .user-chip strong {
+      font-size: 12px;
+    }
+
+    .page {
+      display: none;
+      animation: fadeIn 0.28s ease;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .hero {
+      padding: 46px 0 26px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+    }
+
+    .hero-copy {
+      max-width: 850px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(42px, 5vw, 68px);
+      line-height: 1.02;
+      font-weight: 400;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 18px 0 0;
+      max-width: 700px;
+      color: var(--ink-soft);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hero-actions .primary-button {
+      width: auto;
+      padding: 0 18px;
+      height: 44px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric-card {
+      min-height: 138px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .metric-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+
+    .metric-value {
+      margin-top: 18px;
+      font-family: Georgia, serif;
+      font-size: 35px;
+      line-height: 1;
+    }
+
+    .metric-note {
+      margin-top: 11px;
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+
+    .section-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(330px, 0.7fr);
+      gap: 16px;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+    }
+
+    .panel-header {
+      min-height: 68px;
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-header h2,
+    .panel-header h3 {
+      margin: 0;
+      font-family: Georgia, serif;
+      font-weight: 400;
+    }
+
+    .panel-header h2 {
+      font-size: 24px;
+    }
+
+    .panel-header h3 {
+      font-size: 20px;
+    }
+
+    .panel-header p {
+      margin: 5px 0 0;
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .text-button {
+      padding: 8px 0;
+      background: transparent;
+      color: var(--forest);
+      font-weight: 750;
+    }
+
+    .mission-list {
+      padding: 6px;
+    }
+
+    .mission-row {
+      padding: 16px 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px 130px 34px;
+      align-items: center;
+      gap: 14px;
+      border-radius: 14px;
+      transition: 0.2s ease;
+    }
+
+    .mission-row:hover {
+      background: var(--sage-soft);
+    }
+
+    .mission-title {
+      font-weight: 750;
+    }
+
+    .mission-meta {
+      margin-top: 5px;
+      font-size: 11px;
+      color: var(--ink-muted);
+    }
+
+    .status-badge,
+    .trend-badge,
+    .confidence-badge {
+      width: fit-content;
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .status-attention {
+      background: #f3e8d5;
+      color: #8f6428;
+    }
+
+    .status-stable {
+      background: #e5eee7;
+      color: #356748;
+    }
+
+    .status-critical {
+      background: #f3dddd;
+      color: #8d403a;
+    }
+
+    .trend-improving {
+      color: var(--success);
+    }
+
+    .trend-stable {
+      color: var(--warning);
+    }
+
+    .trend-deteriorating {
+      color: var(--danger);
+    }
+
+    .row-arrow {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      color: var(--ink-muted);
+      background: rgba(255,255,255,0.65);
+    }
+
+    .attention-list {
+      padding: 8px 18px 18px;
+    }
+
+    .attention-item {
+      padding: 15px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .attention-item:last-child {
+      border-bottom: 0;
+    }
+
+    .attention-item strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .attention-item p {
+      margin: 7px 0 0;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--ink-soft);
+    }
+
+    .attention-level {
+      margin-top: 9px;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--warning);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .page-section-title {
+      margin: 42px 0 18px;
+    }
+
+    .page-section-title h2 {
+      margin: 0;
+      font-family: Georgia, serif;
+      font-size: 30px;
+      font-weight: 400;
+    }
+
+    .page-section-title p {
+      margin: 8px 0 0;
+      color: var(--ink-soft);
+    }
+
+    .intelligence-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .intelligence-card {
+      min-height: 205px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .intelligence-card .card-index {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--sage-soft);
+      color: var(--forest);
+      font-weight: 800;
+    }
+
+    .intelligence-card h3 {
+      margin: 22px 0 10px;
+      font-family: Georgia, serif;
+      font-size: 22px;
+      font-weight: 400;
+    }
+
+    .intelligence-card p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+    }
+
+    .workspace-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+      gap: 16px;
+    }
+
+    .form-panel {
+      padding: 24px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-actions {
+      margin-top: 8px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .form-actions .primary-button {
+      width: auto;
+      padding: 0 22px;
+    }
+
+    .process-output {
+      padding: 22px;
+    }
+
+    .output-placeholder {
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 1px dashed var(--border-strong);
+      border-radius: 14px;
+      color: var(--ink-muted);
+    }
+
+    .output-placeholder strong {
+      display: block;
+      margin-bottom: 8px;
+      font-family: Georgia, serif;
+      font-size: 22px;
+      font-weight: 400;
+      color: var(--ink-soft);
+    }
+
+    .result-block {
+      display: none;
+    }
+
+    .result-block.visible {
+      display: block;
+    }
+
+    .result-hero {
+      padding: 20px;
+      border-radius: 14px;
+      background:
+        linear-gradient(
+          135deg,
+          rgba(35, 75, 58, 0.98),
+          rgba(63, 100, 76, 0.95)
+        );
+      color: white;
+    }
+
+    .result-hero small {
+      opacity: 0.62;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .result-hero h3 {
+      margin: 13px 0 8px;
+      font-family: Georgia, serif;
+      font-size: 26px;
+      font-weight: 400;
+    }
+
+    .result-hero p {
+      margin: 0;
+      color: rgba(255,255,255,0.72);
+      line-height: 1.55;
+    }
+
+    .result-section {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: var(--surface-soft);
+    }
+
+    .result-section strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .result-section p,
+    .result-section li {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+    }
+
+    .knowledge-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .knowledge-card {
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .knowledge-type {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .knowledge-card h3 {
+      margin: 14px 0 10px;
+      font-family: Georgia, serif;
+      font-size: 21px;
+      font-weight: 400;
+    }
+
+    .knowledge-card p {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+    }
+
+    .knowledge-footer {
+      margin-top: 20px;
+      padding-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--ink-muted);
+    }
+
+    .empty-state {
+      padding: 70px 30px;
+      text-align: center;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius);
+      color: var(--ink-muted);
+    }
+
+    .empty-state h3 {
+      margin: 0 0 10px;
+      font-family: Georgia, serif;
+      font-size: 26px;
+      font-weight: 400;
+      color: var(--ink-soft);
+    }
+
+    @media (max-width: 1180px) {
+      .metric-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .intelligence-grid,
+      .knowledge-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .section-grid,
+      .workspace-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .login-screen {
+        grid-template-columns: 1fr;
+      }
+
+      .login-visual {
+        min-height: 520px;
+      }
+
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        display: block;
+        padding: 14px;
+      }
+
+      .sidebar-brand,
+      .nav-group-label,
+      .sidebar-bottom {
+        display: none;
+      }
+
+      .sidebar nav {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+      }
+
+      .nav-item {
+        min-width: max-content;
+        width: auto;
+      }
+
+      .main-area {
+        padding: 0 20px 40px;
+      }
+
+      .topbar {
+        top: 0;
+      }
+
+      .mission-row {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row,
+      .intelligence-grid,
+      .knowledge-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .login-panel,
+      .login-visual {
+        padding: 28px;
+      }
+
+      .login-card {
+        padding: 28px;
+      }
+
+      .login-principles {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        padding: 14px 0;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGIN -->
+
+  <section id="loginScreen" class="login-screen">
+    <div class="login-visual">
+      <div class="brand-mark">
+        <div class="brand-symbol">S</div>
+
+        <div>
+          <div class="brand-name">SRIS</div>
+          <div class="brand-subtitle">Enterprise Intelligence System</div>
+        </div>
+      </div>
+
+      <div class="login-statement">
+        <div class="eyebrow">Mission Intelligence Center</div>
+
+        <h1>Compreender antes de decidir.</h1>
+
+        <p>
+          Uma infraestrutura para preservar contexto, testar pressupostos,
+          estruturar evidência e melhorar a qualidade das decisões ao longo
+          do tempo.
+        </p>
+      </div>
+
+      <div class="login-principles">
+        <div class="principle">
+          <strong>Compreender</strong>
+          <span>Reconstruir o contexto antes de agir.</span>
+        </div>
+
+        <div class="principle">
+          <strong>Decidir</strong>
+          <span>Separar evidência, pressupostos e incerteza.</span>
+        </div>
+
+        <div class="principle">
+          <strong>Aprender</strong>
+          <span>Preservar o que mudou e porquê.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-panel">
+      <div class="login-card">
+        <div class="eyebrow">Acesso institucional</div>
+
+        <h2>Entrar no SRIS</h2>
+
+        <p>
+          Aceda ao ambiente Enterprise para acompanhar missões,
+          decisões, conhecimento e aprendizagem institucional.
+        </p>
+
+        <form id="loginForm">
+          <div class="field">
+            <label for="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              autocomplete="username"
+              placeholder="nome@organizacao.pt"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="password">Palavra-passe</label>
+            <input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Introduza a sua palavra-passe"
+              required
+            />
+          </div>
+
+          <button class="primary-button" type="submit">
+            Entrar no Mission Intelligence Center
+          </button>
+        </form>
+
+        <button id="demoButton" class="demo-button" type="button">
+          Abrir demonstração de apresentação
+        </button>
+
+        <div id="loginFeedback" class="login-feedback"></div>
+
+        <div class="login-footnote">
+          Ambiente Enterprise Pilot. Autenticação, segregação por organização,
+          controlo de acesso e auditoria institucional.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- APPLICATION -->
+
+  <section id="appScreen" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo">S</div>
+
+        <div>
+          <strong>SRIS</strong>
+          <span>Mission Intelligence</span>
+        </div>
+      </div>
+
+      <nav>
+        <div class="nav-group-label">Centro de comando</div>
+
+        <button class="nav-item active" data-page="overview">
+          <span class="nav-icon">◫</span>
+          <span>Situação</span>
+        </button>
+
+        <button class="nav-item" data-page="missions">
+          <span class="nav-icon">◎</span>
+          <span>Missões</span>
+        </button>
+
+        <button class="nav-item" data-page="workspace">
+          <span class="nav-icon">◇</span>
+          <span>Nova análise</span>
+        </button>
+
+        <div class="nav-group-label">Inteligência</div>
+
+        <button class="nav-item" data-page="knowledge">
+          <span class="nav-icon">▦</span>
+          <span>Conhecimento</span>
+        </button>
+
+        <button class="nav-item" data-page="evidence">
+          <span class="nav-icon">◌</span>
+          <span>Evidência</span>
+        </button>
+
+        <button class="nav-item" data-page="learning">
+          <span class="nav-icon">↗</span>
+          <span>Aprendizagem</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="system-status">
+          <div class="system-status-top">
+            <span>
+              <span class="status-dot"></span>
+              Sistema operacional
+            </span>
+
+            <strong>v0.1</strong>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-context">
+          <strong id="topbarTitle">SRIS Enterprise</strong>
+          <span id="topbarSubtitle">
+            Organização: Demonstração Institucional
+          </span>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="newAnalysisButton" class="secondary-button">
+            Nova análise
+          </button>
+
+          <div class="user-chip">
+            <div class="avatar">GS</div>
+
+            <div>
+              <strong id="userName">Gonçalo Saldanha</strong>
+            </div>
+          </div>
+
+          <button id="logoutButton" class="secondary-button">
+            Sair
+          </button>
+        </div>
+      </header>
+
+      <!-- OVERVIEW -->
+
+      <section id="page-overview" class="page active">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Situação institucional</div>
+
+            <h1>O que exige atenção antes da próxima decisão?</h1>
+
+            <p>
+              O SRIS reconstrói a situação atual a partir de missões,
+              evidência, decisões anteriores e pressupostos ainda não
+              confirmados.
+            </p>
+          </div>
+
+          <div class="hero-actions">
+            <button class="secondary-button" data-go="missions">
+              Ver missões
+            </button>
+
+            <button class="primary-button" data-go="workspace">
+              Iniciar análise
+            </button>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <div class="metric-label">Missões ativas</div>
+            <div class="metric-value">4</div>
+            <div class="metric-note">Duas exigem atenção prioritária.</div>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-label">Decisões registadas</div>
+            <div class="metric-value">18</div>
+            <div class="metric-note">Cinco decisões em revisão.</div>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-label">Pressupostos abertos</div>
+            <div class="metric-value">11</div>
+            <div class="metric-note">Três sem evidência suficiente.</div>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-label">Aprendizagens preservadas</div>
+            <div class="metric-value">27</div>
+            <div class="metric-note">Conhecimento reutilizável pela organização.</div>
+          </article>
+        </div>
+
+        <div class="section-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Missões em curso</h2>
+                <p>Estado reconstruído pelo SRIS.</p>
+              </div>
+
+              <button class="text-button" data-go="missions">
+                Ver todas
+              </button>
+            </div>
+
+            <div class="mission-list">
+              <div class="mission-row">
+                <div>
+                  <div class="mission-title">
+                    Construção do SRIS Enterprise
+                  </div>
+                  <div class="mission-meta">
+                    M-001 · Plataforma institucional
+                  </div>
+                </div>
+
+                <div>
+                  <span class="status-badge status-attention">
+                    Requer atenção
+                  </span>
+                </div>
+
+                <div>
+                  <strong class="trend-improving">↗ A melhorar</strong>
+                </div>
+
+                <div class="row-arrow">›</div>
+              </div>
+
+              <div class="mission-row">
+                <div>
+                  <div class="mission-title">
+                    Laboratório territorial vivo
+                  </div>
+                  <div class="mission-meta">
+                    M-002 · CFE Universidade de Coimbra
+                  </div>
+                </div>
+
+                <div>
+                  <span class="status-badge status-stable">
+                    Estável
+                  </span>
+                </div>
+
+                <div>
+                  <strong class="trend-stable">→ Estável</strong>
+                </div>
+
+                <div class="row-arrow">›</div>
+              </div>
+
+              <div class="mission-row">
+                <div>
+                  <div class="mission-title">
+                    Candidatura Prémio Crédito Agrícola
+                  </div>
+                  <div class="mission-meta">
+                    M-003 · Inovação e impacto territorial
+                  </div>
+                </div>
+
+                <div>
+                  <span class="status-badge status-attention">
+                    Requer atenção
+                  </span>
+                </div>
+
+                <div>
+                  <strong class="trend-improving">↗ A melhorar</strong>
+                </div>
+
+                <div class="row-arrow">›</div>
+              </div>
+
+              <div class="mission-row">
+                <div>
+                  <div class="mission-title">
+                    Sanctuary of Being
+                  </div>
+                  <div class="mission-meta">
+                    M-004 · Infraestrutura territorial
+                  </div>
+                </div>
+
+                <div>
+                  <span class="status-badge status-stable">
+                    Estável
+                  </span>
+                </div>
+
+                <div>
+                  <strong class="trend-stable">→ Estável</strong>
+                </div>
+
+                <div class="row-arrow">›</div>
+              </div>
+            </div>
+          </section>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>O que merece atenção</h3>
+                <p>Sinais prioritários identificados.</p>
+              </div>
+            </div>
+
+            <div class="attention-list">
+              <div class="attention-item">
+                <strong>
+                  A experiência visual ainda não traduz a profundidade do sistema.
+                </strong>
+
+                <p>
+                  O backend está operacional, mas a perceção externa continua
+                  dependente da qualidade da interface.
+                </p>
+
+                <div class="attention-level">Prioridade elevada</div>
+              </div>
+
+              <div class="attention-item">
+                <strong>
+                  Os constructos científicos exigem leitura crítica externa.
+                </strong>
+
+                <p>
+                  É necessário distinguir aquilo que o sistema observa,
+                  organiza e permite inferir.
+                </p>
+
+                <div class="attention-level">Validação necessária</div>
+              </div>
+
+              <div class="attention-item">
+                <strong>
+                  A demonstração deve seguir um percurso único.
+                </strong>
+
+                <p>
+                  Problema, missão, evidência, decisão, aprendizagem e
+                  valor institucional.
+                </p>
+
+                <div class="attention-level">Preparação da apresentação</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="page-section-title">
+          <h2>O que o SRIS torna possível</h2>
+          <p>
+            Uma camada institucional entre informação dispersa e decisão responsável.
+          </p>
+        </div>
+
+        <div class="intelligence-grid">
+          <article class="intelligence-card">
+            <div class="card-index">01</div>
+            <h3>Reconstrução</h3>
+            <p>
+              Reconstitui o estado atual de uma missão com base em decisões,
+              evidência, acontecimentos e alterações relevantes.
+            </p>
+          </article>
+
+          <article class="intelligence-card">
+            <div class="card-index">02</div>
+            <h3>Preservação</h3>
+            <p>
+              Impede que a organização perca o contexto, os pressupostos
+              e a fundamentação que antecederam uma decisão.
+            </p>
+          </article>
+
+          <article class="intelligence-card">
+            <div class="card-index">03</div>
+            <h3>Aprendizagem</h3>
+            <p>
+              Compara expectativas com resultados e transforma experiência
+              operacional em conhecimento reutilizável.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- MISSIONS -->
+
+      <section id="page-missions" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Portefólio de missões</div>
+            <h1>Missões acompanhadas pelo sistema.</h1>
+            <p>
+              Cada missão preserva contexto, atores, decisões, evidência,
+              pressupostos, mudanças e aprendizagem.
+            </p>
+          </div>
+
+          <div class="hero-actions">
+            <button class="primary-button" data-go="workspace">
+              Criar nova missão
+            </button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Missões</h2>
+              <p>Estado, tendência e confiança de decisão.</p>
+            </div>
+          </div>
+
+          <div class="mission-list">
+            <div class="mission-row">
+              <div>
+                <div class="mission-title">
+                  Construção do SRIS Enterprise
+                </div>
+                <div class="mission-meta">
+                  Interface, infraestrutura, demonstração e mercado.
+                </div>
+              </div>
+
+              <div>
+                <span class="status-badge status-attention">
+                  Requer atenção
+                </span>
+              </div>
+
+              <div>
+                <strong class="trend-improving">
+                  Confiança moderada
+                </strong>
+              </div>
+
+              <div class="row-arrow">›</div>
+            </div>
+
+            <div class="mission-row">
+              <div>
+                <div class="mission-title">
+                  Laboratório territorial vivo
+                </div>
+                <div class="mission-meta">
+                  Proposta de colaboração científica e territorial.
+                </div>
+              </div>
+
+              <div>
+                <span class="status-badge status-stable">
+                  Estável
+                </span>
+              </div>
+
+              <div>
+                <strong class="trend-stable">
+                  Confiança moderada
+                </strong>
+              </div>
+
+              <div class="row-arrow">›</div>
+            </div>
+
+            <div class="mission-row">
+              <div>
+                <div class="mission-title">
+                  Candidatura Prémio Crédito Agrícola
+                </div>
+                <div class="mission-meta">
+                  Inovação, sustentabilidade e impacto no território.
+                </div>
+              </div>
+
+              <div>
+                <span class="status-badge status-attention">
+                  Requer atenção
+                </span>
+              </div>
+
+              <div>
+                <strong class="trend-improving">
+                  Confiança elevada
+                </strong>
+              </div>
+
+              <div class="row-arrow">›</div>
+            </div>
+
+            <div class="mission-row">
+              <div>
+                <div class="mission-title">
+                  Sanctuary of Being
+                </div>
+                <div class="mission-meta">
+                  Infraestrutura territorial de equilíbrio humano.
+                </div>
+              </div>
+
+              <div>
+                <span class="status-badge status-stable">
+                  Estável
+                </span>
+              </div>
+
+              <div>
+                <strong class="trend-stable">
+                  Confiança moderada
+                </strong>
+              </div>
+
+              <div class="row-arrow">›</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WORKSPACE -->
+
+      <section id="page-workspace" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Nova análise</div>
+            <h1>Estruturar antes de processar.</h1>
+            <p>
+              Registe a situação, a decisão em causa, a evidência disponível
+              e aquilo que ainda não é conhecido.
+            </p>
+          </div>
+        </div>
+
+        <div class="workspace-layout">
+          <section class="panel form-panel">
+            <form id="analysisForm">
+              <div class="form-row">
+                <div class="field">
+                  <label for="analysisTitle">Título da análise</label>
+                  <input
+                    id="analysisTitle"
+                    value="Preparação da apresentação institucional do SRIS"
+                    required
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="analysisMission">Missão associada</label>
+                  <select id="analysisMission">
+                    <option>Construção do SRIS Enterprise</option>
+                    <option>Laboratório territorial vivo</option>
+                    <option>Prémio Crédito Agrícola</option>
+                    <option>Sanctuary of Being</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="analysisContext">Contexto atual</label>
+                <textarea id="analysisContext" required>O backend do SRIS está operacional no Railway. A interface atual demonstra a ligação técnica, mas ainda não comunica de forma suficientemente clara o valor institucional, científico e comercial do sistema.</textarea>
+              </div>
+
+              <div class="field">
+                <label for="analysisDecision">Decisão ou questão central</label>
+                <textarea id="analysisDecision" required>Que experiência deve ser apresentada ao CFE da Universidade de Coimbra e ao júri do Prémio Crédito Agrícola para demonstrar o valor do SRIS sem sobrecarregar a apresentação com complexidade técnica?</textarea>
+              </div>
+
+              <div class="form-row">
+                <div class="field">
+                  <label for="analysisEvidence">Evidência disponível</label>
+                  <textarea id="analysisEvidence">Backend funcional, autenticação, organizações, missões, workflows, base de conhecimento, auditoria e deployment ativo.</textarea>
+                </div>
+
+                <div class="field">
+                  <label for="analysisUnknowns">O que ainda não sabemos</label>
+                  <textarea id="analysisUnknowns">Quais os constructos científicos mais defensáveis e qual o percurso de demonstração que melhor traduz o valor do sistema.</textarea>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="secondary-button">
+                  Guardar rascunho
+                </button>
+
+                <button type="submit" class="primary-button">
+                  Processar análise
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="panel process-output">
+            <div id="outputPlaceholder" class="output-placeholder">
+              <div>
+                <strong>Resultado ainda não produzido</strong>
+                <span>
+                  O SRIS apresentará situação, riscos, pressupostos,
+                  alternativas e recomendação.
+                </span>
+              </div>
+            </div>
+
+            <div id="resultBlock" class="result-block">
+              <div class="result-hero">
+                <small>Resultado reconstruído</small>
+                <h3>Concentrar a demonstração numa missão única.</h3>
+                <p>
+                  A apresentação deve mostrar como o sistema transforma uma
+                  situação complexa num percurso inteligível de decisão.
+                </p>
+              </div>
+
+              <div class="result-section">
+                <strong>Situação</strong>
+                <p>
+                  A infraestrutura técnica já é suficiente para suportar uma
+                  demonstração. A limitação principal encontra-se na experiência
+                  de utilização e na clareza narrativa.
+                </p>
+              </div>
+
+              <div class="result-section">
+                <strong>Risco principal</strong>
+                <p>
+                  Demonstrar demasiadas funcionalidades e obrigar o público
+                  a compreender a arquitetura antes de compreender o valor.
+                </p>
+              </div>
+
+              <div class="result-section">
+                <strong>Pressupostos a testar</strong>
+                <ul>
+                  <li>O utilizador compreende imediatamente o conceito de missão.</li>
+                  <li>Estado, tendência e confiança são interpretados corretamente.</li>
+                  <li>A linguagem institucional não parece excessivamente abstrata.</li>
+                </ul>
+              </div>
+
+              <div class="result-section">
+                <strong>Recomendação</strong>
+                <p>
+                  Utilizar uma missão real, apresentar a situação inicial,
+                  introduzir nova evidência, mostrar a alteração na leitura
+                  do sistema e concluir com a aprendizagem preservada.
+                </p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- KNOWLEDGE -->
+
+      <section id="page-knowledge" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Conhecimento institucional</div>
+            <h1>O que a organização já sabe.</h1>
+            <p>
+              Evidência, decisões, hipóteses, princípios e aprendizagens
+              preservadas em contexto.
+            </p>
+          </div>
+        </div>
+
+        <div class="knowledge-grid">
+          <article class="knowledge-card">
+            <div class="knowledge-type">Princípio operacional</div>
+            <h3>Compreender antes de decidir</h3>
+            <p>
+              Nenhuma recomendação deve ocultar a diferença entre evidência,
+              pressuposto, inferência e incerteza.
+            </p>
+            <div class="knowledge-footer">
+              <span>Validado</span>
+              <span>SRIS Constitution</span>
+            </div>
+          </article>
+
+          <article class="knowledge-card">
+            <div class="knowledge-type">Aprendizagem</div>
+            <h3>A interface determina a primeira leitura do sistema</h3>
+            <p>
+              Uma arquitetura robusta não produz confiança externa se o valor
+              não for percetível nos primeiros minutos de utilização.
+            </p>
+            <div class="knowledge-footer">
+              <span>Preservado</span>
+              <span>M-001</span>
+            </div>
+          </article>
+
+          <article class="knowledge-card">
+            <div class="knowledge-type">Hipótese</div>
+            <h3>Preservar contexto melhora a qualidade da decisão</h3>
+            <p>
+              A hipótese exige validação empírica e delimitação dos constructos
+              que podem ser legitimamente observados.
+            </p>
+            <div class="knowledge-footer">
+              <span>Em investigação</span>
+              <span>Mission Intelligence Lab</span>
+            </div>
+          </article>
+
+          <article class="knowledge-card">
+            <div class="knowledge-type">Decisão</div>
+            <h3>Interromper temporariamente a expansão do backend</h3>
+            <p>
+              Priorizar UX, clareza narrativa, demonstração institucional
+              e prontidão de apresentação.
+            </p>
+            <div class="knowledge-footer">
+              <span>Ativa</span>
+              <span>03.08.2026</span>
+            </div>
+          </article>
+
+          <article class="knowledge-card">
+            <div class="knowledge-type">Evidência técnica</div>
+            <h3>Deployment operacional no Railway</h3>
+            <p>
+              Aplicação FastAPI, PostgreSQL, migrações Alembic, healthcheck,
+              autenticação e frontend servido na raiz.
+            </p>
+            <div class="knowledge-footer">
+              <span>Confirmado</span>
+              <span>Produção</span>
+            </div>
+          </article>
+
+          <article class="knowledge-card">
+            <div class="knowledge-type">Questão aberta</div>
+            <h3>O que é legítimo inferir a partir dos dados?</h3>
+            <p>
+              A definição de constructos, limites interpretativos e níveis
+              de confiança permanece como questão científica central.
+            </p>
+            <div class="knowledge-footer">
+              <span>Em aberto</span>
+              <span>CFE UC</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- EVIDENCE -->
+
+      <section id="page-evidence" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Evidência</div>
+            <h1>O que sustenta cada leitura.</h1>
+            <p>
+              O SRIS mantém rastreabilidade entre afirmações, fontes,
+              decisões e grau de confiança.
+            </p>
+          </div>
+        </div>
+
+        <div class="empty-state">
+          <h3>Centro de evidência em preparação</h3>
+          <p>
+            Esta área será ligada ao repositório, aos documentos,
+            aos indicadores e às fontes externas.
+          </p>
+        </div>
+      </section>
+
+      <!-- LEARNING -->
+
+      <section id="page-learning" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Aprendizagem institucional</div>
+            <h1>O que mudou depois da decisão.</h1>
+            <p>
+              Comparar expectativas, resultados e alterações de contexto
+              transforma execução em memória institucional.
+            </p>
+          </div>
+        </div>
+
+        <div class="empty-state">
+          <h3>Registo de aprendizagem</h3>
+          <p>
+            Esta área reunirá resultados observados, desvios,
+            pressupostos refutados e conhecimento reutilizável.
+          </p>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <script>
+    const loginScreen = document.getElementById("loginScreen");
+    const appScreen = document.getElementById("appScreen");
+    const loginForm = document.getElementById("loginForm");
+    const demoButton = document.getElementById("demoButton");
+    const loginFeedback = document.getElementById("loginFeedback");
+    const logoutButton = document.getElementById("logoutButton");
+    const newAnalysisButton = document.getElementById("newAnalysisButton");
+    const analysisForm = document.getElementById("analysisForm");
+    const outputPlaceholder = document.getElementById("outputPlaceholder");
+    const resultBlock = document.getElementById("resultBlock");
+
+    const navItems = document.querySelectorAll(".nav-item");
+    const pages = document.querySelectorAll(".page");
+    const goButtons = document.querySelectorAll("[data-go]");
+
+    function openApp(userName = "Gonçalo Saldanha") {
+      loginScreen.classList.add("hidden");
+      appScreen.classList.remove("hidden");
+      document.getElementById("userName").textContent = userName;
+      showPage("overview");
+    }
+
+    function showPage(pageName) {
+      pages.forEach((page) => {
+        page.classList.toggle(
+          "active",
+          page.id === `page-${pageName}`
+        );
+      });
+
+      navItems.forEach((item) => {
+        item.classList.toggle(
+          "active",
+          item.dataset.page === pageName
+        );
+      });
+
+      const labels = {
+        overview: [
+          "SRIS Enterprise",
+          "Situação institucional reconstruída"
+        ],
+        missions: [
+          "Missões",
+          "Portefólio acompanhado pelo SRIS"
+        ],
+        workspace: [
+          "Nova análise",
+          "Estruturação de contexto e decisão"
+        ],
+        knowledge: [
+          "Conhecimento",
+          "Memória institucional preservada"
+        ],
+        evidence: [
+          "Evidência",
+          "Rastreabilidade e suporte"
+        ],
+        learning: [
+          "Aprendizagem",
+          "Resultados, desvios e revisão"
+        ]
+      };
+
+      const current = labels[pageName] || labels.overview;
+
+      document.getElementById("topbarTitle").textContent = current[0];
+      document.getElementById("topbarSubtitle").textContent = current[1];
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    }
+
+    navItems.forEach((item) => {
+      item.addEventListener("click", () => {
+        showPage(item.dataset.page);
+      });
+    });
+
+    goButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        showPage(button.dataset.go);
+      });
+    });
+
+    newAnalysisButton.addEventListener("click", () => {
+      showPage("workspace");
+    });
+
+    demoButton.addEventListener("click", () => {
+      sessionStorage.setItem("sris_demo", "true");
+      openApp();
+    });
+
+    logoutButton.addEventListener("click", () => {
+      sessionStorage.removeItem("sris_demo");
+      sessionStorage.removeItem("sris_token");
+      appScreen.classList.add("hidden");
+      loginScreen.classList.remove("hidden");
+      loginFeedback.textContent = "";
+    });
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      loginFeedback.textContent = "A autenticar...";
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email,
+            password
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.detail ||
+            "Não foi possível autenticar o utilizador."
+          );
+        }
+
+        sessionStorage.setItem(
+          "sris_token",
+          data.access_token || ""
+        );
+
+        loginFeedback.textContent = "";
+
+        openApp(email.split("@")[0]);
+      } catch (error) {
+        loginFeedback.textContent =
+          error.message ||
+          "Erro de autenticação.";
+      }
+    });
+
+    analysisForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      outputPlaceholder.classList.add("hidden");
+      resultBlock.classList.add("visible");
+
+      resultBlock.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+
+    if (
+      sessionStorage.getItem("sris_demo") === "true" ||
+      sessionStorage.getItem("sris_token")
+    ) {
+      openApp();
+    }
+  </script>
+</body>
+</html>
