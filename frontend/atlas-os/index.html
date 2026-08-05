@@ -1066,7 +1066,95 @@
       font-weight: 400;
       color: var(--ink-soft);
     }
+.decision-chain {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+  margin-bottom: 28px;
+}
 
+.chain-card {
+  position: relative;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(30, 49, 39, 0.05);
+}
+
+.chain-number {
+  margin-bottom: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.chain-label {
+  margin-bottom: 6px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 21px;
+  color: var(--ink);
+}
+
+.chain-value {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--forest);
+}
+
+.chain-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.chain-arrow {
+  display: none;
+}
+
+.chain-card.attention {
+  border-top: 3px solid var(--warning);
+}
+
+.chain-card.open {
+  border-top: 3px solid var(--gold);
+}
+
+.chain-card.unavailable {
+  opacity: 0.72;
+  background: var(--surface-soft);
+}
+
+.chain-card.learning {
+  grid-column: span 2;
+  border-top: 3px solid var(--forest-3);
+  background: rgba(72, 116, 92, 0.08);
+}
+
+@media (max-width: 1180px) {
+  .decision-chain {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chain-card.learning {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .decision-chain {
+    grid-template-columns: 1fr;
+  }
+
+  .chain-card.learning {
+    grid-column: span 1;
+  }
+}
     @media (max-width: 1180px) {
       .metric-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -1387,32 +1475,87 @@ decisões e aprendizagem verificável ao longo do tempo.
           </div>
         </div>
 
-        <div class="metric-grid">
-          <article class="metric-card">
-            <div class="metric-label">Missões ativas</div>
-            <div class="metric-value">1</div>
-            <div class="metric-note">Missão piloto documentada.</div>
-          </article>
+        <div class="decision-chain">
+  <article class="chain-card completed">
+    <div class="chain-number">01</div>
+    <div class="chain-label">Observação</div>
+    <div class="chain-value">3 registos</div>
+    <div class="chain-note">Factos observados com método e limitação declarados.</div>
+  </article>
 
-          <article class="metric-card">
-            <div class="metric-label">Observações registadas</div>
-<div class="metric-value">3</div>
-<div class="metric-note">Com método e limitações declaradas.</div>
-          </article>
+  <div class="chain-arrow">→</div>
 
-          <article class="metric-card">
-           <div class="metric-label">Pressupostos por verificar</div>
-<div class="metric-value">2</div>
-<div class="metric-note">Ainda não sustentados por evidência local.</div> 
-          </article>
+  <article class="chain-card pending">
+    <div class="chain-number">02</div>
+    <div class="chain-label">Evidência</div>
+    <div class="chain-value">Em construção</div>
+    <div class="chain-note">Registos fotográficos e fontes ainda por consolidar.</div>
+  </article>
 
-          <article class="metric-card">
-            <div class="metric-label">Alternativas em avaliação</div>
-<div class="metric-value">3</div>
-<div class="metric-note">Nenhuma alternativa foi selecionada.</div>
-          </article>
-        </div>
+  <div class="chain-arrow">→</div>
 
+  <article class="chain-card active">
+    <div class="chain-number">03</div>
+    <div class="chain-label">Alternativas</div>
+    <div class="chain-value">3 em avaliação</div>
+    <div class="chain-note">Nenhuma alternativa foi selecionada.</div>
+  </article>
+
+  <div class="chain-arrow">→</div>
+
+  <article class="chain-card attention">
+    <div class="chain-number">04</div>
+    <div class="chain-label">Pressupostos</div>
+    <div class="chain-value">2 por verificar</div>
+    <div class="chain-note">Ainda não sustentados por evidência local.</div>
+  </article>
+
+  <div class="chain-arrow">→</div>
+
+  <article class="chain-card attention">
+    <div class="chain-number">05</div>
+    <div class="chain-label">Restrições</div>
+    <div class="chain-value">2 não avaliadas</div>
+    <div class="chain-note">Licenciamento e autorização do titular.</div>
+  </article>
+
+  <div class="chain-arrow">→</div>
+
+  <article class="chain-card open">
+    <div class="chain-number">06</div>
+    <div class="chain-label">Decisão</div>
+    <div class="chain-value">Em aberto</div>
+    <div class="chain-note">Nenhuma opção foi escolhida.</div>
+  </article>
+
+  <div class="chain-arrow">→</div>
+
+  <article class="chain-card unavailable">
+    <div class="chain-number">07</div>
+    <div class="chain-label">Execução</div>
+    <div class="chain-value">Não iniciada</div>
+    <div class="chain-note">Não existe intervenção executada.</div>
+  </article>
+
+  <div class="chain-arrow">→</div>
+
+  <article class="chain-card unavailable">
+    <div class="chain-number">08</div>
+    <div class="chain-label">Resultado</div>
+    <div class="chain-value">Não existe</div>
+    <div class="chain-note">Nenhum resultado foi observado ou atribuído.</div>
+  </article>
+
+  <div class="chain-arrow chain-arrow-learning">↘</div>
+
+  <article class="chain-card learning">
+    <div class="chain-number">LRN-0001</div>
+    <div class="chain-label">Aprendizagem</div>
+    <div class="chain-value">Linha de base necessária</div>
+    <div class="chain-note">A instrumentação tem de preceder a decisão.</div>
+  </article>
+</div>
+            
         <div class="section-grid">
           <section class="panel">
             <div class="panel-header">
