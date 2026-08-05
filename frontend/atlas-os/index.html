@@ -1135,7 +1135,170 @@
   border-top: 3px solid var(--forest-3);
   background: rgba(72, 116, 92, 0.08);
 }
+.mission-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 
+.mission-row:hover {
+  background: rgba(72, 116, 92, 0.06);
+}
+
+.mission-row:focus-visible {
+  outline: 2px solid var(--forest-3);
+  outline-offset: -2px;
+}
+
+.mission-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  grid-template-columns: 1fr minmax(560px, 820px);
+}
+
+.mission-modal.hidden {
+  display: none;
+}
+
+.mission-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 30, 23, 0.42);
+  backdrop-filter: blur(4px);
+}
+
+.mission-modal-panel {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 34px;
+  background: var(--bg);
+  box-shadow: -24px 0 70px rgba(16, 30, 23, 0.18);
+}
+
+.mission-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mission-modal-header h2 {
+  margin: 8px 0 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 0.98;
+  color: var(--ink);
+}
+
+.mission-modal-header p {
+  max-width: 640px;
+  margin: 0;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.mission-modal-close {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 26px;
+  color: var(--ink);
+}
+
+.mission-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px 0;
+}
+
+.mission-modal-content {
+  display: grid;
+  gap: 16px;
+}
+
+.mission-detail-card {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.mission-detail-card h3 {
+  margin: 0 0 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  color: var(--ink);
+}
+
+.mission-detail-card p,
+.mission-detail-card li {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.mission-detail-card ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.mission-detail-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mission-detail-status article {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-soft);
+}
+
+.mission-detail-status span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.mission-detail-status strong {
+  font-size: 14px;
+  color: var(--forest);
+}
+
+@media (max-width: 900px) {
+  .mission-modal {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-modal-panel {
+    grid-column: 1;
+    padding: 22px;
+  }
+
+  .mission-detail-status {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 1180px) {
   .decision-chain {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1356,7 +1519,67 @@
       </div>
     </div>
   </section>
+<div id="missionModal" class="mission-modal hidden" aria-hidden="true">
+  <div class="mission-modal-backdrop" data-close-mission></div>
 
+  <section
+    class="mission-modal-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="missionModalTitle"
+  >
+    <header class="mission-modal-header">
+      <div>
+        <div id="missionModalEyebrow" class="eyebrow">
+          Missão
+        </div>
+
+        <h2 id="missionModalTitle">
+          Missão
+        </h2>
+
+        <p id="missionModalSubtitle"></p>
+      </div>
+
+      <button
+        class="mission-modal-close"
+        type="button"
+        aria-label="Fechar"
+        data-close-mission
+      >
+        ×
+      </button>
+    </header>
+
+    <div class="mission-modal-actions">
+      <button
+        id="missionPrintButton"
+        class="secondary-button"
+        type="button"
+      >
+        Imprimir
+      </button>
+
+      <button
+        id="missionExportButton"
+        class="secondary-button"
+        type="button"
+      >
+        Exportar JSON
+      </button>
+
+      <button
+        id="missionReportButton"
+        class="primary-button"
+        type="button"
+      >
+        Gerar relatório
+      </button>
+    </div>
+
+    <div id="missionModalContent" class="mission-modal-content"></div>
+  </section>
+</div>
   <!-- APPLICATION -->
 
   <section id="appScreen" class="app-shell hidden">
@@ -1570,8 +1793,66 @@ decisões e aprendizagem verificável ao longo do tempo.
             </div>
 
             <div class="mission-list">
-              <div class="mission-row">
-                <div>
+  <button
+    class="mission-row mission-open"
+    type="button"
+    data-mission-id="M-001"
+  >
+    <div>
+      <div class="mission-title">
+        Cinco hectares, e uma decisão por tomar
+      </div>
+
+      <div class="mission-meta">
+        M-001 · Podentes, Penela, Coimbra · Aproximadamente 5 ha
+      </div>
+    </div>
+
+    <div>
+      <span class="status-badge status-attention">
+        Em avaliação
+      </span>
+    </div>
+
+    <div>
+      <strong class="trend-improving">
+        Decisão em aberto
+      </strong>
+    </div>
+
+    <div class="row-arrow">›</div>
+  </button>
+
+  <button
+    class="mission-row mission-open"
+    type="button"
+    data-mission-id="M-002"
+  >
+    <div>
+      <div class="mission-title">
+        Recuperação da Nascente de Dragos
+      </div>
+
+      <div class="mission-meta">
+        M-002 · Podentes, Penela · Caso candidato
+      </div>
+    </div>
+
+    <div>
+      <span class="status-badge status-stable">
+        Identificada
+      </span>
+    </div>
+
+    <div>
+      <strong class="trend-stable">
+        Autorizações por solicitar
+      </strong>
+    </div>
+
+    <div class="row-arrow">›</div>
+  </button>
+</div>
                  <div class="mission-title">
   Cinco hectares, e uma decisão por tomar
 </div> 
@@ -2326,6 +2607,245 @@ decisões e aprendizagem verificável ao longo do tempo.
     ) {
       openApp();
     }
+    const missionRecords = {
+  "M-001": {
+    id: "M-001",
+    title: "Cinco hectares, e uma decisão por tomar",
+    subtitle:
+      "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução e sem resultado.",
+    status: "Em avaliação",
+    confidence: "Moderada",
+    decision: "Em aberto",
+    content: `
+      <div class="mission-detail-status">
+        <article>
+          <span>Estado</span>
+          <strong>Em avaliação</strong>
+        </article>
+
+        <article>
+          <span>Confiança</span>
+          <strong>Moderada</strong>
+        </article>
+
+        <article>
+          <span>Decisão</span>
+          <strong>Em aberto</strong>
+        </article>
+      </div>
+
+      <article class="mission-detail-card">
+        <h3>Observações</h3>
+        <ul>
+          <li>OBS-0001 · Parcela de aproximadamente 5 ha.</li>
+          <li>OBS-0002 · Presença de água observada em abril de 2026.</li>
+          <li>OBS-0003 · Vegetação espontânea com estrato arbustivo desenvolvido.</li>
+        </ul>
+      </article>
+
+      <article class="mission-detail-card">
+        <h3>O que ainda não se sabe</h3>
+        <ul>
+          <li>ASS-0001 · Regime hídrico histórico da linha de água.</li>
+          <li>ASS-0002 · Relação local entre densidade do povoamento e regime hídrico.</li>
+          <li>RST-0001 · Prazo e enquadramento do licenciamento.</li>
+          <li>RST-0002 · Autorização do titular da parcela.</li>
+        </ul>
+      </article>
+
+      <article class="mission-detail-card">
+        <h3>Alternativas</h3>
+        <ul>
+          <li>ALT-0001 · Conversão faseada do povoamento em mosaico.</li>
+          <li>ALT-0002 · Corte com rearborização por quercíneas.</li>
+          <li>ALT-0003 · Não intervenção, com instalação de monitorização.</li>
+        </ul>
+      </article>
+
+      <article class="mission-detail-card">
+        <h3>Aprendizagem preservada</h3>
+        <p>
+          LRN-0001 · A instrumentação tem de preceder a decisão.
+          Sem linha de base, nenhum resultado futuro poderá ser
+          atribuído com rigor à intervenção.
+        </p>
+      </article>
+    `
+  },
+
+  "M-002": {
+    id: "M-002",
+    title: "Recuperação da Nascente de Dragos",
+    subtitle:
+      "Podentes, Penela. Caso candidato para testar o SRIS fora do controlo direto do promotor.",
+    status: "Identificada",
+    confidence: "Baixa",
+    decision: "Não iniciada",
+    content: `
+      <div class="mission-detail-status">
+        <article>
+          <span>Estado</span>
+          <strong>Identificada</strong>
+        </article>
+
+        <article>
+          <span>Confiança</span>
+          <strong>Baixa</strong>
+        </article>
+
+        <article>
+          <span>Decisão</span>
+          <strong>Não iniciada</strong>
+        </article>
+      </div>
+
+      <article class="mission-detail-card">
+        <h3>Contexto conhecido</h3>
+        <p>
+          A Nascente de Dragos encontra-se em estado de abandono.
+          O local possui enquadramento patrimonial documentado,
+          associado à árula romana de Dragos.
+        </p>
+      </article>
+
+      <article class="mission-detail-card">
+        <h3>Restrições previsíveis</h3>
+        <ul>
+          <li>Autorização das entidades titulares.</li>
+          <li>Autorização das entidades patrimoniais competentes.</li>
+          <li>Condicionantes ambientais e territoriais.</li>
+          <li>Coordenação entre múltiplos decisores.</li>
+        </ul>
+      </article>
+
+      <article class="mission-detail-card">
+        <h3>Estado real</h3>
+        <p>
+          O caso está identificado como candidato. Não constitui
+          compromisso, projeto aprovado ou intervenção autorizada.
+          As autorizações necessárias ainda não foram solicitadas.
+        </p>
+      </article>
+
+      <article class="mission-detail-card">
+        <h3>Próximo passo legítimo</h3>
+        <p>
+          Confirmar titularidade, competências institucionais,
+          enquadramento patrimonial e condições mínimas para abertura
+          formal da missão.
+        </p>
+      </article>
+    `
+  }
+};
+
+const missionModal = document.getElementById("missionModal");
+const missionModalEyebrow = document.getElementById("missionModalEyebrow");
+const missionModalTitle = document.getElementById("missionModalTitle");
+const missionModalSubtitle = document.getElementById("missionModalSubtitle");
+const missionModalContent = document.getElementById("missionModalContent");
+
+let activeMission = null;
+
+function openMission(missionId) {
+  const mission = missionRecords[missionId];
+
+  if (!mission || !missionModal) {
+    return;
+  }
+
+  activeMission = mission;
+
+  missionModalEyebrow.textContent = `Missão ${mission.id}`;
+  missionModalTitle.textContent = mission.title;
+  missionModalSubtitle.textContent = mission.subtitle;
+  missionModalContent.innerHTML = mission.content;
+
+  missionModal.classList.remove("hidden");
+  missionModal.setAttribute("aria-hidden", "false");
+
+  document.body.style.overflow = "hidden";
+}
+
+function closeMission() {
+  if (!missionModal) {
+    return;
+  }
+
+  missionModal.classList.add("hidden");
+  missionModal.setAttribute("aria-hidden", "true");
+
+  document.body.style.overflow = "";
+}
+
+document.querySelectorAll(".mission-open").forEach((button) => {
+  button.addEventListener("click", () => {
+    openMission(button.dataset.missionId);
+  });
+});
+
+document.querySelectorAll("[data-close-mission]").forEach((button) => {
+  button.addEventListener("click", closeMission);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeMission();
+  }
+});
+
+document
+  .getElementById("missionPrintButton")
+  ?.addEventListener("click", () => {
+    window.print();
+  });
+
+document
+  .getElementById("missionExportButton")
+  ?.addEventListener("click", () => {
+    if (!activeMission) {
+      return;
+    }
+
+    const exportData = {
+      id: activeMission.id,
+      title: activeMission.title,
+      subtitle: activeMission.subtitle,
+      status: activeMission.status,
+      confidence: activeMission.confidence,
+      decision: activeMission.decision,
+      exportedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob(
+      [JSON.stringify(exportData, null, 2)],
+      { type: "application/json" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `${activeMission.id}-SRIS.json`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  });
+
+document
+  .getElementById("missionReportButton")
+  ?.addEventListener("click", () => {
+    if (!activeMission) {
+      return;
+    }
+
+    alert(
+      `Relatório da ${activeMission.id} preparado para geração.`
+    );
+  });
   </script>
 </body>
 </html>
