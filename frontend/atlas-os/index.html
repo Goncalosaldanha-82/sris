@@ -1461,6 +1461,92 @@
         flex-direction: column;
       }
     }
+    .recognition-section {
+  margin-top: 34px;
+}
+
+.recognition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.recognition-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(24, 34, 30, 0.10);
+  border-radius: 18px;
+  padding: 22px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.recognition-status {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: 0.65;
+}
+
+.recognition-card h3 {
+  margin: 18px 0 8px;
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.recognition-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  opacity: 0.72;
+}
+
+.recognition-seal-image {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+.recognition-image {
+  width: 100%;
+  height: 150px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px;
+}
+
+.recognition-image-forbes {
+  background: #f7f7f2;
+  border: 1px solid rgba(24, 34, 30, 0.08);
+}
+
+.recognition-image-forbes span {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+
+.recognition-image-forbes strong {
+  margin-top: 8px;
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+@media (max-width: 900px) {
+  .recognition-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recognition-card {
+    min-height: auto;
+  }
+}
   </style>
 </head>
 
@@ -2030,6 +2116,70 @@ decisões e aprendizagem verificável ao longo do tempo.
         </div>
       </section>
 
+<section class="recognition-section">
+  <div class="page-section-title">
+    <div class="eyebrow">Reconhecimento externo</div>
+    <h2>Um percurso já reconhecido pela inovação, sustentabilidade e tecnologia.</h2>
+    <p>
+      O projeto já integrou processos de seleção e reconhecimento nacionais
+      nas áreas da inovação, ESG e tecnologia aplicada.
+    </p>
+  </div>
+
+  <div class="recognition-grid">
+
+    <article class="recognition-card">
+      <div class="recognition-status">SHORT LIST</div>
+
+      <div class="recognition-image recognition-image-forbes">
+        <span>FORBES</span>
+        <strong>GREEN ESG<br>AWARDS 2026</strong>
+      </div>
+
+      <h3>Forbes Green ESG Awards 2026</h3>
+
+      <p>
+        Selecionado para a short list da edição de 2026.
+      </p>
+    </article>
+
+
+    <article class="recognition-card">
+      <div class="recognition-status">FINALISTA</div>
+
+      <img
+        src="assets/pni-finalista-2026.png"
+        alt="Finalista — Prémio Nacional de Inovação 2026"
+        class="recognition-seal-image"
+      />
+
+      <h3>Prémio Nacional de Inovação 2026</h3>
+
+      <p>
+        Finalista da 4.ª edição do Prémio Nacional de Inovação.
+      </p>
+    </article>
+
+
+    <article class="recognition-card">
+      <div class="recognition-status">NOMEADO · TECH</div>
+
+      <img
+        src="assets/lideres-turismo-tech.png"
+        alt="Nomeado — Prémios Líderes do Turismo — categoria TECH"
+        class="recognition-seal-image"
+      />
+
+      <h3>Prémios Líderes do Turismo</h3>
+
+      <p>
+        Nomeado na categoria TECH.
+      </p>
+    </article>
+
+  </div>
+</section>
+      
       <!-- MISSIONS -->
 
       <section id="page-missions" class="page">
