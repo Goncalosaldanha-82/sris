@@ -2059,6 +2059,35 @@ decisões e aprendizagem verificável ao longo do tempo.
           </div>
 
          <div class="mission-list">
+           <button
+  class="mission-row mission-open"
+  type="button"
+  data-mission-id="CA-AWARD-APPLICATION"
+>
+  <div>
+    <div class="mission-title">
+      Candidatura — Prémio Empreendedorismo e Inovação Crédito Agrícola
+    </div>
+
+    <div class="mission-meta">
+      CA-AWARD-APPLICATION · Candidatura concluída · Edição 2026
+    </div>
+  </div>
+
+  <div>
+    <span class="status-badge status-stable">
+      Concluída
+    </span>
+  </div>
+
+  <div>
+    <strong class="trend-improving">
+      Confiança elevada
+    </strong>
+  </div>
+
+  <div class="row-arrow">›</div>
+</button>
   <button
     class="mission-row mission-open"
     type="button"
@@ -3130,7 +3159,26 @@ function updateMissionListsFromPackage(mission) {
     }
   });
 }
+    
+function renderCanonicalMissionRecords() {
+  const canonicalMissionIds = [
+    "CA-AWARD-APPLICATION",
+    "M-001",
+    "M-002"
+  ];
 
+  canonicalMissionIds
+    .slice()
+    .reverse()
+    .forEach((missionId) => {
+      const mission = missionRecords[missionId];
+
+      if (mission) {
+        updateMissionListsFromPackage(mission);
+      }
+    });
+}
+    
 function updateAnalysisFormFromPackage(packageData) {
   const analysis = packageData.analysis;
 
@@ -3313,6 +3361,7 @@ if (importSrisPackageButton && importSrisPackageInput) {
   });
 }
 
+renderCanonicalMissionRecords();    
 restoreImportedSrisPackages();
   </script>
 </body>
