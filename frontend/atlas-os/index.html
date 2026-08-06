@@ -732,15 +732,56 @@
     }
 
     .mission-row {
-      padding: 16px 14px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 150px 130px 34px;
-      align-items: center;
-      gap: 14px;
-      border-radius: 14px;
-      transition: 0.2s ease;
-    }
+  width: 100%;
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 1fr)
+    minmax(120px, auto)
+    minmax(150px, auto)
+    24px;
+  align-items: center;
+  gap: 18px;
+  padding: 17px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+} 
 
+    .mission-row:last-child {
+  border-bottom: 0;
+}
+
+.mission-row > div {
+  min-width: 0;
+}
+
+.mission-row strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.row-arrow {
+  justify-self: end;
+  font-size: 22px;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 900px) {
+  .mission-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .mission-row > div:nth-child(3) {
+    display: none;
+  }
+}
+    
     .mission-row:hover {
       background: var(--sage-soft);
     }
@@ -1853,105 +1894,12 @@ decisões e aprendizagem verificável ao longo do tempo.
     <div class="row-arrow">›</div>
   </button>
 </div>
-                 <div class="mission-title">
-  Cinco hectares, e uma decisão por tomar
-</div> 
-                  <div class="mission-meta">
-  M-001 · Podentes, Penela, Coimbra · Aproximadamente 5 ha
-</div>
-                </div>
-
-                <div>
-                  <span class="status-badge status-attention">
-  Em avaliação
-</span>
-                </div>
-
-                <div>
-                  <strong class="trend-improving">Decisão em aberto</strong>
-                </div>
-
-                <div class="row-arrow">›</div>
-              </div>
-
-              <div class="mission-row hidden">
-                <div>
-                  <div class="mission-title">
-                    Laboratório territorial vivo
-                  </div>
-                  <div class="mission-meta">
-                    M-002 · CFE Universidade de Coimbra
-                  </div>
-                </div>
-
-                <div>
-                  <span class="status-badge status-stable">
-                    Estável
-                  </span>
-                </div>
-
-                <div>
-                  <strong class="trend-stable">→ Estável</strong>
-                </div>
-
-                <div class="row-arrow">›</div>
-              </div>
-
-              <div class="mission-row hidden">
-                <div>
-                  <div class="mission-title">
-                    Candidatura Prémio Crédito Agrícola
-                  </div>
-                  <div class="mission-meta">
-                    M-003 · Inovação e impacto territorial
-                  </div>
-                </div>
-
-                <div>
-                  <span class="status-badge status-attention">
-                    Requer atenção
-                  </span>
-                </div>
-
-                <div>
-                  <strong class="trend-improving">↗ A melhorar</strong>
-                </div>
-
-                <div class="row-arrow">›</div>
-              </div>
-
-              <div class="mission-row">
-                <div>
-                  <div class="mission-title">
-                    Sanctuary of Being
-                  </div>
-                  <div class="mission-meta">
-                    M-004 · Infraestrutura territorial
-                  </div>
-                </div>
-
-                <div>
-                  <span class="status-badge status-stable">
-                    Estável
-                  </span>
-                </div>
-
-                <div>
-                  <strong class="trend-stable">→ Estável</strong>
-                </div>
-
-                <div class="row-arrow">›</div>
-              </div>
-            </div>
-          </section>
-
-          <aside class="panel">
+        <aside class="panel">
             <div class="panel-header">
               <div>
                 <h3>O que merece atenção</h3>
                 <p>Sinais prioritários identificados.</p>
               </div>
-            </div>
 
             <div class="attention-list">
               <div class="attention-item">
@@ -1993,10 +1941,10 @@ decisões e aprendizagem verificável ao longo do tempo.
                 <div class="attention-level">Preparação da apresentação</div>
               </div>
             </div>
-          </aside>
-        </div>
-
-        <div class="page-section-title">
+          </aside>  
+            </div> 
+        
+ <div class="page-section-title">
           <h2>O que o SRIS torna possível</h2>
           <p>
             Uma camada institucional entre informação dispersa e decisão responsável.
@@ -2061,24 +2009,63 @@ decisões e aprendizagem verificável ao longo do tempo.
             </div>
           </div>
 
-          <div class="mission-list">
-            <div class="mission-row">
-              <div>
-                <div class="mission-title">
-                  Construção do SRIS
-                </div>
-                <div class="mission-meta">
-                  Interface, infraestrutura, demonstração e mercado.
-                </div>
-              </div>
+         <div class="mission-list">
+  <button
+    class="mission-row mission-open"
+    type="button"
+    data-mission-id="M-001"
+  >
+    <div>
+      <div class="mission-title">
+        Cinco hectares, e uma decisão por tomar
+      </div>
 
-              <div>
-                <span class="status-badge status-attention">
-                  Requer atenção
-                </span>
-              </div>
+      <div class="mission-meta">
+        M-001 · Gestão do território florestal · Podentes, Penela
+      </div>
+    </div>
 
-              <div>
+    <div>
+      <span class="status-badge status-attention">
+        Em avaliação
+      </span>
+    </div>
+
+    <div>
+      <strong>Confiança moderada</strong>
+    </div>
+
+    <div class="row-arrow">›</div>
+  </button>
+
+  <button
+    class="mission-row mission-open"
+    type="button"
+    data-mission-id="M-002"
+  >
+    <div>
+      <div class="mission-title">
+        Recuperação da Nascente de Dragos
+      </div>
+
+      <div class="mission-meta">
+        M-002 · Caso candidato · Podentes, Penela
+      </div>
+    </div>
+
+    <div>
+      <span class="status-badge status-stable">
+        Identificada
+      </span>
+    </div>
+
+    <div>
+      <strong>Confiança baixa</strong>
+    </div>
+
+    <div class="row-arrow">›</div>
+  </button>
+</div> 
                 <strong class="trend-improving">
                   Confiança moderada
                 </strong>
@@ -2778,10 +2765,20 @@ function closeMission() {
   document.body.style.overflow = "";
 }
 
-document.querySelectorAll(".mission-open").forEach((button) => {
-  button.addEventListener("click", () => {
-    openMission(button.dataset.missionId);
-  });
+document.addEventListener("click", (event) => {
+  const missionButton = event.target.closest(".mission-open");
+
+  if (!missionButton) {
+    return;
+  }
+
+  const missionId = missionButton.dataset.missionId;
+
+  if (!missionId) {
+    return;
+  }
+
+  openMission(missionId);
 });
 
 document.querySelectorAll("[data-close-mission]").forEach((button) => {
