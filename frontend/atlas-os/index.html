@@ -1693,12 +1693,31 @@
           </span>
         </div>
 
-        <div class="topbar-actions">
-          <button id="newAnalysisButton" class="secondary-button">
-            Nova análise
-          </button>
+  <div class="topbar-actions">
+  <button
+    id="importSrisPackageButton"
+    class="secondary-button"
+    type="button"
+  >
+    Importar pacote
+  </button>
 
-          <div class="user-chip">
+  <input
+    id="importSrisPackageInput"
+    type="file"
+    accept=".json,application/json"
+    hidden
+  />
+
+  <button
+    id="newAnalysisButton"
+    class="secondary-button"
+    type="button"
+  >
+    Nova análise
+  </button>
+
+  <div class="user-chip"> 
             <div class="avatar">GS</div>
 
             <div>
@@ -2868,6 +2887,433 @@ document
       `Relatório da ${activeMission.id} preparado para geração.`
     );
   });
+   
+    const SRIS_PACKAGE_STORAGE_KEY = "sris_imported_packages_v1";
+
+function getImportedSrisPackages() {
+  try {
+    const stored = localStorage.getItem(SRIS_PACKAGE_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error("Não foi possível ler os pacotes SRIS:", error);
+    return [];
+  }
+}
+
+function saveImportedSrisPackages(packages) {
+  localStorage.setItem(
+    SRIS_PACKAGE_STORAGE_KEY,
+    JSON.stringify(packages)
+  );
+}
+
+function validateSrisPackage(packageData) {
+  const errors = [];
+
+  if (!packageData || typeof packageData !== "object") {
+    errors.push("O ficheiro não contém um objeto JSON válido.");
+    return errors;
+  }
+
+  if (packageData.package_version !== "1.0") {
+    errors.push("A versão do pacote deve ser 1.0.");
+  }
+
+  if (packageData.package_type !== "sris_mission_package") {
+    errors.push(
+      "O tipo do pacote deve ser sris_mission_package."
+    );
+  }
+
+  if (!packageData.mission || typeof packageData.mission !== "object") {
+    errors.push("O pacote não contém uma missão.");
+    return errors;
+  }
+
+  const requiredMissionFields = [
+    "id",
+    "title",
+    "status",
+    "confidence",
+    "decision"
+  ];
+
+  requiredMissionFields.forEach((field) => {
+    if (
+      typeof packageData.mission[field] !== "string" ||
+      !packageData.mission[field].trim()
+    ) {
+      errors.push(`O campo mission.${field} é obrigatório.`);
+    }
+  });
+
+  const arrayFields = [
+    "evidence",
+    "unknowns",
+    "value_created"
+  ];
+
+  arrayFields.forEach((field) => {
+    if (
+      packageData.mission[field] !== undefined &&
+      !Array.isArray(packageData.mission[field])
+    ) {
+      errors.push(`O campo mission.${field} deve ser uma lista.`);
+    }
+  });
+
+  return errors;
+}
+
+function escapeSrisHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function renderSrisList(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return "<p>Sem elementos registados.</p>";
+  }
+
+  return `
+    <ul>
+      ${items
+        .map((item) => `<li>${escapeSrisHtml(item)}</li>`)
+        .join("")}
+    </ul>
+  `;
+}
+
+function buildMissionContentFromPackage(mission) {
+  return `
+    <div class="mission-detail-status">
+      <article>
+        <span>Estado</span>
+        <strong>${escapeSrisHtml(mission.status)}</strong>
+      </article>
+
+      <article>
+        <span>Confiança</span>
+        <strong>${escapeSrisHtml(mission.confidence)}</strong>
+      </article>
+
+      <article>
+        <span>Decisão</span>
+        <strong>${escapeSrisHtml(mission.decision)}</strong>
+      </article>
+    </div>
+
+    <section class="mission-detail-section">
+      <h3>Contexto da missão</h3>
+      <p>${escapeSrisHtml(mission.context || "")}</p>
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>Questão central</h3>
+      <p>${escapeSrisHtml(mission.central_question || "")}</p>
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>Evidência disponível</h3>
+      ${renderSrisList(mission.evidence)}
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>O que ainda não sabemos</h3>
+      ${renderSrisList(mission.unknowns)}
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>Valor criado pelo SRIS</h3>
+      ${renderSrisList(mission.value_created)}
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>Resultado da missão</h3>
+      <p>${escapeSrisHtml(mission.result || "")}</p>
+    </section>
+  `;
+}
+
+function getStatusClass(status) {
+  const normalized = String(status || "").toLowerCase();
+
+  if (
+    normalized.includes("conclu") ||
+    normalized.includes("estável") ||
+    normalized.includes("valid")
+  ) {
+    return "status-stable";
+  }
+
+  if (
+    normalized.includes("prepar") ||
+    normalized.includes("avalia") ||
+    normalized.includes("atenção")
+  ) {
+    return "status-attention";
+  }
+
+  return "status-stable";
+}
+
+function getConfidenceClass(confidence) {
+  const normalized = String(confidence || "").toLowerCase();
+
+  if (normalized.includes("elev")) {
+    return "trend-improving";
+  }
+
+  return "trend-stable";
+}
+
+function createMissionRowFromPackage(mission) {
+  const button = document.createElement("button");
+
+  button.className = "mission-row mission-open";
+  button.type = "button";
+  button.dataset.missionId = mission.id;
+
+  button.innerHTML = `
+    <div>
+      <div class="mission-title">
+        ${escapeSrisHtml(mission.title)}
+      </div>
+
+      <div class="mission-meta">
+        ${escapeSrisHtml(mission.id)}
+        ·
+        ${escapeSrisHtml(
+          mission.subtitle || "Missão importada através de pacote SRIS"
+        )}
+      </div>
+    </div>
+
+    <div>
+      <span class="status-badge ${getStatusClass(mission.status)}">
+        ${escapeSrisHtml(mission.status)}
+      </span>
+    </div>
+
+    <div>
+      <strong class="${getConfidenceClass(mission.confidence)}">
+        Confiança ${escapeSrisHtml(
+          String(mission.confidence).toLowerCase()
+        )}
+      </strong>
+    </div>
+
+    <div class="row-arrow">›</div>
+  `;
+
+  return button;
+}
+
+function updateMissionListsFromPackage(mission) {
+  const missionLists = document.querySelectorAll(".mission-list");
+
+  missionLists.forEach((list) => {
+    const existingRow = list.querySelector(
+      `[data-mission-id="${CSS.escape(mission.id)}"]`
+    );
+
+    const newRow = createMissionRowFromPackage(mission);
+
+    if (existingRow) {
+      existingRow.replaceWith(newRow);
+    } else {
+      list.prepend(newRow);
+    }
+  });
+}
+
+function updateAnalysisFormFromPackage(packageData) {
+  const analysis = packageData.analysis;
+
+  if (!analysis || typeof analysis !== "object") {
+    return;
+  }
+
+  const titleField = document.getElementById("analysisTitle");
+  const missionField = document.getElementById("analysisMission");
+  const contextField = document.getElementById("analysisContext");
+  const decisionField = document.getElementById("analysisDecision");
+  const evidenceField = document.getElementById("analysisEvidence");
+  const unknownsField = document.getElementById("analysisUnknowns");
+
+  if (titleField && analysis.title) {
+    titleField.value = analysis.title;
+  }
+
+  if (missionField) {
+    let option = Array.from(missionField.options).find(
+      (item) => item.value === packageData.mission.id
+    );
+
+    if (!option) {
+      option = document.createElement("option");
+      option.value = packageData.mission.id;
+      option.textContent =
+        `${packageData.mission.id} — ${packageData.mission.title}`;
+      missionField.appendChild(option);
+    }
+
+    missionField.value = packageData.mission.id;
+  }
+
+  if (contextField && analysis.context) {
+    contextField.value = analysis.context;
+  }
+
+  if (decisionField && analysis.central_question) {
+    decisionField.value = analysis.central_question;
+  }
+
+  if (evidenceField && analysis.evidence) {
+    evidenceField.value = analysis.evidence;
+  }
+
+  if (unknownsField && analysis.unknowns) {
+    unknownsField.value = analysis.unknowns;
+  }
+}
+
+function applySrisPackage(packageData, persist = true) {
+  const mission = packageData.mission;
+
+  missionRecords[mission.id] = {
+    id: mission.id,
+    title: mission.title,
+    subtitle:
+      mission.subtitle ||
+      "Missão importada através de pacote SRIS.",
+    status: mission.status,
+    confidence: mission.confidence,
+    decision: mission.decision,
+    content: buildMissionContentFromPackage(mission)
+  };
+
+  updateMissionListsFromPackage(mission);
+  updateAnalysisFormFromPackage(packageData);
+
+  if (persist) {
+    const packages = getImportedSrisPackages();
+
+    const existingIndex = packages.findIndex(
+      (item) => item?.mission?.id === mission.id
+    );
+
+    if (existingIndex >= 0) {
+      packages[existingIndex] = packageData;
+    } else {
+      packages.push(packageData);
+    }
+
+    saveImportedSrisPackages(packages);
+  }
+}
+
+function buildSrisPackageSummary(packageData) {
+  const mission = packageData.mission;
+
+  return [
+    "Pacote SRIS válido.",
+    "",
+    `Missão: ${mission.title}`,
+    `Identificador: ${mission.id}`,
+    `Estado: ${mission.status}`,
+    `Confiança: ${mission.confidence}`,
+    `Decisão: ${mission.decision}`,
+    "",
+    "A importação irá criar ou atualizar:",
+    "- lista da página inicial;",
+    "- portefólio de missões;",
+    "- painel de detalhe;",
+    "- formulário de nova análise;",
+    "- armazenamento local.",
+    "",
+    "Confirmar importação?"
+  ].join("\n");
+}
+
+async function importSrisPackageFile(file) {
+  try {
+    const text = await file.text();
+    const packageData = JSON.parse(text);
+
+    const errors = validateSrisPackage(packageData);
+
+    if (errors.length > 0) {
+      window.alert(
+        `O pacote não pôde ser importado:\n\n${errors.join("\n")}`
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      buildSrisPackageSummary(packageData)
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    applySrisPackage(packageData, true);
+
+    window.alert(
+      `Pacote importado com sucesso.\n\nMissão atualizada: ${packageData.mission.title}`
+    );
+  } catch (error) {
+    console.error("Erro ao importar pacote SRIS:", error);
+
+    window.alert(
+      "Não foi possível importar o pacote. Confirma se o ficheiro contém JSON válido."
+    );
+  }
+}
+
+function restoreImportedSrisPackages() {
+  const packages = getImportedSrisPackages();
+
+  packages.forEach((packageData) => {
+    const errors = validateSrisPackage(packageData);
+
+    if (errors.length === 0) {
+      applySrisPackage(packageData, false);
+    }
+  });
+}
+
+const importSrisPackageButton = document.getElementById(
+  "importSrisPackageButton"
+);
+
+const importSrisPackageInput = document.getElementById(
+  "importSrisPackageInput"
+);
+
+if (importSrisPackageButton && importSrisPackageInput) {
+  importSrisPackageButton.addEventListener("click", () => {
+    importSrisPackageInput.value = "";
+    importSrisPackageInput.click();
+  });
+
+  importSrisPackageInput.addEventListener("change", async (event) => {
+    const [file] = event.target.files || [];
+
+    if (!file) {
+      return;
+    }
+
+    await importSrisPackageFile(file);
+  });
+}
+
+restoreImportedSrisPackages();
   </script>
 </body>
 </html>
