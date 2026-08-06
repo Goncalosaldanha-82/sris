@@ -1834,6 +1834,36 @@ decisões e aprendizagem verificável ao longo do tempo.
             </div>
 
             <div class="mission-list">
+    <button
+    class="mission-row mission-open"
+    type="button"
+    data-mission-id="CA-AWARD-APPLICATION"
+>
+    <div>
+        <div class="mission-title">
+            Candidatura — Prémio Empreendedorismo e Inovação Crédito Agrícola
+        </div>
+
+        <div class="mission-meta">
+            CA-AWARD-APPLICATION · Candidatura oficial · Edição 2026 · Portugal
+        </div>
+    </div>
+
+    <div>
+        <span class="status-badge status-attention">
+            Em preparação
+        </span>
+    </div>
+
+    <div>
+        <strong class="trend-improving">
+            Confiança moderada
+        </strong>
+    </div>
+
+    <div class="row-arrow">›</div>
+</button>
+              
   <button
     class="mission-row mission-open"
     type="button"
@@ -2066,17 +2096,8 @@ decisões e aprendizagem verificável ao longo do tempo.
     <div class="row-arrow">›</div>
   </button>
 </div> 
-                <strong class="trend-improving">
-                  Confiança moderada
-                </strong>
-              </div>
+     </section>
       
-              <div class="row-arrow">›</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- WORKSPACE -->
 
       <section id="page-workspace" class="page">
@@ -2099,7 +2120,7 @@ decisões e aprendizagem verificável ao longo do tempo.
                   <label for="analysisTitle">Título da análise</label>
                   <input
                     id="analysisTitle"
-                    value="Preparação da apresentação institucional do SRIS"
+                    value="Preparação da candidatura ao Prémio Empreendedorismo e Inovação Crédito Agrícola"
                     required
                   />
                 </div>
@@ -2108,6 +2129,7 @@ decisões e aprendizagem verificável ao longo do tempo.
     <label for="analysisMission">Missão associada</label>
 
     <select id="analysisMission">
+        <option value="CA-AWARDS-APPLICATION">Preparação da candidatura ao Prémio Empreendedorismo e Inovação Crédito Agrícola</option>
         <option value="M-001">M-001 — Cinco hectares, e uma decisão por tomar</option>
         <option value="M-002">M-002 — Recuperação da Nascente de Dragos</option>
     </select>
@@ -2115,23 +2137,23 @@ decisões e aprendizagem verificável ao longo do tempo.
 
               <div class="field">
                 <label for="analysisContext">Contexto atual</label>
-                <textarea id="analysisContext" required>O backend do SRIS está operacional no Railway. A interface atual demonstra a ligação técnica, mas ainda não comunica de forma suficientemente clara o valor institucional, científico e comercial do sistema.</textarea>
+                <textarea id="analysisContext" required>O promotor pretende apresentar o SRIS ao Prémio Empreendedorismo e Inovação Crédito Agrícola. Existe informação técnica, científica, institucional e operacional dispersa que necessita de ser estruturada para demonstrar, de forma clara e verificável, o valor, a inovação, a aplicabilidade e o potencial de impacto do sistema.</textarea>
               </div>
 
               <div class="field">
                 <label for="analysisDecision">Decisão ou questão central</label>
-                <textarea id="analysisDecision" required>Que experiência deve ser apresentada ao CFE da Universidade de Coimbra e ao júri do Prémio Crédito Agrícola para demonstrar o valor do SRIS sem sobrecarregar a apresentação com complexidade técnica?</textarea>
+                <textarea id="analysisDecision" required>Qual é a estrutura de demonstração mais robusta para apresentar o SRIS ao júri do Prémio Empreendedorismo e Inovação Crédito Agrícola, evidenciando o seu valor inovador, a sua utilidade prática e o seu potencial de impacto?</textarea>
               </div>
 
               <div class="form-row">
                 <div class="field">
                   <label for="analysisEvidence">Evidência disponível</label>
-                  <textarea id="analysisEvidence">Backend funcional, autenticação, organizações, missões, workflows, base de conhecimento, auditoria e deployment ativo.</textarea>
+                  <textarea id="analysisEvidence">Protótipo funcional, arquitetura Mission Intelligence, documentação técnica e fundacional, missões demonstradoras, capacidade de preservação do contexto das decisões, geração de relatórios, exportação de informação e demonstração operacional em ambiente real.</textarea>
                 </div>
 
                 <div class="field">
                   <label for="analysisUnknowns">O que ainda não sabemos</label>
-                  <textarea id="analysisUnknowns">Quais os constructos científicos mais defensáveis e qual o percurso de demonstração que melhor traduz o valor do sistema.</textarea>
+                  <textarea id="analysisUnknowns">Quais os critérios que terão maior peso na avaliação do júri, que elementos exigem validação externa adicional, qual o nível de detalhe técnico mais adequado e que argumentos diferenciam melhor o SRIS de soluções convencionais de gestão e apoio à decisão.</textarea>
                 </div>
               </div>
 
@@ -2518,6 +2540,86 @@ decisões e aprendizagem verificável ao longo do tempo.
       openApp();
     }
     const missionRecords = {
+   "CA-AWARD-APPLICATION": {
+  id: "CA-AWARD-APPLICATION",
+  title: "Candidatura — Prémio Empreendedorismo e Inovação Crédito Agrícola",
+  subtitle:
+    "Preparação institucional da candidatura do SRIS à edição de 2026.",
+  status: "Em preparação",
+  confidence: "Moderada",
+  decision: "Narrativa e demonstração em estruturação",
+  content: `
+    <div class="mission-detail-status">
+      <article>
+        <span>Estado</span>
+        <strong>Em preparação</strong>
+      </article>
+
+      <article>
+        <span>Confiança</span>
+        <strong>Moderada</strong>
+      </article>
+
+      <article>
+        <span>Decisão</span>
+        <strong>Em estruturação</strong>
+      </article>
+    </div>
+
+    <section class="mission-detail-section">
+      <h3>Contexto da missão</h3>
+      <p>
+        O SRIS está a ser preparado para candidatura ao Prémio
+        Empreendedorismo e Inovação Crédito Agrícola. A missão consiste
+        em organizar a informação técnica, institucional, científica e
+        operacional necessária para apresentar o valor do sistema de
+        forma clara, demonstrável e verificável.
+      </p>
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>Questão central</h3>
+      <p>
+        Como demonstrar ao júri que o SRIS constitui uma inovação útil,
+        aplicável e diferenciadora, capaz de preservar o contexto das
+        decisões e transformar informação dispersa em capacidade
+        institucional de decisão e aprendizagem?
+      </p>
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>Evidência disponível</h3>
+      <ul>
+        <li>Protótipo funcional operacional em ambiente Railway.</li>
+        <li>Arquitetura Mission Intelligence e estrutura de missões.</li>
+        <li>Registo de observações, evidência, pressupostos e alternativas.</li>
+        <li>Missões demonstradoras M-001 e M-002.</li>
+        <li>Exportação de dados, impressão e geração de relatórios.</li>
+        <li>Documentação fundacional, técnica e institucional.</li>
+      </ul>
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>O que ainda necessita de validação</h3>
+      <ul>
+        <li>Hierarquia final dos argumentos apresentados ao júri.</li>
+        <li>Nível adequado de detalhe técnico na demonstração.</li>
+        <li>Elementos que exigem validação científica ou institucional externa.</li>
+        <li>Indicadores mais defensáveis para demonstrar impacto e escalabilidade.</li>
+      </ul>
+    </section>
+
+    <section class="mission-detail-section">
+      <h3>Próxima decisão</h3>
+      <p>
+        Consolidar uma demonstração curta e coerente, centrada numa missão
+        real, comprovando que o SRIS estrutura o problema, preserva a
+        fundamentação, identifica lacunas e torna a decisão auditável ao
+        longo do tempo.
+      </p>
+    </section>
+  `},     
+      
   "M-001": {
     id: "M-001",
     title: "Cinco hectares, e uma decisão por tomar",
