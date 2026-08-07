@@ -1,0 +1,267 @@
+{
+  "schema": "sris_platform_content",
+  "version": "1.0.0",
+  "platform": {
+    "identity": {
+      "name": "SRIS",
+      "descriptor": "Strategic Resilience & Intelligence System",
+      "purpose": "Infraestrutura de inteligência para estruturar, preservar e melhorar decisões complexas.",
+      "principle": "Compreender antes de decidir. Preservar antes de esquecer. Aprender antes de repetir."
+    },
+
+    "positioning": {
+      "eyebrow": "MISSION INTELLIGENCE INFRASTRUCTURE",
+      "headline": "Transformar complexidade em decisão estruturada, verificável e reutilizável.",
+      "description": "O SRIS liga contexto, observações, evidência, pressupostos, restrições, alternativas, decisões, execução, resultados e aprendizagem numa estrutura institucional única.",
+      "human_control": "O SRIS não substitui especialistas nem decide por eles. Torna explícito aquilo que sustenta a decisão e preserva a razão pela qual foi tomada."
+    },
+
+    "workspace": {
+      "eyebrow": "ESTRUTURAÇÃO INTELIGENTE",
+      "headline": "Estruturar antes de processar.",
+      "description": "Transforme informação dispersa numa estrutura de decisão verificável. O SRIS separa factos, evidência, pressupostos, incerteza, alternativas, restrições e objetivos antes de produzir qualquer leitura ou recomendação.",
+
+      "analysis_title": "Priorização de intervenção num território florestal sob múltiplas restrições",
+
+      "mission_id": "M-001",
+
+      "context": "Uma área florestal de aproximadamente cinco hectares apresenta necessidades simultâneas de gestão de combustível, conservação ecológica, valorização produtiva, gestão hídrica e redução de risco. Existem observações de campo, informação territorial, condicionantes legais, conhecimento local e diferentes hipóteses de intervenção, mas a informação encontra-se fragmentada e com diferentes níveis de confiança.",
+
+      "central_question": "Qual a intervenção mais defensável para este território, considerando simultaneamente risco, custo, viabilidade operacional, enquadramento legal, impacto ambiental, valor económico e capacidade de adaptação futura?",
+
+      "available_evidence": "Observações de campo; caracterização territorial; histórico de gestão; registos fotográficos; informação sobre vegetação, água e acessibilidades; condicionantes conhecidas; alternativas preliminares de intervenção; custos operacionais disponíveis; conhecimento do proprietário e documentação técnica existente.",
+
+      "unknowns": "Quais as restrições legais efetivamente aplicáveis; que pressupostos dependem ainda de validação; qual o custo total comparável entre alternativas; que impactos ambientais podem ser atribuídos a cada opção; que informação adicional poderá alterar materialmente a decisão; e qual o nível de confiança que pode ser legitimamente atribuído à recomendação final."
+    },
+
+    "analysis_result": {
+      "headline": "A decisão ainda não é suficientemente defensável.",
+
+      "summary": "A informação existente permite delimitar alternativas e excluir algumas opções prematuras, mas subsistem dependências capazes de alterar a decisão. O sistema identifica como prioritária a validação das restrições legais, a consolidação dos custos comparáveis e a confirmação dos pressupostos ambientais antes da seleção final.",
+
+      "situation": "Existe informação suficiente para estruturar o problema, mas não para atribuir ainda elevada confiança a uma intervenção específica.",
+
+      "principal_risk": "Transformar pressupostos ainda não validados em factos e executar uma solução que posteriormente revele incompatibilidade legal, económica ou ambiental.",
+
+      "assumptions": [
+        "As alternativas consideradas são legalmente executáveis.",
+        "Os custos disponíveis são comparáveis e incluem todas as operações necessárias.",
+        "Os benefícios ambientais atribuídos às alternativas são mensuráveis e não meramente presumidos.",
+        "A intervenção selecionada permanece viável perante alterações de contexto."
+      ],
+
+      "alternatives": [
+        {
+          "id": "A",
+          "title": "Intervenção mínima",
+          "description": "Redução imediata de risco com intervenção operacional limitada."
+        },
+        {
+          "id": "B",
+          "title": "Gestão integrada",
+          "description": "Compatibilização entre redução de risco, valorização produtiva e conservação ecológica."
+        },
+        {
+          "id": "C",
+          "title": "Intervenção faseada",
+          "description": "Decisão progressiva dependente da recolha adicional de evidência."
+        }
+      ],
+
+      "next_decision": "Validar as restrições críticas e recolher a evidência mínima necessária para comparar as alternativas A, B e C sob os mesmos critérios.",
+
+      "confidence": "Moderada"
+    },
+
+    "capabilities": [
+      {
+        "index": "01",
+        "title": "Reconstrução",
+        "description": "Reconstitui o estado de uma missão e preserva o caminho entre contexto, observações, evidência, alternativas, decisão e resultado."
+      },
+      {
+        "index": "02",
+        "title": "Preservação",
+        "description": "Mantém explícitos os pressupostos, restrições e fundamentos que antecederam uma decisão, mesmo quando pessoas e contexto mudam."
+      },
+      {
+        "index": "03",
+        "title": "Aprendizagem",
+        "description": "Compara expectativas com resultados e transforma experiência operacional em conhecimento institucional reutilizável."
+      }
+    ],
+
+    "differentiation": {
+      "headline": "O que torna o SRIS diferente",
+      "description": "Os sistemas tradicionais guardam documentos, tarefas ou indicadores. O SRIS preserva a estrutura de uma decisão: o que era conhecido, o que era assumido, que alternativas existiam, que restrições se aplicavam, o que foi decidido, o que aconteceu depois e o que deve ser aprendido."
+    },
+
+    "market": {
+      "headline": "Uma arquitetura, múltiplos contextos de decisão.",
+      "description": "O núcleo do SRIS não depende de uma cultura, território ou operação específica. A unidade de escala é a missão e a mesma arquitetura pode ser reutilizada em organizações, territórios e setores diferentes.",
+
+      "initial_domains": [
+        "Agricultura",
+        "Floresta",
+        "Gestão territorial",
+        "Turismo sustentável",
+        "Municípios",
+        "Recursos naturais"
+      ],
+
+      "expansion_domains": [
+        "Indústria",
+        "Infraestruturas",
+        "Educação",
+        "Saúde",
+        "Proteção civil",
+        "Operações empresariais"
+      ],
+
+      "scalability": "Software replicável e configurável por missão.",
+      "deployment": "Cloud ou ambiente institucional.",
+      "internationalization": "Arquitetura independente do território, preparada para diferentes organizações e geografias."
+    },
+
+    "sustainability": {
+      "headline": "Sustentabilidade acompanhada por evidência.",
+      "description": "O SRIS não atribui impacto por declaração. Preserva indicadores, origem dos dados, linha de base, intervenção, resultado e grau de confiança.",
+
+      "dimensions": [
+        {
+          "title": "Ambiental",
+          "description": "Recursos, biodiversidade, risco, água, energia, emissões e indicadores definidos pela missão."
+        },
+        {
+          "title": "Económica",
+          "description": "Custos, eficiência operacional, desperdício evitado, utilização de recursos e valor criado."
+        },
+        {
+          "title": "Social e territorial",
+          "description": "Segurança, emprego, continuidade operacional, participação e efeitos locais."
+        }
+      ]
+    },
+
+    "productivity": {
+      "headline": "Menos perda de contexto. Menos repetição. Melhor utilização de conhecimento.",
+      "description": "Ao preservar decisões, evidência e aprendizagem, o SRIS reduz o custo institucional de voltar a reconstruir problemas já analisados e torna conhecimento anterior reutilizável em novas missões."
+    },
+
+    "entrepreneurship": {
+      "headline": "De um problema real para uma infraestrutura transversal.",
+      "description": "O SRIS nasce da necessidade de gerir decisões complexas em contexto territorial e evolui para uma arquitetura aplicável a qualquer organização onde informação, risco, recursos, responsabilidade e aprendizagem estejam interligados."
+    },
+
+    "evidence": [
+      {
+        "id": "EVD-001",
+        "title": "Observação territorial M-001",
+        "type": "Observação de campo",
+        "status": "Preservada",
+        "confidence": "Moderada",
+        "source": "Missão M-001",
+        "description": "Caracterização inicial do território, vegetação, acessibilidades, água e condicionantes observadas."
+      },
+
+      {
+        "id": "EVD-002",
+        "title": "Arquitetura funcional SRIS",
+        "type": "Evidência técnica",
+        "status": "Confirmada",
+        "confidence": "Elevada",
+        "source": "Implementação SRIS",
+        "description": "Estrutura de missão, preservação de contexto decisório, importação de pacotes, exportação e rastreabilidade."
+      },
+
+      {
+        "id": "EVD-003",
+        "title": "Deployment operacional",
+        "type": "Evidência técnica",
+        "status": "Verificada",
+        "confidence": "Elevada",
+        "source": "Railway",
+        "description": "Aplicação operacional em ambiente cloud com frontend e backend integrados."
+      },
+
+      {
+        "id": "EVD-004",
+        "title": "Reconhecimento externo",
+        "type": "Evidência institucional",
+        "status": "Documentada",
+        "confidence": "Elevada",
+        "source": "Entidades externas",
+        "description": "Distinções e nomeações preservadas na plataforma, mantendo separação entre reconhecimento institucional e validação científica."
+      }
+    ],
+
+    "learning": [
+      {
+        "id": "LRN-0001",
+        "title": "Instrumentar antes de intervir",
+        "description": "Uma linha de base deve preceder qualquer intervenção cuja consequência se pretenda avaliar."
+      },
+
+      {
+        "id": "LRN-0002",
+        "title": "Distinguir evidência de pressuposto",
+        "description": "Uma afirmação operacional não ganha estatuto de evidência apenas por ser repetida; origem, contexto e força de suporte devem permanecer explícitos."
+      },
+
+      {
+        "id": "LRN-0003",
+        "title": "Alterações de contexto exigem reavaliação",
+        "description": "Uma decisão anteriormente defensável pode deixar de o ser quando mudam restrições, custos, evidência, objetivos ou condições externas."
+      },
+
+      {
+        "id": "LRN-0004",
+        "title": "O resultado pertence à cadeia de decisão",
+        "description": "Uma decisão não termina quando é executada. O resultado observado deve regressar ao sistema para testar aquilo que se esperava."
+      }
+    ],
+
+    "recognition": {
+      "headline": "Um percurso de inovação já reconhecido.",
+      "description": "O ecossistema de projetos, experimentação e desenvolvimento que conduziu ao SRIS participou em processos externos de seleção associados à sustentabilidade, inovação e tecnologia."
+    },
+
+    "mission_intelligence": {
+      "enabled": false,
+
+      "headline": "Mission Intelligence",
+
+      "description": "Camada de inteligência destinada a apoiar a estruturação de missões, identificar lacunas, explicitar pressupostos, organizar alternativas e produzir análises assistidas mantendo decisão humana e rastreabilidade.",
+
+      "principles": [
+        "Human-in-the-Loop",
+        "Evidence before inference",
+        "Explicit uncertainty",
+        "Traceable reasoning",
+        "No autonomous final decision"
+      ]
+    }
+  },
+
+  "missions": {
+    "CA-AWARD-APPLICATION": {
+      "id": "CA-AWARD-APPLICATION",
+
+      "title": "Candidatura — Prémio Empreendedorismo e Inovação Crédito Agrícola",
+
+      "subtitle": "Demonstração operacional do SRIS preparada para a edição de 2026.",
+
+      "status": "Concluída para submissão",
+
+      "confidence": "Elevada",
+
+      "context": "O SRIS é apresentado como infraestrutura transversal para estruturar decisões complexas, preservar a sua fundamentação, ligar evidência e contexto, acompanhar execução e transformar resultados em aprendizagem institucional reutilizável.",
+
+      "central_question": "Como demonstrar, através de uma aplicação operacional, que o SRIS cria valor ao transformar informação dispersa em capacidade institucional de compreender, decidir, agir e aprender?",
+
+      "decision": "Concluir e apresentar a demonstração operacional do SRIS.",
+
+      "result": "Produto demonstrador operacional preparado para submissão."
+    }
+  }
+}
