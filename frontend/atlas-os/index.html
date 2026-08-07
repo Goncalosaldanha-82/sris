@@ -1559,6 +1559,7 @@
 </head>
 
 <body>
+  <!-- SRIS_CONSOLIDATION_V1_2 -->
 
   <!-- LOGIN -->
 
@@ -1574,16 +1575,15 @@
       </div>
 
       <div class="login-statement">
-       <div class="eyebrow">Gestão do território florestal</div>
-
-<h1>Preservar o raciocínio das decisões.</h1>
-
-<p>
-  As organizações sabem o que fizeram. Raramente conseguem explicar,
-  anos depois, porque o fizeram. O SRIS preserva observações, evidências,
-  alternativas, pressupostos e restrições para que cada decisão permaneça
-  verificável ao longo do tempo.
-</p> 
+        <div class="eyebrow">Inteligência para decisões complexas</div>
+        <h1>Preservar o raciocínio das decisões.</h1>
+        <p>
+          Organizações e territórios acumulam dados, documentos e decisões,
+          mas perdem frequentemente a razão pela qual cada escolha foi tomada.
+          O SRIS estrutura contexto, evidência, pressupostos, alternativas,
+          restrições, decisão, resultado e aprendizagem para que o raciocínio
+          permaneça verificável ao longo do tempo.
+        </p> 
       </div>
 
      <div class="principle">
@@ -1762,6 +1762,12 @@
           <span class="nav-icon">↗</span>
           <span>Aprendizagem</span>
         </button>
+        <div class="nav-group-label">Produto</div>
+        <button class="nav-item" data-page="impact">
+          <span class="nav-icon">◆</span>
+          <span>Impacto</span>
+        </button>
+
       </nav>
 
       <div class="sidebar-bottom">
@@ -2123,75 +2129,7 @@ decisões e aprendizagem verificável ao longo do tempo.
           </article>
         </div>
       </section>
-
-<section class="recognition-section">
-  <div class="page-section-title">
-    <div class="eyebrow">Reconhecimento externo</div>
-    <h2>Reconhecimento nacional por inovação, sustentabilidade e tecnologia.</h2>
-    <p>
-O projeto reúne distinções atribuídas por diferentes entidades nacionais, evidenciando a relevância da sua proposta nas áreas da sustentabilidade, inovação tecnológica e transformação do turismo.
-</p>
-  </div>
-
-  <div class="recognition-grid">
-
-    <article class="recognition-card">
-      <div class="recognition-status">SHORT LIST</div>
-
-    <div class="recognition-image recognition-image-forbes">
-    <img
-        src="../assets/forbes-green-esg-awards-2026.jpg.jpeg"
-        alt="Forbes Green ESG Awards 2026"
-    />
-</div>  
-
-      <h3>Forbes Green ESG Awards 2026</h3>
-
-      <p>
-        Selecionado para a short list da edição de 2026.
-      </p>
-    </article>
-
-
-    <article class="recognition-card">
-      <div class="recognition-status">FINALISTA</div>
-
-      <img
-         src="../assets/Selo_PNI_FINALISTA.png"
-        alt="Finalista — Prémio Nacional de Inovação 2026"
-        class="recognition-seal-image"
-      />
-
-      <h3>Prémio Nacional de Inovação 2026</h3>
-
-      <p>
-        Finalista da 4.ª edição do Prémio Nacional de Inovação.
-      </p>
-    </article>
-
-
-    <article class="recognition-card">
-      <div class="recognition-status">NOMEADO · TECH</div>
-
-      <img
-         src="../assets/Premios_lideres_do_turismo_2026_NOMEADO_categ-TECK.png"
-        alt="Nomeado — Prémios Líderes do Turismo 2026"
-        class="recognition-seal-image"
-      />
-
-      <h3>Prémios Líderes do Turismo 2026</h3>
-
-      <p>
-        <p>
-Nomeado na categoria TECH pela inovação e desenvolvimento tecnológico aplicado ao turismo.
-</p>
-      </p>
-    </article>
-
-  </div>
-</section>
-      
-      <!-- MISSIONS -->
+<!-- MISSIONS -->
 
       <section id="page-missions" class="page">
         <div class="hero">
@@ -2338,7 +2276,7 @@ Nomeado na categoria TECH pela inovação e desenvolvimento tecnológico aplicad
     <label for="analysisMission">Missão associada</label>
 
     <select id="analysisMission">
-        <option value="CA-AWARDS-APPLICATION">Preparação da candidatura ao Prémio Empreendedorismo e Inovação Crédito Agrícola</option>
+        <option value="CA-AWARD-APPLICATION">Preparação da candidatura ao Prémio Empreendedorismo e Inovação Crédito Agrícola</option>
         <option value="M-001">M-001 — Cinco hectares, e uma decisão por tomar</option>
         <option value="M-002">M-002 — Recuperação da Nascente de Dragos</option>
     </select>
@@ -2578,6 +2516,21 @@ Nomeado na categoria TECH pela inovação e desenvolvimento tecnológico aplicad
           </p>
         </div>
       </section>
+      <!-- IMPACT -->
+      <section id="page-impact" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Produto e impacto</div>
+            <h1>Impacto, escalabilidade e reconhecimento.</h1>
+            <p>
+              Diferenciação, sustentabilidade, capacidade de escala e
+              reconhecimento externo reunidos numa única área.
+            </p>
+          </div>
+        </div>
+        <div id="sris-impact-content"></div>
+      </section>
+
     </main>
   </section>
 
@@ -2643,6 +2596,10 @@ Nomeado na categoria TECH pela inovação e desenvolvimento tecnológico aplicad
         learning: [
           "Aprendizagem",
           "Resultados, desvios e revisão"
+        ],
+        impact: [
+          "Impacto",
+          "Diferenciação, escalabilidade, sustentabilidade e reconhecimento"
         ]
       };
 
@@ -2748,218 +2705,8 @@ Nomeado na categoria TECH pela inovação e desenvolvimento tecnológico aplicad
     ) {
       openApp();
     }
-    const missionRecords = {
-   "CA-AWARD-APPLICATION": {
-  id: "CA-AWARD-APPLICATION",
-  title: "Candidatura — Prémio Empreendedorismo e Inovação Crédito Agrícola",
-  subtitle:
-    "Preparação institucional da candidatura do SRIS à edição de 2026.",
-  status: "Em preparação",
-  confidence: "Moderada",
-  decision: "Narrativa e demonstração em estruturação",
-  content: `
-    <div class="mission-detail-status">
-      <article>
-        <span>Estado</span>
-        <strong>Em preparação</strong>
-      </article>
-
-      <article>
-        <span>Confiança</span>
-        <strong>Moderada</strong>
-      </article>
-
-      <article>
-        <span>Decisão</span>
-        <strong>Em estruturação</strong>
-      </article>
-    </div>
-
-    <section class="mission-detail-section">
-      <h3>Contexto da missão</h3>
-      <p>
-        O SRIS está a ser preparado para candidatura ao Prémio
-        Empreendedorismo e Inovação Crédito Agrícola. A missão consiste
-        em organizar a informação técnica, institucional, científica e
-        operacional necessária para apresentar o valor do sistema de
-        forma clara, demonstrável e verificável.
-      </p>
-    </section>
-
-    <section class="mission-detail-section">
-      <h3>Questão central</h3>
-      <p>
-        Como demonstrar ao júri que o SRIS constitui uma inovação útil,
-        aplicável e diferenciadora, capaz de preservar o contexto das
-        decisões e transformar informação dispersa em capacidade
-        institucional de decisão e aprendizagem?
-      </p>
-    </section>
-
-    <section class="mission-detail-section">
-      <h3>Evidência disponível</h3>
-      <ul>
-        <li>Protótipo funcional operacional em ambiente Railway.</li>
-        <li>Arquitetura Mission Intelligence e estrutura de missões.</li>
-        <li>Registo de observações, evidência, pressupostos e alternativas.</li>
-        <li>Missões demonstradoras M-001 e M-002.</li>
-        <li>Exportação de dados, impressão e geração de relatórios.</li>
-        <li>Documentação fundacional, técnica e institucional.</li>
-      </ul>
-    </section>
-
-    <section class="mission-detail-section">
-      <h3>O que ainda necessita de validação</h3>
-      <ul>
-        <li>Hierarquia final dos argumentos apresentados ao júri.</li>
-        <li>Nível adequado de detalhe técnico na demonstração.</li>
-        <li>Elementos que exigem validação científica ou institucional externa.</li>
-        <li>Indicadores mais defensáveis para demonstrar impacto e escalabilidade.</li>
-      </ul>
-    </section>
-
-    <section class="mission-detail-section">
-      <h3>Próxima decisão</h3>
-      <p>
-        Consolidar uma demonstração curta e coerente, centrada numa missão
-        real, comprovando que o SRIS estrutura o problema, preserva a
-        fundamentação, identifica lacunas e torna a decisão auditável ao
-        longo do tempo.
-      </p>
-    </section>
-  `},     
-      
-  "M-001": {
-    id: "M-001",
-    title: "Cinco hectares, e uma decisão por tomar",
-    subtitle:
-      "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução e sem resultado.",
-    status: "Em avaliação",
-    confidence: "Moderada",
-    decision: "Em aberto",
-    content: `
-      <div class="mission-detail-status">
-        <article>
-          <span>Estado</span>
-          <strong>Em avaliação</strong>
-        </article>
-
-        <article>
-          <span>Confiança</span>
-          <strong>Moderada</strong>
-        </article>
-
-        <article>
-          <span>Decisão</span>
-          <strong>Em aberto</strong>
-        </article>
-      </div>
-
-      <article class="mission-detail-card">
-        <h3>Observações</h3>
-        <ul>
-          <li>OBS-0001 · Parcela de aproximadamente 5 ha.</li>
-          <li>OBS-0002 · Presença de água observada em abril de 2026.</li>
-          <li>OBS-0003 · Vegetação espontânea com estrato arbustivo desenvolvido.</li>
-        </ul>
-      </article>
-
-      <article class="mission-detail-card">
-        <h3>O que ainda não se sabe</h3>
-        <ul>
-          <li>ASS-0001 · Regime hídrico histórico da linha de água.</li>
-          <li>ASS-0002 · Relação local entre densidade do povoamento e regime hídrico.</li>
-          <li>RST-0001 · Prazo e enquadramento do licenciamento.</li>
-          <li>RST-0002 · Autorização do titular da parcela.</li>
-        </ul>
-      </article>
-
-      <article class="mission-detail-card">
-        <h3>Alternativas</h3>
-        <ul>
-          <li>ALT-0001 · Conversão faseada do povoamento em mosaico.</li>
-          <li>ALT-0002 · Corte com rearborização por quercíneas.</li>
-          <li>ALT-0003 · Não intervenção, com instalação de monitorização.</li>
-        </ul>
-      </article>
-
-      <article class="mission-detail-card">
-        <h3>Aprendizagem preservada</h3>
-        <p>
-          LRN-0001 · A instrumentação tem de preceder a decisão.
-          Sem linha de base, nenhum resultado futuro poderá ser
-          atribuído com rigor à intervenção.
-        </p>
-      </article>
-    `
-  },
-
-  "M-002": {
-    id: "M-002",
-    title: "Recuperação da Nascente de Dragos",
-    subtitle:
-      "Podentes, Penela. Caso candidato para testar o SRIS fora do controlo direto do promotor.",
-    status: "Identificada",
-    confidence: "Baixa",
-    decision: "Não iniciada",
-    content: `
-      <div class="mission-detail-status">
-        <article>
-          <span>Estado</span>
-          <strong>Identificada</strong>
-        </article>
-
-        <article>
-          <span>Confiança</span>
-          <strong>Baixa</strong>
-        </article>
-
-        <article>
-          <span>Decisão</span>
-          <strong>Não iniciada</strong>
-        </article>
-      </div>
-
-      <article class="mission-detail-card">
-        <h3>Contexto conhecido</h3>
-        <p>
-          A Nascente de Dragos encontra-se em estado de abandono.
-          O local possui enquadramento patrimonial documentado,
-          associado à árula romana de Dragos.
-        </p>
-      </article>
-
-      <article class="mission-detail-card">
-        <h3>Restrições previsíveis</h3>
-        <ul>
-          <li>Autorização das entidades titulares.</li>
-          <li>Autorização das entidades patrimoniais competentes.</li>
-          <li>Condicionantes ambientais e territoriais.</li>
-          <li>Coordenação entre múltiplos decisores.</li>
-        </ul>
-      </article>
-
-      <article class="mission-detail-card">
-        <h3>Estado real</h3>
-        <p>
-          O caso está identificado como candidato. Não constitui
-          compromisso, projeto aprovado ou intervenção autorizada.
-          As autorizações necessárias ainda não foram solicitadas.
-        </p>
-      </article>
-
-      <article class="mission-detail-card">
-        <h3>Próximo passo legítimo</h3>
-        <p>
-          Confirmar titularidade, competências institucionais,
-          enquadramento patrimonial e condições mínimas para abertura
-          formal da missão.
-        </p>
-      </article>
-    `
-  }
-};
-
+    // Mission records are canonical in /assets/sris-platform-content.json.
+    const missionRecords = {};
 const missionModal = document.getElementById("missionModal");
 const missionModalEyebrow = document.getElementById("missionModalEyebrow");
 const missionModalTitle = document.getElementById("missionModalTitle");
