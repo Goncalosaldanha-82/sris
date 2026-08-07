@@ -1,267 +1,592 @@
 {
   "schema": "sris_platform_content",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "platform": {
     "identity": {
       "name": "SRIS",
       "descriptor": "Strategic Resilience & Intelligence System",
-      "purpose": "Infraestrutura de inteligência para estruturar, preservar e melhorar decisões complexas.",
-      "principle": "Compreender antes de decidir. Preservar antes de esquecer. Aprender antes de repetir."
+      "purpose": "Infraestrutura de inteligência para estruturar, preservar e melhorar decisões complexas."
     },
-
-    "positioning": {
-      "eyebrow": "MISSION INTELLIGENCE INFRASTRUCTURE",
-      "headline": "Transformar complexidade em decisão estruturada, verificável e reutilizável.",
-      "description": "O SRIS liga contexto, observações, evidência, pressupostos, restrições, alternativas, decisões, execução, resultados e aprendizagem numa estrutura institucional única.",
-      "human_control": "O SRIS não substitui especialistas nem decide por eles. Torna explícito aquilo que sustenta a decisão e preserva a razão pela qual foi tomada."
-    },
-
-    "workspace": {
-      "eyebrow": "ESTRUTURAÇÃO INTELIGENTE",
-      "headline": "Estruturar antes de processar.",
-      "description": "Transforme informação dispersa numa estrutura de decisão verificável. O SRIS separa factos, evidência, pressupostos, incerteza, alternativas, restrições e objetivos antes de produzir qualquer leitura ou recomendação.",
-
-      "analysis_title": "Priorização de intervenção num território florestal sob múltiplas restrições",
-
-      "mission_id": "M-001",
-
-      "context": "Uma área florestal de aproximadamente cinco hectares apresenta necessidades simultâneas de gestão de combustível, conservação ecológica, valorização produtiva, gestão hídrica e redução de risco. Existem observações de campo, informação territorial, condicionantes legais, conhecimento local e diferentes hipóteses de intervenção, mas a informação encontra-se fragmentada e com diferentes níveis de confiança.",
-
-      "central_question": "Qual a intervenção mais defensável para este território, considerando simultaneamente risco, custo, viabilidade operacional, enquadramento legal, impacto ambiental, valor económico e capacidade de adaptação futura?",
-
-      "available_evidence": "Observações de campo; caracterização territorial; histórico de gestão; registos fotográficos; informação sobre vegetação, água e acessibilidades; condicionantes conhecidas; alternativas preliminares de intervenção; custos operacionais disponíveis; conhecimento do proprietário e documentação técnica existente.",
-
-      "unknowns": "Quais as restrições legais efetivamente aplicáveis; que pressupostos dependem ainda de validação; qual o custo total comparável entre alternativas; que impactos ambientais podem ser atribuídos a cada opção; que informação adicional poderá alterar materialmente a decisão; e qual o nível de confiança que pode ser legitimamente atribuído à recomendação final."
-    },
-
-    "analysis_result": {
-      "headline": "A decisão ainda não é suficientemente defensável.",
-
-      "summary": "A informação existente permite delimitar alternativas e excluir algumas opções prematuras, mas subsistem dependências capazes de alterar a decisão. O sistema identifica como prioritária a validação das restrições legais, a consolidação dos custos comparáveis e a confirmação dos pressupostos ambientais antes da seleção final.",
-
-      "situation": "Existe informação suficiente para estruturar o problema, mas não para atribuir ainda elevada confiança a uma intervenção específica.",
-
-      "principal_risk": "Transformar pressupostos ainda não validados em factos e executar uma solução que posteriormente revele incompatibilidade legal, económica ou ambiental.",
-
-      "assumptions": [
-        "As alternativas consideradas são legalmente executáveis.",
-        "Os custos disponíveis são comparáveis e incluem todas as operações necessárias.",
-        "Os benefícios ambientais atribuídos às alternativas são mensuráveis e não meramente presumidos.",
-        "A intervenção selecionada permanece viável perante alterações de contexto."
-      ],
-
-      "alternatives": [
-        {
-          "id": "A",
-          "title": "Intervenção mínima",
-          "description": "Redução imediata de risco com intervenção operacional limitada."
-        },
-        {
-          "id": "B",
-          "title": "Gestão integrada",
-          "description": "Compatibilização entre redução de risco, valorização produtiva e conservação ecológica."
-        },
-        {
-          "id": "C",
-          "title": "Intervenção faseada",
-          "description": "Decisão progressiva dependente da recolha adicional de evidência."
-        }
-      ],
-
-      "next_decision": "Validar as restrições críticas e recolher a evidência mínima necessária para comparar as alternativas A, B e C sob os mesmos critérios.",
-
-      "confidence": "Moderada"
-    },
-
-    "capabilities": [
-      {
-        "index": "01",
-        "title": "Reconstrução",
-        "description": "Reconstitui o estado de uma missão e preserva o caminho entre contexto, observações, evidência, alternativas, decisão e resultado."
+    "impact": {
+      "headline": "Impacto, escalabilidade e reconhecimento.",
+      "description": "A camada de impacto reúne aquilo que demonstra como o SRIS cria valor, escala entre contextos e preserva evidência sem confundir reconhecimento externo com validação científica.",
+      "differentiation": {
+        "headline": "O que torna o SRIS diferente",
+        "description": "Os sistemas tradicionais guardam documentos, tarefas ou indicadores. O SRIS preserva a estrutura de uma decisão: o que era conhecido, o que era assumido, que alternativas existiam, que restrições se aplicavam, o que foi decidido, o que aconteceu depois e o que deve ser aprendido."
       },
-      {
-        "index": "02",
-        "title": "Preservação",
-        "description": "Mantém explícitos os pressupostos, restrições e fundamentos que antecederam uma decisão, mesmo quando pessoas e contexto mudam."
+      "market": {
+        "headline": "Uma arquitetura, múltiplos contextos de decisão.",
+        "description": "O núcleo do SRIS não depende de uma cultura, território ou operação específica. A unidade de escala é a missão e a mesma arquitetura pode ser reutilizada em organizações, territórios e setores diferentes.",
+        "cards": [
+          {
+            "index": "01",
+            "title": "Mercado inicial",
+            "description": "Agricultura · Floresta · Gestão territorial · Turismo sustentável · Municípios · Recursos naturais"
+          },
+          {
+            "index": "02",
+            "title": "Modelo de escala",
+            "description": "Software replicável e configurável por missão, com preservação de contexto, evidência e aprendizagem."
+          },
+          {
+            "index": "03",
+            "title": "Expansão",
+            "description": "Indústria · Infraestruturas · Educação · Saúde · Proteção civil · Operações empresariais"
+          }
+        ]
       },
-      {
-        "index": "03",
-        "title": "Aprendizagem",
-        "description": "Compara expectativas com resultados e transforma experiência operacional em conhecimento institucional reutilizável."
+      "sustainability": {
+        "headline": "Sustentabilidade acompanhada por evidência.",
+        "description": "O SRIS não atribui impacto por declaração. Preserva indicadores, origem dos dados, linha de base, intervenção, resultado e grau de confiança.",
+        "cards": [
+          {
+            "index": "01",
+            "title": "Ambiental",
+            "description": "Recursos, biodiversidade, risco, água, energia, emissões e indicadores definidos pela missão."
+          },
+          {
+            "index": "02",
+            "title": "Económica",
+            "description": "Custos, eficiência operacional, desperdício evitado, utilização de recursos e valor criado."
+          },
+          {
+            "index": "03",
+            "title": "Social e territorial",
+            "description": "Segurança, emprego, continuidade operacional, participação e efeitos locais."
+          }
+        ]
+      },
+      "recognition": {
+        "headline": "Seleções e reconhecimentos externos.",
+        "description": "O percurso de desenvolvimento associado ao SRIS integra seleções e reconhecimentos externos em sustentabilidade, inovação e tecnologia. Cada cartão mantém explícito o estatuto efetivamente obtido.",
+        "items": [
+          {
+            "status": "SHORT LIST",
+            "title": "Forbes Green ESG Awards 2026",
+            "description": "Selecionado para a short list da edição de 2026.",
+            "image": "/assets/forbes-green-esg-awards-2026.jpg.jpeg",
+            "alt": "Forbes Green ESG Awards 2026"
+          },
+          {
+            "status": "FINALISTA",
+            "title": "Prémio Nacional de Inovação 2026",
+            "description": "Finalista da 4.ª edição do Prémio Nacional de Inovação.",
+            "image": "/assets/Selo_PNI_FINALISTA.png",
+            "alt": "Finalista — Prémio Nacional de Inovação 2026"
+          },
+          {
+            "status": "NOMEADO · TECH",
+            "title": "Prémios Líderes do Turismo 2026",
+            "description": "Nomeado na categoria TECH pela inovação e desenvolvimento tecnológico aplicado ao turismo.",
+            "image": "/assets/Premios_lideres_do_turismo_2026_NOMEADO_categ-TECK.png",
+            "alt": "Nomeado — Prémios Líderes do Turismo 2026"
+          }
+        ]
       }
-    ],
-
-    "differentiation": {
-      "headline": "O que torna o SRIS diferente",
-      "description": "Os sistemas tradicionais guardam documentos, tarefas ou indicadores. O SRIS preserva a estrutura de uma decisão: o que era conhecido, o que era assumido, que alternativas existiam, que restrições se aplicavam, o que foi decidido, o que aconteceu depois e o que deve ser aprendido."
-    },
-
-    "market": {
-      "headline": "Uma arquitetura, múltiplos contextos de decisão.",
-      "description": "O núcleo do SRIS não depende de uma cultura, território ou operação específica. A unidade de escala é a missão e a mesma arquitetura pode ser reutilizada em organizações, territórios e setores diferentes.",
-
-      "initial_domains": [
-        "Agricultura",
-        "Floresta",
-        "Gestão territorial",
-        "Turismo sustentável",
-        "Municípios",
-        "Recursos naturais"
-      ],
-
-      "expansion_domains": [
-        "Indústria",
-        "Infraestruturas",
-        "Educação",
-        "Saúde",
-        "Proteção civil",
-        "Operações empresariais"
-      ],
-
-      "scalability": "Software replicável e configurável por missão.",
-      "deployment": "Cloud ou ambiente institucional.",
-      "internationalization": "Arquitetura independente do território, preparada para diferentes organizações e geografias."
-    },
-
-    "sustainability": {
-      "headline": "Sustentabilidade acompanhada por evidência.",
-      "description": "O SRIS não atribui impacto por declaração. Preserva indicadores, origem dos dados, linha de base, intervenção, resultado e grau de confiança.",
-
-      "dimensions": [
-        {
-          "title": "Ambiental",
-          "description": "Recursos, biodiversidade, risco, água, energia, emissões e indicadores definidos pela missão."
-        },
-        {
-          "title": "Económica",
-          "description": "Custos, eficiência operacional, desperdício evitado, utilização de recursos e valor criado."
-        },
-        {
-          "title": "Social e territorial",
-          "description": "Segurança, emprego, continuidade operacional, participação e efeitos locais."
-        }
-      ]
-    },
-
-    "productivity": {
-      "headline": "Menos perda de contexto. Menos repetição. Melhor utilização de conhecimento.",
-      "description": "Ao preservar decisões, evidência e aprendizagem, o SRIS reduz o custo institucional de voltar a reconstruir problemas já analisados e torna conhecimento anterior reutilizável em novas missões."
-    },
-
-    "entrepreneurship": {
-      "headline": "De um problema real para uma infraestrutura transversal.",
-      "description": "O SRIS nasce da necessidade de gerir decisões complexas em contexto territorial e evolui para uma arquitetura aplicável a qualquer organização onde informação, risco, recursos, responsabilidade e aprendizagem estejam interligados."
-    },
-
-    "evidence": [
-      {
-        "id": "EVD-001",
-        "title": "Observação territorial M-001",
-        "type": "Observação de campo",
-        "status": "Preservada",
-        "confidence": "Moderada",
-        "source": "Missão M-001",
-        "description": "Caracterização inicial do território, vegetação, acessibilidades, água e condicionantes observadas."
-      },
-
-      {
-        "id": "EVD-002",
-        "title": "Arquitetura funcional SRIS",
-        "type": "Evidência técnica",
-        "status": "Confirmada",
-        "confidence": "Elevada",
-        "source": "Implementação SRIS",
-        "description": "Estrutura de missão, preservação de contexto decisório, importação de pacotes, exportação e rastreabilidade."
-      },
-
-      {
-        "id": "EVD-003",
-        "title": "Deployment operacional",
-        "type": "Evidência técnica",
-        "status": "Verificada",
-        "confidence": "Elevada",
-        "source": "Railway",
-        "description": "Aplicação operacional em ambiente cloud com frontend e backend integrados."
-      },
-
-      {
-        "id": "EVD-004",
-        "title": "Reconhecimento externo",
-        "type": "Evidência institucional",
-        "status": "Documentada",
-        "confidence": "Elevada",
-        "source": "Entidades externas",
-        "description": "Distinções e nomeações preservadas na plataforma, mantendo separação entre reconhecimento institucional e validação científica."
-      }
-    ],
-
-    "learning": [
-      {
-        "id": "LRN-0001",
-        "title": "Instrumentar antes de intervir",
-        "description": "Uma linha de base deve preceder qualquer intervenção cuja consequência se pretenda avaliar."
-      },
-
-      {
-        "id": "LRN-0002",
-        "title": "Distinguir evidência de pressuposto",
-        "description": "Uma afirmação operacional não ganha estatuto de evidência apenas por ser repetida; origem, contexto e força de suporte devem permanecer explícitos."
-      },
-
-      {
-        "id": "LRN-0003",
-        "title": "Alterações de contexto exigem reavaliação",
-        "description": "Uma decisão anteriormente defensável pode deixar de o ser quando mudam restrições, custos, evidência, objetivos ou condições externas."
-      },
-
-      {
-        "id": "LRN-0004",
-        "title": "O resultado pertence à cadeia de decisão",
-        "description": "Uma decisão não termina quando é executada. O resultado observado deve regressar ao sistema para testar aquilo que se esperava."
-      }
-    ],
-
-    "recognition": {
-      "headline": "Um percurso de inovação já reconhecido.",
-      "description": "O ecossistema de projetos, experimentação e desenvolvimento que conduziu ao SRIS participou em processos externos de seleção associados à sustentabilidade, inovação e tecnologia."
-    },
-
-    "mission_intelligence": {
-      "enabled": false,
-
-      "headline": "Mission Intelligence",
-
-      "description": "Camada de inteligência destinada a apoiar a estruturação de missões, identificar lacunas, explicitar pressupostos, organizar alternativas e produzir análises assistidas mantendo decisão humana e rastreabilidade.",
-
-      "principles": [
-        "Human-in-the-Loop",
-        "Evidence before inference",
-        "Explicit uncertainty",
-        "Traceable reasoning",
-        "No autonomous final decision"
-      ]
     }
   },
-
   "missions": {
     "CA-AWARD-APPLICATION": {
       "id": "CA-AWARD-APPLICATION",
-
       "title": "Candidatura — Prémio Empreendedorismo e Inovação Crédito Agrícola",
-
-      "subtitle": "Demonstração operacional do SRIS preparada para a edição de 2026.",
-
-      "status": "Concluída para submissão",
-
+      "subtitle": "Preparação final da demonstração operacional do SRIS para a edição de 2026.",
+      "meta": "Candidatura oficial · Edição 2026 · Portugal",
+      "status": "Em preparação final",
       "confidence": "Elevada",
-
-      "context": "O SRIS é apresentado como infraestrutura transversal para estruturar decisões complexas, preservar a sua fundamentação, ligar evidência e contexto, acompanhar execução e transformar resultados em aprendizagem institucional reutilizável.",
-
-      "central_question": "Como demonstrar, através de uma aplicação operacional, que o SRIS cria valor ao transformar informação dispersa em capacidade institucional de compreender, decidir, agir e aprender?",
-
-      "decision": "Concluir e apresentar a demonstração operacional do SRIS.",
-
-      "result": "Produto demonstrador operacional preparado para submissão."
+      "decision": "Consolidar a demonstração num percurso curto, verificável e coerente.",
+      "situation": {
+        "summary": "A candidatura encontra-se em fase de consolidação da demonstração. O produto está operacional, mas a qualidade da apresentação depende da coerência entre problema, missão, evidência, decisão, resultado e valor institucional.",
+        "attention": [
+          {
+            "title": "Demonstrar funcionamento, não apenas conceito.",
+            "description": "A candidatura deve permitir ao júri percorrer uma missão, observar mudança de dados e compreender o valor operacional do sistema.",
+            "level": "Prioridade elevada"
+          },
+          {
+            "title": "Separar evidência, inferência e reconhecimento.",
+            "description": "A plataforma deve manter explícito o que é observado, o que é assumido e o que constitui apenas reconhecimento externo.",
+            "level": "Rigor necessário"
+          },
+          {
+            "title": "Eliminar inconsistências antes da apresentação.",
+            "description": "Estado, confiança, IDs e resultados têm de provir da mesma fonte de dados em todas as páginas.",
+            "level": "Estabilização"
+          }
+        ],
+        "chain": [
+          {
+            "number": "01",
+            "label": "Observação",
+            "value": "Produto operacional",
+            "note": "Frontend, backend, missões e dados demonstráveis.",
+            "state": "completed"
+          },
+          {
+            "number": "02",
+            "label": "Evidência",
+            "value": "Consolidada",
+            "note": "Deployment, arquitetura, documentação e reconhecimentos preservados.",
+            "state": "completed"
+          },
+          {
+            "number": "03",
+            "label": "Alternativas",
+            "value": "3 narrativas testadas",
+            "note": "Demonstração técnica, territorial ou centrada na decisão.",
+            "state": "completed"
+          },
+          {
+            "number": "04",
+            "label": "Pressupostos",
+            "value": "Explícitos",
+            "note": "Não confundir reconhecimento, validação e prova de impacto.",
+            "state": "active"
+          },
+          {
+            "number": "05",
+            "label": "Restrições",
+            "value": "Tempo crítico",
+            "note": "A candidatura exige uma demonstração clara e estável.",
+            "state": "attention"
+          },
+          {
+            "number": "06",
+            "label": "Decisão",
+            "value": "Percurso único",
+            "note": "Problema → missão → evidência → decisão → aprendizagem.",
+            "state": "active"
+          },
+          {
+            "number": "07",
+            "label": "Execução",
+            "value": "Em preparação final",
+            "note": "Estabilização e ensaio da demonstração.",
+            "state": "active"
+          },
+          {
+            "number": "08",
+            "label": "Resultado",
+            "value": "Por demonstrar ao júri",
+            "note": "O resultado final é a compreensão inequívoca do valor do SRIS.",
+            "state": "pending"
+          },
+          {
+            "number": "LRN-CA",
+            "label": "Aprendizagem",
+            "value": "Coerência vence volume",
+            "note": "Uma demonstração curta e verificável é superior a uma plataforma sobrecarregada.",
+            "state": "learning"
+          }
+        ]
+      },
+      "analysis": {
+        "title": "Preparação final da candidatura ao Prémio Empreendedorismo e Inovação Crédito Agrícola",
+        "context": "O SRIS está operacional e reúne arquitetura de missão, preservação de contexto decisório, evidência, aprendizagem, importação e exportação de pacotes e demonstrações reais. A prioridade é apresentar o produto de forma coerente, verificável e suficientemente simples para que o júri compreenda o problema que resolve, a inovação introduzida e o seu potencial de aplicação transversal.",
+        "central_question": "Qual é a demonstração mais robusta e curta para provar que o SRIS transforma informação dispersa em capacidade institucional de compreender, decidir, agir e aprender?",
+        "available_evidence": "Aplicação operacional em Railway; arquitetura Mission Intelligence; missões M-001 e M-002; registo estruturado de observações, evidência, pressupostos, alternativas e aprendizagem; importação e exportação de dados; documentação fundacional e técnica; seleções e reconhecimentos externos.",
+        "unknowns": "Qual o nível ótimo de detalhe técnico para o júri; que indicadores devem ser apresentados como demonstração e não como impacto já comprovado; e que sequência produz maior compreensão sem sobrecarregar a apresentação.",
+        "result": {
+          "headline": "Concentrar a candidatura numa demonstração operacional única.",
+          "summary": "A apresentação deve começar num problema concreto, abrir uma missão, mostrar evidência e incerteza, alterar a missão ativa e terminar na aprendizagem preservada. A transversalidade deve ser demonstrada pela arquitetura comum, não por uma enumeração excessiva de setores.",
+          "situation": "O produto já permite demonstrar o princípio central; a prioridade deixou de ser acrescentar funcionalidades e passou a ser estabilizar coerência, UX e narrativa.",
+          "principal_risk": "Apresentar demasiadas capacidades e impedir que o júri perceba com precisão qual é o problema nuclear resolvido pelo SRIS.",
+          "assumptions": [
+            "O júri valoriza uma demonstração funcional mais do que uma enumeração de funcionalidades.",
+            "A arquitetura comum entre missões é suficiente para demonstrar escalabilidade conceptual.",
+            "Reconhecimento externo reforça credibilidade, mas não substitui evidência técnica nem validação científica."
+          ],
+          "alternatives": [
+            {
+              "id": "A",
+              "title": "Demonstração centrada na tecnologia",
+              "description": "Privilegia arquitetura, backend e componentes técnicos."
+            },
+            {
+              "id": "B",
+              "title": "Demonstração centrada numa missão",
+              "description": "Mostra problema, evidência, alternativas, decisão e aprendizagem num percurso único."
+            },
+            {
+              "id": "C",
+              "title": "Demonstração centrada em mercados",
+              "description": "Privilegia os vários setores onde a arquitetura pode ser aplicada."
+            }
+          ],
+          "next_decision": "Usar a alternativa B como percurso principal e suportá-la com evidência técnica e uma página separada de Impacto e escalabilidade.",
+          "confidence": "Elevada"
+        }
+      },
+      "evidence": [
+        {
+          "id": "EVD-CA-001",
+          "type": "Evidência técnica",
+          "title": "Deployment operacional",
+          "description": "Aplicação SRIS operacional em ambiente cloud com frontend e backend integrados.",
+          "status": "Confirmada",
+          "confidence": "Elevada",
+          "source": "Railway"
+        },
+        {
+          "id": "EVD-CA-002",
+          "type": "Evidência funcional",
+          "title": "Arquitetura por missões",
+          "description": "Missões distintas são representadas pela mesma estrutura de decisão e podem alimentar Situação e Nova análise.",
+          "status": "Confirmada",
+          "confidence": "Elevada",
+          "source": "SRIS"
+        },
+        {
+          "id": "EVD-CA-003",
+          "type": "Evidência institucional",
+          "title": "Reconhecimentos externos",
+          "description": "Short list Forbes Green ESG Awards 2026, finalista no Prémio Nacional de Inovação 2026 e nomeação TECH nos Prémios Líderes do Turismo 2026.",
+          "status": "Documentada",
+          "confidence": "Elevada",
+          "source": "Entidades externas"
+        }
+      ],
+      "learning": [
+        {
+          "id": "LRN-CA-001",
+          "title": "Coerência antes de expansão",
+          "description": "Quando o produto já demonstra o princípio nuclear, acrescentar funcionalidades reduz clareza se a experiência ainda não estiver estabilizada."
+        },
+        {
+          "id": "LRN-CA-002",
+          "title": "Reconhecimento não é validação",
+          "description": "Seleções e nomeações externas devem reforçar credibilidade sem serem apresentadas como prova científica ou prémio ganho."
+        }
+      ]
+    },
+    "M-001": {
+      "id": "M-001",
+      "title": "Cinco hectares, e uma decisão por tomar",
+      "subtitle": "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução e sem resultado.",
+      "meta": "Gestão do território florestal · Podentes, Penela · Aproximadamente 5 ha",
+      "status": "Em avaliação",
+      "confidence": "Moderada",
+      "decision": "Em aberto",
+      "situation": {
+        "summary": "A missão dispõe de observações iniciais e três alternativas, mas mantém pressupostos e restrições não resolvidos. Não existe ainda decisão, execução ou resultado legitimamente atribuível.",
+        "attention": [
+          {
+            "title": "Regime hídrico ainda não caracterizado.",
+            "description": "A presença de água observada não permite inferir o comportamento histórico da linha de água.",
+            "level": "Evidência necessária"
+          },
+          {
+            "title": "Restrições ainda por confirmar.",
+            "description": "Licenciamento e autorização do titular condicionam a legitimidade de qualquer intervenção.",
+            "level": "Restrição crítica"
+          },
+          {
+            "title": "Linha de base antes de intervir.",
+            "description": "Sem instrumentação prévia não será possível atribuir resultados futuros à intervenção com rigor.",
+            "level": "Aprendizagem preservada"
+          }
+        ],
+        "chain": [
+          {
+            "number": "01",
+            "label": "Observação",
+            "value": "3 registos",
+            "note": "Parcela, presença de água e vegetação espontânea observadas.",
+            "state": "completed"
+          },
+          {
+            "number": "02",
+            "label": "Evidência",
+            "value": "Parcial",
+            "note": "A observação existe; o regime hídrico histórico não está consolidado.",
+            "state": "pending"
+          },
+          {
+            "number": "03",
+            "label": "Alternativas",
+            "value": "3 em avaliação",
+            "note": "Mosaico faseado, corte/rearborização ou monitorização sem intervenção.",
+            "state": "active"
+          },
+          {
+            "number": "04",
+            "label": "Pressupostos",
+            "value": "2 por verificar",
+            "note": "Regime hídrico e relação entre povoamento e água.",
+            "state": "attention"
+          },
+          {
+            "number": "05",
+            "label": "Restrições",
+            "value": "2 não avaliadas",
+            "note": "Licenciamento e autorização do titular.",
+            "state": "attention"
+          },
+          {
+            "number": "06",
+            "label": "Decisão",
+            "value": "Em aberto",
+            "note": "Nenhuma alternativa foi selecionada.",
+            "state": "open"
+          },
+          {
+            "number": "07",
+            "label": "Execução",
+            "value": "Não iniciada",
+            "note": "Não existe intervenção executada.",
+            "state": "unavailable"
+          },
+          {
+            "number": "08",
+            "label": "Resultado",
+            "value": "Não existe",
+            "note": "Nenhum resultado foi observado ou atribuído.",
+            "state": "unavailable"
+          },
+          {
+            "number": "LRN-0001",
+            "label": "Aprendizagem",
+            "value": "Linha de base necessária",
+            "note": "A instrumentação tem de preceder a decisão.",
+            "state": "learning"
+          }
+        ]
+      },
+      "analysis": {
+        "title": "Priorização de intervenção num território florestal sob múltiplas restrições",
+        "context": "Uma parcela de aproximadamente cinco hectares em Podentes apresenta uma decisão de gestão ainda em aberto. Foram registadas observações sobre área, presença de água e vegetação espontânea, mas permanecem por caracterizar o regime hídrico histórico, a relação local entre povoamento e água e restrições de licenciamento e autorização.",
+        "central_question": "Qual é a próxima decisão defensável para esta parcela sem transformar pressupostos ainda não validados em factos?",
+        "available_evidence": "OBS-0001: parcela de aproximadamente 5 ha. OBS-0002: presença de água observada em abril de 2026. OBS-0003: vegetação espontânea com estrato arbustivo desenvolvido. Existem três alternativas preliminares de intervenção.",
+        "unknowns": "ASS-0001: regime hídrico histórico da linha de água. ASS-0002: relação local entre densidade do povoamento e regime hídrico. RST-0001: prazo e enquadramento do licenciamento. RST-0002: autorização do titular da parcela.",
+        "result": {
+          "headline": "Instrumentar e validar restrições antes de escolher a intervenção.",
+          "summary": "A informação disponível permite estruturar o problema e comparar alternativas, mas não legitima ainda uma intervenção final. A próxima decisão defensável é reduzir incerteza crítica.",
+          "situation": "Existem observações suficientes para abrir a missão, mas não para atribuir elevada confiança a uma alternativa de intervenção.",
+          "principal_risk": "Executar uma intervenção antes de compreender a linha de base e depois atribuir-lhe efeitos que não podem ser demonstrados.",
+          "assumptions": [
+            "O regime hídrico observado num momento representa comportamento relevante do local.",
+            "A densidade do povoamento pode estar relacionada com o comportamento hídrico local.",
+            "As alternativas são legalmente executáveis."
+          ],
+          "alternatives": [
+            {
+              "id": "ALT-0001",
+              "title": "Conversão faseada do povoamento em mosaico",
+              "description": "Intervenção progressiva com possibilidade de aprendizagem entre fases."
+            },
+            {
+              "id": "ALT-0002",
+              "title": "Corte com rearborização por quercíneas",
+              "description": "Intervenção estrutural dependente de validação técnica, legal e ambiental."
+            },
+            {
+              "id": "ALT-0003",
+              "title": "Não intervenção com monitorização",
+              "description": "Adia a intervenção e privilegia recolha de linha de base."
+            }
+          ],
+          "next_decision": "Confirmar restrições e instalar a linha de base mínima antes da seleção final entre ALT-0001, ALT-0002 e ALT-0003.",
+          "confidence": "Moderada"
+        }
+      },
+      "evidence": [
+        {
+          "id": "OBS-0001",
+          "type": "Observação",
+          "title": "Parcela de aproximadamente 5 ha",
+          "description": "Dimensão aproximada preservada como observação inicial da missão.",
+          "status": "Preservada",
+          "confidence": "Moderada",
+          "source": "M-001"
+        },
+        {
+          "id": "OBS-0002",
+          "type": "Observação",
+          "title": "Presença de água",
+          "description": "Presença de água observada em abril de 2026, sem inferência automática sobre regime histórico.",
+          "status": "Preservada",
+          "confidence": "Moderada",
+          "source": "M-001"
+        },
+        {
+          "id": "OBS-0003",
+          "type": "Observação",
+          "title": "Vegetação espontânea",
+          "description": "Estrato arbustivo desenvolvido observado na parcela.",
+          "status": "Preservada",
+          "confidence": "Moderada",
+          "source": "M-001"
+        }
+      ],
+      "learning": [
+        {
+          "id": "LRN-0001",
+          "title": "Instrumentar antes de intervir",
+          "description": "Sem linha de base, nenhum resultado futuro poderá ser atribuído com rigor à intervenção."
+        },
+        {
+          "id": "LRN-0002",
+          "title": "Distinguir observação de inferência",
+          "description": "A presença de água num momento não demonstra, por si só, o regime hídrico histórico do local."
+        }
+      ]
+    },
+    "M-002": {
+      "id": "M-002",
+      "title": "Recuperação da Nascente de Dragos",
+      "subtitle": "Podentes, Penela. Caso candidato para testar o SRIS fora do controlo direto do promotor.",
+      "meta": "Caso candidato · Podentes, Penela · Património e território",
+      "status": "Identificada",
+      "confidence": "Baixa",
+      "decision": "Não iniciada",
+      "situation": {
+        "summary": "O caso está identificado, mas ainda não constitui missão autorizada. Antes de qualquer decisão operacional é necessário confirmar titularidade, competências institucionais e enquadramento patrimonial.",
+        "attention": [
+          {
+            "title": "Titularidade e competências por confirmar.",
+            "description": "O sistema não deve pressupor autoridade do promotor sobre o local.",
+            "level": "Condição de abertura"
+          },
+          {
+            "title": "Enquadramento patrimonial relevante.",
+            "description": "O local possui enquadramento patrimonial documentado associado à árula romana de Dragos.",
+            "level": "Restrição previsível"
+          },
+          {
+            "title": "Não existe intervenção autorizada.",
+            "description": "O caso permanece candidato e as autorizações necessárias ainda não foram solicitadas.",
+            "level": "Estado real"
+          }
+        ],
+        "chain": [
+          {
+            "number": "01",
+            "label": "Observação",
+            "value": "Caso identificado",
+            "note": "Nascente em estado de abandono e enquadramento patrimonial conhecido.",
+            "state": "completed"
+          },
+          {
+            "number": "02",
+            "label": "Evidência",
+            "value": "Inicial",
+            "note": "Existe enquadramento conhecido, mas falta consolidação documental da missão.",
+            "state": "pending"
+          },
+          {
+            "number": "03",
+            "label": "Alternativas",
+            "value": "Não estruturadas",
+            "note": "Ainda não é legítimo comparar intervenções.",
+            "state": "unavailable"
+          },
+          {
+            "number": "04",
+            "label": "Pressupostos",
+            "value": "Por abrir",
+            "note": "Atores, titularidade e responsabilidades não estão confirmados.",
+            "state": "attention"
+          },
+          {
+            "number": "05",
+            "label": "Restrições",
+            "value": "Críticas",
+            "note": "Património, ambiente, território e múltiplos decisores.",
+            "state": "attention"
+          },
+          {
+            "number": "06",
+            "label": "Decisão",
+            "value": "Não iniciada",
+            "note": "A missão ainda não ultrapassou a fase de elegibilidade.",
+            "state": "open"
+          },
+          {
+            "number": "07",
+            "label": "Execução",
+            "value": "Não autorizada",
+            "note": "Nenhuma intervenção deve ser inferida ou iniciada.",
+            "state": "unavailable"
+          },
+          {
+            "number": "08",
+            "label": "Resultado",
+            "value": "Não existe",
+            "note": "Não existe resultado de intervenção.",
+            "state": "unavailable"
+          },
+          {
+            "number": "LRN-002",
+            "label": "Aprendizagem",
+            "value": "Autoridade antes da ação",
+            "note": "A abertura formal da missão depende de legitimidade e competências confirmadas.",
+            "state": "learning"
+          }
+        ]
+      },
+      "analysis": {
+        "title": "Elegibilidade e abertura da missão — Nascente de Dragos",
+        "context": "A Nascente de Dragos, em Podentes, encontra-se identificada como caso candidato. O local está em estado de abandono e possui enquadramento patrimonial documentado associado à árula romana de Dragos. O promotor não controla diretamente as autorizações necessárias.",
+        "central_question": "Existem condições institucionais, patrimoniais e territoriais mínimas para abrir formalmente uma missão de recuperação da Nascente de Dragos?",
+        "available_evidence": "Estado de abandono observado; enquadramento patrimonial documentado associado à árula romana de Dragos; identificação preliminar de necessidade de coordenação entre entidades titulares, patrimoniais e territoriais.",
+        "unknowns": "Titularidade formal; competências institucionais aplicáveis; autorizações patrimoniais necessárias; condicionantes ambientais e territoriais; atores decisores e condições mínimas para abertura formal da missão.",
+        "result": {
+          "headline": "Não avançar para desenho de intervenção antes de confirmar legitimidade e competências.",
+          "summary": "O caso deve permanecer identificado como candidato. O próximo passo é institucional, não técnico: confirmar quem pode decidir, quem deve autorizar e que enquadramentos condicionam a missão.",
+          "situation": "Existe uma oportunidade territorial identificada, mas falta legitimidade processual suficiente para estruturar alternativas de intervenção.",
+          "principal_risk": "Tratar um caso candidato como projeto autorizado e produzir recomendações sobre uma intervenção para a qual ainda não existe mandato.",
+          "assumptions": [
+            "Existe interesse institucional potencial na recuperação do local.",
+            "O enquadramento patrimonial exige participação de entidades competentes.",
+            "A missão poderá depender de vários decisores independentes."
+          ],
+          "alternatives": [
+            {
+              "id": "A",
+              "title": "Não abrir a missão",
+              "description": "Manter apenas o registo do caso candidato até surgirem condições institucionais."
+            },
+            {
+              "id": "B",
+              "title": "Abrir fase de elegibilidade",
+              "description": "Confirmar titularidade, competências, atores e restrições antes de qualquer desenho técnico."
+            },
+            {
+              "id": "C",
+              "title": "Abrir missão operacional",
+              "description": "Só admissível após confirmação das condições institucionais mínimas."
+            }
+          ],
+          "next_decision": "Escolher a alternativa B: confirmar titularidade, competências institucionais, enquadramento patrimonial e condições mínimas para abertura formal.",
+          "confidence": "Baixa"
+        }
+      },
+      "evidence": [
+        {
+          "id": "EVD-M002-001",
+          "type": "Observação",
+          "title": "Estado de abandono",
+          "description": "O local encontra-se identificado em estado de abandono.",
+          "status": "Preservada",
+          "confidence": "Moderada",
+          "source": "M-002"
+        },
+        {
+          "id": "EVD-M002-002",
+          "type": "Contexto patrimonial",
+          "title": "Associação à árula romana de Dragos",
+          "description": "O local possui enquadramento patrimonial documentado associado à árula romana de Dragos.",
+          "status": "Documentada",
+          "confidence": "Moderada",
+          "source": "M-002"
+        }
+      ],
+      "learning": [
+        {
+          "id": "LRN-M002-001",
+          "title": "Legitimidade antes da intervenção",
+          "description": "Em missões fora do controlo direto do promotor, a primeira decisão pode ser confirmar autoridade, competências e condições de abertura."
+        }
+      ]
     }
   }
 }
