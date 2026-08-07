@@ -1,6 +1,6 @@
 {
   "schema": "sris_platform_content",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "platform": {
     "identity": {
       "name": "SRIS",
@@ -81,6 +81,41 @@
             "image": "/assets/Premios_lideres_do_turismo_2026_NOMEADO_categ-TECK.png",
             "alt": "Nomeado — Prémios Líderes do Turismo 2026"
           }
+        ]
+      }
+    },
+    "positioning": {
+      "eyebrow": "Inteligência para decisões complexas",
+      "headline": "Preservar o raciocínio das decisões.",
+      "description": "Organizações e territórios acumulam dados, documentos e decisões, mas perdem frequentemente a razão pela qual cada escolha foi tomada. O SRIS estrutura contexto, evidência, pressupostos, alternativas, restrições, decisão, resultado e aprendizagem para que o raciocínio permaneça verificável ao longo do tempo.",
+      "topbar": {
+        "overview": [
+          "SRIS",
+          "Situação da missão ativa"
+        ],
+        "missions": [
+          "Missões",
+          "Portefólio acompanhado pelo SRIS"
+        ],
+        "workspace": [
+          "Nova análise",
+          "Estruturação de contexto e decisão"
+        ],
+        "knowledge": [
+          "Conhecimento",
+          "Memória institucional preservada"
+        ],
+        "evidence": [
+          "Evidência",
+          "Rastreabilidade e suporte"
+        ],
+        "learning": [
+          "Aprendizagem",
+          "Resultados, desvios e revisão"
+        ],
+        "impact": [
+          "Impacto",
+          "Diferenciação, escalabilidade, sustentabilidade e reconhecimento"
         ]
       }
     }
