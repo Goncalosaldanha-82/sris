@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .audit import record_audit
@@ -21,20 +22,30 @@ from .schemas import (
     UserRead,
 )
 from .security import create_access_token, hash_password, verify_password
+from app.mission_intelligence.api import organization_router, public_router
 
 
 app = FastAPI(
-    title="ATLAS Platform API",
-    version="0.1.0",
-    description="Authentication, organizations, RBAC and unified knowledge model.",
+    title="SRIS Mission Intelligence API",
+    version="1.3.0",
+    description=(
+        "Canonical mission intelligence, authentication, organizations, RBAC and "
+        "the unified knowledge workflow."
+    ),
 )
 
 app.include_router(workflow_router)
+app.include_router(public_router)
+app.include_router(organization_router)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health(db: Session = Depends(get_db)) -> dict[str, str]:
+    try:
+        db.execute(text("select 1"))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database unavailable") from exc
+    return {"status": "ok", "database": "ok"}
 
 
 @app.post("/api/auth/register", response_model=UserRead, status_code=201)

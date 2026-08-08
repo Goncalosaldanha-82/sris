@@ -16,11 +16,6 @@ from fastapi.testclient import TestClient
 from app.atlas_platform.database import Base, engine
 from app.atlas_platform import workflow_models  # noqa: F401
 from app.atlas_platform.api import app
-from app.atlas_platform.workflow_api import router as workflow_router
-
-
-if not any(getattr(route, "path", "").endswith("/workflows") for route in app.routes):
-    app.include_router(workflow_router)
 
 Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
@@ -50,7 +45,7 @@ def auth_headers() -> tuple[dict[str, str], str]:
     org = client.post(
         "/api/organizations",
         headers=headers,
-        json={"name": "Project ATLAS", "slug": "project-atlas"},
+        json={"name": "Workflow Project ATLAS", "slug": "workflow-project-atlas"},
     )
     return headers, org.json()["id"]
 

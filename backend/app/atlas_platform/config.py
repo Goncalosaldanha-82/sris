@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 
 DEFAULT_DATABASE_URL = "sqlite+pysqlite:///./.atlas/atlas_platform.db"
+DEFAULT_JWT_SECRET = "change-me-before-production"
 
 
 def ensure_sqlite_parent(database_url: str) -> None:
@@ -28,16 +29,36 @@ def ensure_sqlite_parent(database_url: str) -> None:
 
 @dataclass(frozen=True)
 class Settings:
-    database_url: str = os.getenv("ATLAS_DATABASE_URL", DEFAULT_DATABASE_URL)
-    jwt_secret: str = os.getenv(
-        "ATLAS_JWT_SECRET",
-        "change-me-before-production",
+    database_url: str = field(
+        default_factory=lambda: os.getenv("ATLAS_DATABASE_URL", DEFAULT_DATABASE_URL)
+    )
+    jwt_secret: str = field(
+        default_factory=lambda: os.getenv("ATLAS_JWT_SECRET", DEFAULT_JWT_SECRET)
+    )
+    environment: str = field(
+        default_factory=lambda: os.getenv("ATLAS_ENV", "development")
     )
     jwt_algorithm: str = "HS256"
-    access_token_minutes: int = int(
-        os.getenv("ATLAS_ACCESS_TOKEN_MINUTES", "60")
+    access_token_minutes: int = field(
+        default_factory=lambda: int(os.getenv("ATLAS_ACCESS_TOKEN_MINUTES", "60"))
     )
+
+
+def validate_security_settings(value: Settings) -> None:
+    managed_railway = any(
+        os.getenv(name)
+        for name in ("RAILWAY_ENVIRONMENT_ID", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID")
+    )
+    production = value.environment.strip().lower() in {"production", "prod"}
+    if (production or managed_railway) and (
+        value.jwt_secret == DEFAULT_JWT_SECRET or len(value.jwt_secret.encode("utf-8")) < 32
+    ):
+        raise RuntimeError(
+            "ATLAS_JWT_SECRET must contain at least 32 bytes and must not use the "
+            "default value in production"
+        )
 
 
 settings = Settings()
+validate_security_settings(settings)
 ensure_sqlite_parent(settings.database_url)
