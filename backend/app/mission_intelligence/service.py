@@ -17,6 +17,7 @@ from .ai import (
     conservative_input_token_reservation,
     count_openai_input_tokens,
     is_ai_configured,
+    is_ai_organization_authorized,
     prepare_ai_request,
 )
 from .canonical import legacy_to_canonical
@@ -223,6 +224,13 @@ def run_organizational_analysis(
                 "allowed": False,
                 "code": "provider_not_configured",
                 "message": "The AI provider is not enabled and configured",
+            }
+        elif not is_ai_organization_authorized(organization_id):
+            result["ai_status"] = "governance_blocked"
+            result["ai_governance"] = {
+                "allowed": False,
+                "code": "organization_not_authorized",
+                "message": "This organization is not authorized for the AI pilot",
             }
         else:
             policy = (

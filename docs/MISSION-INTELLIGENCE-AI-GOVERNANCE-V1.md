@@ -6,10 +6,12 @@ Migração Alembic: `20260808_0003`
 
 ## Objetivo
 
-A presença de `OPENAI_API_KEY` nunca é autorização suficiente para gastar. Cada
-organização tem de possuir uma política explícita, criada por `owner` ou `admin`,
-e cada chamada tem de caber simultaneamente nos limites mensal, por pedido e de
-concorrência. Um bloqueio da IA não elimina a análise determinística.
+A presença de `OPENAI_API_KEY` nunca é autorização suficiente para gastar. Em
+produção, apenas o UUID exato definido em `SRIS_AI_PILOT_ORGANIZATION_ID` pode
+atravessar o gate do piloto. Essa organização tem ainda de possuir uma política
+explícita, criada por `owner` ou `admin`, e cada chamada tem de caber
+simultaneamente nos limites mensal, por pedido e de concorrência. Um bloqueio da
+IA não elimina a análise determinística.
 
 ## Gate de execução
 
@@ -17,12 +19,32 @@ Uma execução assistida só chega ao fornecedor quando todas as condições sã
 verdadeiras:
 
 1. `SRIS_AI_ENABLED=true` e `OPENAI_API_KEY` existe no servidor;
-2. o utilizador está autenticado e tem papel `owner`, `admin` ou `reviewer`;
-3. a organização tem uma política configurada com `enabled=true`;
-4. o modelo possui uma tabela de preços governada;
-5. o pedido cabe no limite de entrada e saída por execução;
-6. a quota mensal de pedidos, tokens e custo ainda tem saldo;
-7. existe capacidade no limite de chamadas concorrentes.
+2. `SRIS_AI_PILOT_ORGANIZATION_ID` contém um UUID canónico;
+3. o auto-registo e a criação livre de organizações estão explicitamente fechados;
+4. o pedido pertence exatamente a essa organização piloto;
+5. o utilizador está autenticado e tem papel `owner`, `admin` ou `reviewer`;
+6. a organização tem uma política configurada com `enabled=true`;
+7. o modelo possui uma tabela de preços governada;
+8. o pedido cabe no limite de entrada e saída por execução;
+9. a quota mensal de pedidos, tokens e custo ainda tem saldo;
+10. existe capacidade no limite de chamadas concorrentes.
+
+Sem o UUID do piloto, a configuração de IA permanece falsa em Railway/produção.
+Um utilizador que crie outra organização pode usar o motor determinístico, mas
+recebe `organization_not_authorized` antes de qualquer contagem ou chamada à
+OpenAI. O endpoint público de estado revela apenas se o gate está configurado;
+nunca revela o UUID autorizado.
+
+Depois de criar o utilizador e a organização piloto, a implantação deve fixar:
+
+```env
+ATLAS_SELF_REGISTRATION_ENABLED=false
+ATLAS_ORGANIZATION_CREATION_ENABLED=false
+```
+
+Em produção, a IA permanece não configurada enquanto estes dois valores não
+estiverem explicitamente fechados. O login dos utilizadores existentes continua
+disponível.
 
 O SRIS reserva primeiro o pior caso do pedido. Dentro dessa reserva, usa
 `POST /v1/responses/input_tokens` para substituir a estimativa conservadora pela
@@ -61,6 +83,11 @@ PUT /api/organizations/{organization_id}/mission-intelligence/ai-governance/poli
 
 Só depois do smoke test determinístico, da configuração do segredo e da leitura
 do saldo deve a mesma política ser atualizada para `enabled=true`.
+
+Este teto de USD é o controlo interno do SRIS. O projeto dedicado na plataforma
+OpenAI deve possuir também um **hard spend limit** de USD 5,00. Esse segundo teto
+é independente da aplicação e interrompe pedidos no fornecedor se o limite for
+atingido.
 
 ## Contabilidade e preços
 
@@ -120,7 +147,10 @@ o conteúdo canónico; esses dados permanecem separados nos objetos próprios.
 - migração `20260808_0003` no head;
 - `/health` e análise pública determinística aprovados;
 - organização e utilizador piloto criados;
+- auto-registo e criação de organizações fechados no Railway;
+- projeto OpenAI dedicado, chave de serviço e hard spend limit de USD 5,00;
 - política criada e verificada ainda desativada;
+- `SRIS_AI_PILOT_ORGANIZATION_ID` definido com o UUID exato da organização;
 - `OPENAI_API_KEY` adicionada como segredo;
 - ativação global e organizacional limitada ao piloto;
 - uma única chamada M-001 executada;

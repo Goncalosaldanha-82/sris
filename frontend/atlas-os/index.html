@@ -1598,6 +1598,7 @@
     let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-001";
     let modalMissionId = null;
     let activeOrganizationId = null;
+    let aiGovernanceStatus = null;
     let intelligenceStatus = {
       deterministic_analysis:"unavailable",
       ai_configured:false,
@@ -1841,6 +1842,8 @@
         ? "A análise por IA não é executada no modo de demonstração. Requer sessão institucional."
         : result.ai_status==="not_configured"
           ? "A camada de IA está instalada, mas ainda não tem configuração ativa. A análise determinística foi concluída."
+          : result.ai_status==="governance_blocked"
+            ? `A IA foi bloqueada pela governação (${result.ai_governance?.code||"regra institucional"}). O relatório determinístico foi concluído.`
           : result.ai_status==="failed"
             ? "A camada de IA não concluiu a execução. O relatório determinístico permanece disponível e auditável."
             : "";
@@ -1883,7 +1886,12 @@
       if(!checkbox||!status||!container)return;
       const token=sessionStorage.getItem("sris_token");
       const institutional=Boolean(token&&activeOrganizationId);
-      const available=Boolean(institutional&&intelligenceStatus.ai_configured);
+      const available=Boolean(
+        institutional&&
+        intelligenceStatus.ai_configured&&
+        aiGovernanceStatus?.organization_authorized&&
+        aiGovernanceStatus?.ready
+      );
       checkbox.disabled=!available;
       if(!available)checkbox.checked=false;
       container.classList.toggle("is-unavailable",!available);
@@ -1891,6 +1899,14 @@
         status.textContent="No modo de demonstração é executado apenas o motor determinístico. A IA requer sessão institucional.";
       }else if(!intelligenceStatus.ai_configured){
         status.textContent="A camada OpenAI está instalada, mas a configuração de produção ainda não está ativa.";
+      }else if(!aiGovernanceStatus?.organization_authorized){
+        status.textContent="Esta organização não está autorizada para o piloto de IA.";
+      }else if(aiGovernanceStatus?.readiness_reason==="policy_required"){
+        status.textContent="O piloto exige uma política de utilização e custo aprovada para esta organização.";
+      }else if(aiGovernanceStatus?.readiness_reason==="organization_disabled"){
+        status.textContent="A política existe, mas a IA está desativada para esta organização.";
+      }else if(!aiGovernanceStatus?.ready){
+        status.textContent=`A IA está bloqueada pela governação (${aiGovernanceStatus?.readiness_reason||"estado indisponível"}).`;
       }else{
         status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. A saída é provisória e exige revisão humana.`;
       }
@@ -1898,12 +1914,20 @@
 
     async function loadSessionContext(token){
       activeOrganizationId=null;
+      aiGovernanceStatus=null;
       if(!token){updateAIControl();return}
       try{
         const res=await fetch("/api/organizations",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
         if(!res.ok)throw new Error("Não foi possível obter a organização ativa.");
         const organizations=await res.json();
         activeOrganizationId=organizations?.[0]?.id||null;
+        if(activeOrganizationId){
+          const governance=await fetch(
+            `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
+            {headers:{Authorization:`Bearer ${token}`},cache:"no-store"}
+          );
+          if(governance.ok)aiGovernanceStatus=await governance.json();
+        }
       }catch(err){
         console.warn("Contexto institucional indisponível:",err);
       }
@@ -2088,6 +2112,7 @@
         const data=await res.json();
         if(!res.ok)throw new Error(data.detail||"Não foi possível executar Mission Intelligence.");
         renderResult(data);
+        if(institutional&&payload.use_ai)await loadSessionContext(token);
         qs("#resultPlaceholder").classList.add("hidden");
         qs("#resultBlock").classList.remove("hidden");
         qs("#resultBlock").scrollIntoView({behavior:"smooth",block:"start"});
@@ -2126,6 +2151,7 @@
     // Login / demo
     qs("#demoButton").addEventListener("click",()=>{
       activeOrganizationId=null;
+      aiGovernanceStatus=null;
       sessionStorage.setItem("sris_demo","true");openApp();
     });
 
@@ -2133,6 +2159,7 @@
       sessionStorage.removeItem("sris_demo");
       sessionStorage.removeItem("sris_token");
       activeOrganizationId=null;
+      aiGovernanceStatus=null;
       qs("#appScreen").classList.add("hidden");
       qs("#loginScreen").classList.remove("hidden");
       updateAIControl();

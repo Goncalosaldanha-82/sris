@@ -7,7 +7,13 @@ from app.atlas_platform.auth import require_org_role
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role
 
-from .ai import configured_model, is_ai_configured
+from .ai import (
+    configured_model,
+    configured_pilot_organization_id,
+    institutional_onboarding_closed,
+    is_ai_configured,
+    is_ai_organization_authorized,
+)
 from .catalog import demo_mission, load_demo_catalog
 from .contracts import AIGovernancePolicyUpdate, AnalysisInput, ReviewRequest
 from .engine import ENGINE_VERSION
@@ -32,6 +38,11 @@ def capability_status() -> dict:
         "ai_provider": "openai",
         "ai_model": configured_model(),
         "ai_configured": is_ai_configured(),
+        "ai_pilot_gate": "single_organization",
+        "ai_pilot_organization_configured": (
+            configured_pilot_organization_id() is not None
+        ),
+        "institutional_onboarding_closed": institutional_onboarding_closed(),
         "ai_requires_authentication": True,
         "ai_governance_version": "1.0",
         "ai_organization_policy_required": True,
@@ -191,6 +202,7 @@ def get_ai_governance(
         db,
         organization_id=organization_id,
         ai_globally_configured=is_ai_configured(),
+        ai_organization_authorized=is_ai_organization_authorized(organization_id),
     )
 
 
@@ -203,6 +215,14 @@ def put_ai_governance_policy(
     ),
     db: Session = Depends(get_db),
 ) -> dict:
+    if payload.enabled and not is_ai_organization_authorized(organization_id):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "organization_not_authorized",
+                "message": "This organization is not authorized for the AI pilot",
+            },
+        )
     update_policy(
         db,
         organization_id=organization_id,
@@ -213,6 +233,7 @@ def put_ai_governance_policy(
         db,
         organization_id=organization_id,
         ai_globally_configured=is_ai_configured(),
+        ai_organization_authorized=is_ai_organization_authorized(organization_id),
     )
 
 
