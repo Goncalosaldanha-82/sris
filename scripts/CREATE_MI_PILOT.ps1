@@ -7,13 +7,13 @@ param(
 $ErrorActionPreference = "Stop"
 $BaseUrl = $BaseUrl.TrimEnd("/")
 
-Write-Host "SRIS - criação segura da identidade institucional piloto" -ForegroundColor Cyan
+Write-Host "SRIS - criacao segura da identidade institucional piloto" -ForegroundColor Cyan
 Write-Host "Destino: $BaseUrl"
-Write-Host "A IA permanece desativada; este script cria apenas utilizador, organização e política."
+Write-Host "A IA permanece desativada; este script cria apenas utilizador, organizacao e politica."
 
 $fullName = Read-Host "Nome completo"
 $email = Read-Host "Email institucional"
-$securePassword = Read-Host "Palavra-passe (mínimo 10 caracteres)" -AsSecureString
+$securePassword = Read-Host "Palavra-passe (minimo 10 caracteres)" -AsSecureString
 $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
 try {
     $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
@@ -27,17 +27,18 @@ if ($plainPassword.Length -lt 10) {
     throw "A palavra-passe tem de possuir pelo menos 10 caracteres."
 }
 
-$registerBody = @{
+$registerJson = @{
     email = $email
     full_name = $fullName
     password = $plainPassword
-} | ConvertTo-Json
+} | ConvertTo-Json -Compress
+$registerBody = [System.Text.Encoding]::UTF8.GetBytes($registerJson)
 
 try {
     Invoke-RestMethod `
         -Method Post `
         -Uri "$BaseUrl/api/auth/register" `
-        -ContentType "application/json" `
+        -ContentType "application/json; charset=utf-8" `
         -Body $registerBody | Out-Null
     Write-Host "Utilizador criado." -ForegroundColor Green
 }
@@ -47,18 +48,19 @@ catch {
         $plainPassword = $null
         throw
     }
-    Write-Host "O utilizador já existia; será apenas autenticado." -ForegroundColor Yellow
+    Write-Host "O utilizador ja existia; sera apenas autenticado." -ForegroundColor Yellow
 }
 
-$loginBody = @{
+$loginJson = @{
     email = $email
     password = $plainPassword
-} | ConvertTo-Json
+} | ConvertTo-Json -Compress
+$loginBody = [System.Text.Encoding]::UTF8.GetBytes($loginJson)
 try {
     $login = Invoke-RestMethod `
         -Method Post `
         -Uri "$BaseUrl/api/auth/login" `
-        -ContentType "application/json" `
+        -ContentType "application/json; charset=utf-8" `
         -Body $loginBody
 }
 finally {
@@ -67,28 +69,40 @@ finally {
 }
 
 $headers = @{ Authorization = "Bearer $($login.access_token)" }
-$organizations = @(
-    Invoke-RestMethod `
-        -Method Get `
-        -Uri "$BaseUrl/api/organizations" `
-        -Headers $headers
-)
+$organizationResponse = Invoke-RestMethod `
+    -Method Get `
+    -Uri "$BaseUrl/api/organizations" `
+    -Headers $headers
+
+# Windows PowerShell 5.1 can preserve a JSON array returned by
+# Invoke-RestMethod as one pipeline object. Enumerate the assigned value
+# explicitly so that selecting [0] always returns an organization, not the
+# array that contains it.
+$organizations = @()
+if ($null -ne $organizationResponse) {
+    foreach ($candidate in $organizationResponse) {
+        $organizations += $candidate
+    }
+}
 
 if ($organizations.Count -eq 0) {
-    $organizationBody = @{
+    $organizationJson = @{
         name = $OrganizationName
         slug = $OrganizationSlug
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
+    $organizationBody = [System.Text.Encoding]::UTF8.GetBytes($organizationJson)
     $organization = Invoke-RestMethod `
         -Method Post `
         -Uri "$BaseUrl/api/organizations" `
         -Headers $headers `
-        -ContentType "application/json" `
+        -ContentType "application/json; charset=utf-8" `
         -Body $organizationBody
-    Write-Host "Organização piloto criada." -ForegroundColor Green
+    Write-Host "Organizacao piloto criada." -ForegroundColor Green
 }
 else {
-    $matchingOrganizations = @($organizations | Where-Object { $_.slug -eq $OrganizationSlug })
+    $matchingOrganizations = @(
+        $organizations | Where-Object { $_.slug -eq $OrganizationSlug }
+    )
     if ($matchingOrganizations.Count -eq 1) {
         $organization = $matchingOrganizations[0]
     }
@@ -96,12 +110,17 @@ else {
         $organization = $organizations[0]
     }
     else {
-        throw "Existem várias organizações e nenhuma corresponde ao slug '$OrganizationSlug'."
+        throw "Existem varias organizacoes e nenhuma corresponde ao slug '$OrganizationSlug'."
     }
-    Write-Host "Foi utilizada a organização já associada ao utilizador." -ForegroundColor Yellow
+    Write-Host "Foi utilizada a organizacao ja associada ao utilizador." -ForegroundColor Yellow
 }
 
-$policyBody = @{
+$organizationId = [string]$organization.id
+if ([string]::IsNullOrWhiteSpace($organizationId)) {
+    throw "A API nao devolveu um UUID valido para a organizacao piloto. A politica nao foi alterada."
+}
+
+$policyJson = @{
     enabled = $false
     monthly_request_limit = 20
     monthly_input_token_limit = 250000
@@ -110,21 +129,22 @@ $policyBody = @{
     per_request_input_token_limit = 60000
     per_request_output_token_limit = 3000
     max_concurrent_requests = 1
-} | ConvertTo-Json
+} | ConvertTo-Json -Compress
+$policyBody = [System.Text.Encoding]::UTF8.GetBytes($policyJson)
 
-$policyUri = "$BaseUrl/api/organizations/$($organization.id)/mission-intelligence/ai-governance/policy"
+$policyUri = "$BaseUrl/api/organizations/$organizationId/mission-intelligence/ai-governance/policy"
 $governance = Invoke-RestMethod `
     -Method Put `
     -Uri $policyUri `
     -Headers $headers `
-    -ContentType "application/json" `
+    -ContentType "application/json; charset=utf-8" `
     -Body $policyBody
 
-$organization.id | Set-Clipboard
+$organizationId | Set-Clipboard
 Write-Host ""
-Write-Host "Configuração institucional inicial concluída." -ForegroundColor Green
-Write-Host "Organização: $($organization.name)"
-Write-Host "UUID: $($organization.id)"
-Write-Host "Política ativa: $($governance.policy.enabled)"
-Write-Host "O UUID foi copiado para a área de transferência."
-Write-Host "Não ative a IA antes de fechar o auto-registo e a criação de organizações no Railway." -ForegroundColor Yellow
+Write-Host "Configuracao institucional inicial concluida." -ForegroundColor Green
+Write-Host "Organizacao: $($organization.name)"
+Write-Host "UUID: $organizationId"
+Write-Host "Politica ativa: $($governance.policy.enabled)"
+Write-Host "O UUID foi copiado para a area de transferencia."
+Write-Host "Nao ative a IA antes de fechar o auto-registo e a criacao de organizacoes no Railway." -ForegroundColor Yellow
