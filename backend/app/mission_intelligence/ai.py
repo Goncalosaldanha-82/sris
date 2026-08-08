@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from hmac import compare_digest
 from typing import Any
+from uuid import UUID
 
 from .contracts import AIAdvisory, DeterministicReport, MissionDocumentV13
 
@@ -69,6 +71,60 @@ def configured_model() -> str:
     return os.getenv("SRIS_AI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
 
+def _managed_production() -> bool:
+    managed_railway = any(
+        os.getenv(name)
+        for name in (
+            "RAILWAY_ENVIRONMENT_ID",
+            "RAILWAY_PROJECT_ID",
+            "RAILWAY_SERVICE_ID",
+        )
+    )
+    production = os.getenv("ATLAS_ENV", "development").strip().lower() in {
+        "production",
+        "prod",
+    }
+    return managed_railway or production
+
+
+def configured_pilot_organization_id() -> str | None:
+    """Return the canonical pilot organization UUID, never an arbitrary value."""
+
+    raw = os.getenv("SRIS_AI_PILOT_ORGANIZATION_ID", "").strip().lower()
+    if not raw:
+        return None
+    try:
+        canonical = str(UUID(raw))
+    except ValueError:
+        return None
+    return canonical if compare_digest(raw, canonical) else None
+
+
+def is_ai_organization_authorized(organization_id: str) -> bool:
+    """Fail closed to one explicit organization in managed production.
+
+    Development and test environments remain usable without Railway-only
+    configuration. Supplying a pilot ID anywhere enables the exact same gate,
+    which lets the behavior be exercised locally.
+    """
+
+    configured = configured_pilot_organization_id()
+    if configured is None:
+        return not _managed_production()
+    return compare_digest(organization_id.strip().lower(), configured)
+
+
+def institutional_onboarding_closed() -> bool:
+    """Require explicit closure of public account and tenant creation in production."""
+
+    false_values = {"0", "false", "no", "off"}
+    registration = os.getenv("ATLAS_SELF_REGISTRATION_ENABLED", "").strip().lower()
+    organizations = os.getenv(
+        "ATLAS_ORGANIZATION_CREATION_ENABLED", ""
+    ).strip().lower()
+    return registration in false_values and organizations in false_values
+
+
 def is_ai_configured() -> bool:
     enabled = os.getenv("SRIS_AI_ENABLED", "false").strip().lower() in {
         "1",
@@ -76,7 +132,14 @@ def is_ai_configured() -> bool:
         "yes",
         "on",
     }
-    return enabled and bool(os.getenv("OPENAI_API_KEY", "").strip())
+    provider_ready = enabled and bool(os.getenv("OPENAI_API_KEY", "").strip())
+    pilot_gate_ready = (
+        configured_pilot_organization_id() is not None or not _managed_production()
+    )
+    onboarding_gate_ready = (
+        institutional_onboarding_closed() or not _managed_production()
+    )
+    return provider_ready and pilot_gate_ready and onboarding_gate_ready
 
 
 def prepare_ai_request(

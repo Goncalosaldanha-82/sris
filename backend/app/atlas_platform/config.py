@@ -10,6 +10,13 @@ DEFAULT_DATABASE_URL = "sqlite+pysqlite:///./.atlas/atlas_platform.db"
 DEFAULT_JWT_SECRET = "change-me-before-production"
 
 
+def environment_flag(name: str, *, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
 def ensure_sqlite_parent(database_url: str) -> None:
     """Create the parent directory for file-backed SQLite databases."""
     if not database_url.startswith(("sqlite:///", "sqlite+pysqlite:///")):

@@ -683,6 +683,7 @@ def governance_view(
     *,
     organization_id: str,
     ai_globally_configured: bool,
+    ai_organization_authorized: bool,
 ) -> dict:
     policy = (
         db.query(AIOrganizationPolicy)
@@ -761,6 +762,7 @@ def governance_view(
         policy
         and policy.enabled
         and ai_globally_configured
+        and ai_organization_authorized
         and quota_reason is None
     )
     if policy is None:
@@ -769,6 +771,8 @@ def governance_view(
         reason = "organization_disabled"
     elif not ai_globally_configured:
         reason = "provider_not_configured"
+    elif not ai_organization_authorized:
+        reason = "organization_not_authorized"
     elif quota_reason:
         reason = quota_reason
     else:
@@ -780,6 +784,7 @@ def governance_view(
         "ready": ready,
         "readiness_reason": reason,
         "global_provider_configured": ai_globally_configured,
+        "organization_authorized": ai_organization_authorized,
         "policy": policy_view(policy),
         "current_period": current,
         "currency": "USD",

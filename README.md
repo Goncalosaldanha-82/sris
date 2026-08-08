@@ -6,8 +6,11 @@ intelligence, deterministic analysis and an optional human-reviewed AI advisory.
 Implementation and deployment controls:
 [Mission Intelligence & AI v1](docs/MISSION-INTELLIGENCE-AI-V1.md).
 
-Per-organization AI quotas, cost controls and pilot gate:
+Single-organization pilot authorization, per-organization quotas and cost controls:
 [AI Governance v1](docs/MISSION-INTELLIGENCE-AI-GOVERNANCE-V1.md).
+
+Controlled production activation:
+[MI + AI pilot runbook](docs/MI-AI-PILOT-ACTIVATION-RUNBOOK.md).
 
 Production assessment:
 [application audit — 2026-08-08](docs/APP-AUDIT-2026-08-08.md).

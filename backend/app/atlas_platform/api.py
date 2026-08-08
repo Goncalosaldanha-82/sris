@@ -9,6 +9,7 @@ from app.mission_intelligence.api import organization_router, public_router
 from . import workflow_models  # noqa: F401
 from .audit import record_audit
 from .auth import current_user, require_org_role
+from .config import environment_flag
 from .database import get_db
 from .models import KnowledgeObject, Membership, Organization, Role, User
 from .schemas import (
@@ -50,6 +51,8 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 
 @app.post("/api/auth/register", response_model=UserRead, status_code=201)
 def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+    if not environment_flag("ATLAS_SELF_REGISTRATION_ENABLED", default=True):
+        raise HTTPException(status_code=403, detail="Self-registration is disabled")
     if db.query(User).filter(User.email == payload.email.lower()).first():
         raise HTTPException(status_code=409, detail="Email already registered")
 
@@ -90,6 +93,8 @@ def create_organization(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ) -> Organization:
+    if not environment_flag("ATLAS_ORGANIZATION_CREATION_ENABLED", default=True):
+        raise HTTPException(status_code=403, detail="Organization creation is disabled")
     if db.query(Organization).filter(Organization.slug == payload.slug).first():
         raise HTTPException(status_code=409, detail="Organization slug already exists")
 

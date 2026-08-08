@@ -31,6 +31,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 os.environ.pop("OPENAI_API_KEY", None)
+os.environ.pop("SRIS_AI_PILOT_ORGANIZATION_ID", None)
 os.environ["SRIS_AI_ENABLED"] = "false"
 
 Base.metadata.drop_all(bind=engine)
@@ -112,6 +113,9 @@ def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     assert status.status_code == 200
     assert status.json()["foundation_version"] == "1.3"
     assert status.json()["human_review_required"] is True
+    assert status.json()["ai_pilot_gate"] == "single_organization"
+    assert status.json()["ai_pilot_organization_configured"] is False
+    assert status.json()["institutional_onboarding_closed"] is False
 
     response = client.post(
         "/api/mission-intelligence/demo/missions/M-001/analyze",
@@ -237,6 +241,7 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     assert frontend.status_code == 200
     assert "UI-R2 · MI-1" in frontend.text
     assert "Executar Mission Intelligence" in frontend.text
+    assert "aiGovernanceStatus?.organization_authorized" in frontend.text
 
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
@@ -365,6 +370,79 @@ def test_ai_requires_explicit_org_policy_and_enforces_monthly_quota(monkeypatch)
     assert events.status_code == 200
     assert len(events.json()) == 1
     assert events.json()[0]["intelligence_run_id"] == completed_data["run_id"]
+
+
+def test_non_pilot_organization_never_crosses_the_provider_gate(monkeypatch) -> None:
+    headers, organization_id = _owner_named("pilot-denied")
+    endpoint = f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/analyze"
+    monkeypatch.setattr(service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(service, "is_ai_organization_authorized", lambda _org: False)
+
+    def must_not_call_provider(*_args, **_kwargs):
+        raise AssertionError("An unauthorized organization crossed the pilot gate")
+
+    monkeypatch.setattr(service, "analyze_with_openai", must_not_call_provider)
+    response = client.post(
+        endpoint,
+        headers=headers,
+        json=_analysis_payload(use_ai=True),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["ai_status"] == "governance_blocked"
+    assert response.json()["ai_governance"]["code"] == "organization_not_authorized"
+    assert response.json()["deterministic"]
+
+
+def test_non_pilot_owner_cannot_enable_an_ai_policy(monkeypatch) -> None:
+    headers, organization_id = _owner_named("policy-denied")
+    monkeypatch.setattr(
+        mission_api,
+        "is_ai_organization_authorized",
+        lambda _organization_id: False,
+    )
+    response = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 20,
+            "monthly_input_token_limit": 250_000,
+            "monthly_output_token_limit": 50_000,
+            "monthly_budget_usd": "5.00",
+            "per_request_input_token_limit": 60_000,
+            "per_request_output_token_limit": 3_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "organization_not_authorized"
+
+
+def test_operator_can_close_public_registration_and_organization_creation(
+    monkeypatch,
+) -> None:
+    headers, _ = _owner_named("closed-onboarding")
+    monkeypatch.setenv("ATLAS_SELF_REGISTRATION_ENABLED", "false")
+    monkeypatch.setenv("ATLAS_ORGANIZATION_CREATION_ENABLED", "false")
+
+    register = client.post(
+        "/api/auth/register",
+        json={
+            "email": "blocked-registration@example.com",
+            "full_name": "Blocked Registration",
+            "password": "strong-password-123",
+        },
+    )
+    assert register.status_code == 403
+    assert register.json()["detail"] == "Self-registration is disabled"
+
+    organization = client.post(
+        "/api/organizations",
+        headers=headers,
+        json={"name": "Blocked Organization", "slug": "blocked-organization"},
+    )
+    assert organization.status_code == 403
+    assert organization.json()["detail"] == "Organization creation is disabled"
 
 
 def test_provider_failure_is_charged_conservatively_and_releases_reservation(monkeypatch) -> None:
@@ -562,3 +640,36 @@ def test_production_rejects_a_weak_jwt_secret() -> None:
                 environment="production",
             )
         )
+
+
+def test_managed_production_ai_requires_one_canonical_pilot_organization(
+    monkeypatch,
+) -> None:
+    pilot_id = "5f1392db-f4da-441d-9e2e-e863dbca2c42"
+    other_id = "b84fa4f7-e013-4fd0-87da-728ab01bc7b0"
+    monkeypatch.setenv("ATLAS_ENV", "production")
+    monkeypatch.setenv("SRIS_AI_ENABLED", "true")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-never-sent")
+    monkeypatch.delenv("SRIS_AI_PILOT_ORGANIZATION_ID", raising=False)
+
+    assert mission_ai.is_ai_configured() is False
+    assert mission_ai.is_ai_organization_authorized(pilot_id) is False
+
+    monkeypatch.setenv("SRIS_AI_PILOT_ORGANIZATION_ID", "not-a-uuid")
+    assert mission_ai.is_ai_configured() is False
+
+    monkeypatch.setenv("SRIS_AI_PILOT_ORGANIZATION_ID", pilot_id)
+    assert mission_ai.is_ai_configured() is False
+
+    monkeypatch.setenv("ATLAS_SELF_REGISTRATION_ENABLED", "false")
+    monkeypatch.setenv("ATLAS_ORGANIZATION_CREATION_ENABLED", "false")
+    assert mission_ai.is_ai_configured() is True
+    assert mission_ai.is_ai_organization_authorized(pilot_id) is True
+    assert mission_ai.is_ai_organization_authorized(other_id) is False
+
+    status = client.get("/api/mission-intelligence/status")
+    assert status.status_code == 200
+    assert status.json()["ai_configured"] is True
+    assert status.json()["ai_pilot_organization_configured"] is True
+    assert status.json()["institutional_onboarding_closed"] is True
+    assert pilot_id not in status.text
