@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -202,3 +203,31 @@ class AIAdvisory(StrictModel):
 class ReviewRequest(StrictModel):
     decision: Literal["approved", "rejected"]
     comment: str = Field(min_length=3, max_length=10000)
+
+
+class AIGovernancePolicyUpdate(StrictModel):
+    enabled: bool = False
+    monthly_request_limit: int = Field(default=20, ge=1, le=100_000)
+    monthly_input_token_limit: int = Field(default=250_000, ge=1_000, le=1_000_000_000)
+    monthly_output_token_limit: int = Field(default=50_000, ge=500, le=1_000_000_000)
+    monthly_budget_usd: Decimal = Field(
+        default=Decimal("5.00"),
+        gt=Decimal("0"),
+        le=Decimal("1000000"),
+        decimal_places=6,
+    )
+    per_request_input_token_limit: int = Field(default=60_000, ge=1_000, le=1_000_000)
+    per_request_output_token_limit: int = Field(default=3_000, ge=500, le=128_000)
+    max_concurrent_requests: int = Field(default=1, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def validate_limits(self) -> "AIGovernancePolicyUpdate":
+        if self.per_request_input_token_limit > self.monthly_input_token_limit:
+            raise ValueError(
+                "per_request_input_token_limit cannot exceed the monthly input limit"
+            )
+        if self.per_request_output_token_limit > self.monthly_output_token_limit:
+            raise ValueError(
+                "per_request_output_token_limit cannot exceed the monthly output limit"
+            )
+        return self

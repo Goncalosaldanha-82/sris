@@ -65,6 +65,9 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "mi_missions",
             "mi_mission_revisions",
             "mi_intelligence_runs",
+            "mi_ai_organization_policies",
+            "mi_ai_usage_periods",
+            "mi_ai_usage_events",
         }
 
         assert expected.issubset(tables)

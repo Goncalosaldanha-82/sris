@@ -3,16 +3,32 @@ from __future__ import annotations
 import os
 
 import pytest
+from app.atlas_platform.config import Settings, validate_security_settings
+from app.atlas_platform.database import Base, SessionLocal, engine
+from app.atlas_platform.models import Membership, Role
+from app.main import app
+from app.mission_intelligence import ai as mission_ai
+from app.mission_intelligence import api as mission_api
+from app.mission_intelligence import service
+from app.mission_intelligence.ai import (
+    AIExecution,
+    AIProviderUsage,
+    AIUnavailableError,
+    PreparedAIRequest,
+)
+from app.mission_intelligence.contracts import (
+    AIAdvisory,
+    AIInference,
+    AIOption,
+    ConfidenceLevel,
+)
+from app.mission_intelligence.governance import (
+    AIGovernanceBlocked,
+    reserve_ai_usage,
+    settle_ai_usage,
+)
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-
-from app.atlas_platform.database import Base, engine
-from app.atlas_platform.config import Settings, validate_security_settings
-from app.main import app
-from app.mission_intelligence import service
-from app.mission_intelligence.ai import AIUnavailableError
-from app.mission_intelligence.contracts import AIOption
-
 
 os.environ.pop("OPENAI_API_KEY", None)
 os.environ["SRIS_AI_ENABLED"] = "false"
@@ -42,6 +58,37 @@ def _owner() -> tuple[dict[str, str], str]:
         "/api/organizations",
         headers=headers,
         json={"name": "Mission Intelligence Lab", "slug": "mission-intelligence-lab"},
+    )
+    assert organization.status_code == 201, organization.text
+    return headers, organization.json()["id"]
+
+
+def _owner_named(suffix: str) -> tuple[dict[str, str], str]:
+    register = client.post(
+        "/api/auth/register",
+        json={
+            "email": f"mi-owner-{suffix}@example.com",
+            "full_name": f"Mission Owner {suffix}",
+            "password": "strong-password-123",
+        },
+    )
+    assert register.status_code == 201, register.text
+    login = client.post(
+        "/api/auth/login",
+        json={
+            "email": f"mi-owner-{suffix}@example.com",
+            "password": "strong-password-123",
+        },
+    )
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    organization = client.post(
+        "/api/organizations",
+        headers=headers,
+        json={
+            "name": f"Mission Intelligence Lab {suffix}",
+            "slug": f"mission-intelligence-lab-{suffix}",
+        },
     )
     assert organization.status_code == 201, organization.text
     return headers, organization.json()["id"]
@@ -194,8 +241,316 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
     assert spec.json()["info"]["title"] == "SRIS Mission Intelligence API"
-    assert spec.json()["info"]["version"] == "1.3.0"
+    assert spec.json()["info"]["version"] == "1.4.0"
     assert "/api/mission-intelligence/demo/missions/{mission_code}/analyze" in spec.json()["paths"]
+    governance_path = (
+        "/api/organizations/{organization_id}/mission-intelligence/ai-governance"
+    )
+    policy_path = governance_path + "/policy"
+    events_path = governance_path + "/events"
+    assert governance_path in spec.json()["paths"]
+    assert policy_path in spec.json()["paths"]
+    assert events_path in spec.json()["paths"]
+    assert "put" in spec.json()["paths"][policy_path]
+
+
+def test_ai_requires_explicit_org_policy_and_enforces_monthly_quota(monkeypatch) -> None:
+    headers, organization_id = _owner_named("governance")
+    endpoint = f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/analyze"
+
+    monkeypatch.setattr(service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(mission_api, "is_ai_configured", lambda: True)
+
+    provider_calls = 0
+
+    def fake_provider(*_args, **_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return AIExecution(
+            advisory=AIAdvisory(
+                executive_summary="Análise provisória baseada no snapshot.",
+                inferences=[
+                    AIInference(
+                        statement="A linha de base continua insuficiente.",
+                        based_on_ids=["OBS-0001"],
+                        uncertainty="Sem série temporal.",
+                        confidence=ConfidenceLevel.MODERATE,
+                    )
+                ],
+                critical_gaps=["Série temporal em falta."],
+                decision_options=[
+                    AIOption(
+                        title="Medir antes de intervir",
+                        rationale="Reduzir a incerteza.",
+                        risks=["Atraso na decisão."],
+                        prerequisites=["Instrumentação."],
+                        based_on_ids=["OBS-0001"],
+                    )
+                ],
+                recommended_next_step="Instalar a linha de base.",
+                cautions=["Não constitui decisão."],
+            ),
+            provider="openai",
+            model="gpt-5.6",
+            provider_response_id="resp_test_governed",
+            usage=AIProviderUsage(
+                input_tokens=1_000,
+                cached_input_tokens=100,
+                output_tokens=200,
+                total_tokens=1_200,
+            ),
+        )
+
+    monkeypatch.setattr(service, "analyze_with_openai", fake_provider)
+    monkeypatch.setattr(service, "count_openai_input_tokens", lambda _request: 1_000)
+
+    blocked = client.post(endpoint, headers=headers, json=_analysis_payload(use_ai=True))
+    assert blocked.status_code == 200, blocked.text
+    assert blocked.json()["ai_status"] == "governance_blocked"
+    assert blocked.json()["ai_governance"]["code"] == "policy_required"
+    assert blocked.json()["deterministic"]
+    assert provider_calls == 0
+
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 1,
+            "monthly_input_token_limit": 100_000,
+            "monthly_output_token_limit": 10_000,
+            "monthly_budget_usd": "1.00",
+            "per_request_input_token_limit": 60_000,
+            "per_request_output_token_limit": 3_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+    assert policy.json()["ready"] is True
+
+    completed = client.post(endpoint, headers=headers, json=_analysis_payload(use_ai=True))
+    assert completed.status_code == 200, completed.text
+    completed_data = completed.json()
+    assert completed_data["ai_status"] == "completed"
+    assert completed_data["execution_mode"] == "hybrid"
+    assert completed_data["ai_usage"]["input_tokens"] == 1_000
+    assert completed_data["ai_usage"]["cached_input_tokens"] == 100
+    assert completed_data["ai_usage"]["output_tokens"] == 200
+    assert completed_data["ai_usage"]["estimated_cost_usd"] == "0.010550"
+    assert completed_data["ai_usage"]["cost_basis"] == "provider_reported_usage"
+    assert provider_calls == 1
+
+    usage = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance",
+        headers=headers,
+    )
+    assert usage.status_code == 200
+    assert usage.json()["ready"] is False
+    assert usage.json()["readiness_reason"] == "monthly_request_limit"
+    assert usage.json()["current_period"]["request_count"] == 1
+    assert usage.json()["current_period"]["active_reservations"] == 0
+    assert usage.json()["current_period"]["estimated_cost_usd"] == "0.010550"
+
+    exhausted = client.post(endpoint, headers=headers, json=_analysis_payload(use_ai=True))
+    assert exhausted.status_code == 200, exhausted.text
+    assert exhausted.json()["ai_status"] == "governance_blocked"
+    assert exhausted.json()["ai_governance"]["code"] == "monthly_request_limit"
+    assert exhausted.json()["deterministic"]
+    assert provider_calls == 1
+
+    events = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/events",
+        headers=headers,
+    )
+    assert events.status_code == 200
+    assert len(events.json()) == 1
+    assert events.json()[0]["intelligence_run_id"] == completed_data["run_id"]
+
+
+def test_provider_failure_is_charged_conservatively_and_releases_reservation(monkeypatch) -> None:
+    headers, organization_id = _owner_named("provider-failure")
+    endpoint = f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/analyze"
+    monkeypatch.setattr(service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(service, "count_openai_input_tokens", lambda _request: 1_000)
+
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 100_000,
+            "monthly_output_token_limit": 20_000,
+            "monthly_budget_usd": "5.00",
+            "per_request_input_token_limit": 60_000,
+            "per_request_output_token_limit": 3_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200
+
+    def fail_provider(*_args, **_kwargs):
+        raise AIUnavailableError("AI provider request failed")
+
+    monkeypatch.setattr(service, "analyze_with_openai", fail_provider)
+    response = client.post(endpoint, headers=headers, json=_analysis_payload(use_ai=True))
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["ai_status"] == "failed"
+    assert data["execution_mode"] == "deterministic"
+    assert data["ai_usage"]["status"] == "provider_error"
+    assert data["ai_usage"]["cost_basis"] == "conservative_failure_reservation"
+
+    usage = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance",
+        headers=headers,
+    ).json()["current_period"]
+    assert usage["active_reservations"] == 0
+    assert usage["request_count"] == 1
+    assert usage["input_tokens"] == 1_000
+    assert usage["output_tokens"] == 3_000
+
+
+def test_contributor_can_run_deterministic_analysis_but_cannot_spend_ai(monkeypatch) -> None:
+    headers, organization_id = _owner_named("contributor-gate")
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 100_000,
+            "monthly_output_token_limit": 20_000,
+            "monthly_budget_usd": "5.00",
+            "per_request_input_token_limit": 60_000,
+            "per_request_output_token_limit": 3_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200
+
+    with SessionLocal() as db:
+        membership = (
+            db.query(Membership)
+            .filter(Membership.organization_id == organization_id)
+            .one()
+        )
+        membership.role = Role.CONTRIBUTOR.value
+        db.commit()
+
+    monkeypatch.setattr(service, "is_ai_configured", lambda: True)
+
+    def must_not_call_provider(*_args, **_kwargs):
+        raise AssertionError("Contributor crossed the AI spending gate")
+
+    monkeypatch.setattr(service, "analyze_with_openai", must_not_call_provider)
+    response = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/analyze",
+        headers=headers,
+        json=_analysis_payload(use_ai=True),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["ai_status"] == "governance_blocked"
+    assert response.json()["ai_governance"]["code"] == "role_not_allowed"
+    assert response.json()["deterministic"]
+
+
+def test_active_reservation_blocks_a_second_concurrent_request() -> None:
+    headers, organization_id = _owner_named("concurrency")
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 100_000,
+            "monthly_output_token_limit": 20_000,
+            "monthly_budget_usd": "5.00",
+            "per_request_input_token_limit": 60_000,
+            "per_request_output_token_limit": 3_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200
+
+    with SessionLocal() as db:
+        membership = (
+            db.query(Membership)
+            .filter(Membership.organization_id == organization_id)
+            .one()
+        )
+        first = reserve_ai_usage(
+            db,
+            organization_id=organization_id,
+            user_id=membership.user_id,
+            model="gpt-5.6",
+            input_tokens=1_000,
+            output_tokens=1_000,
+        )
+        with pytest.raises(AIGovernanceBlocked) as blocked:
+            reserve_ai_usage(
+                db,
+                organization_id=organization_id,
+                user_id=membership.user_id,
+                model="gpt-5.6",
+                input_tokens=1_000,
+                output_tokens=1_000,
+            )
+        assert blocked.value.code == "concurrency_limit"
+        db.rollback()
+        settled = settle_ai_usage(
+            db,
+            reservation=first,
+            provider_response_id="resp_concurrency_test",
+            input_tokens=800,
+            cached_input_tokens=0,
+            output_tokens=100,
+            total_tokens=900,
+        )
+        assert settled.status == "completed"
+
+
+def test_provider_input_token_count_uses_the_full_structured_request(monkeypatch) -> None:
+    captured: dict = {}
+
+    class FakeInputTokens:
+        def count(self, **kwargs):
+            captured.update(kwargs)
+            return type("Count", (), {"input_tokens": 1_234})()
+
+    class FakeResponses:
+        input_tokens = FakeInputTokens()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setenv("SRIS_AI_ENABLED", "true")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-never-sent")
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    request = PreparedAIRequest(
+        model="gpt-5.6",
+        instructions="Governed instructions",
+        input_text='{"mission":"M-001"}',
+        text_config={
+            "format": {
+                "type": "json_schema",
+                "name": "AIAdvisory",
+                "strict": True,
+                "schema": {"type": "object", "additionalProperties": False},
+            }
+        },
+        max_output_tokens=3_000,
+    )
+
+    assert mission_ai.count_openai_input_tokens(request) == 1_234
+    assert captured["model"] == "gpt-5.6"
+    assert captured["instructions"] == "Governed instructions"
+    assert captured["input"] == '{"mission":"M-001"}'
+    assert captured["reasoning"] == {"effort": "low"}
+    assert captured["text"] == request.text_config
 
 
 def test_production_rejects_a_weak_jwt_secret() -> None:

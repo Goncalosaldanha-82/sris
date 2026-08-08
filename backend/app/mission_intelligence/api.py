@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import require_org_role
@@ -9,11 +9,11 @@ from app.atlas_platform.models import Membership, Role
 
 from .ai import configured_model, is_ai_configured
 from .catalog import demo_mission, load_demo_catalog
-from .contracts import AnalysisInput, ReviewRequest
+from .contracts import AIGovernancePolicyUpdate, AnalysisInput, ReviewRequest
 from .engine import ENGINE_VERSION
-from .models import CanonicalMission, IntelligenceRun
+from .governance import governance_view, update_policy, usage_event_view
+from .models import AIUsageEvent, CanonicalMission, IntelligenceRun
 from .service import analyze_demo, review_run, run_organizational_analysis, run_view
-
 
 public_router = APIRouter(prefix="/api/mission-intelligence", tags=["Mission Intelligence"])
 organization_router = APIRouter(
@@ -33,6 +33,8 @@ def capability_status() -> dict:
         "ai_model": configured_model(),
         "ai_configured": is_ai_configured(),
         "ai_requires_authentication": True,
+        "ai_governance_version": "1.0",
+        "ai_organization_policy_required": True,
         "human_review_required": True,
     }
 
@@ -113,6 +115,7 @@ def analyze_organizational_demo(
             db,
             organization_id=organization_id,
             user_id=membership.user_id,
+            user_role=membership.role,
             mission_code=mission_code,
             payload=payload,
         )
@@ -174,3 +177,59 @@ def review_intelligence_run(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return run_view(reviewed)
+
+
+@organization_router.get("/ai-governance")
+def get_ai_governance(
+    organization_id: str,
+    _: Membership = Depends(
+        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    return governance_view(
+        db,
+        organization_id=organization_id,
+        ai_globally_configured=is_ai_configured(),
+    )
+
+
+@organization_router.put("/ai-governance/policy")
+def put_ai_governance_policy(
+    organization_id: str,
+    payload: AIGovernancePolicyUpdate,
+    membership: Membership = Depends(
+        require_org_role(Role.OWNER.value, Role.ADMIN.value)
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    update_policy(
+        db,
+        organization_id=organization_id,
+        user_id=membership.user_id,
+        payload=payload,
+    )
+    return governance_view(
+        db,
+        organization_id=organization_id,
+        ai_globally_configured=is_ai_configured(),
+    )
+
+
+@organization_router.get("/ai-governance/events")
+def list_ai_usage_events(
+    organization_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    _: Membership = Depends(
+        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+    ),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    rows = (
+        db.query(AIUsageEvent)
+        .filter(AIUsageEvent.organization_id == organization_id)
+        .order_by(AIUsageEvent.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [usage_event_view(row) for row in rows]
