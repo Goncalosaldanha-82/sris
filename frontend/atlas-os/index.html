@@ -24,6 +24,7 @@
       --sage:#dce6de;
       --sage-soft:#edf3ee;
       --gold:#a48649;
+      --brand-gold:#c8a96a;
       --gold-soft:#f2ecdf;
       --red:#954841;
       --red-soft:#f5e8e6;
@@ -115,12 +116,13 @@
     }
     .login-visual:before{width:560px;height:560px;right:-210px;top:-170px;background:rgba(188,211,196,.10)}
     .login-visual:after{width:400px;height:400px;left:-160px;bottom:-150px;background:rgba(214,190,144,.09)}
-    .brand{position:relative;z-index:2;display:flex;align-items:center;gap:14px}
-    .brand-symbol{
-      width:44px;height:44px;display:grid;place-items:center;border-radius:14px;
-      border:1px solid rgba(255,255,255,.27);background:rgba(255,255,255,.07);
-      font-family:Georgia,serif;font-size:20px;
-    }
+    .brand{position:relative;z-index:2;display:flex;align-items:center;gap:16px}
+    .brand-mark{width:56px;height:58px;flex:0 0 auto;color:var(--brand-gold)}
+    .sris-mark{width:100%;height:100%;display:block;overflow:visible}
+    .sris-mark path,.sris-mark line{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+    .sris-mark path{stroke-width:2.25}
+    .sris-mark line{stroke-width:2}
+    .sris-mark circle{fill:currentColor}
     .brand-name{font-family:Georgia,serif;font-size:25px;letter-spacing:.13em}
     .brand-desc{margin-top:3px;font-size:9px;letter-spacing:.19em;text-transform:uppercase;opacity:.63}
     .login-copy{position:relative;z-index:2;max-width:760px;padding:66px 0}
@@ -149,7 +151,7 @@
       background:rgba(255,255,255,.045);backdrop-filter:blur(10px);
     }
     .principle strong{display:block;font-family:Georgia,serif;font-size:16px;font-weight:400}
-    .principle span{display:block;margin-top:6px;color:rgba(255,255,255,.58);font-size:11px;line-height:1.5}
+    .principle span{display:block;margin-top:6px;color:rgba(255,255,255,.64);font-size:12px;line-height:1.5}
 
     .login-panel{padding:48px;display:grid;place-items:center}
     .login-card{
@@ -184,11 +186,8 @@
       background:linear-gradient(180deg,rgba(244,246,241,.97),rgba(234,239,232,.97));
       backdrop-filter:blur(20px);
     }
-    .sidebar-brand{padding:4px 10px 25px;display:flex;align-items:center;gap:11px}
-    .sidebar-logo{
-      width:38px;height:38px;display:grid;place-items:center;border-radius:12px;
-      background:var(--forest);color:#fff;font-family:Georgia,serif;
-    }
+    .sidebar-brand{padding:2px 10px 24px;display:flex;align-items:center;gap:12px}
+    .sidebar-mark{width:40px;height:42px;flex:0 0 auto;color:var(--gold)}
     .sidebar-brand strong{display:block;font-family:Georgia,serif;font-size:19px;letter-spacing:.08em}
     .sidebar-brand span{display:block;margin-top:3px;color:var(--ink-muted);font-size:8px;letter-spacing:.18em;text-transform:uppercase}
     .nav-label{padding:14px 12px 8px;color:var(--ink-muted);font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
@@ -247,7 +246,7 @@
     }
     .panel-header h2,.panel-header h3{margin:0;font-family:Georgia,serif;font-weight:400}
     .panel-header h2{font-size:24px}.panel-header h3{font-size:20px}
-    .panel-header p{margin:5px 0 0;color:var(--ink-muted);font-size:11px}
+    .panel-header p{margin:5px 0 0;color:var(--ink-muted);font-size:12px}
     .section-grid{margin-top:16px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(330px,.7fr);gap:16px}
     .section-title{margin:44px 0 15px}
     .section-title h2{margin:0;font-family:Georgia,serif;font-size:32px;font-weight:400;letter-spacing:-.025em}
@@ -290,7 +289,7 @@
     .chain-num{color:var(--gold);font-size:9px;font-weight:850;letter-spacing:.12em}
     .chain-label{margin-top:18px;font-family:Georgia,serif;font-size:19px}
     .chain-value{margin-top:7px;font-size:12px;font-weight:800}
-    .chain-note{margin-top:6px;color:var(--ink-soft);font-size:10px;line-height:1.5}
+    .chain-note{margin-top:6px;color:var(--ink-soft);font-size:11px;line-height:1.5}
 
     .attention-list{padding:7px 18px 18px}
     .attention{padding:14px 0;border-bottom:1px solid var(--border)}
@@ -310,13 +309,13 @@
     .mission-row:last-child{border-bottom:0}
     .mission-row:hover{background:var(--sage-soft)}
     .mission-title{font-weight:780}
-    .mission-meta{margin-top:4px;color:var(--ink-muted);font-size:10px}
+    .mission-meta{margin-top:4px;color:var(--ink-muted);font-size:11px;line-height:1.45}
     .mission-arrow{justify-self:end;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.68);color:var(--ink-muted);font-size:21px}
 
     /* ---------- Workspace ---------- */
     .workspace{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:16px;align-items:start}
     .form-panel{padding:22px}
-    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .form-row{display:grid;grid-template-columns:1fr;gap:0}
     .form-actions{display:flex;justify-content:flex-end;gap:9px}
     .result-panel{min-height:550px;padding:22px}
     .result-placeholder{
@@ -337,14 +336,19 @@
 
     /* ---------- Cards / records ---------- */
     .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+    .cards.is-single{grid-template-columns:minmax(0,min(680px,100%))}
     .card{
       min-height:190px;padding:18px;display:flex;flex-direction:column;
       border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-glass);box-shadow:var(--shadow)
     }
-    .card .type{font-size:9px;font-weight:850;letter-spacing:.11em;text-transform:uppercase;color:var(--gold)}
+    .card .type{font-size:10px;font-weight:850;letter-spacing:.11em;text-transform:uppercase;color:var(--gold)}
     .card h3{margin:16px 0 9px;font-family:Georgia,serif;font-size:21px;font-weight:400}
     .card p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.62}
-    .card .footer{margin-top:auto;padding-top:16px;display:flex;justify-content:space-between;gap:10px;color:var(--ink-muted);font-size:9px}
+    .card .footer{
+      margin-top:auto;padding-top:16px;display:flex;align-items:flex-end;justify-content:space-between;
+      gap:10px;color:var(--ink-muted);font-size:10px;line-height:1.45
+    }
+    .card .footer span:last-child{text-align:right}
     .card .extra{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);color:var(--ink-soft);font-size:10px;line-height:1.55}
 
     .filterbar{
@@ -389,20 +393,28 @@
     }
     .timeline-card .month{color:var(--gold);font-size:10px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
     .timeline-card h3{margin:14px 0 8px;font-family:Georgia,serif;font-size:20px;font-weight:400}
-    .timeline-card p{margin:0;color:var(--ink-soft);font-size:11px;line-height:1.55}
+    .timeline-card p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.55}
 
     .recognition-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
     .recognition-card{
-      overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-glass);box-shadow:var(--shadow)
+      min-width:0;overflow:hidden;display:grid;grid-template-rows:auto 240px 1fr;
+      border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-glass);box-shadow:var(--shadow)
     }
-    .recognition-status{padding:13px 15px 0;color:var(--gold);font-size:9px;font-weight:850;letter-spacing:.11em;text-transform:uppercase}
+    .recognition-status{padding:14px 17px 12px;color:var(--gold);font-size:10px;font-weight:850;letter-spacing:.11em;text-transform:uppercase}
     .recognition-media{
-      width:100%;height:240px;padding:18px;border:0;background:#f9f8f4;display:grid;place-items:center
+      width:100%;height:240px;min-width:0;min-height:0;padding:18px;overflow:hidden;
+      border:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+      background:#f9f8f4;display:flex;align-items:center;justify-content:center
     }
-    .recognition-media img{width:100%;height:100%;object-fit:contain;display:block}
-    .recognition-copy{padding:0 17px 18px}
+    .recognition-media img{
+      width:auto;height:auto;max-width:100%;max-height:100%;min-width:0;min-height:0;
+      object-fit:contain;display:block
+    }
+    .recognition-media:hover{background:#f3f1e9}
+    .recognition-media:focus-visible{outline:3px solid rgba(164,134,73,.45);outline-offset:-3px}
+    .recognition-copy{padding:17px 18px 20px}
     .recognition-copy h3{margin:0;font-family:Georgia,serif;font-size:20px;font-weight:400}
-    .recognition-copy p{margin:8px 0 0;color:var(--ink-soft);font-size:11px;line-height:1.55}
+    .recognition-copy p{margin:8px 0 0;color:var(--ink-soft);font-size:12px;line-height:1.55}
 
     .award-use{
       padding:22px;border:1px solid rgba(164,134,73,.28);border-radius:var(--radius);
@@ -456,10 +468,19 @@
     @media(max-width:900px){
       .login{grid-template-columns:1fr}
       .login-visual{min-height:690px}
-      .app{grid-template-columns:1fr}
-      .sidebar{position:relative;height:auto}
+      .app{display:block}
+      .sidebar{
+        position:sticky;top:0;z-index:70;height:auto;padding:11px 14px 10px;display:block;
+        border-right:0;border-bottom:1px solid var(--border);box-shadow:0 8px 24px rgba(23,63,47,.07)
+      }
+      .sidebar-brand{padding:0 4px 9px}
+      .sidebar-mark{width:34px;height:35px}
+      .sidebar nav{display:flex;gap:6px;overflow-x:auto;padding:0 0 2px;scrollbar-width:thin}
+      .nav-label,.sidebar-bottom{display:none}
+      .nav-item{width:auto;min-width:max-content;min-height:40px;margin:0;padding:0 11px;gap:7px}
+      .nav-icon{width:auto}
       .main{padding:0 18px 38px}
-      .topbar{padding:14px 0;align-items:flex-start;flex-direction:column}
+      .topbar{position:relative;padding:14px 0;align-items:flex-start;flex-direction:column}
       .mission-row{grid-template-columns:1fr auto}
       .mission-row>div:nth-child(3){display:none}
       .form-row,.modal-status,.mission-context,.two-col,.award-use-grid{grid-template-columns:1fr}
@@ -467,9 +488,19 @@
     @media(max-width:650px){
       .login-visual,.login-panel{padding:28px}
       .principles,.chain,.cards,.recognition-grid,.timeline{grid-template-columns:1fr}
+      .cards.is-single{grid-template-columns:1fr}
       .hero{align-items:flex-start;flex-direction:column}
+      .hero h1{font-size:clamp(36px,11vw,50px);line-height:1.04}
+      .hero p{font-size:14px}
       .filterbar{align-items:flex-start;flex-direction:column}
       .filterbar select{width:100%;min-width:0}
+      .mission-row{padding:14px;gap:10px}
+      .recognition-card{grid-template-rows:auto 220px 1fr}
+      .recognition-media{height:220px}
+      .modal,.lightbox{padding:14px}
+      .modal-panel{width:100%;padding:20px}
+      .top-actions{justify-content:flex-start}
+      .user-chip{display:none}
     }
     @media print{
       .sidebar,.topbar,.modal-actions,.modal-close{display:none!important}
@@ -494,7 +525,13 @@
   <section id="loginScreen" class="login">
     <div class="login-visual">
       <div class="brand">
-        <div class="brand-symbol">S</div>
+        <div class="brand-mark" aria-hidden="true">
+          <svg class="sris-mark" viewBox="0 0 88 92" focusable="false">
+            <path d="M8.96 35.41C14.89 19.12 31.65 9.44 48.72 12.45C65.79 15.46 78.24 30.29 78.24 47.62C78.24 64.95 65.79 79.79 48.72 82.80C31.65 85.80 14.89 76.12 8.96 59.84" />
+            <line x1="42.52" y1="49.4" x2="42.52" y2="88.8" />
+            <circle cx="42.52" cy="47.62" r="3.83" />
+          </svg>
+        </div>
         <div>
           <div class="brand-name">SRIS</div>
           <div class="brand-desc">Strategic Resilience &amp; Intelligence System</div>
@@ -577,7 +614,13 @@
   <section id="appScreen" class="app hidden">
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="sidebar-logo">S</div>
+        <div class="sidebar-mark" aria-hidden="true">
+          <svg class="sris-mark" viewBox="0 0 88 92" focusable="false">
+            <path d="M8.96 35.41C14.89 19.12 31.65 9.44 48.72 12.45C65.79 15.46 78.24 30.29 78.24 47.62C78.24 64.95 65.79 79.79 48.72 82.80C31.65 85.80 14.89 76.12 8.96 59.84" />
+            <line x1="42.52" y1="49.4" x2="42.52" y2="88.8" />
+            <circle cx="42.52" cy="47.62" r="3.83" />
+          </svg>
+        </div>
         <div>
           <strong>SRIS</strong>
           <span>Mission Intelligence</span>
@@ -1103,7 +1146,7 @@
               data-lightbox-src="/assets/forbes-green-esg-awards-2026.jpg.jpeg"
               data-lightbox-title="Forbes Green ESG Awards 2026"
               aria-label="Ampliar Forbes Green ESG Awards 2026">
-              <img src="/assets/forbes-green-esg-awards-2026.jpg.jpeg" alt="Forbes Green ESG Awards 2026" />
+              <img src="/assets/forbes-green-esg-awards-2026.jpg.jpeg" alt="Forbes Green ESG Awards 2026" loading="lazy" decoding="async" />
             </button>
             <div class="recognition-copy">
               <h3>Forbes Green ESG Awards 2026</h3>
@@ -1117,7 +1160,7 @@
               data-lightbox-src="/assets/Selo_PNI_FINALISTA.png"
               data-lightbox-title="Prémio Nacional de Inovação 2026"
               aria-label="Ampliar Prémio Nacional de Inovação 2026">
-              <img src="/assets/Selo_PNI_FINALISTA.png" alt="Finalista — Prémio Nacional de Inovação 2026" />
+              <img src="/assets/Selo_PNI_FINALISTA.png" alt="Finalista — Prémio Nacional de Inovação 2026" loading="lazy" decoding="async" />
             </button>
             <div class="recognition-copy">
               <h3>Prémio Nacional de Inovação 2026</h3>
@@ -1131,7 +1174,7 @@
               data-lightbox-src="/assets/Premios_lideres_do_turismo_2026_NOMEADO_categ-TECK.png"
               data-lightbox-title="Prémios Líderes do Turismo 2026"
               aria-label="Ampliar Prémios Líderes do Turismo 2026">
-              <img src="/assets/Premios_lideres_do_turismo_2026_NOMEADO_categ-TECK.png" alt="Nomeado — Prémios Líderes do Turismo 2026" />
+              <img src="/assets/Premios_lideres_do_turismo_2026_NOMEADO_categ-TECK.png" alt="Nomeado — Prémios Líderes do Turismo 2026" loading="lazy" decoding="async" />
             </button>
             <div class="recognition-copy">
               <h3>Prémios Líderes do Turismo 2026</h3>
@@ -1480,7 +1523,7 @@
       }
     };
 
-    let config = {platform:{positioning:{topbar:{}}},missions:{}};
+    let config = structuredClone(BRIEF_ALIGNMENT);
     let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-001";
     let modalMissionId = null;
 
@@ -1504,6 +1547,11 @@
       const el=qs("#toast"); if(!el)return;
       el.textContent=message;el.classList.remove("hidden");
       setTimeout(()=>el.classList.add("hidden"),4200);
+    }
+
+    function recordOrigin(record, missionId){
+      const source=String(record?.source||"").trim();
+      return !source||source===missionId?missionId:`${missionId} · ${source}`;
     }
 
     function importedMissions(){
@@ -1567,6 +1615,8 @@
       config.missions={...(config.missions||{}),...importedMissions()};
       if(!config.missions[activeMissionId]) activeMissionId="M-001";
       renderAll();
+      const current=qs(".page.active")?.id?.replace("page-","")||"overview";
+      navigate(current,{scroll:false});
     }
 
     function missions(){return Object.values(config.missions||{})}
@@ -1583,13 +1633,13 @@
       return `<span class="tag ${c}">${esc(status)}</span>`;
     }
 
-    function navigate(page){
+    function navigate(page,{scroll=true}={}){
       qsa(".page").forEach(p=>p.classList.toggle("active",p.id===`page-${page}`));
       qsa(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
       const top=config.platform?.positioning?.topbar?.[page]||["SRIS","Mission Intelligence"];
       qs("#topTitle").textContent=top[0];
       qs("#topSubtitle").textContent=top[1];
-      scrollTo({top:0,behavior:"smooth"});
+      if(scroll)scrollTo({top:0,behavior:"smooth"});
     }
 
     function renderMissionRows(root){
@@ -1690,7 +1740,7 @@
                 </div>`:""}
               <div class="footer">
                 <span>${esc(e.status||"")} · Confiança ${esc(e.confidence||"")}</span>
-                <span>${esc(e.missionId)} · ${esc(e.source||"SRIS")}</span>
+                <span>${esc(recordOrigin(e,e.missionId))}</span>
               </div>
             </article>
           `).join("")}
@@ -1705,7 +1755,7 @@
       const items=selected.flatMap(m=>(m.learning||[]).map(l=>({...l,missionId:m.id})));
 
       qs("#learningRoot").innerHTML=items.length?`
-        <div class="cards">
+        <div class="cards ${items.length===1?"is-single":""}">
           ${items.map(l=>`
             <article class="card">
               <div class="type">${esc(l.id)} · Aprendizagem</div>
@@ -1792,7 +1842,7 @@
       qs("#loginScreen").classList.add("hidden");
       qs("#appScreen").classList.remove("hidden");
       qs("#userName").textContent=name;
-      setTimeout(()=>navigate("overview"),0);
+      setTimeout(()=>navigate("overview",{scroll:false}),0);
     }
 
     // Navigation
@@ -1880,7 +1930,12 @@
           body:JSON.stringify({email,password})
         });
         const data=await res.json();
-        if(!res.ok)throw new Error(data.detail||"Não foi possível autenticar.");
+        if(!res.ok){
+          const detail=String(data.detail||"");
+          throw new Error(/invalid credentials/i.test(detail)
+            ?"Email ou palavra-passe incorretos."
+            :detail||"Não foi possível autenticar.");
+        }
         sessionStorage.setItem("sris_token",data.access_token||"");
         qs("#loginMessage").textContent="";
         openApp(email.split("@")[0]||"Utilizador");
