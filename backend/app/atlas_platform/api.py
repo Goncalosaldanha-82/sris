@@ -4,9 +4,10 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .audit import record_audit
+from app.mission_intelligence.api import organization_router, public_router
+
 from . import workflow_models  # noqa: F401
-from .workflow_api import router as workflow_router
+from .audit import record_audit
 from .auth import current_user, require_org_role
 from .database import get_db
 from .models import KnowledgeObject, Membership, Organization, Role, User
@@ -22,12 +23,11 @@ from .schemas import (
     UserRead,
 )
 from .security import create_access_token, hash_password, verify_password
-from app.mission_intelligence.api import organization_router, public_router
-
+from .workflow_api import router as workflow_router
 
 app = FastAPI(
     title="SRIS Mission Intelligence API",
-    version="1.3.0",
+    version="1.4.0",
     description=(
         "Canonical mission intelligence, authentication, organizations, RBAC and "
         "the unified knowledge workflow."

@@ -1,9 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.atlas_platform.database import Base
@@ -108,3 +118,115 @@ class IntelligenceRun(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     mission: Mapped[CanonicalMission] = relationship(back_populates="intelligence_runs")
+    ai_usage_event: Mapped["AIUsageEvent | None"] = relationship(
+        back_populates="intelligence_run",
+        uselist=False,
+    )
+
+
+class AIOrganizationPolicy(Base):
+    """Explicit, fail-closed AI spending policy for one organization."""
+
+    __tablename__ = "mi_ai_organization_policies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    monthly_request_limit: Mapped[int] = mapped_column(Integer, default=20)
+    monthly_input_token_limit: Mapped[int] = mapped_column(BigInteger, default=250_000)
+    monthly_output_token_limit: Mapped[int] = mapped_column(BigInteger, default=50_000)
+    monthly_budget_microusd: Mapped[int] = mapped_column(BigInteger, default=5_000_000)
+    per_request_input_token_limit: Mapped[int] = mapped_column(Integer, default=60_000)
+    per_request_output_token_limit: Mapped[int] = mapped_column(Integer, default=3_000)
+    max_concurrent_requests: Mapped[int] = mapped_column(Integer, default=1)
+    updated_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+class AIUsagePeriod(Base):
+    """Monthly UTC counters, including active reservations for concurrent safety."""
+
+    __tablename__ = "mi_ai_usage_periods"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "period_start",
+            name="uq_mi_ai_usage_period_org_month",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    period_start: Mapped[date] = mapped_column(Date, index=True)
+    request_count: Mapped[int] = mapped_column(Integer, default=0)
+    input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    cached_input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    output_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    estimated_cost_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
+    active_reservations: Mapped[int] = mapped_column(Integer, default=0)
+    reserved_input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    reserved_output_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    reserved_cost_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+class AIUsageEvent(Base):
+    """Append-oriented provider usage ledger with an immutable pricing snapshot."""
+
+    __tablename__ = "mi_ai_usage_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    intelligence_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("mi_intelligence_runs.id", ondelete="SET NULL"),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
+    requested_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    period_start: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(40), default="reserved", index=True)
+    provider: Mapped[str] = mapped_column(String(80), default="openai")
+    model: Mapped[str] = mapped_column(String(160))
+    provider_response_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    input_count_method: Mapped[str] = mapped_column(String(40), default="conservative")
+    reserved_input_tokens: Mapped[int] = mapped_column(BigInteger)
+    reserved_output_tokens: Mapped[int] = mapped_column(BigInteger)
+    reserved_cost_microusd: Mapped[int] = mapped_column(BigInteger)
+    input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    cached_input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    output_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    total_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    estimated_cost_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
+    cost_basis: Mapped[str] = mapped_column(String(50), default="pending")
+    input_rate_microusd_per_million: Mapped[int] = mapped_column(BigInteger)
+    cached_input_rate_microusd_per_million: Mapped[int] = mapped_column(BigInteger)
+    output_rate_microusd_per_million: Mapped[int] = mapped_column(BigInteger)
+    price_multiplier_bps: Mapped[int] = mapped_column(Integer, default=10_000)
+    pricing_source: Mapped[str] = mapped_column(String(1000))
+    pricing_effective_date: Mapped[str] = mapped_column(String(20))
+    failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finalized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    intelligence_run: Mapped[IntelligenceRun | None] = relationship(
+        back_populates="ai_usage_event"
+    )
