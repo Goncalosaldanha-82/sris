@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - "backend/**"
+      - "frontend/**"
       - "migrations/**"
       - "pyproject.toml"
       - "alembic.ini"
@@ -15,6 +16,7 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "frontend/**"
       - "migrations/**"
       - "pyproject.toml"
       - "alembic.ini"
@@ -66,6 +68,9 @@ jobs:
 
       - name: Run integrated platform workflow test
         run: python -m pytest backend/tests/test_atlas_platform_workflow.py
+
+      - name: Run Mission Intelligence foundation tests
+        run: python -m pytest backend/tests/test_mission_intelligence.py
 
       - name: Check Alembic heads
         run: python -m alembic heads

@@ -1,0 +1,557 @@
+{
+  "schema": "sris_mission_catalog",
+  "schema_version": "1.3",
+  "catalog_version": "2026-08-08",
+  "missions": {
+    "M-001": {
+      "id": "M-001",
+      "title": "Cinco hectares, e uma decisão por tomar",
+      "subtitle": "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução, sem resultado.",
+      "meta": "Gestão do território florestal · Podentes, Penela · aproximadamente 5 ha",
+      "status": "Em avaliação",
+      "confidence": "Moderada",
+      "decision": "DEC-0001 · Em aberto",
+      "situation": {
+        "summary": "Existem três observações, três alternativas em avaliação, dois pressupostos por verificar e duas restrições não avaliadas. Nenhuma alternativa foi selecionada. Não existe execução nem resultado.",
+        "attention": [
+          {
+            "title": "Regime hídrico histórico desconhecido.",
+            "description": "A presença de água foi observada em abril de 2026, mas não existe série temporal, medição de caudal ou caracterização sazonal.",
+            "level": "Evidência necessária"
+          },
+          {
+            "title": "Licenciamento e titularidade condicionam qualquer intervenção.",
+            "description": "O prazo e o enquadramento junto das entidades competentes não foram avaliados; a parcela não é propriedade do promotor.",
+            "level": "Restrição crítica"
+          },
+          {
+            "title": "A linha de base tem de preceder a intervenção.",
+            "description": "Sem medição prévia, um resultado futuro não poderá ser atribuído rigorosamente à intervenção.",
+            "level": "Aprendizagem LRN-0001"
+          }
+        ],
+        "chain": [
+          {
+            "number": "01",
+            "label": "Observação",
+            "value": "3 registos",
+            "note": "OBS-0001 a OBS-0003, com método e limitação declarados.",
+            "state": "completed"
+          },
+          {
+            "number": "02",
+            "label": "Evidência",
+            "value": "Parcial",
+            "note": "Observação direta e registo fotográfico; falta caracterização histórica.",
+            "state": "attention"
+          },
+          {
+            "number": "03",
+            "label": "Alternativas",
+            "value": "3 em avaliação",
+            "note": "ALT-0001, ALT-0002 e ALT-0003.",
+            "state": "open"
+          },
+          {
+            "number": "04",
+            "label": "Pressupostos",
+            "value": "2 por verificar",
+            "note": "ASS-0001 e ASS-0002 permanecem assumidos, não demonstrados.",
+            "state": "attention"
+          },
+          {
+            "number": "05",
+            "label": "Restrições",
+            "value": "2 não avaliadas",
+            "note": "RST-0001 licenciamento; RST-0002 autorização do titular.",
+            "state": "attention"
+          },
+          {
+            "number": "06",
+            "label": "Decisão",
+            "value": "Em aberto",
+            "note": "DEC-0001: nenhuma alternativa foi selecionada.",
+            "state": "open"
+          },
+          {
+            "number": "07",
+            "label": "Execução",
+            "value": "Não iniciada",
+            "note": "Não existe intervenção executada.",
+            "state": "unavailable"
+          },
+          {
+            "number": "08",
+            "label": "Resultado",
+            "value": "Não existe",
+            "note": "Não existe resultado observado nem atribuição possível.",
+            "state": "unavailable"
+          },
+          {
+            "number": "LRN-0001",
+            "label": "Aprendizagem",
+            "value": "Instrumentar antes de decidir",
+            "note": "A linha de base tem de existir antes da intervenção.",
+            "state": "learning"
+          }
+        ]
+      },
+      "analysis": {
+        "title": "M-001 — decisão de gestão florestal",
+        "context": "Parcela de aproximadamente 5 ha em Podentes, Penela: cerca de 2 ha de eucalipto e 3 ha de vegetação espontânea. Em abril de 2026 foi observada presença de água, incluindo linha de água com escoamento visível. Não existe medição de caudal, série temporal ou caracterização histórica do regime hídrico.",
+        "central_question": "Qual é a opção de gestão mais defensável para a parcela, considerando risco de incêndio, erosão, custo, regime hídrico, restrições legais e ausência de linha de base?",
+        "available_evidence": "OBS-0001: caracterização aproximada da parcela por observação direta. OBS-0002: presença de água observada e fotografada em abril de 2026, sem medição de caudal e sem repetição sazonal. OBS-0003: estrato arbustivo desenvolvido, sem quantificação de carga de combustível.",
+        "unknowns": "ASS-0001: regime hídrico histórico. ASS-0002: relação local entre densidade do povoamento e regime da linha de água. RST-0001: enquadramento e prazo de licenciamento. RST-0002: autorização do titular.",
+        "result": {
+          "headline": "Não selecionar ainda uma alternativa de intervenção.",
+          "summary": "A cadeia permite estruturar o problema, mas não sustenta ainda uma decisão de intervenção. A consequência defensável é criar a linha de base antes de decidir.",
+          "situation": "M-001 está em avaliação. Existem alternativas e observações, mas permanecem pressupostos e restrições não resolvidos.",
+          "principal_risk": "Executar uma intervenção antes de medir a linha de base e, mais tarde, atribuir-lhe um resultado que poderia ser explicado pela variabilidade natural ou por fatores não controlados.",
+          "assumptions": [
+            "ASS-0001 — O regime hídrico histórico ainda é desconhecido.",
+            "ASS-0002 — A relação entre densidade do povoamento e água é plausível, mas não foi estabelecida neste local."
+          ],
+          "alternatives": [
+            {
+              "id": "ALT-0001",
+              "title": "Conversão faseada em mosaico",
+              "description": "Manutenção da vegetação espontânea como descontinuidade. Critério: compromisso entre risco de incêndio, erosão e custo. Estado: em avaliação."
+            },
+            {
+              "id": "ALT-0002",
+              "title": "Corte com rearborização por quercíneas",
+              "description": "Critério: custo elevado e risco de erosão durante a fase de instalação. Estado: em avaliação."
+            },
+            {
+              "id": "ALT-0003",
+              "title": "Não intervenção, com monitorização",
+              "description": "Critério: carga de combustível acumulada face ao valor da linha de base obtida. Estado: em avaliação."
+            }
+          ],
+          "next_decision": "Instalar medição de caudal e nível antes de selecionar uma alternativa de intervenção; confirmar licenciamento e autorização do titular.",
+          "confidence": "Moderada"
+        }
+      },
+      "evidence": [
+        {
+          "id": "OBS-0001",
+          "type": "Observação",
+          "title": "Caracterização aproximada da parcela",
+          "description": "Parcela de aproximadamente 5 ha em Podentes, Penela: cerca de 2 ha de povoamento de eucalipto e cerca de 3 ha de vegetação espontânea.",
+          "method": "Observação direta, abril de 2026.",
+          "limitation": "Áreas aproximadas, não levantadas topograficamente.",
+          "status": "Registada",
+          "confidence": "Moderada",
+          "source": "Observação direta"
+        },
+        {
+          "id": "OBS-0002",
+          "type": "Observação",
+          "title": "Presença de água",
+          "description": "Charco com lâmina de água e linha de água com escoamento visível.",
+          "method": "Observação direta e registo fotográfico datado, abril de 2026.",
+          "limitation": "Sem medição de caudal. Observação pontual, não repetida ao longo do ano.",
+          "status": "Registada",
+          "confidence": "Moderada",
+          "source": "Observação direta + fotografia"
+        },
+        {
+          "id": "OBS-0003",
+          "type": "Observação",
+          "title": "Estrato arbustivo desenvolvido",
+          "description": "Vegetação espontânea com estrato arbustivo desenvolvido em contiguidade com o povoamento.",
+          "method": "Observação visual.",
+          "limitation": "Sem quantificação de carga de combustível nem transeto estruturado.",
+          "status": "Registada",
+          "confidence": "Moderada",
+          "source": "Observação visual"
+        },
+        {
+          "id": "ASS-0001",
+          "type": "Pressuposto",
+          "title": "Regime hídrico histórico",
+          "description": "Desconhece-se se o escoamento é permanente, sazonal ou dependente do ano hidrológico.",
+          "method": "Hipótese necessária à análise.",
+          "limitation": "Não existe série temporal local.",
+          "status": "Assumido, por verificar",
+          "confidence": "Baixa",
+          "source": "M-001"
+        },
+        {
+          "id": "ASS-0002",
+          "type": "Pressuposto",
+          "title": "Densidade do povoamento e regime da água",
+          "description": "Relação plausível pela literatura, mas não estabelecida neste local.",
+          "method": "Inferência plausível, não observação local.",
+          "limitation": "Causalidade local não demonstrada.",
+          "status": "Assumido, por verificar",
+          "confidence": "Baixa",
+          "source": "M-001"
+        },
+        {
+          "id": "RST-0001",
+          "type": "Restrição",
+          "title": "Licenciamento junto da linha de água",
+          "description": "Prazo e enquadramento de licenciamento para intervenção silvícola junto da linha de água.",
+          "method": "A confirmar junto das entidades competentes.",
+          "limitation": "Não avaliado nesta fase.",
+          "status": "Não avaliada",
+          "confidence": "Baixa",
+          "source": "Enquadramento regulatório"
+        },
+        {
+          "id": "RST-0002",
+          "type": "Restrição",
+          "title": "Autorização do titular",
+          "description": "A parcela não é propriedade do promotor. Qualquer intervenção depende de autorização do titular.",
+          "method": "Condição de legitimidade da intervenção.",
+          "limitation": "Autorização não demonstrada nesta missão.",
+          "status": "Não avaliada",
+          "confidence": "Elevada",
+          "source": "Titularidade"
+        },
+        {
+          "id": "ALT-0001",
+          "type": "Alternativa",
+          "title": "Conversão faseada em mosaico",
+          "description": "Conversão faseada do povoamento, com manutenção da vegetação espontânea como descontinuidade.",
+          "method": "Critério em ponderação: risco de incêndio, erosão e custo.",
+          "limitation": "Não selecionada.",
+          "status": "Em avaliação",
+          "confidence": "Por avaliar",
+          "source": "M-001"
+        },
+        {
+          "id": "ALT-0002",
+          "type": "Alternativa",
+          "title": "Corte e rearborização por quercíneas",
+          "description": "Corte com rearborização por quercíneas.",
+          "method": "Critério em ponderação: custo elevado e risco de erosão durante a instalação.",
+          "limitation": "Não selecionada.",
+          "status": "Em avaliação",
+          "confidence": "Por avaliar",
+          "source": "M-001"
+        },
+        {
+          "id": "ALT-0003",
+          "type": "Alternativa",
+          "title": "Não intervenção com monitorização",
+          "description": "Não intervir nesta fase e instalar monitorização.",
+          "method": "Critério em ponderação: carga de combustível face à linha de base obtida.",
+          "limitation": "Não selecionada.",
+          "status": "Em avaliação",
+          "confidence": "Por avaliar",
+          "source": "M-001"
+        },
+        {
+          "id": "DEC-0001",
+          "type": "Decisão",
+          "title": "Decisão em aberto",
+          "description": "Nenhuma alternativa foi selecionada. Não existe implementação, não existe resultado e a sustentação da atribuição está não avaliada.",
+          "method": "Estado explícito da cadeia decisória.",
+          "limitation": "A cadeia está preservada apenas até ao ponto em que efetivamente se encontra.",
+          "status": "Em aberto",
+          "confidence": "Moderada",
+          "source": "M-001"
+        }
+      ],
+      "learning": [
+        {
+          "id": "LRN-0001",
+          "title": "Instrumentar antes de intervir",
+          "description": "Se a decisão for executada sem medição prévia, nenhum resultado futuro será atribuível rigorosamente à intervenção. A linha de base tem de preceder a decisão, e não segui-la."
+        }
+      ]
+    },
+    "M-002": {
+      "id": "M-002",
+      "title": "Nascente de Dragos",
+      "subtitle": "Segundo caso identificado · candidato, não compromisso.",
+      "meta": "Património e território · Podentes, Penela",
+      "status": "Caso identificado",
+      "confidence": "Baixa",
+      "decision": "Não iniciada",
+      "situation": {
+        "summary": "Caso identificado para testar a arquitetura fora do controlo direto do promotor. Uma eventual recuperação depende de múltiplos decisores, autorizações e restrições patrimoniais.",
+        "attention": [
+          {
+            "title": "Autorizações não solicitadas.",
+            "description": "O caso depende das entidades titulares e competentes.",
+            "level": "Condição prévia"
+          },
+          {
+            "title": "Restrições patrimoniais.",
+            "description": "Qualquer intervenção deve respeitar o enquadramento patrimonial aplicável.",
+            "level": "A confirmar"
+          }
+        ],
+        "chain": [
+          {
+            "number": "01",
+            "label": "Observação",
+            "value": "Caso identificado",
+            "note": "Estado de abandono identificado.",
+            "state": "completed"
+          },
+          {
+            "number": "02",
+            "label": "Evidência",
+            "value": "Patrimonial",
+            "note": "Enquadramento documental identificado.",
+            "state": "completed"
+          },
+          {
+            "number": "03",
+            "label": "Alternativas",
+            "value": "Não estruturadas",
+            "note": "Nenhuma opção de recuperação formalizada.",
+            "state": "unavailable"
+          },
+          {
+            "number": "04",
+            "label": "Pressupostos",
+            "value": "Por definir",
+            "note": "Não existe ainda base suficiente.",
+            "state": "unavailable"
+          },
+          {
+            "number": "05",
+            "label": "Restrições",
+            "value": "Críticas",
+            "note": "Titularidade, competências e património.",
+            "state": "attention"
+          },
+          {
+            "number": "06",
+            "label": "Decisão",
+            "value": "Não iniciada",
+            "note": "Não existe decisão.",
+            "state": "unavailable"
+          },
+          {
+            "number": "07",
+            "label": "Execução",
+            "value": "Não existe",
+            "note": "Nenhuma intervenção autorizada.",
+            "state": "unavailable"
+          },
+          {
+            "number": "08",
+            "label": "Resultado",
+            "value": "Não existe",
+            "note": "Sem execução, não existe resultado.",
+            "state": "unavailable"
+          }
+        ]
+      },
+      "analysis": {
+        "title": "M-002 — Nascente de Dragos",
+        "context": "A Nascente de Dragos, em Podentes, encontra-se em estado de abandono. Uma eventual recuperação envolveria múltiplos decisores, autorização das entidades competentes e restrições patrimoniais explícitas.",
+        "central_question": "Que condições teriam de estar verificadas antes de transformar este caso identificado numa missão operacional legítima?",
+        "available_evidence": "Enquadramento patrimonial documentado e identificação do estado atual do local.",
+        "unknowns": "Titularidade operacional, autorizações, competências das entidades, condições patrimoniais detalhadas, objetivos de intervenção e recursos.",
+        "result": {
+          "headline": "Não transformar ainda o caso em compromisso de intervenção.",
+          "summary": "O SRIS deve preservar o caso como candidato enquanto as condições de legitimidade e governação não forem confirmadas.",
+          "situation": "O caso é adequado para testar a arquitetura fora do controlo do promotor, mas ainda não é uma missão de execução.",
+          "principal_risk": "Apresentar intenção como autorização ou compromisso.",
+          "assumptions": [
+            "As entidades competentes terão de ser identificadas.",
+            "A recuperação só pode avançar após autorização e enquadramento patrimonial."
+          ],
+          "alternatives": [
+            {
+              "id": "A",
+              "title": "Manter como caso candidato",
+              "description": "Preservar contexto e preparar requisitos."
+            },
+            {
+              "id": "B",
+              "title": "Solicitar enquadramento institucional",
+              "description": "Iniciar contactos para perceber competências e autorizações."
+            }
+          ],
+          "next_decision": "Identificar entidades titulares e competentes antes de qualquer desenho de intervenção.",
+          "confidence": "Baixa"
+        }
+      },
+      "evidence": [
+        {
+          "id": "EVD-M002-001",
+          "type": "Evidência documental",
+          "title": "Enquadramento patrimonial identificado",
+          "description": "O local tem enquadramento patrimonial documentado, relevante para qualquer eventual recuperação.",
+          "method": "Referência documental preservada na missão.",
+          "limitation": "Não constitui autorização para intervir.",
+          "status": "Documentada",
+          "confidence": "Moderada",
+          "source": "Documentação do caso"
+        }
+      ],
+      "learning": [
+        {
+          "id": "LRN-M002-001",
+          "title": "Caso identificado não é compromisso",
+          "description": "A existência de um problema ou oportunidade não autoriza converter intenção em intervenção sem titulares, competências e restrições explicitadas."
+        }
+      ]
+    },
+    "CA-AWARD-APPLICATION": {
+      "id": "CA-AWARD-APPLICATION",
+      "title": "Prémio Empreendedorismo e Inovação Crédito Agrícola",
+      "subtitle": "Candidatura 2026 · demonstração operacional do SRIS.",
+      "meta": "Candidatura · Empreendedorismo · Inovação",
+      "status": "Em preparação final",
+      "confidence": "Elevada",
+      "decision": "Percurso de demonstração definido",
+      "situation": {
+        "summary": "A candidatura deve provar o princípio nuclear do SRIS através de uma missão real, sem transformar visão futura em resultado já demonstrado.",
+        "attention": [
+          {
+            "title": "Coerência com o estado real.",
+            "description": "TRL, utilização externa, resultados e impacto têm de ser declarados sem exagero.",
+            "level": "Rigor"
+          },
+          {
+            "title": "M-001 como demonstração principal.",
+            "description": "O caso real deve mostrar observação, incerteza, alternativas, restrições, decisão em aberto e aprendizagem.",
+            "level": "Prioridade"
+          },
+          {
+            "title": "Impacto como hipótese de piloto.",
+            "description": "Benefícios devem ser apresentados com indicadores a medir, não como ganhos já comprovados.",
+            "level": "Disciplina"
+          }
+        ],
+        "chain": [
+          {
+            "number": "01",
+            "label": "Problema",
+            "value": "Definido",
+            "note": "Perda do raciocínio das decisões.",
+            "state": "completed"
+          },
+          {
+            "number": "02",
+            "label": "Missão real",
+            "value": "M-001",
+            "note": "Caso aberto e documentado.",
+            "state": "completed"
+          },
+          {
+            "number": "03",
+            "label": "Solução",
+            "value": "Operacional",
+            "note": "Registo estruturado da cadeia decisória.",
+            "state": "completed"
+          },
+          {
+            "number": "04",
+            "label": "Estado real",
+            "value": "TRL 4–5",
+            "note": "Sem utilização externa operacional.",
+            "state": "attention"
+          },
+          {
+            "number": "05",
+            "label": "Impacto",
+            "value": "A medir",
+            "note": "Indicadores definidos para o piloto.",
+            "state": "open"
+          },
+          {
+            "number": "06",
+            "label": "Prémio",
+            "value": "Aplicação definida",
+            "note": "Instrumentação + utilização por terceiros.",
+            "state": "completed"
+          }
+        ]
+      },
+      "analysis": {
+        "title": "Preparação final — Prémio Empreendedorismo e Inovação Crédito Agrícola",
+        "context": "O SRIS deve ser apresentado através de um problema concreto e uma missão real, deixando claros o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
+        "central_question": "Qual é a demonstração mais curta e rigorosa que permite ao júri compreender problema, inovação, estado real, potencial e próximos passos sem confundir hipótese com resultado?",
+        "available_evidence": "M-001 documentada; plataforma operacional; arquitetura conceptual; motor epistemológico; backend em produção; reconhecimento externo documentado; roadmap e indicadores de piloto definidos.",
+        "unknowns": "Resposta do júri, primeira organização externa, custo real de documentação, métricas de eficiência e resultados do piloto.",
+        "result": {
+          "headline": "Demonstrar o SRIS através da M-001 e do seu estado real.",
+          "summary": "A candidatura deve mostrar que a inovação não está em prever um resultado, mas em preservar a estrutura que permitirá avaliar qualquer resultado futuro.",
+          "situation": "O produto tem protótipo funcional e uma missão real, mas ainda não tem utilização externa ou benefícios quantitativos medidos.",
+          "principal_risk": "Sobreprometer impacto ou escala e enfraquecer a credibilidade de uma proposta que assenta precisamente em rigor e rastreabilidade.",
+          "assumptions": [
+            "O júri valorizará uma demonstração funcional e verificável.",
+            "M-001 é suficiente para tornar o problema concreto.",
+            "Reconhecimento externo reforça credibilidade, mas não substitui validação."
+          ],
+          "alternatives": [
+            {
+              "id": "A",
+              "title": "Apresentação tecnológica",
+              "description": "Foco em arquitetura e componentes."
+            },
+            {
+              "id": "B",
+              "title": "Percurso M-001",
+              "description": "Problema → registos → incerteza → decisão em aberto → aprendizagem."
+            },
+            {
+              "id": "C",
+              "title": "Apresentação comercial",
+              "description": "Foco em mercados e potencial de escala."
+            }
+          ],
+          "next_decision": "Usar M-001 como percurso principal; Estado Real e Impacto como prova de disciplina; reconhecimento apenas como contexto externo.",
+          "confidence": "Elevada"
+        }
+      },
+      "evidence": [
+        {
+          "id": "EVD-CA-001",
+          "type": "Evidência funcional",
+          "title": "Protótipo operacional",
+          "description": "Aplicação funcional em navegador, integrada com backend e missões.",
+          "method": "Demonstração operacional.",
+          "limitation": "Ainda sem utilização externa em contexto operacional.",
+          "status": "Confirmada",
+          "confidence": "Elevada",
+          "source": "SRIS"
+        },
+        {
+          "id": "EVD-CA-002",
+          "type": "Evidência de caso",
+          "title": "M-001 aberta e documentada",
+          "description": "Missão real com observações, pressupostos, restrições, alternativas, decisão em aberto e aprendizagem.",
+          "method": "Registo SRIS.",
+          "limitation": "Sem execução e sem resultado.",
+          "status": "Confirmada",
+          "confidence": "Elevada",
+          "source": "M-001"
+        },
+        {
+          "id": "EVD-CA-003",
+          "type": "Reconhecimento externo",
+          "title": "Seleções e nomeações 2026",
+          "description": "Short list Forbes Green ESG Awards, finalista no Prémio Nacional de Inovação e nomeação TECH nos Prémios Líderes do Turismo.",
+          "method": "Documentação externa.",
+          "limitation": "Reconhecimento não é validação científica nem prova de impacto.",
+          "status": "Documentada",
+          "confidence": "Elevada",
+          "source": "Entidades externas"
+        }
+      ],
+      "learning": [
+        {
+          "id": "LRN-CA-001",
+          "title": "Não declarar o que ainda não foi medido",
+          "description": "Uma candidatura baseada em rastreabilidade perde força se transformar benefício esperado em resultado demonstrado."
+        },
+        {
+          "id": "LRN-CA-002",
+          "title": "Coerência vence volume",
+          "description": "Uma missão real, bem demonstrada, prova melhor o princípio do produto do que uma enumeração extensa de setores e funcionalidades."
+        }
+      ]
+    }
+  }
+}

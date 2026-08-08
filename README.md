@@ -1,6 +1,13 @@
-# ATLAS Core v1.0
+# SRIS · Mission Intelligence 1.0
 
-Consolidated operational foundation of SRIS Enterprise.
+Operational SRIS foundation powered by ATLAS Core, with canonical mission
+intelligence, deterministic analysis and an optional human-reviewed AI advisory.
+
+Implementation and deployment controls:
+[Mission Intelligence & AI v1](docs/MISSION-INTELLIGENCE-AI-V1.md).
+
+Production assessment:
+[application audit — 2026-08-08](docs/APP-AUDIT-2026-08-08.md).
 
 ## Install
 

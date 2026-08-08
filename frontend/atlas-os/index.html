@@ -178,6 +178,7 @@
     }
     .field input,.field select{height:48px;padding:0 14px}
     .field textarea{min-height:145px;padding:13px 14px;resize:vertical;line-height:1.55}
+    .field-note{display:block;margin-top:6px;color:var(--ink-muted);font-size:10.5px;line-height:1.5}
     .field input:focus,.field select:focus,.field textarea:focus{
       border-color:var(--forest-3);box-shadow:0 0 0 4px rgba(72,116,92,.10)
     }
@@ -345,6 +346,14 @@
     .form-panel{padding:22px}
     .form-row{display:grid;grid-template-columns:1fr;gap:0}
     .form-actions{display:flex;justify-content:flex-end;gap:9px}
+    .analysis-mode{
+      margin:4px 0 17px;padding:14px 15px;display:flex;align-items:flex-start;gap:11px;
+      border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.62)
+    }
+    .analysis-mode input{width:17px;height:17px;margin:2px 0 0;accent-color:var(--forest)}
+    .analysis-mode label{font-size:12px;font-weight:780;line-height:1.4}
+    .analysis-mode small{display:block;margin-top:4px;color:var(--ink-muted);font-size:10.5px;font-weight:500;line-height:1.5}
+    .analysis-mode.is-unavailable{opacity:.72}
     .result-panel{min-height:550px;padding:22px}
     .result-placeholder{
       min-height:500px;display:grid;place-items:center;text-align:center;color:var(--ink-muted);
@@ -361,6 +370,14 @@
     .result-section>strong{display:block;margin-bottom:7px}
     .result-section p,.result-section li{color:var(--ink-soft);font-size:12px;line-height:1.6}
     .result-section ul{margin:7px 0 0;padding-left:20px}
+    .result-metrics{margin:15px 0 4px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .result-metrics article{padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft)}
+    .result-metrics span{display:block;color:var(--ink-muted);font-size:8.5px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+    .result-metrics strong{display:block;margin-top:6px;font-size:12px;line-height:1.35}
+    .ai-advisory{margin-top:16px;padding:17px;border:1px solid rgba(164,134,73,.28);border-radius:13px;background:var(--gold-soft)}
+    .ai-advisory h4{margin:0 0 8px;font-family:Georgia,serif;font-size:20px;font-weight:400}
+    .ai-advisory p,.ai-advisory li{color:var(--ink-soft);font-size:11.5px;line-height:1.6}
+    .ai-provenance{margin-top:13px;padding-top:11px;border-top:1px solid rgba(164,134,73,.25);color:var(--ink-muted);font-size:9.5px;line-height:1.5}
 
     /* ---------- Cards / records ---------- */
     .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
@@ -518,7 +535,7 @@
       .topbar{position:relative;padding-block:15px 17px;align-items:flex-start;flex-direction:column}
       .mission-row{grid-template-columns:1fr auto}
       .mission-row>div:nth-child(3){display:none}
-      .form-row,.modal-status,.mission-context,.two-col,.award-use-grid{grid-template-columns:1fr}
+      .form-row,.modal-status,.mission-context,.two-col,.award-use-grid,.result-metrics{grid-template-columns:1fr}
     }
     @media(max-width:650px){
       .main{--page-gutter:16px}
@@ -684,7 +701,7 @@
         <div class="system-card">
           <div class="system-row">
             <span><span class="dot"></span>Sistema operacional</span>
-          <strong title="Executive Brief 1.0 · refinamento visual 2">EB-1.0 · UI-R2</strong>
+          <strong title="Executive Brief 1.0 · UI-R2 · Mission Intelligence 1.0">EB-1.0 · UI-R2 · MI-1</strong>
           </div>
         </div>
       </div>
@@ -834,6 +851,7 @@
               <div class="field">
                 <label for="analysisEvidence">Evidência disponível</label>
                 <textarea id="analysisEvidence"></textarea>
+                <small class="field-note">Este texto contextualiza a análise; só um registo com origem, método e limitações conta como evidência canónica.</small>
               </div>
 
               <div class="field">
@@ -841,8 +859,16 @@
                 <textarea id="analysisUnknowns"></textarea>
               </div>
 
+              <div id="analysisMode" class="analysis-mode is-unavailable">
+                <input id="analysisAI" type="checkbox" disabled />
+                <label for="analysisAI">
+                  Complementar com análise assistida por IA
+                  <small id="analysisAIStatus">A verificar a capacidade disponível.</small>
+                </label>
+              </div>
+
               <div class="form-actions">
-                <button class="btn-primary" type="submit">Processar análise</button>
+                <button id="analysisSubmit" class="btn-primary" type="submit">Executar Mission Intelligence</button>
               </div>
             </form>
           </section>
@@ -850,9 +876,9 @@
           <aside class="panel result-panel">
             <div id="resultPlaceholder" class="result-placeholder">
               <div>
-                <strong>Resultado ainda não processado</strong>
-                Selecione uma missão e processe a análise. O resultado é específico
-                da missão e mantém explícitos limites, pressupostos e confiança.
+                <strong>Mission Intelligence ainda não executada</strong>
+                A análise determinística usa a missão canónica, mantém separados
+                estado, tendência e confiança, e não transforma lacunas em certeza.
               </div>
             </div>
             <div id="resultBlock" class="hidden" aria-live="polite"></div>
@@ -1264,6 +1290,8 @@
     "use strict";
 
     const CONTENT_URL = "/assets/sris-platform-content.json";
+    const MISSION_CATALOG_URL = "/api/mission-intelligence/demo/missions";
+    const MISSION_INTELLIGENCE_STATUS_URL = "/api/mission-intelligence/status";
     const IMPORT_KEY = "sris_imported_missions_eb1";
     const ACTIVE_KEY = "sris_active_mission_eb1";
 
@@ -1569,6 +1597,13 @@
     let config = structuredClone(BRIEF_ALIGNMENT);
     let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-001";
     let modalMissionId = null;
+    let activeOrganizationId = null;
+    let intelligenceStatus = {
+      deterministic_analysis:"unavailable",
+      ai_configured:false,
+      ai_requires_authentication:true,
+      ai_model:""
+    };
 
     const qs = (s,r=document) => r.querySelector(s);
     const qsa = (s,r=document) => [...r.querySelectorAll(s)];
@@ -1655,9 +1690,27 @@
         console.warn("Conteúdo externo não carregado:",err);
       }
       config=deepMerge(external,BRIEF_ALIGNMENT);
+      try{
+        const res=await fetch(MISSION_CATALOG_URL,{cache:"no-store"});
+        if(res.ok){
+          const catalog=await res.json();
+          if(catalog?.schema==="sris_mission_catalog"&&isPlainObject(catalog.missions)){
+            config.missions={...(config.missions||{}),...catalog.missions};
+          }
+        }
+      }catch(err){
+        console.warn("Catálogo canónico não carregado; foi mantida a cópia de segurança incorporada.",err);
+      }
+      try{
+        const res=await fetch(MISSION_INTELLIGENCE_STATUS_URL,{cache:"no-store"});
+        if(res.ok) intelligenceStatus=await res.json();
+      }catch(err){
+        console.warn("Estado de Mission Intelligence indisponível:",err);
+      }
       config.missions={...(config.missions||{}),...importedMissions()};
       if(!config.missions[activeMissionId]) activeMissionId="M-001";
       renderAll();
+      updateAIControl();
       const current=qs(".page.active")?.id?.replace("page-","")||"overview";
       navigate(current,{scroll:false});
     }
@@ -1762,21 +1815,99 @@
       syncFilters(id);
     }
 
+    const indicatorLabels={
+      critical:"Crítico",requires_attention:"Requer atenção",on_track:"No percurso",completed:"Concluída",
+      improving:"A melhorar",stable:"Estável",deteriorating:"A deteriorar",not_evaluable:"Não avaliável",
+      high:"Elevada",moderate:"Moderada",low:"Baixa"
+    };
+
+    function indicatorLabel(value){return indicatorLabels[value]||String(value||"")}
+
     function renderResult(result){
       const root=qs("#resultBlock");
+      const d=result?.deterministic;
+      if(!d){
+        root.innerHTML=`
+          <div class="result-hero">
+            <small>Resultado indisponível</small>
+            <h3>A resposta não respeita o contrato de Mission Intelligence.</h3>
+            <p>Nenhuma conclusão foi apresentada. Volte a executar a análise.</p>
+          </div>`;
+        return;
+      }
+      const advisory=result?.ai?.advisory;
+      const provenance=result?.ai?.provenance;
+      const aiNotice=result.ai_status==="authentication_required"
+        ? "A análise por IA não é executada no modo de demonstração. Requer sessão institucional."
+        : result.ai_status==="not_configured"
+          ? "A camada de IA está instalada, mas ainda não tem configuração ativa. A análise determinística foi concluída."
+          : result.ai_status==="failed"
+            ? "A camada de IA não concluiu a execução. O relatório determinístico permanece disponível e auditável."
+            : "";
       root.innerHTML=`
         <div class="result-hero">
-          <small>Resultado reconstruído</small>
-          <h3>${esc(result?.headline||"")}</h3>
-          <p>${esc(result?.summary||"")}</p>
+          <small>Mission Intelligence · ${esc(result.execution_mode||"deterministic")}</small>
+          <h3>${esc(d.headline||"")}</h3>
+          <p>${esc(d.summary||"")}</p>
         </div>
-        <div class="result-section"><strong>Situação</strong><p>${esc(result?.situation||"")}</p></div>
-        <div class="result-section"><strong>Risco principal</strong><p>${esc(result?.principal_risk||"")}</p></div>
-        <div class="result-section"><strong>Pressupostos a testar</strong><ul>${(result?.assumptions||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
-        <div class="result-section"><strong>Alternativas</strong><ul>${(result?.alternatives||[]).map(a=>`<li><strong>${esc(a.id)} — ${esc(a.title)}</strong><br>${esc(a.description)}</li>`).join("")}</ul></div>
-        <div class="result-section"><strong>Próxima decisão</strong><p>${esc(result?.next_decision||"")}</p></div>
-        <div class="result-section"><strong>Confiança atual</strong><p>${esc(result?.confidence||"")}</p></div>
+        <div class="result-metrics">
+          <article><span>Mission Status</span><strong>${esc(indicatorLabel(d.mission_status))}</strong></article>
+          <article><span>Mission Trend</span><strong>${esc(indicatorLabel(d.mission_trend))}</strong></article>
+          <article><span>Decision Confidence</span><strong>${esc(indicatorLabel(d.decision_confidence))}</strong></article>
+        </div>
+        <div class="result-section"><strong>Risco principal</strong><p>${esc(d.principal_risk||"")}</p></div>
+        <div class="result-section"><strong>Lacunas críticas</strong><ul>${(d.gaps||[]).map(g=>`<li><strong>${esc(g.title)}</strong><br>${esc(g.explanation)}${g.evidence_needed?`<br><em>Evidência necessária: ${esc(g.evidence_needed)}</em>`:""}</li>`).join("")||"<li>Não foram detetadas lacunas adicionais.</li>"}</ul></div>
+        <div class="result-section"><strong>Fatores de confiança</strong><ul>${(d.confidence_factors||[]).map(f=>`<li><strong>${esc(f.factor)} · ${esc(indicatorLabel(f.assessment))}</strong><br>${esc(f.explanation)}</li>`).join("")}</ul></div>
+        <div class="result-section"><strong>Pressupostos a testar</strong><ul>${(d.assumptions_to_test||[]).map(x=>`<li>${esc(x)}</li>`).join("")||"<li>Nenhum pressuposto aberto foi identificado.</li>"}</ul></div>
+        <div class="result-section"><strong>Alternativas representadas</strong><ul>${(d.alternatives||[]).map(a=>`<li><strong>${esc(a.canonical_id)} — ${esc(a.title)}</strong><br>${esc(a.description||"")}</li>`).join("")||"<li>Não existem alternativas canónicas suficientes.</li>"}</ul></div>
+        <div class="result-section"><strong>Próxima decisão</strong><p>${esc(d.next_decision||"")}</p></div>
+        <div class="result-section"><strong>O que o sistema não inferiu</strong><ul>${(d.non_inferences||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+        ${aiNotice?`<div class="result-section"><strong>Estado da IA</strong><p>${esc(aiNotice)}</p></div>`:""}
+        ${advisory?`
+          <section class="ai-advisory">
+            <h4>Análise assistida por IA · provisória</h4>
+            <p>${esc(advisory.executive_summary||"")}</p>
+            ${(advisory.inferences||[]).length?`<strong>Inferências</strong><ul>${advisory.inferences.map(i=>`<li>${esc(i.statement)} <em>(${esc((i.based_on_ids||[]).join(", "))})</em></li>`).join("")}</ul>`:""}
+            ${(advisory.critical_gaps||[]).length?`<strong>Lacunas</strong><ul>${advisory.critical_gaps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+            <strong>Próximo passo sugerido</strong><p>${esc(advisory.recommended_next_step||"")}</p>
+            <div class="ai-provenance">
+              ${esc(provenance?.provider||"OpenAI")} · ${esc(provenance?.model_or_system||"")} ·
+              estado ${esc(provenance?.verification_status||"in_review")}. Esta saída não constitui evidência nem decisão e requer revisão humana.
+            </div>
+          </section>`:""}
       `;
+    }
+
+    function updateAIControl(){
+      const checkbox=qs("#analysisAI"),status=qs("#analysisAIStatus"),container=qs("#analysisMode");
+      if(!checkbox||!status||!container)return;
+      const token=sessionStorage.getItem("sris_token");
+      const institutional=Boolean(token&&activeOrganizationId);
+      const available=Boolean(institutional&&intelligenceStatus.ai_configured);
+      checkbox.disabled=!available;
+      if(!available)checkbox.checked=false;
+      container.classList.toggle("is-unavailable",!available);
+      if(!institutional){
+        status.textContent="No modo de demonstração é executado apenas o motor determinístico. A IA requer sessão institucional.";
+      }else if(!intelligenceStatus.ai_configured){
+        status.textContent="A camada OpenAI está instalada, mas a configuração de produção ainda não está ativa.";
+      }else{
+        status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. A saída é provisória e exige revisão humana.`;
+      }
+    }
+
+    async function loadSessionContext(token){
+      activeOrganizationId=null;
+      if(!token){updateAIControl();return}
+      try{
+        const res=await fetch("/api/organizations",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+        if(!res.ok)throw new Error("Não foi possível obter a organização ativa.");
+        const organizations=await res.json();
+        activeOrganizationId=organizations?.[0]?.id||null;
+      }catch(err){
+        console.warn("Contexto institucional indisponível:",err);
+      }
+      updateAIControl();
     }
 
     function renderEvidence(filter=activeMissionId){
@@ -1901,6 +2032,7 @@
       qs("#loginScreen").classList.add("hidden");
       qs("#appScreen").classList.remove("hidden");
       qs("#userName").textContent=name;
+      updateAIControl();
       setTimeout(()=>navigate("overview",{scroll:false}),0);
     }
 
@@ -1931,14 +2063,39 @@
     qs("#evidenceMission").addEventListener("change",e=>renderEvidence(e.target.value));
     qs("#learningMission").addEventListener("change",e=>renderLearning(e.target.value));
 
-    qs("#analysisForm").addEventListener("submit",e=>{
+    qs("#analysisForm").addEventListener("submit",async e=>{
       e.preventDefault();
       const m=mission(qs("#analysisMission").value);
       if(!m)return;
-      renderResult(m.analysis?.result||{});
-      qs("#resultPlaceholder").classList.add("hidden");
-      qs("#resultBlock").classList.remove("hidden");
-      qs("#resultBlock").scrollIntoView({behavior:"smooth",block:"start"});
+      const button=qs("#analysisSubmit"),token=sessionStorage.getItem("sris_token");
+      const institutional=Boolean(token&&activeOrganizationId);
+      const endpoint=institutional
+        ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/demo/${encodeURIComponent(m.id)}/analyze`
+        : `/api/mission-intelligence/demo/missions/${encodeURIComponent(m.id)}/analyze`;
+      const payload={
+        title:qs("#analysisTitle").value.trim(),
+        context:qs("#analysisContext").value.trim(),
+        central_question:qs("#analysisQuestion").value.trim(),
+        available_evidence:qs("#analysisEvidence").value.trim(),
+        unknowns:qs("#analysisUnknowns").value.trim(),
+        use_ai:institutional&&qs("#analysisAI").checked
+      };
+      button.disabled=true;button.textContent="A analisar…";
+      try{
+        const headers={"Content-Type":"application/json"};
+        if(institutional)headers.Authorization=`Bearer ${token}`;
+        const res=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload)});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||"Não foi possível executar Mission Intelligence.");
+        renderResult(data);
+        qs("#resultPlaceholder").classList.add("hidden");
+        qs("#resultBlock").classList.remove("hidden");
+        qs("#resultBlock").scrollIntoView({behavior:"smooth",block:"start"});
+      }catch(err){
+        toast(err.message||"Não foi possível executar Mission Intelligence.");
+      }finally{
+        button.disabled=false;button.textContent="Executar Mission Intelligence";
+      }
     });
 
     qs("#printMission").addEventListener("click",()=>window.print());
@@ -1968,14 +2125,17 @@
 
     // Login / demo
     qs("#demoButton").addEventListener("click",()=>{
+      activeOrganizationId=null;
       sessionStorage.setItem("sris_demo","true");openApp();
     });
 
     qs("#logoutButton").addEventListener("click",()=>{
       sessionStorage.removeItem("sris_demo");
       sessionStorage.removeItem("sris_token");
+      activeOrganizationId=null;
       qs("#appScreen").classList.add("hidden");
       qs("#loginScreen").classList.remove("hidden");
+      updateAIControl();
     });
 
     qs("#loginForm").addEventListener("submit",async e=>{
@@ -1996,6 +2156,8 @@
             :detail||"Não foi possível autenticar.");
         }
         sessionStorage.setItem("sris_token",data.access_token||"");
+        sessionStorage.removeItem("sris_demo");
+        await loadSessionContext(data.access_token||"");
         qs("#loginMessage").textContent="";
         openApp(email.split("@")[0]||"Utilizador");
       }catch(err){
@@ -2003,9 +2165,9 @@
       }
     });
 
-    if(sessionStorage.getItem("sris_demo")==="true"||sessionStorage.getItem("sris_token")){
-      openApp();
-    }
+    const storedToken=sessionStorage.getItem("sris_token");
+    if(sessionStorage.getItem("sris_demo")==="true")openApp();
+    else if(storedToken){openApp();loadSessionContext(storedToken)}
 
     loadConfig();
   })();

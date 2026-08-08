@@ -6,7 +6,7 @@ _temp_dir = TemporaryDirectory()
 _db_path = Path(_temp_dir.name) / "atlas-test.db"
 
 os.environ["ATLAS_DATABASE_URL"] = f"sqlite+pysqlite:///{_db_path}"
-os.environ["ATLAS_JWT_SECRET"] = "test-secret"
+os.environ["ATLAS_JWT_SECRET"] = "test-secret-at-least-32-characters-long"
 
 from fastapi.testclient import TestClient
 

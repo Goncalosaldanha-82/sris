@@ -6,6 +6,7 @@ services:
       ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas@postgres:5432/atlas
       ATLAS_JWT_SECRET: ${ATLAS_JWT_SECRET:-change-this-before-production}
       ATLAS_REPOSITORY_ROOT: /workspace
+      ATLAS_ENV: ${ATLAS_ENV:-development}
     ports: ["8000:8000"]
     volumes: [".:/workspace"]
     depends_on:

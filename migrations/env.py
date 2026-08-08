@@ -9,6 +9,7 @@ from sqlalchemy import engine_from_config, pool
 from app.atlas_platform.database import Base
 from app.atlas_platform import models  # noqa: F401
 from app.atlas_platform import workflow_models  # noqa: F401
+from app.mission_intelligence import models as mission_intelligence_models  # noqa: F401
 
 
 config = context.config

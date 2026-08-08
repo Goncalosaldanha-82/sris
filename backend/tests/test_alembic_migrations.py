@@ -62,6 +62,9 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "workflow_candidates",
             "workflow_history",
             "repository_changes",
+            "mi_missions",
+            "mi_mission_revisions",
+            "mi_intelligence_runs",
         }
 
         assert expected.issubset(tables)
