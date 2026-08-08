@@ -19,12 +19,16 @@ finally {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
 }
 
-$loginBody = @{ email = $email; password = $plainPassword } | ConvertTo-Json
+$loginJson = @{
+    email = $email
+    password = $plainPassword
+} | ConvertTo-Json -Compress
+$loginBody = [System.Text.Encoding]::UTF8.GetBytes($loginJson)
 try {
     $login = Invoke-RestMethod `
         -Method Post `
         -Uri "$BaseUrl/api/auth/login" `
-        -ContentType "application/json" `
+        -ContentType "application/json; charset=utf-8" `
         -Body $loginBody
 }
 finally {
@@ -33,12 +37,21 @@ finally {
 }
 
 $headers = @{ Authorization = "Bearer $($login.access_token)" }
-$organizations = @(
-    Invoke-RestMethod `
-        -Method Get `
-        -Uri "$BaseUrl/api/organizations" `
-        -Headers $headers
-)
+$organizationResponse = Invoke-RestMethod `
+    -Method Get `
+    -Uri "$BaseUrl/api/organizations" `
+    -Headers $headers
+
+# Windows PowerShell 5.1 can preserve a JSON array returned by
+# Invoke-RestMethod as one pipeline object. Enumerate the assigned value
+# explicitly so that selecting [0] returns the organization itself.
+$organizations = @()
+if ($null -ne $organizationResponse) {
+    foreach ($candidate in $organizationResponse) {
+        $organizations += $candidate
+    }
+}
+
 $matchingOrganizations = @($organizations | Where-Object { $_.slug -eq $OrganizationSlug })
 if ($matchingOrganizations.Count -eq 1) {
     $organization = $matchingOrganizations[0]
@@ -50,7 +63,12 @@ else {
     throw "Não foi possível determinar inequivocamente a organização piloto."
 }
 
-$governanceUri = "$BaseUrl/api/organizations/$($organization.id)/mission-intelligence/ai-governance"
+$organizationId = [string]$organization.id
+if ([string]::IsNullOrWhiteSpace($organizationId)) {
+    throw "A API não devolveu um UUID válido para a organização piloto. Nenhuma política foi alterada."
+}
+
+$governanceUri = "$BaseUrl/api/organizations/$organizationId/mission-intelligence/ai-governance"
 $policyUri = "$governanceUri/policy"
 $governance = Invoke-RestMethod -Method Get -Uri $governanceUri -Headers $headers
 
@@ -65,7 +83,7 @@ if (-not $governance.policy.configured) {
 }
 
 function New-PolicyBody([bool]$Enabled, $Policy) {
-    return @{
+    $policyJson = @{
         enabled = $Enabled
         monthly_request_limit = $Policy.monthly_request_limit
         monthly_input_token_limit = $Policy.monthly_input_token_limit
@@ -74,7 +92,9 @@ function New-PolicyBody([bool]$Enabled, $Policy) {
         per_request_input_token_limit = $Policy.per_request_input_token_limit
         per_request_output_token_limit = $Policy.per_request_output_token_limit
         max_concurrent_requests = $Policy.max_concurrent_requests
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
+    # Prevent PowerShell from unrolling the byte array into individual bytes.
+    return ,([System.Text.Encoding]::UTF8.GetBytes($policyJson))
 }
 
 $policyEnabled = $false
@@ -84,17 +104,18 @@ try {
         -Method Put `
         -Uri $policyUri `
         -Headers $headers `
-        -ContentType "application/json" `
+        -ContentType "application/json; charset=utf-8" `
         -Body (New-PolicyBody $true $governance.policy) | Out-Null
     $policyEnabled = $true
 
-    $analysisBody = @{ use_ai = $true } | ConvertTo-Json
-    $analysisUri = "$BaseUrl/api/organizations/$($organization.id)/mission-intelligence/demo/M-001/analyze"
+    $analysisJson = @{ use_ai = $true } | ConvertTo-Json -Compress
+    $analysisBody = [System.Text.Encoding]::UTF8.GetBytes($analysisJson)
+    $analysisUri = "$BaseUrl/api/organizations/$organizationId/mission-intelligence/demo/M-001/analyze"
     $result = Invoke-RestMethod `
         -Method Post `
         -Uri $analysisUri `
         -Headers $headers `
-        -ContentType "application/json" `
+        -ContentType "application/json; charset=utf-8" `
         -Body $analysisBody
 }
 finally {
@@ -103,7 +124,7 @@ finally {
             -Method Put `
             -Uri $policyUri `
             -Headers $headers `
-            -ContentType "application/json" `
+            -ContentType "application/json; charset=utf-8" `
             -Body (New-PolicyBody $false $governance.policy) | Out-Null
     }
 }
