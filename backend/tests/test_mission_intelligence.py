@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -738,3 +739,18 @@ def test_emergency_password_recovery_is_scoped_one_time_and_fail_closed(
     monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_EMAIL")
     monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_TOKEN")
     assert client.post(endpoint, json=request).status_code == 404
+
+
+def test_password_recovery_script_cleanup_cannot_mask_api_error() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "scripts" / "RESET_MI_PILOT_PASSWORD.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert '"" | Set-Clipboard' not in script
+    assert "Get-RecoveryFailureMessage" in script
+    assert (
+        'Set-Clipboard -Value "[SRIS: segredo temporario removido]" '
+        "-ErrorAction Stop"
+    ) in script
+    assert 'Write-Warning "Nao foi possivel limpar automaticamente' in script
