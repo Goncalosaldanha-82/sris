@@ -114,14 +114,6 @@ def emergency_password_recovery(
 ) -> PasswordRecoveryResponse:
     configured_email = os.getenv("SRIS_PASSWORD_RECOVERY_EMAIL", "").strip().lower()
     configured_token = os.getenv("SRIS_PASSWORD_RECOVERY_TOKEN", "").strip()
-    raw_pilot_organization_id = os.getenv(
-        "SRIS_AI_PILOT_ORGANIZATION_ID", ""
-    ).strip()
-
-    try:
-        pilot_organization_id = str(UUID(raw_pilot_organization_id))
-    except (TypeError, ValueError, AttributeError):
-        raise _recovery_not_available()
 
     if not configured_email or len(configured_token) < 32:
         raise _recovery_not_available()
@@ -146,22 +138,65 @@ def emergency_password_recovery(
     if user is None:
         raise _recovery_not_available()
 
-    membership = (
+    # Password recovery authenticates the exact configured account with a
+    # high-entropy, one-time secret. It must not depend on the separate AI
+    # authorization gate: a stale pilot UUID would otherwise lock the account
+    # whose credentials are needed to inspect and correct that configuration.
+    memberships = (
         db.query(Membership)
-        .filter(
-            Membership.user_id == user.id,
-            Membership.organization_id == pilot_organization_id,
-            Membership.role.in_((Role.OWNER.value, Role.ADMIN.value)),
-        )
-        .one_or_none()
+        .filter(Membership.user_id == user.id)
+        .order_by(Membership.created_at.asc())
+        .all()
     )
-    if membership is None:
-        raise _recovery_not_available()
+
+    raw_pilot_organization_id = os.getenv(
+        "SRIS_AI_PILOT_ORGANIZATION_ID", ""
+    ).strip()
+    pilot_organization_id: str | None = None
+    try:
+        pilot_organization_id = str(UUID(raw_pilot_organization_id))
+    except (TypeError, ValueError, AttributeError):
+        pass
+
+    recovery_membership = next(
+        (
+            membership
+            for membership in memberships
+            if membership.organization_id == pilot_organization_id
+        ),
+        None,
+    )
+    if recovery_membership is None:
+        recovery_membership = next(
+            (
+                membership
+                for membership in memberships
+                if membership.role in (Role.OWNER.value, Role.ADMIN.value)
+            ),
+            memberships[0] if memberships else None,
+        )
+    recovery_organization_id = (
+        recovery_membership.organization_id
+        if recovery_membership is not None
+        else None
+    )
 
     token_hash = hashlib.sha256(
-        f"{pilot_organization_id}\0{configured_token}".encode("utf-8")
+        f"{configured_email}\0{configured_token}".encode("utf-8")
     ).hexdigest()
-    if db.get(PasswordRecoveryUse, token_hash) is not None:
+    token_already_used = db.get(PasswordRecoveryUse, token_hash) is not None
+
+    # Recognize tokens consumed by the first recovery implementation as well,
+    # so this compatibility fix can never make an old token reusable.
+    if pilot_organization_id is not None:
+        legacy_token_hash = hashlib.sha256(
+            f"{pilot_organization_id}\0{configured_token}".encode("utf-8")
+        ).hexdigest()
+        token_already_used = token_already_used or (
+            db.get(PasswordRecoveryUse, legacy_token_hash) is not None
+        )
+
+    if token_already_used:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Recovery token already used",
@@ -174,7 +209,7 @@ def emergency_password_recovery(
             PasswordRecoveryUse(
                 token_hash=token_hash,
                 user_id=user.id,
-                organization_id=pilot_organization_id,
+                organization_id=recovery_organization_id,
             )
         )
         db.flush()
@@ -184,9 +219,12 @@ def emergency_password_recovery(
             action="user.password_recovered",
             resource_type="user",
             resource_id=user.id,
-            organization_id=pilot_organization_id,
+            organization_id=recovery_organization_id,
             user_id=user.id,
-            payload={"method": "one_time_environment_token"},
+            payload={
+                "method": "one_time_environment_token",
+                "ai_pilot_gate_required": False,
+            },
         )
         db.commit()
     except IntegrityError as exc:

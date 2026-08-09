@@ -697,17 +697,17 @@ def test_emergency_password_recovery_is_scoped_one_time_and_fail_closed(
     assert client.post(endpoint, json=request).status_code == 404
     assert endpoint not in client.get("/openapi.json").json()["paths"]
 
-    _, organization_id = _owner_named(suffix)
+    _owner_named(suffix)
     monkeypatch.setenv("SRIS_PASSWORD_RECOVERY_EMAIL", email)
     monkeypatch.setenv("SRIS_PASSWORD_RECOVERY_TOKEN", recovery_token)
 
     wrong_token = dict(request, recovery_token="b" * 64)
     assert client.post(endpoint, json=wrong_token).status_code == 404
 
+    # Credential recovery is deliberately independent from the separate AI
+    # authorization UUID. A stale or missing pilot UUID must not lock the user
+    # out of the account needed to repair that configuration.
     monkeypatch.setenv("SRIS_AI_PILOT_ORGANIZATION_ID", str(uuid4()))
-    assert client.post(endpoint, json=request).status_code == 404
-
-    monkeypatch.setenv("SRIS_AI_PILOT_ORGANIZATION_ID", organization_id)
     recovered = client.post(endpoint, json=request)
     assert recovered.status_code == 200, recovered.text
     assert recovered.json() == {"status": "password_updated"}
@@ -739,6 +739,47 @@ def test_emergency_password_recovery_is_scoped_one_time_and_fail_closed(
     monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_EMAIL")
     monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_TOKEN")
     assert client.post(endpoint, json=request).status_code == 404
+
+
+def test_emergency_password_recovery_does_not_require_an_organization(
+    monkeypatch,
+) -> None:
+    suffix = uuid4().hex[:8]
+    email = f"recovery-only-{suffix}@example.com"
+    old_password = "strong-password-123"
+    new_password = "new-strong-password-456"
+    recovery_token = "c" * 64
+    endpoint = "/api/auth/emergency-password-recovery"
+
+    registered = client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "full_name": "Recovery Only User",
+            "password": old_password,
+        },
+    )
+    assert registered.status_code == 201, registered.text
+
+    monkeypatch.setenv("SRIS_PASSWORD_RECOVERY_EMAIL", email)
+    monkeypatch.setenv("SRIS_PASSWORD_RECOVERY_TOKEN", recovery_token)
+    monkeypatch.delenv("SRIS_AI_PILOT_ORGANIZATION_ID", raising=False)
+
+    recovered = client.post(
+        endpoint,
+        json={
+            "email": email,
+            "recovery_token": recovery_token,
+            "new_password": new_password,
+        },
+    )
+    assert recovered.status_code == 200, recovered.text
+
+    new_login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": new_password},
+    )
+    assert new_login.status_code == 200
 
 
 def test_password_recovery_script_cleanup_cannot_mask_api_error() -> None:
