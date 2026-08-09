@@ -114,3 +114,20 @@ class AuditEvent(Base):
     resource_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     payload_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class PasswordRecoveryUse(Base):
+    """One-way record that prevents reuse of an emergency recovery token."""
+
+    __tablename__ = "password_recovery_uses"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    organization_id: Mapped[str | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

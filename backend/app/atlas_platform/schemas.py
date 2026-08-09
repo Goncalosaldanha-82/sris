@@ -28,6 +28,16 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class PasswordRecoveryRequest(BaseModel):
+    email: EmailStr
+    recovery_token: str = Field(min_length=32, max_length=512)
+    new_password: str = Field(min_length=12, max_length=200)
+
+
+class PasswordRecoveryResponse(BaseModel):
+    status: str
+
+
 class OrganizationCreate(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     slug: str = Field(pattern=r"^[a-z0-9-]+$", min_length=2, max_length=120)

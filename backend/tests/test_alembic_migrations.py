@@ -58,6 +58,7 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "memberships",
             "knowledge_objects",
             "audit_events",
+            "password_recovery_uses",
             "workflows",
             "workflow_candidates",
             "workflow_history",

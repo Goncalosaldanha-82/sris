@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from uuid import uuid4
 
 import pytest
 from app.atlas_platform.config import Settings, validate_security_settings
@@ -673,3 +674,67 @@ def test_managed_production_ai_requires_one_canonical_pilot_organization(
     assert status.json()["ai_pilot_organization_configured"] is True
     assert status.json()["institutional_onboarding_closed"] is True
     assert pilot_id not in status.text
+
+
+def test_emergency_password_recovery_is_scoped_one_time_and_fail_closed(
+    monkeypatch,
+) -> None:
+    suffix = uuid4().hex[:8]
+    email = f"mi-owner-{suffix}@example.com"
+    old_password = "strong-password-123"
+    new_password = "new-strong-password-456"
+    recovery_token = "a" * 64
+    endpoint = "/api/auth/emergency-password-recovery"
+    request = {
+        "email": email,
+        "recovery_token": recovery_token,
+        "new_password": new_password,
+    }
+
+    monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_EMAIL", raising=False)
+    monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_TOKEN", raising=False)
+    assert client.post(endpoint, json=request).status_code == 404
+    assert endpoint not in client.get("/openapi.json").json()["paths"]
+
+    _, organization_id = _owner_named(suffix)
+    monkeypatch.setenv("SRIS_PASSWORD_RECOVERY_EMAIL", email)
+    monkeypatch.setenv("SRIS_PASSWORD_RECOVERY_TOKEN", recovery_token)
+
+    wrong_token = dict(request, recovery_token="b" * 64)
+    assert client.post(endpoint, json=wrong_token).status_code == 404
+
+    monkeypatch.setenv("SRIS_AI_PILOT_ORGANIZATION_ID", str(uuid4()))
+    assert client.post(endpoint, json=request).status_code == 404
+
+    monkeypatch.setenv("SRIS_AI_PILOT_ORGANIZATION_ID", organization_id)
+    recovered = client.post(endpoint, json=request)
+    assert recovered.status_code == 200, recovered.text
+    assert recovered.json() == {"status": "password_updated"}
+
+    old_login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": old_password},
+    )
+    assert old_login.status_code == 401
+
+    new_login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": new_password},
+    )
+    assert new_login.status_code == 200
+
+    replay = client.post(
+        endpoint,
+        json=dict(request, new_password="another-strong-password-789"),
+    )
+    assert replay.status_code == 409
+
+    still_new_login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": new_password},
+    )
+    assert still_new_login.status_code == 200
+
+    monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_EMAIL")
+    monkeypatch.delenv("SRIS_PASSWORD_RECOVERY_TOKEN")
+    assert client.post(endpoint, json=request).status_code == 404
