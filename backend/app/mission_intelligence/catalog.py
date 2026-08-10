@@ -5,6 +5,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .contracts import ContextDossier
+
 
 CATALOG_PATH = (
     Path(__file__).resolve().parents[3]
@@ -24,6 +26,14 @@ def load_demo_catalog() -> dict[str, Any]:
     missions = payload.get("missions")
     if not isinstance(missions, dict) or not missions:
         raise RuntimeError("SRIS mission catalog is empty")
+    for code, mission in missions.items():
+        dossier = mission.get("context_dossier")
+        if dossier:
+            parsed = ContextDossier.model_validate(dossier)
+            if parsed.mission_id != code:
+                raise RuntimeError(
+                    f"Context dossier mission identity mismatch for {code}"
+                )
     return payload
 
 

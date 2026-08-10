@@ -5,6 +5,8 @@ from .contracts import (
     AlternativeView,
     ConfidenceFactor,
     ConfidenceLevel,
+    ContextAssessment,
+    ContextDossier,
     DeterministicReport,
     Gap,
     MissionDocumentV13,
@@ -14,7 +16,7 @@ from .contracts import (
 )
 
 
-ENGINE_VERSION = "mission-intelligence-deterministic-1.1"
+ENGINE_VERSION = "mission-intelligence-deterministic-1.2"
 
 
 def _active(record) -> bool:
@@ -57,6 +59,57 @@ def _has_explicit_baseline(document: MissionDocumentV13) -> bool:
     return any(
         relation.relation_type in {"establishes_baseline", "is_baseline_for"}
         for relation in document.relations
+    )
+
+
+def _context_research_required(document: MissionDocumentV13) -> bool:
+    requirements = document.metadata.get("analysis_requirements") or {}
+    context_requirement = requirements.get("context_research") or {}
+    return context_requirement.get("required") is True
+
+
+def _context_assessment(document: MissionDocumentV13) -> ContextAssessment:
+    required = _context_research_required(document)
+    raw = document.metadata.get("context_dossier")
+    if not raw:
+        return ContextAssessment(
+            status="not_started" if required else "not_required",
+            boundary=(
+                "A envolvente da missão ainda não foi investigada de forma estruturada."
+                if required
+                else "A investigação contextual não foi definida como requisito desta análise."
+            ),
+        )
+    try:
+        dossier = ContextDossier.model_validate(raw)
+    except ValueError:
+        return ContextAssessment(
+            status="not_started",
+            boundary=(
+                "Existe um dossier contextual inválido; nenhum dos seus conteúdos foi "
+                "usado como suporte da análise."
+            ),
+        )
+    supported = sum(
+        claim.epistemic_status in {"supported", "partially_supported"}
+        for claim in dossier.claims
+    )
+    hypotheses = sum(claim.epistemic_status == "hypothesis" for claim in dossier.claims)
+    unverified = sum(claim.epistemic_status == "unverified" for claim in dossier.claims)
+    critical_gaps = sum(gap.priority in {"critical", "high"} for gap in dossier.gaps)
+    return ContextAssessment(
+        status=dossier.research_status,
+        domains=dossier.domains,
+        source_count=len(dossier.sources),
+        supported_claim_count=supported,
+        hypothesis_count=hypotheses,
+        unverified_claim_count=unverified,
+        critical_gap_count=critical_gaps,
+        synthesis=dossier.synthesis,
+        boundary=(
+            "O dossier contextual organiza fontes, alegações e lacunas; não converte "
+            "proximidade geográfica, tradição oral ou plausibilidade histórica em causalidade."
+        ),
     )
 
 
@@ -115,6 +168,7 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
     baseline_requirement = _baseline_requirement(document)
     baseline_required = baseline_requirement == "required"
     has_baseline = _has_explicit_baseline(document)
+    context_assessment = _context_assessment(document)
 
     auditable = [
         item
@@ -170,12 +224,27 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
     else:
         decision_confidence = ConfidenceLevel.LOW
 
+    alternatives_required = bool(decisions) or str(
+        document.metadata.get("decision_stage") or ""
+    ) in {"open", "selected", "completed"}
+    context_factor = (
+        "not_applicable"
+        if context_assessment.status == "not_required"
+        else "weak"
+        if context_assessment.status == "not_started"
+        else "strong"
+        if context_assessment.status == "reviewed"
+        and context_assessment.critical_gap_count == 0
+        else "partial"
+    )
+
     factors = [
         ConfidenceFactor(
             factor="evidence",
             assessment=evidence_assessment,
             explanation=(
-                "Existem registos com origem, método e limitações suficientes."
+                "Os registos existentes preservam origem, método e limitações. Isto "
+                "avalia qualidade documental, não suficiência para decidir."
                 if evidence_assessment == "strong"
                 else "A base observacional é útil, mas não resolve todas as lacunas materiais."
                 if evidence_assessment == "partial"
@@ -213,10 +282,19 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
         ConfidenceFactor(
             factor="alternatives",
             assessment=(
-                "strong" if len(alternatives) >= 3 else "partial" if alternatives else "weak"
+                "not_applicable"
+                if not alternatives_required
+                else "strong"
+                if len(alternatives) >= 3
+                else "partial"
+                if alternatives
+                else "weak"
             ),
             explanation=(
-                "1 alternativa está explicitamente representada."
+                "Ainda não existe um objeto de decisão; comparar alternativas não é "
+                "aplicável nesta fase."
+                if not alternatives_required
+                else "1 alternativa está explicitamente representada."
                 if len(alternatives) == 1
                 else (
                     f"{len(alternatives)} alternativas estão explicitamente representadas"
@@ -237,6 +315,21 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
                 else "Existe uma decisão em aberto, sem alternativa selecionada."
                 if decisions
                 else "Ainda não existe um objeto de decisão; a fundamentação da decisão não é avaliável."
+            ),
+        ),
+        ConfidenceFactor(
+            factor="context_coverage",
+            assessment=context_factor,
+            explanation=(
+                "A investigação contextual não foi definida como requisito desta missão."
+                if context_assessment.status == "not_required"
+                else "A envolvente da missão ainda não foi investigada de forma estruturada."
+                if context_assessment.status == "not_started"
+                else (
+                    f"O dossier cobre {len(context_assessment.domains)} domínio(s), "
+                    f"{context_assessment.source_count} fonte(s) e mantém "
+                    f"{context_assessment.critical_gap_count} lacuna(s) prioritária(s) explícita(s)."
+                )
             ),
         ),
     ]
@@ -285,9 +378,6 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
                 evidence_needed="Baseline comparável ou desenho alternativo de atribuição com limitações explícitas.",
             )
         )
-    alternatives_required = bool(decisions) or str(
-        document.metadata.get("decision_stage") or ""
-    ) in {"open", "selected", "completed"}
     if alternatives_required and not alternatives:
         gaps.append(
             Gap(
@@ -296,6 +386,36 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
                 title="Alternativas não estruturadas",
                 explanation="Não é possível auditar uma escolha quando as opções consideradas não estão representadas.",
                 evidence_needed="Registar pelo menos a opção de não agir e as alternativas materialmente viáveis.",
+            )
+        )
+    if _context_research_required(document) and context_assessment.status == "not_started":
+        gaps.append(
+            Gap(
+                code="MI-CONTEXT-NOT-RESEARCHED",
+                severity="high",
+                title="Envolvente da missão não investigada",
+                explanation=(
+                    "A análise conhece apenas os registos inseridos e pode omitir relações "
+                    "históricas, territoriais, legais, científicas ou institucionais materiais."
+                ),
+                evidence_needed=(
+                    "Executar investigação contextual com fontes rastreáveis e revisão humana."
+                ),
+            )
+        )
+    elif context_assessment.status in {"preliminary", "in_review"}:
+        gaps.append(
+            Gap(
+                code="MI-CONTEXT-REVIEW-PENDING",
+                severity="medium",
+                title="Dossier contextual ainda não revisto",
+                explanation=(
+                    "As fontes e alegações foram estruturadas, mas ainda não foram aceites "
+                    "como conhecimento canónico da missão."
+                ),
+                evidence_needed=(
+                    "Revisão humana das fontes, da formulação das alegações e dos limites."
+                ),
             )
         )
     if evidence_population and provenance_ratio < 0.8:
@@ -337,6 +457,12 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
     next_actions: list[str] = []
     if baseline_required and not has_baseline and not outcomes:
         next_actions.append("Criar e documentar a linha de base antes de qualquer intervenção")
+    if _context_research_required(document) and context_assessment.status in {
+        "not_started",
+        "preliminary",
+        "in_review",
+    }:
+        next_actions.append("aprofundar e rever a envolvente contextual da missão")
     if unresolved_constraints:
         constraint_refs = "; ".join(
             f"{item.canonical_id} — {item.title}" for item in unresolved_constraints[:3]
@@ -403,6 +529,7 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
         mission_status=mission_status,
         mission_trend=mission_trend,
         decision_confidence=decision_confidence,
+        context_assessment=context_assessment,
         confidence_factors=factors,
         headline=headline,
         summary=summary,

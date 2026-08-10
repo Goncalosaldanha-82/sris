@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 from app.atlas_platform.audit import record_audit
 
 from .ai import (
+    DEFAULT_CONTEXT_RESEARCH_OUTPUT_TOKENS,
     DEFAULT_MAX_OUTPUT_TOKENS,
+    MAX_CONTEXT_WEB_SEARCH_CALLS,
     AIExecution,
     AIUnavailableError,
     analyze_with_openai,
@@ -18,6 +20,7 @@ from .ai import (
     count_openai_input_tokens,
     is_ai_configured,
     is_ai_organization_authorized,
+    is_context_research_configured,
     prepare_ai_request,
 )
 from .canonical import legacy_to_canonical
@@ -60,6 +63,7 @@ def _base_result(
     document: MissionDocumentV13,
     deterministic: Any,
 ) -> dict[str, Any]:
+    governed_context = document.metadata.get("context_dossier") or None
     return {
         "schema": "sris_mission_intelligence_result",
         "schema_version": "1.0",
@@ -71,6 +75,21 @@ def _base_result(
         "ai_status": "not_requested",
         "ai_governance": None,
         "ai_usage": None,
+        "context_dossier": governed_context,
+        "context_dossier_provenance": (
+            {
+                "origin_type": "governed_catalog",
+                "verification_status": (
+                    governed_context.get("research_status", "in_review")
+                ),
+                "limitations": (
+                    "Snapshot contextual preliminar. As fontes e alegações mantêm "
+                    "o estatuto declarado no dossier e não substituem revisão competente."
+                ),
+            }
+            if governed_context
+            else None
+        ),
         "human_review_required": True,
         "review_allowed": False,
     }
@@ -93,9 +112,33 @@ def _apply_ai_execution(result: dict[str, Any], execution: AIExecution) -> None:
                     "Saída assistiva sujeita a erro; não constitui evidência, "
                     "decisão ou validação independente."
                 ),
+                "web_search_calls": execution.web_search_calls,
+                "search_queries": list(execution.search_queries),
             },
         },
     )
+    if execution.context_dossier is not None:
+        dossier = execution.context_dossier.model_dump(mode="json")
+        dossier_provenance = {
+            "origin_type": "ai_model_with_web_search",
+            "provider": execution.provider,
+            "model_or_system": execution.model,
+            "version": execution.prompt_version,
+            "provider_response_id": execution.provider_response_id,
+            "verification_status": "in_review",
+            "web_search_calls": execution.web_search_calls,
+            "search_queries": list(execution.search_queries),
+            "limitations": (
+                "Investigação assistida com fontes recuperadas nesta execução. O dossier "
+                "é preliminar, pode conter erros e não altera a missão canónica sem revisão."
+            ),
+        }
+        result["context_dossier"] = dossier
+        result["context_dossier_provenance"] = dossier_provenance
+        # Preserve the researched dossier inside ai_json so historical run
+        # retrieval cannot lose the contextual output returned at execution.
+        result["ai"]["context_dossier"] = dossier
+        result["ai"]["context_dossier_provenance"] = dossier_provenance
 
 
 def analyze_demo(
@@ -111,11 +154,17 @@ def analyze_demo(
     if payload.use_ai and not allow_ai:
         result["ai_status"] = "authentication_required"
     elif payload.use_ai and allow_ai:
-        if not is_ai_configured():
+        if payload.research_context and not is_context_research_configured():
+            result["ai_status"] = "not_configured"
+        elif not is_ai_configured():
             result["ai_status"] = "not_configured"
         else:
             try:
-                execution = analyze_with_openai(document, deterministic)
+                execution = analyze_with_openai(
+                    document,
+                    deterministic,
+                    research_context=payload.research_context,
+                )
                 _apply_ai_execution(result, execution)
             except AIUnavailableError as exc:
                 result["ai_status"] = "failed"
@@ -220,6 +269,13 @@ def run_organizational_analysis(
                 "code": "role_not_allowed",
                 "message": "This organizational role cannot consume AI budget",
             }
+        elif payload.research_context and not is_context_research_configured():
+            result["ai_status"] = "not_configured"
+            result["ai_governance"] = {
+                "allowed": False,
+                "code": "context_research_not_configured",
+                "message": "Governed context research is not enabled and configured",
+            }
         elif not is_ai_configured():
             result["ai_status"] = "not_configured"
             result["ai_governance"] = {
@@ -240,14 +296,20 @@ def run_organizational_analysis(
                 .filter(AIOrganizationPolicy.organization_id == organization_id)
                 .one_or_none()
             )
+            requested_output = (
+                DEFAULT_CONTEXT_RESEARCH_OUTPUT_TOKENS
+                if payload.research_context
+                else DEFAULT_MAX_OUTPUT_TOKENS
+            )
             output_limit = min(
-                DEFAULT_MAX_OUTPUT_TOKENS,
-                policy.per_request_output_token_limit if policy else DEFAULT_MAX_OUTPUT_TOKENS,
+                requested_output,
+                policy.per_request_output_token_limit if policy else requested_output,
             )
             prepared = prepare_ai_request(
                 document,
                 deterministic,
                 max_output_tokens=output_limit,
+                research_context=payload.research_context,
             )
             conservative_input = conservative_input_token_reservation(prepared)
             try:
@@ -258,6 +320,11 @@ def run_organizational_analysis(
                     model=prepared.model,
                     input_tokens=conservative_input,
                     output_tokens=output_limit,
+                    web_search_calls=(
+                        MAX_CONTEXT_WEB_SEARCH_CALLS
+                        if payload.research_context
+                        else 0
+                    ),
                 )
                 exact_input = count_openai_input_tokens(prepared)
                 if exact_input is not None:
@@ -271,6 +338,7 @@ def run_organizational_analysis(
                     "usage_event_id": reservation.event_id,
                     "reserved_input_tokens": reservation.input_tokens,
                     "reserved_output_tokens": reservation.output_tokens,
+                    "reserved_web_search_calls": reservation.web_search_calls,
                     "reserved_cost_usd": microusd_to_usd(
                         reservation.estimated_cost_microusd
                     ),
@@ -283,6 +351,7 @@ def run_organizational_analysis(
                         document,
                         deterministic,
                         prepared_request=prepared,
+                        research_context=payload.research_context,
                     )
                     _apply_ai_execution(result, execution)
                     usage_event = settle_ai_usage(
@@ -293,6 +362,7 @@ def run_organizational_analysis(
                         cached_input_tokens=execution.usage.cached_input_tokens,
                         output_tokens=execution.usage.output_tokens,
                         total_tokens=execution.usage.total_tokens,
+                        web_search_calls=execution.web_search_calls,
                     )
                 except AIUnavailableError as exc:
                     failure_usage = exc.usage
@@ -312,6 +382,7 @@ def run_organizational_analysis(
                         total_tokens=(
                             failure_usage.total_tokens if failure_usage else None
                         ),
+                        web_search_calls=exc.web_search_calls,
                         failure_code=exc.failure_code,
                     )
                     result["ai_status"] = "failed"
@@ -409,7 +480,8 @@ def review_run(
 
 
 def run_view(run: IntelligenceRun) -> dict[str, Any]:
-    return {
+    ai = json.loads(run.ai_json) if run.ai_json else None
+    view = {
         "id": run.id,
         "mission_code": run.mission_code,
         "execution_mode": run.execution_mode,
@@ -419,7 +491,7 @@ def run_view(run: IntelligenceRun) -> dict[str, Any]:
         "model": run.model,
         "snapshot_hash": run.snapshot_hash,
         "deterministic": json.loads(run.deterministic_json),
-        "ai": json.loads(run.ai_json) if run.ai_json else None,
+        "ai": ai,
         "ai_usage": usage_event_view(run.ai_usage_event) if run.ai_usage_event else None,
         "error": run.error,
         "review_status": run.review_status,
@@ -427,3 +499,9 @@ def run_view(run: IntelligenceRun) -> dict[str, Any]:
         "created_at": run.created_at,
         "reviewed_at": run.reviewed_at,
     }
+    if ai and ai.get("context_dossier"):
+        view["context_dossier"] = ai["context_dossier"]
+        view["context_dossier_provenance"] = ai.get(
+            "context_dossier_provenance"
+        )
+    return view

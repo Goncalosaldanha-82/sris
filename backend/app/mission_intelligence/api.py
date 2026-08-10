@@ -13,6 +13,7 @@ from .ai import (
     institutional_onboarding_closed,
     is_ai_configured,
     is_ai_organization_authorized,
+    is_context_research_configured,
 )
 from .catalog import demo_mission, load_demo_catalog
 from .contracts import AIGovernancePolicyUpdate, AnalysisInput, ReviewRequest
@@ -38,6 +39,10 @@ def capability_status() -> dict:
         "ai_provider": "openai",
         "ai_model": configured_model(),
         "ai_configured": is_ai_configured(),
+        "context_research_engine": "installed",
+        "context_research_configured": is_context_research_configured(),
+        "context_research_requires_authentication": True,
+        "context_research_requires_human_review": True,
         "ai_pilot_gate": "single_organization",
         "ai_pilot_organization_configured": (
             configured_pilot_organization_id() is not None

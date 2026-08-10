@@ -139,7 +139,7 @@ class AIOrganizationPolicy(Base):
     monthly_output_token_limit: Mapped[int] = mapped_column(BigInteger, default=50_000)
     monthly_budget_microusd: Mapped[int] = mapped_column(BigInteger, default=5_000_000)
     per_request_input_token_limit: Mapped[int] = mapped_column(Integer, default=60_000)
-    per_request_output_token_limit: Mapped[int] = mapped_column(Integer, default=3_000)
+    per_request_output_token_limit: Mapped[int] = mapped_column(Integer, default=6_000)
     max_concurrent_requests: Mapped[int] = mapped_column(Integer, default=1)
     updated_by_user_id: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -171,10 +171,12 @@ class AIUsagePeriod(Base):
     input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
     cached_input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
     output_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    web_search_calls: Mapped[int] = mapped_column(Integer, default=0)
     estimated_cost_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
     active_reservations: Mapped[int] = mapped_column(Integer, default=0)
     reserved_input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
     reserved_output_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    reserved_web_search_calls: Mapped[int] = mapped_column(Integer, default=0)
     reserved_cost_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -208,12 +210,18 @@ class AIUsageEvent(Base):
     input_count_method: Mapped[str] = mapped_column(String(40), default="conservative")
     reserved_input_tokens: Mapped[int] = mapped_column(BigInteger)
     reserved_output_tokens: Mapped[int] = mapped_column(BigInteger)
+    reserved_web_search_calls: Mapped[int] = mapped_column(Integer, default=0)
     reserved_cost_microusd: Mapped[int] = mapped_column(BigInteger)
     input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
     cached_input_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
     output_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
+    web_search_calls: Mapped[int] = mapped_column(Integer, default=0)
     total_tokens: Mapped[int] = mapped_column(BigInteger, default=0)
     estimated_cost_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
+    web_search_cost_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
+    web_search_rate_microusd_per_call: Mapped[int] = mapped_column(
+        BigInteger, default=10_000
+    )
     cost_basis: Mapped[str] = mapped_column(String(50), default="pending")
     input_rate_microusd_per_million: Mapped[int] = mapped_column(BigInteger)
     cached_input_rate_microusd_per_million: Mapped[int] = mapped_column(BigInteger)

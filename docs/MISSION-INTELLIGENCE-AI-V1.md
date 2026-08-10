@@ -4,7 +4,7 @@ Estado: implementação preparada para revisão e implantação
 
 Versão da linguagem de missão: MDL 1.3
 
-Versão do motor: `mission-intelligence-deterministic-1.1`
+Versão do motor: `mission-intelligence-deterministic-1.2`
 
 ## Decisão de arquitetura
 
@@ -31,6 +31,10 @@ Princípios invariantes:
 - alternativas rejeitadas permanecem na reconstrução da decisão;
 - uma saída de IA é provisória, cita IDs canónicos e não constitui evidência,
   decisão nem atribuição causal;
+- a envolvente contextual é representada num dossier próprio, onde fontes,
+  alegações sustentadas, hipóteses, controvérsias e lacunas têm estados distintos;
+- proximidade territorial, presença romana e reputação medicinal nunca são
+  convertidas automaticamente em ligação funcional ou propriedade demonstrada;
 - toda a execução institucional requer revisão humana documentada.
 
 ## Fluxo implementado
@@ -41,10 +45,13 @@ Princípios invariantes:
    pressupostos, alternativas e não-inferências explícitas.
 4. Numa sessão institucional, e apenas por opção expressa, a camada OpenAI pode
    acrescentar uma análise estruturada sobre o snapshot e o relatório.
-5. O SRIS valida todas as referências da IA contra os IDs canónicos.
-6. Snapshot, versão, relatório, proveniência técnica e estado de revisão ficam
+5. Quando a investigação contextual é pedida, a pesquisa web torna-se obrigatória,
+   usa Structured Output e produz um dossier multidomínio com fontes rastreáveis.
+6. O SRIS valida referências do advisory contra IDs canónicos e rejeita fontes do
+   dossier que não tenham sido recuperadas naquela execução.
+7. Snapshot, versão, relatório, dossier, proveniência técnica e estado de revisão ficam
    registados; o resultado continua pendente até aprovação ou rejeição humana.
-7. Uma chamada de IA institucional só atravessa o gate se existir uma política
+8. Uma chamada de IA institucional só atravessa o gate se existir uma política
    explícita da organização, quota disponível e reserva prévia de custo.
 
 ## Superfície API
@@ -71,6 +78,7 @@ Persistência adicionada por Alembic:
 - `mi_ai_organization_policies`: autorização explícita e limites por organização;
 - `mi_ai_usage_periods`: consumo e reservas concorrentes por mês UTC;
 - `mi_ai_usage_events`: tokens, custo estimado, tarifa e estado de cada chamada.
+- a migração `20260810_0005` acrescenta chamadas e custo de pesquisa web ao ledger.
 
 ## Controlo da IA
 
@@ -81,6 +89,7 @@ simultaneamente:
 SRIS_AI_ENABLED=true
 SRIS_AI_MODEL=gpt-5.6
 OPENAI_API_KEY=<segredo no ambiente de implantação>
+SRIS_CONTEXT_RESEARCH_ENABLED=false
 ```
 
 Controlos presentes:
@@ -93,6 +102,8 @@ Controlos presentes:
 | Decisão automática | A IA não seleciona alternativas; revisão humana é obrigatória |
 | Consumo anónimo | IA bloqueada na demonstração pública e sujeita a autenticação/RBAC |
 | Custo sem autorização | Política explícita, teto mensal, limites por pedido e reserva anterior à chamada |
+| Pesquisa superficial ou fonte inventada | Pesquisa web obrigatória, contrato de dossier e validação das URLs recuperadas |
+| Confusão entre pista e facto | Estados epistemológicos separados e revisão humana obrigatória |
 | Corrida entre pedidos | Contadores e reservas protegidos por bloqueio transacional da política da organização |
 | Falha do fornecedor | Relatório determinístico permanece disponível e a falha fica registada |
 | Reprodutibilidade | Hash do snapshot, motor, modelo, prompt e response ID preservados |
@@ -104,7 +115,7 @@ Controlos presentes:
 2. Definir `ATLAS_ENV=production` e um `ATLAS_JWT_SECRET` aleatório com pelo
    menos 32 bytes. A aplicação recusa arrancar num ambiente Railway sem este
    controlo.
-3. Confirmar que a migração `20260808_0003` terminou sem erro.
+3. Confirmar que a migração `20260810_0005` terminou sem erro.
 4. Verificar `/health`: deve responder `status=ok` e `database=ok`.
 5. Executar M-001 no modo público e confirmar:
    `requires_attention`, `not_evaluable`, `moderate` e as três lacunas
@@ -115,6 +126,13 @@ Controlos presentes:
 9. Ativar apenas a política da organização piloto.
 10. Executar um smoke test de IA e verificar que as citações correspondem a IDs
    presentes no snapshot antes de abrir a capacidade a utilizadores piloto.
+11. Só em staging, ativar `SRIS_CONTEXT_RESEARCH_ENABLED=true`, executar M-002 e
+    validar fontes, estados epistemológicos, pesquisas/custo e revisão pendente.
+
+O contrato de profundidade rejeita uma saída contextual que não cubra pelo menos
+três domínios materiais, duas fontes rastreáveis, três alegações/hipóteses e três
+lacunas, incluindo pelo menos uma fonte académica, oficial, legal, cartográfica ou
+técnica. A rejeição mantém o relatório determinístico e é registada no ledger.
 
 ## Resultado da auditoria e dívida explícita
 

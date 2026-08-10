@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 import os
+from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 import pytest
 from app.atlas_platform.config import Settings, validate_security_settings
 from app.atlas_platform.database import Base, SessionLocal, engine
@@ -18,18 +21,28 @@ from app.mission_intelligence.ai import (
     AIUnavailableError,
     PreparedAIRequest,
 )
+from app.mission_intelligence.canonical import legacy_to_canonical
+from app.mission_intelligence.catalog import demo_mission
 from app.mission_intelligence.contracts import (
     AIAdvisory,
     AIInference,
     AIOption,
+    AIResearchBundle,
+    AnalysisInput,
     ConfidenceLevel,
+    ContextClaim,
+    ContextDossier,
+    ContextGap,
+    ContextSource,
 )
+from app.mission_intelligence.engine import analyze_mission
 from app.mission_intelligence.governance import (
     AIGovernanceBlocked,
     reserve_ai_usage,
     settle_ai_usage,
 )
 from fastapi.testclient import TestClient
+from openai import BadRequestError, OpenAI
 from pydantic import ValidationError
 
 os.environ.pop("OPENAI_API_KEY", None)
@@ -110,15 +123,147 @@ def _analysis_payload(**patch):
     return payload
 
 
+def _canonical_analysis(mission_code: str):
+    legacy = demo_mission(mission_code)
+    assert legacy is not None
+    document = legacy_to_canonical(
+        legacy,
+        AnalysisInput(
+            **_analysis_payload(
+                title=f"{mission_code} — análise governada",
+            )
+        ),
+    )
+    return document, analyze_mission(document)
+
+
+def _research_bundle(document) -> AIResearchBundle:
+    basis_id = document.records[0].canonical_id
+    source_url = "https://example.gov.pt/dragos-study"
+    archaeology_url = "https://example.edu.pt/dragos-archaeology"
+    return AIResearchBundle(
+        context_dossier=ContextDossier(
+            mission_id=document.mission_id,
+            scope="Envolvente histórica e hidrogeológica da missão.",
+            synthesis="Existe uma pista documental; a ligação funcional continua por provar.",
+            domains=["arqueologia", "hidrogeologia", "governação"],
+            sources=[
+                ContextSource(
+                    source_id="SRC-TEST-001",
+                    title="Estudo oficial de enquadramento",
+                    url=source_url,
+                    publisher="Entidade pública de teste",
+                    source_type="official",
+                    authority="primary",
+                    limitations="Não inclui análise laboratorial da água.",
+                ),
+                ContextSource(
+                    source_id="SRC-TEST-002",
+                    title="Estudo arqueológico de enquadramento",
+                    url=archaeology_url,
+                    publisher="Universidade pública de teste",
+                    source_type="academic",
+                    authority="primary",
+                    limitations="Não demonstra uma ligação funcional à nascente.",
+                ),
+            ],
+            claims=[
+                ContextClaim(
+                    claim_id="CLM-TEST-001",
+                    statement="O topónimo está documentado na área da missão.",
+                    domain="história local",
+                    epistemic_status="supported",
+                    source_ids=["SRC-TEST-001"],
+                    relevance="Justifica investigação espacial dirigida.",
+                    limitations="Não demonstra uso romano da água.",
+                ),
+                ContextClaim(
+                    claim_id="CLM-TEST-002",
+                    statement="Existe presença material romana na área alargada.",
+                    domain="arqueologia",
+                    epistemic_status="partially_supported",
+                    source_ids=["SRC-TEST-002"],
+                    relevance="Torna a hipótese histórica materialmente relevante.",
+                    limitations="Proximidade não prova uso da nascente.",
+                ),
+                ContextClaim(
+                    claim_id="CLM-TEST-003",
+                    statement="A água teria sido utilizada pelos romanos.",
+                    domain="história da água",
+                    epistemic_status="unverified",
+                    source_ids=[],
+                    relevance="A confirmação alteraria o valor patrimonial da missão.",
+                    limitations="Não foi localizada prova específica.",
+                ),
+            ],
+            gaps=[
+                ContextGap(
+                    gap_id="GAP-TEST-001",
+                    question="A água possui propriedades tecnicamente caracterizadas?",
+                    domain="hidrogeologia",
+                    why_it_matters="A qualificação medicinal exige prova própria.",
+                    evidence_needed="Análises por laboratório acreditado.",
+                    priority="critical",
+                ),
+                ContextGap(
+                    gap_id="GAP-TEST-002",
+                    question="Qual é a relação espacial entre os vestígios e a nascente?",
+                    domain="cartografia",
+                    why_it_matters="A proximidade tem de ser medida.",
+                    evidence_needed="Levantamento georreferenciado.",
+                    priority="critical",
+                ),
+                ContextGap(
+                    gap_id="GAP-TEST-003",
+                    question="Que entidades têm competência sobre o local?",
+                    domain="governação",
+                    why_it_matters="A investigação requer legitimidade.",
+                    evidence_needed="Verificação documental e institucional.",
+                    priority="high",
+                ),
+            ],
+            limits=["Dossier preliminar sujeito a validação competente."],
+            research_status="in_review",
+            review_required=True,
+        ),
+        advisory=AIAdvisory(
+            executive_summary="A hipótese merece investigação, não conclusão.",
+            inferences=[
+                AIInference(
+                    statement="O contexto disponível não prova uso romano da nascente.",
+                    based_on_ids=[basis_id],
+                    uncertainty="Falta contexto arqueológico funcional.",
+                    confidence=ConfidenceLevel.LOW,
+                )
+            ],
+            critical_gaps=["Análise hidrogeológica em falta."],
+            decision_options=[
+                AIOption(
+                    title="Investigar antes de intervir",
+                    rationale="Preservar a integridade científica da missão.",
+                    risks=["A investigação pode não confirmar a hipótese."],
+                    prerequisites=["Autorização e equipa competente."],
+                    based_on_ids=[basis_id],
+                )
+            ],
+            recommended_next_step="Georreferenciar e validar as fontes existentes.",
+            cautions=["Não apresentar a hipótese como facto."],
+        ),
+    )
+
+
 def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     status = client.get("/api/mission-intelligence/status")
     assert status.status_code == 200
     assert status.json()["foundation_version"] == "1.3"
-    assert status.json()["engine_version"] == "mission-intelligence-deterministic-1.1"
+    assert status.json()["engine_version"] == "mission-intelligence-deterministic-1.2"
     assert status.json()["human_review_required"] is True
     assert status.json()["ai_pilot_gate"] == "single_organization"
     assert status.json()["ai_pilot_organization_configured"] is False
     assert status.json()["institutional_onboarding_closed"] is False
+    assert status.json()["context_research_engine"] == "installed"
+    assert status.json()["context_research_configured"] is False
+    assert status.json()["context_research_requires_human_review"] is True
 
     response = client.post(
         "/api/mission-intelligence/demo/missions/M-001/analyze",
@@ -134,7 +279,12 @@ def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     assert report["mission_trend"] == "not_evaluable"
     assert report["decision_confidence"] == "moderate"
     gap_codes = {gap["code"] for gap in report["gaps"]}
-    assert {"MI-ASSUMPTIONS-OPEN", "MI-CONSTRAINTS-OPEN", "MI-NO-BASELINE"}.issubset(gap_codes)
+    assert {
+        "MI-ASSUMPTIONS-OPEN",
+        "MI-CONSTRAINTS-OPEN",
+        "MI-NO-BASELINE",
+        "MI-CONTEXT-NOT-RESEARCHED",
+    }.issubset(gap_codes)
     assert any("Não se infere resultado" in item for item in report["non_inferences"])
 
 
@@ -146,6 +296,19 @@ def test_public_demo_never_spends_ai_without_authentication() -> None:
     assert response.status_code == 200
     assert response.json()["ai"] is None
     assert response.json()["ai_status"] == "authentication_required"
+
+
+def test_public_demo_never_runs_external_context_research() -> None:
+    response = client.post(
+        "/api/mission-intelligence/demo/missions/M-002/analyze",
+        json=_analysis_payload(use_ai=True, research_context=True),
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ai"] is None
+    assert data["ai_status"] == "authentication_required"
+    assert data["context_dossier"]["research_status"] == "preliminary"
+    assert data["context_dossier_provenance"]["origin_type"] == "governed_catalog"
 
 
 def test_free_text_claim_cannot_become_canonical_baseline() -> None:
@@ -160,6 +323,17 @@ def test_free_text_claim_cannot_become_canonical_baseline() -> None:
     assert "MI-NO-BASELINE" in gap_codes
 
 
+def test_every_mission_requires_context_research_unless_explicitly_exempted() -> None:
+    legacy = deepcopy(demo_mission("M-001"))
+    assert legacy is not None
+    legacy["analysis_requirements"].pop("context_research")
+    document = legacy_to_canonical(legacy, AnalysisInput(**_analysis_payload()))
+    requirement = document.metadata["analysis_requirements"]["context_research"]
+    assert requirement["required"] is True
+    gap_codes = {gap.code for gap in analyze_mission(document).gaps}
+    assert "MI-CONTEXT-NOT-RESEARCHED" in gap_codes
+
+
 def test_case_intake_does_not_inherit_field_intervention_rules() -> None:
     response = client.post(
         "/api/mission-intelligence/demo/missions/M-002/analyze",
@@ -171,7 +345,12 @@ def test_case_intake_does_not_inherit_field_intervention_rules() -> None:
     assert report["decision_confidence"] == "not_evaluable"
     assert report["counts"]["observation"] == 1
     assert report["counts"]["constraint"] == 2
+    assert report["context_assessment"]["status"] == "preliminary"
+    assert report["context_assessment"]["source_count"] == 2
+    assert report["context_assessment"]["hypothesis_count"] == 1
+    assert report["context_assessment"]["unverified_claim_count"] == 1
     assert "MI-CONSTRAINTS-OPEN" in gap_codes
+    assert "MI-CONTEXT-REVIEW-PENDING" in gap_codes
     assert "MI-NO-BASELINE" not in gap_codes
     rendered = str(
         {
@@ -185,6 +364,27 @@ def test_case_intake_does_not_inherit_field_intervention_rules() -> None:
     assert "intervir antes de medir" not in rendered
     assert "titularidade e competências por confirmar" in rendered
     assert "licenciamento" not in rendered
+    factors = {item["factor"]: item for item in report["confidence_factors"]}
+    assert factors["alternatives"]["assessment"] == "not_applicable"
+    assert factors["context_coverage"]["assessment"] == "partial"
+
+
+def test_every_mission_declares_context_research_or_justifies_non_applicability() -> None:
+    catalog = client.get("/api/mission-intelligence/demo/missions").json()
+    for mission_code, mission in catalog["missions"].items():
+        requirement = mission["analysis_requirements"]["context_research"]
+        assert isinstance(requirement["required"], bool)
+        assert requirement["reason"].strip()
+        response = client.post(
+            f"/api/mission-intelligence/demo/missions/{mission_code}/analyze",
+            json=_analysis_payload(title=f"{mission_code} — context check"),
+        )
+        assert response.status_code == 200, response.text
+        assessment = response.json()["deterministic"]["context_assessment"]
+        if requirement["required"]:
+            assert assessment["status"] != "not_required"
+        else:
+            assert assessment["status"] == "not_required"
 
 
 def test_public_catalog_declares_methodological_boundaries() -> None:
@@ -196,8 +396,27 @@ def test_public_catalog_declares_methodological_boundaries() -> None:
     m2 = catalog["missions"]["M-002"]
     award = catalog["missions"]["CA-AWARD-APPLICATION"]
     assert "Caso real aberto" in m1["method_notice"]
+    assert m1["analysis_requirements"]["context_research"]["required"] is True
     assert "não compromisso" in m2["method_notice"]
+    dossier = m2["context_dossier"]
+    assert dossier["research_status"] == "preliminary"
+    assert {source["source_id"] for source in dossier["sources"]} == {
+        "SRC-M002-001",
+        "SRC-M002-002",
+    }
+    medicinal = next(
+        claim for claim in dossier["claims"] if claim["claim_id"] == "CLM-M002-004"
+    )
+    assert medicinal["epistemic_status"] == "unverified"
+    assert medicinal["source_ids"] == []
+    assert any(
+        "utilizada pelos romanos" in claim["statement"]
+        for claim in dossier["claims"]
+    )
     assert award["status"] == "Submetida · avaliação pendente"
+    assert award["analysis_requirements"]["context_research"]["required"] is True
+    assert "sris-production.up.railway.app" in award["analysis"]["context"]
+    assert "sris-staging.up.railway.app" in award["analysis"]["context"]
     assert "não existe ainda decisão do júri" in award["method_notice"]
 
 
@@ -210,7 +429,7 @@ def test_completed_application_uses_its_own_decision_chain() -> None:
     report = response.json()["deterministic"]
     gap_codes = {gap["code"] for gap in report["gaps"]}
     factors = {item["factor"]: item for item in report["confidence_factors"]}
-    assert report["mission_status"] == "on_track"
+    assert report["mission_status"] == "requires_attention"
     assert report["decision_confidence"] == "high"
     assert report["counts"]["alternative"] == 3
     assert len(report["alternatives"]) == 3
@@ -222,6 +441,8 @@ def test_completed_application_uses_its_own_decision_chain() -> None:
     assert "2 rejeitadas" in factors["alternatives"]["explanation"]
     assert "MI-NO-BASELINE" not in gap_codes
     assert "MI-NO-ALTERNATIVES" not in gap_codes
+    assert "MI-CONTEXT-NOT-RESEARCHED" in gap_codes
+    assert factors["context_coverage"]["assessment"] == "weak"
     rendered = str(
         {
             "risk": report["principal_risk"],
@@ -315,6 +536,276 @@ def test_every_ai_option_requires_a_canonical_basis() -> None:
         )
 
 
+def test_context_research_requires_ai_and_prepares_governed_web_search() -> None:
+    with pytest.raises(ValidationError, match="Context research requires governed AI"):
+        AnalysisInput(research_context=True)
+
+    document, deterministic = _canonical_analysis("M-002")
+    prepared = mission_ai.prepare_ai_request(
+        document,
+        deterministic,
+        research_context=True,
+    )
+    assert prepared.response_model is AIResearchBundle
+    assert prepared.research_context is True
+    assert prepared.max_output_tokens == 6_000
+    assert prepared.tools == (
+        {
+            "type": "web_search",
+            "external_web_access": True,
+        },
+    )
+    assert prepared.tool_choice == "required"
+    assert prepared.max_tool_calls == 6
+    assert prepared.include == ("web_search_call.action.sources",)
+    assert prepared.reasoning_effort == "medium"
+    assert prepared.text_config["format"]["name"] == "AIResearchBundle"
+
+    policy_capped = mission_ai.prepare_ai_request(
+        document,
+        deterministic,
+        max_output_tokens=3_000,
+        research_context=True,
+    )
+    assert policy_capped.max_output_tokens == 3_000
+
+
+def test_context_research_accepts_only_retrieved_sources_and_stays_in_review(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-002")
+    bundle = _research_bundle(document)
+    captured: dict = {}
+
+    class FakeResponse:
+        id = "resp_context_research"
+        model = "gpt-5.6"
+        output_parsed = bundle
+        usage = {
+            "input_tokens": 1_000,
+            "output_tokens": 500,
+            "total_tokens": 1_500,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+
+        def model_dump(self, **_kwargs):
+            return {
+                "output": [
+                    {
+                        "type": "web_search_call",
+                        "action": {
+                            "sources": [
+                                {"url": "https://example.gov.pt/dragos-study"},
+                                {"url": "https://example.edu.pt/dragos-archaeology"},
+                            ],
+                            "query": "Dragos nascente arqueologia hidrogeologia",
+                        },
+                    }
+                ]
+            }
+
+    class FakeResponses:
+        def parse(self, **kwargs):
+            captured.update(kwargs)
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(mission_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    execution = mission_ai.analyze_with_openai(
+        document,
+        deterministic,
+        research_context=True,
+    )
+    assert execution.context_dossier == bundle.context_dossier
+    assert execution.context_dossier.research_status == "in_review"
+    assert execution.web_search_calls == 1
+    assert execution.search_queries == (
+        "Dragos nascente arqueologia hidrogeologia",
+    )
+    assert execution.prompt_version == "sris-mi-context-research-1.0"
+    assert captured["tool_choice"] == "required"
+    assert captured["max_tool_calls"] == 6
+    assert captured["include"] == ["web_search_call.action.sources"]
+    assert captured["text_format"] is AIResearchBundle
+    assert captured["reasoning"] == {"effort": "medium"}
+
+
+def test_openai_sdk_serializes_the_context_research_contract() -> None:
+    document, deterministic = _canonical_analysis("M-002")
+    prepared = mission_ai.prepare_ai_request(
+        document,
+        deterministic,
+        research_context=True,
+    )
+    captured: dict = {}
+
+    def reject_after_capture(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content.decode("utf-8")))
+        return httpx.Response(
+            400,
+            request=request,
+            json={
+                "error": {
+                    "message": "contract captured",
+                    "type": "invalid_request_error",
+                    "param": None,
+                    "code": None,
+                }
+            },
+        )
+
+    http_client = httpx.Client(transport=httpx.MockTransport(reject_after_capture))
+    sdk = OpenAI(
+        api_key="sk-test",
+        base_url="https://api.openai.invalid/v1",
+        http_client=http_client,
+        max_retries=0,
+    )
+    with pytest.raises(BadRequestError, match="contract captured"):
+        sdk.responses.parse(
+            model=prepared.model,
+            instructions=prepared.instructions,
+            input=prepared.input_text,
+            text_format=prepared.response_model,
+            reasoning={"effort": prepared.reasoning_effort},
+            max_output_tokens=prepared.max_output_tokens,
+            store=False,
+            tools=list(prepared.tools),
+            tool_choice=prepared.tool_choice,
+            include=list(prepared.include),
+            max_tool_calls=prepared.max_tool_calls,
+        )
+    assert captured["tools"] == [
+        {"type": "web_search", "external_web_access": True}
+    ]
+    assert captured["tool_choice"] == "required"
+    assert captured["max_tool_calls"] == 6
+    assert captured["include"] == ["web_search_call.action.sources"]
+    assert captured["reasoning"] == {"effort": "medium"}
+    assert captured["text"]["format"]["type"] == "json_schema"
+    assert captured["text"]["format"]["strict"] is True
+
+
+def test_context_research_rejects_a_source_not_retrieved_in_that_execution(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-002")
+    bundle = _research_bundle(document)
+
+    class FakeResponse:
+        id = "resp_context_bad_source"
+        model = "gpt-5.6"
+        output_parsed = bundle
+        usage = {
+            "input_tokens": 1_000,
+            "output_tokens": 500,
+            "total_tokens": 1_500,
+        }
+
+        def model_dump(self, **_kwargs):
+            return {
+                "output": [
+                    {
+                        "type": "web_search_call",
+                        "action": {
+                            "sources": [
+                                {"url": "https://example.gov.pt/different-source"}
+                            ]
+                        },
+                    }
+                ]
+            }
+
+    class FakeResponses:
+        def parse(self, **_kwargs):
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(mission_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    with pytest.raises(AIUnavailableError, match="sources not retrieved") as blocked:
+        mission_ai.analyze_with_openai(
+            document,
+            deterministic,
+            research_context=True,
+        )
+    assert blocked.value.failure_code == "provider_output_invalid"
+    assert blocked.value.web_search_calls == 1
+
+
+def test_context_research_rejects_a_structurally_shallow_dossier(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-002")
+    complete = _research_bundle(document)
+    shallow_dossier = complete.context_dossier.model_copy(
+        update={
+            "domains": complete.context_dossier.domains[:1],
+            "sources": complete.context_dossier.sources[:1],
+            "claims": complete.context_dossier.claims[:1],
+            "gaps": complete.context_dossier.gaps[:1],
+        }
+    )
+    shallow = complete.model_copy(update={"context_dossier": shallow_dossier})
+
+    class FakeResponse:
+        id = "resp_context_shallow"
+        model = "gpt-5.6"
+        output_parsed = shallow
+        usage = {
+            "input_tokens": 1_000,
+            "output_tokens": 300,
+            "total_tokens": 1_300,
+        }
+
+        def model_dump(self, **_kwargs):
+            return {
+                "output": [
+                    {
+                        "type": "web_search_call",
+                        "action": {
+                            "query": "Dragos",
+                            "sources": [
+                                {"url": "https://example.gov.pt/dragos-study"}
+                            ],
+                        },
+                    }
+                ]
+            }
+
+    class FakeResponses:
+        def parse(self, **_kwargs):
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(mission_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    with pytest.raises(AIUnavailableError, match="minimum depth contract") as blocked:
+        mission_ai.analyze_with_openai(
+            document,
+            deterministic,
+            research_context=True,
+        )
+    assert blocked.value.failure_code == "provider_output_too_shallow"
+    assert blocked.value.web_search_calls == 1
+
+
 def test_frontend_and_openapi_expose_the_new_capability() -> None:
     frontend = client.get("/")
     assert frontend.status_code == 200
@@ -326,6 +817,10 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     assert "data-review-decision" in frontend.text
     assert "Decision Confidence" not in frontend.text
     assert 'id="analysisMode" class="analysis-mode is-unavailable hidden"' in frontend.text
+    assert 'id="analysisResearch" type="checkbox" disabled' in frontend.text
+    assert "contextRequired=mission(activeMissionId)" in frontend.text
+    assert "renderContextDossier(result)" in frontend.text
+    assert "web_search_cost_usd" in frontend.text
     assert "Importar visualização" in frontend.text
 
     spec = client.get("/openapi.json")
@@ -455,6 +950,147 @@ def test_ai_requires_explicit_org_policy_and_enforces_monthly_quota(monkeypatch)
     assert events.status_code == 200
     assert len(events.json()) == 1
     assert events.json()[0]["intelligence_run_id"] == completed_data["run_id"]
+
+
+def test_governed_context_research_accounts_for_search_and_persists_the_dossier(
+    monkeypatch,
+) -> None:
+    headers, organization_id = _owner_named("context-research")
+    endpoint = (
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-002/analyze"
+    )
+    monkeypatch.setattr(service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(service, "is_context_research_configured", lambda: True)
+    monkeypatch.setattr(service, "count_openai_input_tokens", lambda _request: 1_000)
+    monkeypatch.setattr(mission_api, "is_ai_configured", lambda: True)
+
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 500_000,
+            "monthly_output_token_limit": 50_000,
+            "monthly_budget_usd": "1.00",
+            "per_request_input_token_limit": 200_000,
+            "per_request_output_token_limit": 6_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+
+    captured: dict = {}
+
+    def fake_provider(document, _deterministic, **kwargs):
+        captured.update(kwargs)
+        bundle = _research_bundle(document)
+        return AIExecution(
+            advisory=bundle.advisory,
+            provider="openai",
+            model="gpt-5.6",
+            provider_response_id="resp_context_governed",
+            usage=AIProviderUsage(
+                input_tokens=1_000,
+                cached_input_tokens=0,
+                output_tokens=500,
+                total_tokens=1_500,
+            ),
+            prompt_version="sris-mi-context-research-1.0",
+            context_dossier=bundle.context_dossier,
+            web_search_calls=2,
+        )
+
+    monkeypatch.setattr(service, "analyze_with_openai", fake_provider)
+    response = client.post(
+        endpoint,
+        headers=headers,
+        json=_analysis_payload(use_ai=True, research_context=True),
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["execution_mode"] == "hybrid"
+    assert data["ai_status"] == "completed"
+    assert data["ai_governance"]["reserved_web_search_calls"] == 6
+    assert data["context_dossier"]["research_status"] == "in_review"
+    assert data["context_dossier_provenance"]["origin_type"] == (
+        "ai_model_with_web_search"
+    )
+    assert data["ai"]["context_dossier"] == data["context_dossier"]
+    assert data["ai_usage"]["web_search_calls"] == 2
+    assert data["ai_usage"]["web_search_cost_usd"] == "0.020000"
+    assert data["ai_usage"]["estimated_cost_usd"] == "0.040000"
+    assert captured["research_context"] is True
+    assert captured["prepared_request"].max_output_tokens == 6_000
+
+    historical = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/runs/{data['run_id']}",
+        headers=headers,
+    )
+    assert historical.status_code == 200, historical.text
+    assert historical.json()["context_dossier"] == data["context_dossier"]
+
+    usage = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance",
+        headers=headers,
+    )
+    assert usage.status_code == 200
+    period = usage.json()["current_period"]
+    assert period["web_search_calls"] == 2
+    assert period["reserved_web_search_calls"] == 0
+    assert period["estimated_cost_usd"] == "0.040000"
+
+
+def test_rejected_context_output_still_charges_observed_searches(monkeypatch) -> None:
+    headers, organization_id = _owner_named("context-rejected")
+    monkeypatch.setattr(service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(service, "is_context_research_configured", lambda: True)
+    monkeypatch.setattr(service, "count_openai_input_tokens", lambda _request: 1_000)
+
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 500_000,
+            "monthly_output_token_limit": 50_000,
+            "monthly_budget_usd": "1.00",
+            "per_request_input_token_limit": 200_000,
+            "per_request_output_token_limit": 6_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+
+    def reject_provider(*_args, **_kwargs):
+        raise AIUnavailableError(
+            "Context research cited sources not retrieved in this execution",
+            failure_code="provider_output_invalid",
+            provider_response_id="resp_context_rejected",
+            usage=AIProviderUsage(
+                input_tokens=1_000,
+                cached_input_tokens=0,
+                output_tokens=500,
+                total_tokens=1_500,
+            ),
+            web_search_calls=2,
+        )
+
+    monkeypatch.setattr(service, "analyze_with_openai", reject_provider)
+    response = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-002/analyze",
+        headers=headers,
+        json=_analysis_payload(use_ai=True, research_context=True),
+    )
+    assert response.status_code == 200, response.text
+    usage = response.json()["ai_usage"]
+    assert response.json()["ai_status"] == "failed"
+    assert usage["status"] == "provider_output_rejected"
+    assert usage["failure_code"] == "provider_output_invalid"
+    assert usage["web_search_calls"] == 2
+    assert usage["web_search_cost_usd"] == "0.020000"
+    assert usage["estimated_cost_usd"] == "0.040000"
 
 
 def test_non_pilot_organization_never_crosses_the_provider_gate(monkeypatch) -> None:

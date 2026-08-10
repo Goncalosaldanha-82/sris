@@ -2,7 +2,7 @@
 
 Estado: implementado e preparado para implantação com IA globalmente desativada
 
-Migração Alembic: `20260808_0003`
+Migrações Alembic: `20260808_0003` e `20260810_0005`
 
 ## Objetivo
 
@@ -29,6 +29,12 @@ verdadeiras:
 9. a quota mensal de pedidos, tokens e custo ainda tem saldo;
 10. existe capacidade no limite de chamadas concorrentes.
 
+A investigação contextual acrescenta um gate independente:
+`SRIS_CONTEXT_RESEARCH_ENABLED=true`. Quando pedida, a execução reserva ainda o
+pior caso de seis pesquisas web antes de contactar o fornecedor. A saída só é
+aceite se as fontes citadas constarem das fontes efetivamente recuperadas nessa
+execução e se o dossier permanecer `in_review` com revisão humana obrigatória.
+
 Sem o UUID do piloto, a configuração de IA permanece falsa em Railway/produção.
 Um utilizador que crie outra organização pode usar o motor determinístico, mas
 recebe `organization_not_authorized` antes de qualquer contagem ou chamada à
@@ -49,8 +55,8 @@ disponível.
 O SRIS reserva primeiro o pior caso do pedido. Dentro dessa reserva, usa
 `POST /v1/responses/input_tokens` para substituir a estimativa conservadora pela
 contagem exata de entrada. Após a Responses API terminar, reconcilia a reserva
-com `input_tokens`, `cached_input_tokens` e `output_tokens` reportados pelo
-fornecedor. O limite `max_output_tokens` enviado ao modelo é o menor entre o teto
+com `input_tokens`, `cached_input_tokens`, `output_tokens` e pesquisas web
+observadas. O limite `max_output_tokens` enviado ao modelo é o menor entre o teto
 da aplicação e o teto da política.
 
 Se o fornecedor falhar sem devolver `usage`, o ledger cobra provisoriamente toda
@@ -70,7 +76,7 @@ Criar primeiro com `enabled=false`:
   "monthly_output_token_limit": 50000,
   "monthly_budget_usd": "5.00",
   "per_request_input_token_limit": 60000,
-  "per_request_output_token_limit": 3000,
+  "per_request_output_token_limit": 6000,
   "max_concurrent_requests": 1
 }
 ```
@@ -92,10 +98,12 @@ atingido.
 ## Contabilidade e preços
 
 O custo é guardado em inteiros (`micro-USD`) para evitar erros de ponto flutuante.
-O ledger preserva as tarifas de entrada, entrada em cache e saída, o multiplicador,
-a fonte e a data efetiva utilizadas naquela execução. As tarifas predefinidas
-correspondem ao modo Standard e contexto curto publicado pela OpenAI em
-2026-07-30 para `gpt-5.6`, `gpt-5.6-sol`, `gpt-5.6-terra` e `gpt-5.6-luna`.
+O ledger preserva as tarifas de entrada, entrada em cache, saída e pesquisa web,
+o multiplicador, a fonte e a data efetiva utilizadas naquela execução. As tarifas
+predefinidas correspondem ao modo Standard e contexto curto verificado em
+2026-08-10 para `gpt-5.6`, `gpt-5.6-sol`, `gpt-5.6-terra` e `gpt-5.6-luna`. A
+pesquisa web é reservada a USD 0,01 por chamada, configurável por
+`SRIS_WEB_SEARCH_RATE_MICROUSD_PER_CALL`.
 
 O valor é uma estimativa operacional, não uma fatura. A fatura do fornecedor é a
 fonte financeira definitiva. Para outro modelo ou modalidade de preço, a chamada
@@ -122,8 +130,8 @@ SRIS_AI_PRICE_MULTIPLIER_BPS=11000
 | Tabela | Função |
 |---|---|
 | `mi_ai_organization_policies` | autorização e limites vigentes por organização |
-| `mi_ai_usage_periods` | consumo e reservas do mês UTC |
-| `mi_ai_usage_events` | ledger de cada tentativa e snapshot do preço |
+| `mi_ai_usage_periods` | consumo e reservas do mês UTC, incluindo pesquisas web |
+| `mi_ai_usage_events` | ledger de cada tentativa e snapshot dos preços de tokens e pesquisa |
 
 Reservas sem finalização expiram por defeito ao fim de dez minutos e libertam
 tokens/custo reservados, mantendo o pedido contado. O prazo pode ser alterado por
@@ -144,7 +152,7 @@ o conteúdo canónico; esses dados permanecem separados nos objetos próprios.
 ## Gate para ativação real
 
 - implantação concluída com `SRIS_AI_ENABLED=false`;
-- migração `20260808_0003` no head;
+- migração `20260810_0005` no head;
 - `/health` e análise pública determinística aprovados;
 - organização e utilizador piloto criados;
 - auto-registo e criação de organizações fechados no Railway;

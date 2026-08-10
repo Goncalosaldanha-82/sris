@@ -7,7 +7,7 @@
     name="description"
     content="SRIS — Strategic Resilience & Intelligence System. Preserva o raciocínio das decisões, da observação ao resultado e à aprendizagem."
   />
-  <meta name="sris-build" content="executive-brief-ui-r2-2026-08-08" />
+  <meta name="sris-build" content="executive-brief-ui-r2-mi-context-2026-08-10" />
   <title>SRIS — Preservar o raciocínio das decisões</title>
 
   <style>
@@ -397,6 +397,20 @@
     .ai-advisory h4{margin:0 0 8px;font-family:Georgia,serif;font-size:20px;font-weight:400}
     .ai-advisory p,.ai-advisory li{color:var(--ink-soft);font-size:11.5px;line-height:1.6}
     .ai-provenance{margin-top:13px;padding-top:11px;border-top:1px solid rgba(164,134,73,.25);color:var(--ink-muted);font-size:9.5px;line-height:1.5}
+    .context-dossier{margin:16px 0;padding:18px;border:1px solid rgba(45,93,70,.22);border-radius:13px;background:#f2f7f4}
+    .context-dossier h4{margin:0 0 8px;font-family:Georgia,serif;font-size:21px;font-weight:400}
+    .context-dossier p,.context-dossier li{color:var(--ink-soft);font-size:11.5px;line-height:1.6}
+    .context-domains{margin:11px 0;display:flex;gap:6px;flex-wrap:wrap}
+    .context-domains span{padding:5px 8px;border-radius:999px;background:rgba(45,93,70,.09);color:var(--forest);font-size:9px;font-weight:760}
+    .context-claim{margin-top:9px;padding:11px;border-radius:10px;background:rgba(255,255,255,.72)}
+    .context-claim span{display:block;margin-bottom:4px;color:var(--gold-ink);font-size:8.5px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+    .context-claim--supported{border-left:3px solid var(--green)}
+    .context-claim--partially_supported{border-left:3px solid var(--blue)}
+    .context-claim--hypothesis{border-left:3px solid var(--gold)}
+    .context-claim--contested{border-left:3px solid var(--red)}
+    .context-claim--unverified{border-left:3px solid var(--amber)}
+    .context-source-list a{color:var(--forest);font-weight:740;text-decoration-thickness:1px;text-underline-offset:2px}
+    .context-boundary{margin-top:13px;padding-top:11px;border-top:1px solid rgba(45,93,70,.18);color:var(--ink-muted);font-size:9.5px;line-height:1.55}
     .run-review{margin-top:16px;padding:17px;border:1px solid rgba(45,93,70,.24);border-radius:13px;background:#f1f7f3}
     .run-review .field{margin:13px 0 10px}
     .run-review textarea{min-height:90px}
@@ -658,8 +672,8 @@
         <div class="eyebrow">Acesso institucional</div>
         <h2>Entrar no SRIS</h2>
         <p>
-          Aceda à plataforma ou abra a demonstração preparada para o
-          Prémio Empreendedorismo e Inovação Crédito Agrícola.
+          Aceda à área institucional ou explore a demonstração pública do
+          motor Mission Intelligence.
         </p>
 
         <form id="loginForm">
@@ -895,6 +909,15 @@
                   Complementar com análise assistida por IA · saída provisória
                   <small class="ai-boundary">Não cria evidência, não valida hipóteses, não estabelece causalidade e não toma decisões. Toda a saída exige revisão humana.</small>
                   <small id="analysisAIStatus">A verificar a capacidade disponível.</small>
+                </label>
+              </div>
+
+              <div id="contextResearchMode" class="analysis-mode is-unavailable hidden">
+                <input id="analysisResearch" type="checkbox" disabled />
+                <label for="analysisResearch">
+                  Investigar automaticamente a envolvente da missão
+                  <small class="ai-boundary">Pesquisa fontes externas e separa alegações sustentadas, hipóteses, controvérsias e lacunas. O dossier fica em revisão e não altera registos canónicos automaticamente.</small>
+                  <small id="analysisResearchStatus">A verificar a capacidade de investigação contextual.</small>
                 </label>
               </div>
 
@@ -1406,6 +1429,7 @@
           confidence: "Moderada",
           decision: "DEC-0001 · Em aberto",
           method_notice: "Caso real aberto. Os registos foram declarados pelo promotor e ainda não tiveram validação independente. Não existe decisão tomada, execução ou resultado.",
+          analysis_requirements:{context_research:{required:true}},
           situation: {
             summary:
               "Existem três observações, três alternativas em avaliação, dois pressupostos por verificar e duas restrições não avaliadas. Nenhuma alternativa foi selecionada. Não existe execução nem resultado.",
@@ -1576,14 +1600,16 @@
           subtitle:"Segundo caso identificado · candidato, não compromisso.",
           meta:"Património e território · Podentes, Penela",
           status:"Caso identificado",
-          confidence:"Baixa",
+          confidence:"Não avaliável",
           decision:"Não iniciada",
           method_notice:"Caso candidato, não compromisso de intervenção. Os registos preservam declarações e referências iniciais; não demonstram autorização, parceria, decisão ou resultado.",
+          analysis_requirements:{context_research:{required:true}},
           situation:{
-            summary:"Caso identificado para testar a arquitetura fora do controlo direto do promotor. Uma eventual recuperação depende de múltiplos decisores, autorizações e restrições patrimoniais.",
+            summary:"Caso territorial com contexto histórico e arqueológico relevante. A nascente e uma árula romana estão documentadas em fontes académicas distintas; a relação entre ambas, o uso romano e as alegadas propriedades medicinais permanecem por demonstrar.",
             attention:[
               {title:"Autorizações não solicitadas.",description:"O caso depende das entidades titulares e competentes.",level:"Condição prévia"},
-              {title:"Restrições patrimoniais.",description:"Qualquer intervenção deve respeitar o enquadramento patrimonial aplicável.",level:"A confirmar"}
+              {title:"Restrições patrimoniais.",description:"Qualquer intervenção deve respeitar o enquadramento patrimonial aplicável.",level:"A confirmar"},
+              {title:"Ligação romana e medicinal por demonstrar.",description:"A convergência territorial justifica investigação dirigida, mas ainda não constitui prova histórica, arqueológica ou hidrogeológica.",level:"Hipótese prioritária"}
             ],
             chain:[
               {number:"01",label:"Observação",value:"Caso identificado",note:"Estado de abandono identificado.",state:"completed"},
@@ -1598,10 +1624,10 @@
           },
           analysis:{
             title:"M-002 — Nascente de Dragos",
-            context:"A Nascente de Dragos, em Podentes, encontra-se em estado de abandono. Uma eventual recuperação envolveria múltiplos decisores, autorização das entidades competentes e restrições patrimoniais explícitas.",
-            central_question:"Que condições teriam de estar verificadas antes de transformar este caso identificado numa missão operacional legítima?",
-            available_evidence:"Enquadramento patrimonial documentado e identificação do estado atual do local.",
-            unknowns:"Titularidade operacional, autorizações, competências das entidades, condições patrimoniais detalhadas, objetivos de intervenção e recursos.",
+            context:"A Nascente de Dragos, em Podentes, encontra-se em estado de abandono. Uma investigação académica regista a nascente; outra documenta uma árula romana no microtopónimo Dragos. A relação funcional, o eventual uso romano e as propriedades medicinais da água permanecem por demonstrar.",
+            central_question:"Que evidência histórica, arqueológica, hidrogeológica, jurídica e institucional é necessária para determinar se a Nascente de Dragos pode ser estudada e recuperada de forma legítima e cientificamente defensável?",
+            available_evidence:"Registo académico da nascente; Ficheiro Epigráfico n.º 797 sobre a árula romana de Dragos; identificação declarada do estado atual.",
+            unknowns:"Relação entre nascente e vestígios romanos, eventual uso romano, propriedades da água, georreferenciação, titularidade, autorizações, competências e memória oral documentável.",
             result:{
               headline:"Não transformar ainda o caso em compromisso de intervenção.",
               summary:"O SRIS deve preservar o caso como candidato enquanto as condições de legitimidade e governação não forem confirmadas.",
@@ -1617,7 +1643,9 @@
             }
           },
           evidence:[
-            {id:"EVD-M002-001",type:"Evidência documental",title:"Enquadramento patrimonial identificado",description:"O local tem enquadramento patrimonial documentado, relevante para qualquer eventual recuperação.",method:"Referência documental preservada na missão.",limitation:"Não constitui autorização para intervir.",status:"Documentada",confidence:"Moderada",source:"Documentação do caso"}
+            {id:"EVD-M002-001",type:"Evidência documental",title:"Árula romana de Dragos — Ficheiro Epigráfico n.º 797",description:"Publicação académica documenta uma árula romana fragmentada identificada no microtopónimo Dragos.",method:"Referência bibliográfica preservada.",limitation:"Não demonstra ligação à nascente, uso romano da água ou propriedades medicinais.",status:"Documentada",confidence:"Elevada",source:"Universidade de Coimbra"},
+            {id:"EVD-M002-002",type:"Evidência documental",title:"Registo académico da Nascente de Dragos",description:"Investigação depositada no Estudo Geral regista a permanência da nascente na memória e toponímia local.",method:"Referência bibliográfica preservada.",limitation:"Não é estudo hidrogeológico ou arqueológico da nascente.",status:"Documentada",confidence:"Moderada",source:"Universidade de Coimbra"},
+            {id:"HYP-M002-001",type:"Hipótese",title:"Possível relação entre nascente, ocupação romana e uso medicinal",description:"A coexistência territorial justifica investigação dirigida.",method:"Cruzamento preliminar de fontes e alegação local.",limitation:"Relação ainda não demonstrada.",status:"Por verificar",confidence:"Baixa",source:"Dossier contextual preliminar"}
           ],
           learning:[
             {id:"LRN-M002-001",title:"Caso identificado não é compromisso",description:"A existência de um problema ou oportunidade não autoriza converter intenção em intervenção sem titulares, competências e restrições explicitadas."}
@@ -1633,10 +1661,12 @@
           confidence:"Elevada",
           decision:"DEC-CA-001 · Candidatura submetida",
           method_notice:"Missão organizacional real. A candidatura foi submetida; não existe ainda decisão do júri. A submissão e o reconhecimento externo não constituem validação científica nem prova de impacto.",
+          analysis_requirements:{context_research:{required:true}},
           situation:{
             summary:"A candidatura foi submetida usando a M-001 como demonstração principal, sem transformar visão futura em resultado já demonstrado.",
             attention:[
               {title:"Preservar a versão submetida.",description:"O conteúdo público associado à candidatura deve permanecer coerente com o formulário e os anexos entregues.",level:"Rigor"},
+              {title:"Manter ativo o URL entregue na candidatura.",description:"sris-production.up.railway.app é o endereço submetido ao júri; staging é independente e nunca o pode substituir ou desativar.",level:"Continuidade crítica"},
               {title:"Associação dos anexos por confirmar.",description:"Os documentos complementares foram enviados por email após falha técnica de upload; a associação formal depende da organização.",level:"Acompanhamento"},
               {title:"Impacto permanece por medir.",description:"A submissão não altera o estado da validação: benefícios continuam a ser hipóteses do piloto.",level:"Disciplina"}
             ],
@@ -1651,10 +1681,10 @@
           },
           analysis:{
             title:"Candidatura submetida — Prémio Empreendedorismo e Inovação Crédito Agrícola",
-            context:"O SRIS foi apresentado através de um problema concreto e da M-001, declarando o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
-            central_question:"A candidatura submetida preserva a distinção entre demonstração funcional, hipótese de impacto e validação ainda inexistente?",
+            context:"O SRIS foi apresentado através de um problema concreto e da M-001. O URL entregue ao júri foi sris-production.up.railway.app; staging é uma cópia de validação independente e não substitui produção.",
+            central_question:"A candidatura permanece acessível no URL entregue e preserva a distinção entre demonstração funcional, hipótese de impacto e validação ainda inexistente?",
             available_evidence:"M-001 documentada; plataforma operacional; arquitetura conceptual; motor epistemológico; backend em produção; reconhecimento externo documentado; roadmap e indicadores de piloto definidos.",
-            unknowns:"Resposta do júri, primeira organização externa, custo real de documentação, métricas de eficiência e resultados do piloto.",
+            unknowns:"Resposta e calendário do júri; continuidade operacional do URL durante a avaliação; primeira organização externa; custo real de documentação; métricas de eficiência e resultados do piloto.",
             result:{
               headline:"A candidatura foi submetida através da M-001 e do seu estado real.",
               summary:"A versão entregue apresenta a inovação como preservação da estrutura necessária para avaliar resultados futuros, sem declarar esses resultados como existentes.",
@@ -1666,7 +1696,7 @@
                 {id:"B",title:"Percurso M-001",description:"Problema → registos → incerteza → decisão em aberto → aprendizagem."},
                 {id:"C",title:"Apresentação comercial",description:"Foco em mercados e potencial de escala."}
               ],
-              next_decision:"Preservar a versão submetida, confirmar a associação dos anexos e aguardar a avaliação sem acrescentar novas alegações.",
+              next_decision:"Manter o URL de produção ativo e monitorizado, preservar a versão submetida, confirmar a associação dos anexos e aguardar a avaliação sem acrescentar novas alegações.",
               confidence:"Elevada"
             }
           },
@@ -1691,6 +1721,7 @@
     let intelligenceStatus = {
       deterministic_analysis:"unavailable",
       ai_configured:false,
+      context_research_configured:false,
       ai_requires_authentication:true,
       ai_model:""
     };
@@ -1912,6 +1943,9 @@
       qs("#analysisQuestion").value=a.central_question||"";
       qs("#analysisEvidence").value=a.available_evidence||"";
       qs("#analysisUnknowns").value=a.unknowns||"";
+      const research=qs("#analysisResearch");
+      if(research)delete research.dataset.userChoice;
+      updateAIControl();
       const submit=qs("#analysisSubmit");
       submit.disabled=Boolean(m.local_only);
       submit.textContent=m.local_only?"Integrar registos antes de analisar":"Executar Mission Intelligence";
@@ -1927,17 +1961,48 @@
     const indicatorLabels={
       critical:"Crítico",requires_attention:"Requer atenção",on_track:"No percurso",completed:"Concluída",
       improving:"A melhorar",stable:"Estável",deteriorating:"A deteriorar",not_evaluable:"Não avaliável",
-      high:"Elevada",moderate:"Moderada",low:"Baixa",strong:"Sólida",partial:"Parcial",weak:"Frágil",
+      high:"Elevada",moderate:"Moderada",low:"Baixa",strong:"Suficiente para este fator",partial:"Parcial",weak:"Insuficiente",
       not_applicable:"Não aplicável"
     };
 
     const factorLabels={
-      evidence:"Evidência",assumptions:"Pressupostos",constraints:"Restrições",
-      alternatives:"Alternativas",decision_readiness:"Estado da decisão"
+      evidence:"Qualidade documental dos registos",assumptions:"Pressupostos",constraints:"Restrições",
+      alternatives:"Alternativas",decision_readiness:"Estado da decisão",context_coverage:"Cobertura da envolvente"
     };
 
     function indicatorLabel(value){return indicatorLabels[value]||String(value||"")}
     function factorLabel(value){return factorLabels[value]||String(value||"")}
+
+    const contextClaimLabels={
+      supported:"Sustentado por fonte",partially_supported:"Parcialmente sustentado",
+      hypothesis:"Hipótese de investigação",contested:"Contestado",unverified:"Não verificado"
+    };
+    const contextStatusLabels={
+      not_started:"não iniciada",preliminary:"preliminar",in_review:"em revisão",reviewed:"revista"
+    };
+
+    function renderContextDossier(result){
+      const dossier=result?.context_dossier;
+      if(!dossier)return "";
+      const provenance=result?.context_dossier_provenance||{};
+      const claims=dossier.claims||[],sources=dossier.sources||[],gaps=dossier.gaps||[];
+      return `
+        <section class="context-dossier">
+          <small class="eyebrow">CONTEXT INTELLIGENCE · ${esc(contextStatusLabels[dossier.research_status]||dossier.research_status||"em revisão")}</small>
+          <h4>Envolvente da missão</h4>
+          <p>${esc(dossier.synthesis||"")}</p>
+          <div class="context-domains">${(dossier.domains||[]).map(x=>`<span>${esc(x)}</span>`).join("")}</div>
+          <strong>Alegações e hipóteses</strong>
+          ${claims.map(claim=>`
+            <div class="context-claim context-claim--${esc(claim.epistemic_status)}">
+              <span>${esc(contextClaimLabels[claim.epistemic_status]||claim.epistemic_status)} · ${esc(claim.domain)}</span>
+              <p><strong>${esc(claim.statement)}</strong><br>${esc(claim.relevance||"")}${(claim.source_ids||[]).length?`<br><em>Fontes: ${esc(claim.source_ids.join(", "))}</em>`:""}${claim.limitations?`<br><em>Limite: ${esc(claim.limitations)}</em>`:""}</p>
+            </div>`).join("")||"<p>Nenhuma alegação contextual estruturada.</p>"}
+          <div class="result-section context-source-list"><strong>Fontes rastreáveis</strong><ul>${sources.map(source=>`<li><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a><br>${esc(source.publisher||"")} · ${esc(source.source_type||"")}${source.limitations?`<br><em>Limite: ${esc(source.limitations)}</em>`:""}</li>`).join("")||"<li>Nenhuma fonte preservada.</li>"}</ul></div>
+          <div class="result-section"><strong>Perguntas que a missão tem de investigar</strong><ul>${gaps.map(gap=>`<li><strong>${esc(gap.question)}</strong><br>${esc(gap.why_it_matters||"")}${gap.evidence_needed?`<br><em>Evidência necessária: ${esc(gap.evidence_needed)}</em>`:""}</li>`).join("")||"<li>Sem lacunas contextuais estruturadas.</li>"}</ul></div>
+          <div class="context-boundary">${esc(provenance.limitations||"Dossier sujeito a revisão humana; não constitui prova, autorização ou conclusão científica.")}</div>
+        </section>`;
+    }
 
     function renderResult(result){
       const root=qs("#resultBlock");
@@ -1953,6 +2018,10 @@
       }
       const advisory=result?.ai?.advisory;
       const provenance=result?.ai?.provenance;
+      const usage=result?.ai_usage;
+      const contextAssessmentTitle=result?.context_dossier_provenance?.origin_type==="ai_model_with_web_search"
+        ? "Leitura determinística do contexto canónico anterior à pesquisa"
+        : "Leitura da cobertura contextual";
       const aiNotice=result.ai_status==="authentication_required"
         ? "A análise por IA não é executada no modo de demonstração. Requer sessão institucional."
         : result.ai_status==="not_configured"
@@ -1973,6 +2042,8 @@
           <article><span>Tendência</span><strong>${esc(indicatorLabel(d.mission_trend))}</strong></article>
           <article><span>Estado da fundamentação</span><strong>${esc(indicatorLabel(d.decision_confidence))}</strong></article>
         </div>
+        ${renderContextDossier(result)}
+        ${d.context_assessment?`<div class="result-section"><strong>${esc(contextAssessmentTitle)}</strong><p>${esc(d.context_assessment.synthesis||d.context_assessment.boundary||"")}</p><p><em>${esc(d.context_assessment.boundary||"")}</em></p></div>`:""}
         <div class="result-section"><strong>Risco principal</strong><p>${esc(d.principal_risk||"")}</p></div>
         <div class="result-section"><strong>Lacunas críticas</strong><ul>${(d.gaps||[]).map(g=>`<li><strong>${esc(g.title)}</strong><br>${esc(g.explanation)}${g.evidence_needed?`<br><em>Evidência necessária: ${esc(g.evidence_needed)}</em>`:""}</li>`).join("")||"<li>Não foram detetadas lacunas adicionais.</li>"}</ul></div>
         <div class="result-section"><strong>Fatores da fundamentação</strong><ul>${(d.confidence_factors||[]).map(f=>`<li><strong>${esc(factorLabel(f.factor))} · ${esc(indicatorLabel(f.assessment))}</strong><br>${esc(f.explanation)}</li>`).join("")}</ul></div>
@@ -1996,6 +2067,7 @@
               `<div class="run-review-status">${result.review_status==="required"?"Revisão pendente por perfil autorizado.":`Estado: ${esc(result.review_status||"revisto")}`}</div>`}
           </section>`:""}
         ${aiNotice?`<div class="result-section"><strong>Estado da IA</strong><p>${esc(aiNotice)}</p></div>`:""}
+        ${usage?`<div class="result-section"><strong>Utilização governada</strong><p>${esc(String(usage.web_search_calls||0))} pesquisas web · custo de pesquisa USD ${esc(usage.web_search_cost_usd||"0.000000")} · custo total estimado USD ${esc(usage.estimated_cost_usd||"0.000000")}.</p></div>`:""}
         ${advisory?`
           <section class="ai-advisory">
             <h4>Análise assistida por IA · provisória</h4>
@@ -2013,10 +2085,12 @@
 
     function updateAIControl(){
       const checkbox=qs("#analysisAI"),status=qs("#analysisAIStatus"),container=qs("#analysisMode");
-      if(!checkbox||!status||!container)return;
+      const research=qs("#analysisResearch"),researchStatus=qs("#analysisResearchStatus"),researchContainer=qs("#contextResearchMode");
+      if(!checkbox||!status||!container||!research||!researchStatus||!researchContainer)return;
       const token=sessionStorage.getItem("sris_token");
       const institutional=Boolean(token&&activeOrganizationId);
       container.classList.toggle("hidden",!institutional);
+      researchContainer.classList.toggle("hidden",!institutional);
       const available=Boolean(
         institutional&&
         intelligenceStatus.ai_configured&&
@@ -2026,6 +2100,15 @@
       checkbox.disabled=!available;
       if(!available)checkbox.checked=false;
       container.classList.toggle("is-unavailable",!available);
+      const researchAvailable=Boolean(available&&intelligenceStatus.context_research_configured);
+      research.disabled=!researchAvailable;
+      if(!researchAvailable)research.checked=false;
+      const contextRequired=mission(activeMissionId)?.analysis_requirements?.context_research?.required===true;
+      if(researchAvailable&&contextRequired&&research.dataset.userChoice!=="true"){
+        research.checked=true;
+        checkbox.checked=true;
+      }
+      researchContainer.classList.toggle("is-unavailable",!researchAvailable);
       if(!institutional){
         status.textContent="A análise assistida só é apresentada quando existe sessão institucional e governação ativa.";
       }else if(!intelligenceStatus.ai_configured){
@@ -2041,6 +2124,19 @@
       }else{
         status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. A saída é provisória e exige revisão humana.`;
       }
+      if(!institutional){
+        researchStatus.textContent="A investigação contextual só é executada numa sessão institucional governada.";
+      }else if(!intelligenceStatus.context_research_configured){
+        researchStatus.textContent="O motor de pesquisa contextual está instalado, mas permanece desativado até existir configuração e orçamento explícitos.";
+      }else if(!researchAvailable){
+        researchStatus.textContent="A investigação contextual está bloqueada pela governação institucional atual.";
+      }else if(contextRequired){
+        researchStatus.textContent="Esta missão exige aprofundamento contextual. A pesquisa será incluída nesta execução e ficará pendente de revisão humana.";
+      }else{
+        researchStatus.textContent="Pesquisa web com fontes, limite de chamadas, registo de custo e revisão humana obrigatória.";
+      }
+      research.onchange=()=>{research.dataset.userChoice="true";if(research.checked)checkbox.checked=true};
+      checkbox.onchange=()=>{if(!checkbox.checked)research.checked=false};
     }
 
     async function loadSessionContext(token){
@@ -2270,9 +2366,10 @@
         central_question:qs("#analysisQuestion").value.trim(),
         available_evidence:qs("#analysisEvidence").value.trim(),
         unknowns:qs("#analysisUnknowns").value.trim(),
-        use_ai:institutional&&qs("#analysisAI").checked
+        use_ai:institutional&&qs("#analysisAI").checked,
+        research_context:institutional&&qs("#analysisResearch").checked
       };
-      button.disabled=true;button.textContent="A analisar…";
+      button.disabled=true;button.textContent=payload.research_context?"A investigar a envolvente…":"A analisar…";
       try{
         const headers={"Content-Type":"application/json"};
         if(institutional)headers.Authorization=`Bearer ${token}`;

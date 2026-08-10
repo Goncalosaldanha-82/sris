@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -120,6 +121,139 @@ class AnalysisInput(StrictModel):
     available_evidence: str = Field(default="", max_length=30000)
     unknowns: str = Field(default="", max_length=30000)
     use_ai: bool = False
+    research_context: bool = False
+
+    @model_validator(mode="after")
+    def research_requires_governed_ai(self) -> "AnalysisInput":
+        if self.research_context and not self.use_ai:
+            raise ValueError("Context research requires governed AI execution")
+        return self
+
+
+class ContextSource(StrictModel):
+    source_id: str = Field(min_length=1, max_length=120)
+    title: str = Field(min_length=1, max_length=1000)
+    url: str = Field(pattern=r"^https?://", max_length=3000)
+    publisher: str = Field(default="", max_length=500)
+    source_type: Literal[
+        "academic",
+        "official",
+        "legal",
+        "cartographic",
+        "technical",
+        "local_history",
+        "news",
+        "other",
+    ] = "other"
+    authority: Literal["primary", "secondary", "unknown"] = "unknown"
+    publication_date: str | None = Field(default=None, max_length=40)
+    limitations: str = Field(default="", max_length=5000)
+
+    @field_validator("url")
+    @classmethod
+    def require_absolute_http_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ValueError("Context source URL must be an absolute HTTP(S) URL")
+        return value
+
+
+class ContextClaim(StrictModel):
+    claim_id: str = Field(min_length=1, max_length=120)
+    statement: str = Field(min_length=1, max_length=5000)
+    domain: str = Field(min_length=1, max_length=160)
+    epistemic_status: Literal[
+        "supported",
+        "partially_supported",
+        "hypothesis",
+        "contested",
+        "unverified",
+    ]
+    source_ids: list[str] = Field(default_factory=list, max_length=50)
+    relevance: str = Field(default="", max_length=5000)
+    limitations: str = Field(default="", max_length=5000)
+
+    @model_validator(mode="after")
+    def supported_claims_require_sources(self) -> "ContextClaim":
+        if self.epistemic_status in {
+            "supported",
+            "partially_supported",
+            "contested",
+        } and not self.source_ids:
+            raise ValueError("Supported or contested context claims require sources")
+        return self
+
+
+class ContextGap(StrictModel):
+    gap_id: str = Field(min_length=1, max_length=120)
+    question: str = Field(min_length=1, max_length=5000)
+    domain: str = Field(min_length=1, max_length=160)
+    why_it_matters: str = Field(default="", max_length=5000)
+    evidence_needed: str = Field(default="", max_length=5000)
+    priority: Literal["critical", "high", "medium", "low"] = "medium"
+
+
+class ContextDossier(StrictModel):
+    dossier_version: Literal["1.0"] = "1.0"
+    mission_id: str = Field(min_length=1, max_length=100)
+    scope: str = Field(min_length=1, max_length=5000)
+    synthesis: str = Field(default="", max_length=15000)
+    domains: list[str] = Field(default_factory=list, max_length=50)
+    sources: list[ContextSource] = Field(default_factory=list, max_length=200)
+    claims: list[ContextClaim] = Field(default_factory=list, max_length=500)
+    gaps: list[ContextGap] = Field(default_factory=list, max_length=300)
+    limits: list[str] = Field(default_factory=list, max_length=100)
+    research_status: Literal[
+        "not_started",
+        "preliminary",
+        "in_review",
+        "reviewed",
+    ] = "in_review"
+    review_required: bool = True
+
+    @model_validator(mode="after")
+    def validate_context_graph(self) -> "ContextDossier":
+        source_ids = [source.source_id for source in self.sources]
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("Context source IDs must be unique")
+        source_urls = [source.url.rstrip("/").casefold() for source in self.sources]
+        if len(source_urls) != len(set(source_urls)):
+            raise ValueError("Context source URLs must be unique")
+        claim_ids = [claim.claim_id for claim in self.claims]
+        if len(claim_ids) != len(set(claim_ids)):
+            raise ValueError("Context claim IDs must be unique")
+        known_sources = set(source_ids)
+        for claim in self.claims:
+            unknown = set(claim.source_ids) - known_sources
+            if unknown:
+                raise ValueError(
+                    "Context claims reference unknown sources: "
+                    + ", ".join(sorted(unknown))
+                )
+        return self
+
+
+class ContextAssessment(StrictModel):
+    status: Literal[
+        "not_required",
+        "not_started",
+        "preliminary",
+        "in_review",
+        "reviewed",
+    ]
+    domains: list[str] = Field(default_factory=list)
+    source_count: int = Field(default=0, ge=0)
+    supported_claim_count: int = Field(default=0, ge=0)
+    hypothesis_count: int = Field(default=0, ge=0)
+    unverified_claim_count: int = Field(default=0, ge=0)
+    critical_gap_count: int = Field(default=0, ge=0)
+    synthesis: str = ""
+    boundary: str = ""
 
 
 class Gap(StrictModel):
@@ -149,6 +283,7 @@ class DeterministicReport(StrictModel):
     mission_status: MissionStatus
     mission_trend: MissionTrend
     decision_confidence: ConfidenceLevel
+    context_assessment: ContextAssessment
     confidence_factors: list[ConfidenceFactor]
     headline: str
     summary: str
@@ -200,6 +335,11 @@ class AIAdvisory(StrictModel):
     cautions: list[str]
 
 
+class AIResearchBundle(StrictModel):
+    context_dossier: ContextDossier
+    advisory: AIAdvisory
+
+
 class ReviewRequest(StrictModel):
     decision: Literal["approved", "rejected"]
     comment: str = Field(min_length=3, max_length=10000)
@@ -217,7 +357,7 @@ class AIGovernancePolicyUpdate(StrictModel):
         decimal_places=6,
     )
     per_request_input_token_limit: int = Field(default=60_000, ge=1_000, le=1_000_000)
-    per_request_output_token_limit: int = Field(default=3_000, ge=500, le=128_000)
+    per_request_output_token_limit: int = Field(default=6_000, ge=500, le=128_000)
     max_concurrent_requests: int = Field(default=1, ge=1, le=100)
 
     @model_validator(mode="after")

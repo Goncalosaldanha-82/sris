@@ -89,6 +89,15 @@ def legacy_to_canonical(
     """Convert the presentation payload into the normative MDL 1.3 contract."""
 
     analysis = dict(mission.get("analysis") or {})
+    analysis_requirements = dict(mission.get("analysis_requirements") or {})
+    if "context_research" not in analysis_requirements:
+        analysis_requirements["context_research"] = {
+            "required": True,
+            "reason": (
+                "Every mission must investigate its material surroundings unless "
+                "non-applicability is explicitly justified."
+            ),
+        }
     if analysis_input is not None:
         if analysis_input.title:
             analysis["title"] = analysis_input.title
@@ -167,9 +176,8 @@ def legacy_to_canonical(
         metadata={
             "source_format": "governed_demo_catalog",
             "decision_stage": mission.get("decision_stage") or "",
-            "analysis_requirements": dict(
-                mission.get("analysis_requirements") or {}
-            ),
+            "analysis_requirements": analysis_requirements,
+            "context_dossier": dict(mission.get("context_dossier") or {}),
             "unstructured_input": {
                 "available_evidence_claim": analysis.get("available_evidence") or "",
                 "unknowns_claim": analysis.get("unknowns") or "",
