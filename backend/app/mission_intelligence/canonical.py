@@ -124,7 +124,10 @@ def legacy_to_canonical(
                     limitations=str(item.get("limitation") or item.get("limitations") or ""),
                     verification_status="declared",
                 ),
-                metadata={"legacy_type": item.get("type")},
+                metadata={
+                    "legacy_type": item.get("type"),
+                    **dict(item.get("metadata") or {}),
+                },
             )
         )
 
@@ -163,6 +166,10 @@ def legacy_to_canonical(
         relations=[],
         metadata={
             "source_format": "governed_demo_catalog",
+            "decision_stage": mission.get("decision_stage") or "",
+            "analysis_requirements": dict(
+                mission.get("analysis_requirements") or {}
+            ),
             "unstructured_input": {
                 "available_evidence_claim": analysis.get("available_evidence") or "",
                 "unknowns_claim": analysis.get("unknowns") or "",

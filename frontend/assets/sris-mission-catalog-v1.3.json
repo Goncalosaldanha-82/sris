@@ -1,7 +1,7 @@
 {
   "schema": "sris_mission_catalog",
   "schema_version": "1.3",
-  "catalog_version": "2026-08-08",
+  "catalog_version": "2026-08-10",
   "missions": {
     "M-001": {
       "id": "M-001",
@@ -11,6 +11,14 @@
       "status": "Em avaliação",
       "confidence": "Moderada",
       "decision": "DEC-0001 · Em aberto",
+      "method_notice": "Caso real aberto. Os registos foram declarados pelo promotor e ainda não tiveram validação independente. Não existe decisão tomada, execução ou resultado.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "baseline": {
+          "applicability": "required",
+          "reason": "A missão pretende comparar resultados de uma futura intervenção territorial."
+        }
+      },
       "situation": {
         "summary": "Existem três observações, três alternativas em avaliação, dois pressupostos por verificar e duas restrições não avaliadas. Nenhuma alternativa foi selecionada. Não existe execução nem resultado.",
         "attention": [
@@ -271,6 +279,14 @@
       "status": "Caso identificado",
       "confidence": "Baixa",
       "decision": "Não iniciada",
+      "method_notice": "Caso candidato, não compromisso de intervenção. Os registos preservam declarações e referências iniciais; não demonstram autorização, parceria, decisão ou resultado.",
+      "decision_stage": "not_started",
+      "analysis_requirements": {
+        "baseline": {
+          "applicability": "undetermined",
+          "reason": "O caso ainda não tem objeto de decisão, intervenção ou variáveis de resultado definidos."
+        }
+      },
       "situation": {
         "summary": "Caso identificado para testar a arquitetura fora do controlo direto do promotor. Uma eventual recuperação depende de múltiplos decisores, autorizações e restrições patrimoniais.",
         "attention": [
@@ -377,6 +393,17 @@
       },
       "evidence": [
         {
+          "id": "OBS-M002-001",
+          "type": "Observação",
+          "title": "Estado atual do local identificado",
+          "description": "O local foi identificado pelo promotor como estando em estado de abandono.",
+          "method": "Identificação visual declarada pelo promotor; sem protocolo formal associado.",
+          "limitation": "Data, extensão e critérios do estado de abandono ainda não foram documentados de forma canónica.",
+          "status": "Registada",
+          "confidence": "Baixa",
+          "source": "Declaração do promotor"
+        },
+        {
           "id": "EVD-M002-001",
           "type": "Evidência documental",
           "title": "Enquadramento patrimonial identificado",
@@ -384,6 +411,28 @@
           "method": "Referência documental preservada na missão.",
           "limitation": "Não constitui autorização para intervir.",
           "status": "Documentada",
+          "confidence": "Moderada",
+          "source": "Documentação do caso"
+        },
+        {
+          "id": "RST-M002-001",
+          "type": "Restrição",
+          "title": "Titularidade e competências por confirmar",
+          "description": "Qualquer eventual intervenção depende da identificação dos titulares e das entidades competentes.",
+          "method": "Condição de legitimidade declarada para abertura da missão.",
+          "limitation": "Titulares, competências e autorizações ainda não foram confirmados documentalmente.",
+          "status": "Não avaliada",
+          "confidence": "Elevada",
+          "source": "Condição jurídica do caso"
+        },
+        {
+          "id": "RST-M002-002",
+          "type": "Restrição",
+          "title": "Enquadramento patrimonial por verificar",
+          "description": "O desenho de uma eventual intervenção depende do enquadramento patrimonial aplicável.",
+          "method": "Requisito de análise institucional prévia.",
+          "limitation": "O regime aplicável e os seus efeitos operacionais ainda não foram verificados.",
+          "status": "Não avaliada",
           "confidence": "Moderada",
           "source": "Documentação do caso"
         }
@@ -399,27 +448,35 @@
     "CA-AWARD-APPLICATION": {
       "id": "CA-AWARD-APPLICATION",
       "title": "Prémio Empreendedorismo e Inovação Crédito Agrícola",
-      "subtitle": "Candidatura 2026 · demonstração operacional do SRIS.",
+      "subtitle": "Candidatura 2026 · submetida em 9 de agosto de 2026.",
       "meta": "Candidatura · Empreendedorismo · Inovação",
-      "status": "Em preparação final",
+      "status": "Submetida · avaliação pendente",
       "confidence": "Elevada",
-      "decision": "Percurso de demonstração definido",
+      "decision": "DEC-CA-001 · Candidatura submetida",
+      "method_notice": "Missão organizacional real. A candidatura foi submetida; não existe ainda decisão do júri. A submissão e o reconhecimento externo não constituem validação científica nem prova de impacto.",
+      "decision_stage": "selected",
+      "analysis_requirements": {
+        "baseline": {
+          "applicability": "not_applicable",
+          "reason": "A missão documenta uma candidatura e não uma intervenção empírica."
+        }
+      },
       "situation": {
-        "summary": "A candidatura deve provar o princípio nuclear do SRIS através de uma missão real, sem transformar visão futura em resultado já demonstrado.",
+        "summary": "A candidatura foi submetida usando a M-001 como demonstração principal, sem transformar visão futura em resultado já demonstrado.",
         "attention": [
           {
-            "title": "Coerência com o estado real.",
-            "description": "TRL, utilização externa, resultados e impacto têm de ser declarados sem exagero.",
+            "title": "Preservar a versão submetida.",
+            "description": "O conteúdo público associado à candidatura deve permanecer coerente com o formulário e os anexos entregues.",
             "level": "Rigor"
           },
           {
-            "title": "M-001 como demonstração principal.",
-            "description": "O caso real deve mostrar observação, incerteza, alternativas, restrições, decisão em aberto e aprendizagem.",
-            "level": "Prioridade"
+            "title": "Associação dos anexos por confirmar.",
+            "description": "Os documentos complementares foram enviados por email após falha técnica de upload; a associação formal depende da organização.",
+            "level": "Acompanhamento"
           },
           {
-            "title": "Impacto como hipótese de piloto.",
-            "description": "Benefícios devem ser apresentados com indicadores a medir, não como ganhos já comprovados.",
+            "title": "Impacto permanece por medir.",
+            "description": "A submissão não altera o estado da validação: benefícios continuam a ser hipóteses do piloto.",
             "level": "Disciplina"
           }
         ],
@@ -461,23 +518,23 @@
           },
           {
             "number": "06",
-            "label": "Prémio",
-            "value": "Aplicação definida",
-            "note": "Instrumentação + utilização por terceiros.",
+            "label": "Submissão",
+            "value": "Concluída",
+            "note": "Formulário recebido em 9 de agosto de 2026 às 23:59.",
             "state": "completed"
           }
         ]
       },
       "analysis": {
-        "title": "Preparação final — Prémio Empreendedorismo e Inovação Crédito Agrícola",
-        "context": "O SRIS deve ser apresentado através de um problema concreto e uma missão real, deixando claros o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
-        "central_question": "Qual é a demonstração mais curta e rigorosa que permite ao júri compreender problema, inovação, estado real, potencial e próximos passos sem confundir hipótese com resultado?",
+        "title": "Candidatura submetida — Prémio Empreendedorismo e Inovação Crédito Agrícola",
+        "context": "O SRIS foi apresentado através de um problema concreto e da M-001, declarando o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
+        "central_question": "A candidatura submetida preserva a distinção entre demonstração funcional, hipótese de impacto e validação ainda inexistente?",
         "available_evidence": "M-001 documentada; plataforma operacional; arquitetura conceptual; motor epistemológico; backend em produção; reconhecimento externo documentado; roadmap e indicadores de piloto definidos.",
         "unknowns": "Resposta do júri, primeira organização externa, custo real de documentação, métricas de eficiência e resultados do piloto.",
         "result": {
-          "headline": "Demonstrar o SRIS através da M-001 e do seu estado real.",
-          "summary": "A candidatura deve mostrar que a inovação não está em prever um resultado, mas em preservar a estrutura que permitirá avaliar qualquer resultado futuro.",
-          "situation": "O produto tem protótipo funcional e uma missão real, mas ainda não tem utilização externa ou benefícios quantitativos medidos.",
+          "headline": "A candidatura foi submetida através da M-001 e do seu estado real.",
+          "summary": "A versão entregue apresenta a inovação como preservação da estrutura necessária para avaliar resultados futuros, sem declarar esses resultados como existentes.",
+          "situation": "A candidatura está submetida. O produto mantém protótipo funcional e uma missão real, mas continua sem utilização externa ou benefícios quantitativos medidos.",
           "principal_risk": "Sobreprometer impacto ou escala e enfraquecer a credibilidade de uma proposta que assenta precisamente em rigor e rastreabilidade.",
           "assumptions": [
             "O júri valorizará uma demonstração funcional e verificável.",
@@ -501,7 +558,7 @@
               "description": "Foco em mercados e potencial de escala."
             }
           ],
-          "next_decision": "Usar M-001 como percurso principal; Estado Real e Impacto como prova de disciplina; reconhecimento apenas como contexto externo.",
+          "next_decision": "Preservar a versão submetida, confirmar a associação dos anexos e aguardar a avaliação sem acrescentar novas alegações.",
           "confidence": "Elevada"
         }
       },
@@ -538,6 +595,61 @@
           "status": "Documentada",
           "confidence": "Elevada",
           "source": "Entidades externas"
+        },
+        {
+          "id": "ALT-CA-001",
+          "type": "Alternativa",
+          "title": "Apresentação centrada na tecnologia",
+          "description": "Apresentar arquitetura, componentes e capacidade técnica como percurso principal.",
+          "method": "Alternativa avaliada durante a preparação da candidatura.",
+          "limitation": "Rejeitada por tornar o problema menos concreto para o júri.",
+          "status": "Rejeitada",
+          "confidence": "Moderada",
+          "source": "Preparação da candidatura"
+        },
+        {
+          "id": "ALT-CA-002",
+          "type": "Alternativa",
+          "title": "Percurso demonstrativo pela M-001",
+          "description": "Apresentar problema, registos, incerteza, alternativas, decisão em aberto e aprendizagem através da M-001.",
+          "method": "Alternativa comparada com os percursos tecnológico e comercial.",
+          "limitation": "Demonstra arquitetura e disciplina; não demonstra adoção externa ou impacto medido.",
+          "status": "Selecionada",
+          "confidence": "Elevada",
+          "source": "Preparação da candidatura"
+        },
+        {
+          "id": "ALT-CA-003",
+          "type": "Alternativa",
+          "title": "Apresentação centrada no potencial comercial",
+          "description": "Apresentar mercados, preços e escala como percurso principal.",
+          "method": "Alternativa avaliada durante a preparação da candidatura.",
+          "limitation": "Rejeitada porque a validação comercial ainda não existe.",
+          "status": "Rejeitada",
+          "confidence": "Moderada",
+          "source": "Preparação da candidatura"
+        },
+        {
+          "id": "DEC-CA-001",
+          "type": "Decisão",
+          "title": "Usar a M-001 como percurso principal",
+          "description": "A candidatura foi estruturada pela M-001, com estado real e impacto apresentados como hipótese de piloto.",
+          "method": "Decisão tomada após comparação de três percursos de apresentação.",
+          "limitation": "A decisão melhora a clareza da candidatura; não prova o mérito que o júri lhe atribuirá.",
+          "status": "Selecionada",
+          "confidence": "Elevada",
+          "source": "Candidatura submetida em 9 de agosto de 2026"
+        },
+        {
+          "id": "ACT-CA-001",
+          "type": "Execução",
+          "title": "Candidatura submetida",
+          "description": "O formulário foi submetido em 9 de agosto de 2026 às 23:59; os documentos complementares seguiram por email após falha técnica de upload.",
+          "method": "Comprovativo do formulário e cadeia cronológica de envio preservados.",
+          "limitation": "A associação formal dos anexos enviados por email depende de confirmação da organização.",
+          "status": "Concluída",
+          "confidence": "Elevada",
+          "source": "Comprovativos de submissão e envio"
         }
       ],
       "learning": [

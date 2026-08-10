@@ -114,6 +114,7 @@ def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     status = client.get("/api/mission-intelligence/status")
     assert status.status_code == 200
     assert status.json()["foundation_version"] == "1.3"
+    assert status.json()["engine_version"] == "mission-intelligence-deterministic-1.1"
     assert status.json()["human_review_required"] is True
     assert status.json()["ai_pilot_gate"] == "single_organization"
     assert status.json()["ai_pilot_organization_configured"] is False
@@ -128,6 +129,7 @@ def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     report = data["deterministic"]
     assert data["execution_mode"] == "deterministic"
     assert data["snapshot_hash"]
+    assert data["review_allowed"] is False
     assert report["mission_status"] == "requires_attention"
     assert report["mission_trend"] == "not_evaluable"
     assert report["decision_confidence"] == "moderate"
@@ -158,6 +160,80 @@ def test_free_text_claim_cannot_become_canonical_baseline() -> None:
     assert "MI-NO-BASELINE" in gap_codes
 
 
+def test_case_intake_does_not_inherit_field_intervention_rules() -> None:
+    response = client.post(
+        "/api/mission-intelligence/demo/missions/M-002/analyze",
+        json=_analysis_payload(),
+    )
+    assert response.status_code == 200, response.text
+    report = response.json()["deterministic"]
+    gap_codes = {gap["code"] for gap in report["gaps"]}
+    assert report["decision_confidence"] == "not_evaluable"
+    assert report["counts"]["observation"] == 1
+    assert report["counts"]["constraint"] == 2
+    assert "MI-CONSTRAINTS-OPEN" in gap_codes
+    assert "MI-NO-BASELINE" not in gap_codes
+    rendered = str(
+        {
+            "risk": report["principal_risk"],
+            "next": report["next_decision"],
+            "gaps": report["gaps"],
+            "non_inferences": report["non_inferences"],
+        }
+    ).casefold()
+    assert "linha de base" not in rendered
+    assert "intervir antes de medir" not in rendered
+    assert "titularidade e competências por confirmar" in rendered
+    assert "licenciamento" not in rendered
+
+
+def test_public_catalog_declares_methodological_boundaries() -> None:
+    response = client.get("/api/mission-intelligence/demo/missions")
+    assert response.status_code == 200
+    catalog = response.json()
+    assert catalog["catalog_version"] == "2026-08-10"
+    m1 = catalog["missions"]["M-001"]
+    m2 = catalog["missions"]["M-002"]
+    award = catalog["missions"]["CA-AWARD-APPLICATION"]
+    assert "Caso real aberto" in m1["method_notice"]
+    assert "não compromisso" in m2["method_notice"]
+    assert award["status"] == "Submetida · avaliação pendente"
+    assert "não existe ainda decisão do júri" in award["method_notice"]
+
+
+def test_completed_application_uses_its_own_decision_chain() -> None:
+    response = client.post(
+        "/api/mission-intelligence/demo/missions/CA-AWARD-APPLICATION/analyze",
+        json=_analysis_payload(),
+    )
+    assert response.status_code == 200, response.text
+    report = response.json()["deterministic"]
+    gap_codes = {gap["code"] for gap in report["gaps"]}
+    factors = {item["factor"]: item for item in report["confidence_factors"]}
+    assert report["mission_status"] == "on_track"
+    assert report["decision_confidence"] == "high"
+    assert report["counts"]["alternative"] == 3
+    assert len(report["alternatives"]) == 3
+    assert report["counts"]["decision"] == 1
+    assert report["counts"]["action"] == 1
+    assert factors["assumptions"]["assessment"] == "not_applicable"
+    assert factors["constraints"]["assessment"] == "not_applicable"
+    assert factors["alternatives"]["assessment"] == "strong"
+    assert "2 rejeitadas" in factors["alternatives"]["explanation"]
+    assert "MI-NO-BASELINE" not in gap_codes
+    assert "MI-NO-ALTERNATIVES" not in gap_codes
+    rendered = str(
+        {
+            "risk": report["principal_risk"],
+            "next": report["next_decision"],
+            "gaps": report["gaps"],
+            "non_inferences": report["non_inferences"],
+        }
+    ).casefold()
+    assert "linha de base" not in rendered
+    assert "intervir antes de medir" not in rendered
+
+
 def test_authenticated_run_is_persisted_versioned_and_human_reviewed() -> None:
     headers, organization_id = _owner()
     endpoint = f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/analyze"
@@ -165,6 +241,7 @@ def test_authenticated_run_is_persisted_versioned_and_human_reviewed() -> None:
     assert first.status_code == 200, first.text
     first_data = first.json()
     assert first_data["ai_status"] == "not_configured"
+    assert first_data["review_allowed"] is True
     assert first_data["mission_revision"] == 1
     assert first_data["review_status"] == "required"
 
@@ -244,6 +321,12 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     assert "UI-R2 · MI-1" in frontend.text
     assert "Executar Mission Intelligence" in frontend.text
     assert "aiGovernanceStatus?.organization_authorized" in frontend.text
+    assert "Proposta de investigação" in frontend.text
+    assert "Fundamentação declarada" in frontend.text
+    assert "data-review-decision" in frontend.text
+    assert "Decision Confidence" not in frontend.text
+    assert 'id="analysisMode" class="analysis-mode is-unavailable hidden"' in frontend.text
+    assert "Importar visualização" in frontend.text
 
     spec = client.get("/openapi.json")
     assert spec.status_code == 200

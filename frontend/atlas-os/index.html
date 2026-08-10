@@ -269,6 +269,24 @@
       border-radius:0 14px 14px 0;background:var(--gold-soft);color:var(--ink-soft);
       font-family:Georgia,serif;font-size:18px;font-style:italic;line-height:1.55;
     }
+    .method-notice{
+      margin:-2px 0 15px;padding:12px 15px;border:1px solid rgba(149,103,31,.22);
+      border-left:3px solid var(--gold);border-radius:0 12px 12px 0;
+      background:#fbf8f1;color:var(--ink-soft);font-size:11.5px;line-height:1.55
+    }
+    .method-notice strong{color:var(--ink);font-weight:800}
+    .method-notice small{display:block;margin-top:5px;color:var(--ink-muted);font-size:10.5px;line-height:1.5}
+    .research-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+    .research-card{
+      min-height:190px;padding:21px;border:1px solid var(--border);border-radius:var(--radius);
+      background:var(--surface-glass);box-shadow:var(--shadow)
+    }
+    .research-card .type{color:var(--gold-ink);font-size:9px;font-weight:850;letter-spacing:.11em;text-transform:uppercase}
+    .research-card h3{margin:15px 0 9px;font-family:Georgia,serif;font-size:23px;font-weight:400;line-height:1.25}
+    .research-card p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
+    .research-boundary{margin-top:16px;padding:19px 21px;border:1px solid var(--border);border-radius:var(--radius);background:#f5f8f6}
+    .research-boundary strong{display:block;margin-bottom:7px}
+    .research-boundary p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
 
     .tag{
       display:inline-flex;align-items:center;min-height:26px;padding:0 9px;
@@ -353,6 +371,7 @@
     .analysis-mode input{width:17px;height:17px;margin:2px 0 0;accent-color:var(--forest)}
     .analysis-mode label{font-size:12px;font-weight:780;line-height:1.4}
     .analysis-mode small{display:block;margin-top:4px;color:var(--ink-muted);font-size:10.5px;font-weight:500;line-height:1.5}
+    .analysis-mode .ai-boundary{margin-top:7px;color:#78531c;font-weight:720}
     .analysis-mode.is-unavailable{opacity:.72}
     .result-panel{min-height:550px;padding:22px}
     .result-placeholder{
@@ -378,6 +397,11 @@
     .ai-advisory h4{margin:0 0 8px;font-family:Georgia,serif;font-size:20px;font-weight:400}
     .ai-advisory p,.ai-advisory li{color:var(--ink-soft);font-size:11.5px;line-height:1.6}
     .ai-provenance{margin-top:13px;padding-top:11px;border-top:1px solid rgba(164,134,73,.25);color:var(--ink-muted);font-size:9.5px;line-height:1.5}
+    .run-review{margin-top:16px;padding:17px;border:1px solid rgba(45,93,70,.24);border-radius:13px;background:#f1f7f3}
+    .run-review .field{margin:13px 0 10px}
+    .run-review textarea{min-height:90px}
+    .run-review-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .run-review-status{margin-top:11px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.7);font-size:11px;font-weight:750}
 
     /* ---------- Cards / records ---------- */
     .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
@@ -540,7 +564,7 @@
     @media(max-width:650px){
       .main{--page-gutter:16px}
       .login-visual,.login-panel{padding:28px}
-      .principles,.chain,.cards,.recognition-grid,.timeline{grid-template-columns:1fr}
+      .principles,.chain,.cards,.research-grid,.recognition-grid,.timeline{grid-template-columns:1fr}
       .chain{grid-auto-rows:auto}
       .chain-card{min-height:0}
       .cards.is-single{grid-template-columns:1fr}
@@ -689,6 +713,7 @@
         <button class="nav-item" data-page="workspace" type="button"><span class="nav-icon">◇</span><span>Nova análise</span></button>
 
         <div class="nav-label">Inteligência</div>
+        <button class="nav-item" data-page="research" type="button"><span class="nav-icon">⌁</span><span>Investigação</span></button>
         <button class="nav-item" data-page="knowledge" type="button"><span class="nav-icon">▦</span><span>Conhecimento</span></button>
         <button class="nav-item" data-page="evidence" type="button"><span class="nav-icon">◌</span><span>Evidência</span></button>
         <button class="nav-item" data-page="learning" type="button"><span class="nav-icon">↗</span><span>Aprendizagem</span></button>
@@ -716,7 +741,7 @@
 
         <div class="top-actions">
           <input id="importInput" type="file" accept=".json,application/json" hidden />
-          <button id="importButton" class="btn-secondary" type="button">Importar pacote</button>
+          <button id="importButton" class="btn-secondary" type="button" title="Importa uma visualização local; não cria registos canónicos no servidor.">Importar visualização</button>
           <button class="btn-secondary" type="button" data-go="workspace">Nova análise</button>
           <div class="user-chip">
             <div class="avatar">GS</div>
@@ -731,7 +756,7 @@
         <div class="hero">
           <div class="hero-copy">
             <div class="eyebrow">Mission Intelligence · missão ativa</div>
-            <h1>Qual é a próxima decisão que pode ser tomada com confiança?</h1>
+            <h1>Qual é a próxima decisão com fundamentação suficiente?</h1>
             <p>
               O SRIS preserva a cadeia até ao ponto em que ela efetivamente se
               encontra — e não além dele. Uma missão sem decisão, execução ou
@@ -754,6 +779,8 @@
             <div id="situationSummary" class="context-summary"></div>
           </div>
         </div>
+
+        <div id="missionMethodNotice" class="method-notice" role="note"></div>
 
         <div id="decisionChain" class="chain" role="list" aria-label="Cadeia da missão ativa" aria-live="polite"></div>
 
@@ -817,7 +844,7 @@
               Antes de recomendar, o SRIS separa o que foi observado do que foi
               assumido; identifica alternativas, restrições e lacunas; preserva
               a origem da evidência; e impede que uma conclusão seja apresentada
-              com maior confiança do que a cadeia permite. O objetivo não é
+              com maior solidez do que a cadeia permite. O objetivo não é
               produzir respostas mais depressa. É preservar a capacidade de
               saber, mais tarde, se uma conclusão ainda se sustenta.
             </p>
@@ -827,6 +854,9 @@
         <div class="workspace">
           <section class="panel form-panel">
             <form id="analysisForm">
+              <div class="method-notice">
+                <strong>Contrato da análise.</strong> O relatório determinístico lê apenas os registos canónicos da missão. O texto abaixo preserva contexto e pode enquadrar uma análise assistida, mas não se transforma automaticamente em observação, evidência, pressuposto ou decisão.
+              </div>
               <div class="form-row">
                 <div class="field">
                   <label for="analysisMission">Missão</label>
@@ -859,10 +889,11 @@
                 <textarea id="analysisUnknowns"></textarea>
               </div>
 
-              <div id="analysisMode" class="analysis-mode is-unavailable">
+              <div id="analysisMode" class="analysis-mode is-unavailable hidden">
                 <input id="analysisAI" type="checkbox" disabled />
                 <label for="analysisAI">
-                  Complementar com análise assistida por IA
+                  Complementar com análise assistida por IA · saída provisória
+                  <small class="ai-boundary">Não cria evidência, não valida hipóteses, não estabelece causalidade e não toma decisões. Toda a saída exige revisão humana.</small>
                   <small id="analysisAIStatus">A verificar a capacidade disponível.</small>
                 </label>
               </div>
@@ -878,11 +909,64 @@
               <div>
                 <strong>Mission Intelligence ainda não executada</strong>
                 A análise determinística usa a missão canónica, mantém separados
-                estado, tendência e confiança, e não transforma lacunas em certeza.
+                estado, tendência e fundamentação, e não transforma lacunas em certeza.
               </div>
             </div>
             <div id="resultBlock" class="hidden" aria-live="polite"></div>
           </aside>
+        </div>
+      </section>
+
+      <!-- INVESTIGAÇÃO -->
+      <section id="page-research" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Proposta de investigação</div>
+            <h1>Pode uma organização reconstruir, anos depois, por que decidiu?</h1>
+            <p>
+              Esta é uma proposta metodológica em estado inicial. O SRIS já
+              preserva e reconstrói uma cadeia de registos; ainda não demonstrou
+              que o faz melhor, mais depressa ou com menor fricção do que as
+              práticas documentais existentes.
+            </p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-secondary" type="button" data-go="knowledge">Ver o modelo</button>
+            <button class="btn-primary" type="button" data-go="workspace">Executar M-001</button>
+          </div>
+        </div>
+
+        <div class="research-grid">
+          <article class="research-card">
+            <div class="type">Pergunta</div>
+            <h3>É possível preservar e reconstruir a justificação de uma decisão ao longo do tempo?</h3>
+            <p>A pergunta incide na memória do processo decisório, não na previsão do resultado nem na avaliação ecológica da decisão.</p>
+          </article>
+          <article class="research-card">
+            <div class="type">Hipótese metodológica</div>
+            <h3>Uma cadeia estruturada pode tornar a reconstrução mais completa e auditável.</h3>
+            <p>Observação, evidência, alternativa, pressuposto, restrição, decisão, execução, resultado e aprendizagem permanecem distintos e relacionados.</p>
+          </article>
+          <article class="research-card">
+            <div class="type">O que será testado</div>
+            <h3>Completude, tempo, fricção e qualidade da proveniência.</h3>
+            <p>O piloto deverá comparar o SRIS com práticas documentais existentes, usando tarefas e critérios definidos antes da recolha.</p>
+          </article>
+          <article class="research-card">
+            <div class="type">O que não será alegado</div>
+            <h3>Nenhuma superioridade ou eficácia antes de evidência adequada.</h3>
+            <p>Não se alegam causalidade, resiliência, regeneração, eficácia ecológica, superioridade metodológica ou validação científica.</p>
+          </article>
+        </div>
+
+        <div class="research-boundary">
+          <strong>Estado atual da proposta</strong>
+          <p>
+            O motor determinístico, o contrato canónico, a proveniência, o
+            versionamento e a revisão humana estão implementados. A comparação
+            externa, o protocolo final, os participantes, os limiares e a análise
+            independente ainda não estão definidos nem autorizados.
+          </p>
         </div>
       </section>
 
@@ -908,7 +992,7 @@
         </div>
 
         <div class="section-title">
-          <div class="eyebrow">Os oito elos da decisão</div>
+          <div class="eyebrow">Os nove elementos da cadeia</div>
           <h2>O que o SRIS regista — e por que importa</h2>
         </div>
 
@@ -921,9 +1005,10 @@
               <tr><td><strong>Observação</strong></td><td>O facto observado, com método e limitação declarados.</td><td>Impede confundir o que se viu com o que se interpretou.</td></tr>
               <tr><td><strong>Evidência</strong></td><td>O que sustenta ou contradiz cada explicação.</td><td>Torna visível a evidência contrária, que normalmente se perde.</td></tr>
               <tr><td><strong>Alternativas</strong></td><td>As opções em avaliação e o critério que as separa.</td><td>Evita repetir avaliações já feitas em decisões anteriores.</td></tr>
-              <tr><td><strong>Pressupostos</strong></td><td>O que é assumido sem verificação, com estado e confiança.</td><td>Permite saber, mais tarde, o que deixou de ser verdade.</td></tr>
+              <tr><td><strong>Pressupostos</strong></td><td>O que é assumido sem verificação, com estado e qualidade declarada.</td><td>Permite saber, mais tarde, o que deixou de ser verdade.</td></tr>
               <tr><td><strong>Restrições</strong></td><td>Prazos, autorizações e condições impostas ao processo.</td><td>Regista condicionantes e desvios como dados explícitos.</td></tr>
-              <tr><td><strong>Decisão e execução</strong></td><td>A escolha, os critérios e o que efetivamente foi feito.</td><td>Distingue o que se decidiu do que foi executado.</td></tr>
+              <tr><td><strong>Decisão</strong></td><td>A escolha, os critérios e a condição de revisão.</td><td>Preserva o compromisso assumido e a fundamentação disponível nesse momento.</td></tr>
+              <tr><td><strong>Execução</strong></td><td>O que foi efetivamente feito, por quem e em que condições.</td><td>Distingue o que se decidiu do que foi executado.</td></tr>
               <tr><td><strong>Resultado</strong></td><td>O efeito observado e o grau em que é atribuível à intervenção.</td><td>Impede declarar êxito quando a cadeia não o sustenta.</td></tr>
               <tr><td><strong>Aprendizagem</strong></td><td>O que fica e pode originar novas missões ou decisões.</td><td>Transfere conhecimento entre campanhas, equipas e organizações.</td></tr>
             </tbody>
@@ -1302,6 +1387,7 @@
             overview: ["Situação", "Estado da missão ativa"],
             missions: ["Missões", "Portefólio acompanhado pelo SRIS"],
             workspace: ["Nova análise", "Estruturar contexto antes de decidir"],
+            research: ["Investigação", "Pergunta, hipótese metodológica e teste"],
             knowledge: ["Conhecimento", "Problema, arquitetura e percurso da decisão"],
             evidence: ["Evidência", "Registos, método, limitações e estado"],
             learning: ["Aprendizagem", "O que fica antes e depois da decisão"],
@@ -1319,6 +1405,7 @@
           status: "Em avaliação",
           confidence: "Moderada",
           decision: "DEC-0001 · Em aberto",
+          method_notice: "Caso real aberto. Os registos foram declarados pelo promotor e ainda não tiveram validação independente. Não existe decisão tomada, execução ou resultado.",
           situation: {
             summary:
               "Existem três observações, três alternativas em avaliação, dois pressupostos por verificar e duas restrições não avaliadas. Nenhuma alternativa foi selecionada. Não existe execução nem resultado.",
@@ -1491,6 +1578,7 @@
           status:"Caso identificado",
           confidence:"Baixa",
           decision:"Não iniciada",
+          method_notice:"Caso candidato, não compromisso de intervenção. Os registos preservam declarações e referências iniciais; não demonstram autorização, parceria, decisão ou resultado.",
           situation:{
             summary:"Caso identificado para testar a arquitetura fora do controlo direto do promotor. Uma eventual recuperação depende de múltiplos decisores, autorizações e restrições patrimoniais.",
             attention:[
@@ -1539,17 +1627,18 @@
         "CA-AWARD-APPLICATION": {
           id:"CA-AWARD-APPLICATION",
           title:"Prémio Empreendedorismo e Inovação Crédito Agrícola",
-          subtitle:"Candidatura 2026 · demonstração operacional do SRIS.",
+          subtitle:"Candidatura 2026 · submetida em 9 de agosto de 2026.",
           meta:"Candidatura · Empreendedorismo · Inovação",
-          status:"Em preparação final",
+          status:"Submetida · avaliação pendente",
           confidence:"Elevada",
-          decision:"Percurso de demonstração definido",
+          decision:"DEC-CA-001 · Candidatura submetida",
+          method_notice:"Missão organizacional real. A candidatura foi submetida; não existe ainda decisão do júri. A submissão e o reconhecimento externo não constituem validação científica nem prova de impacto.",
           situation:{
-            summary:"A candidatura deve provar o princípio nuclear do SRIS através de uma missão real, sem transformar visão futura em resultado já demonstrado.",
+            summary:"A candidatura foi submetida usando a M-001 como demonstração principal, sem transformar visão futura em resultado já demonstrado.",
             attention:[
-              {title:"Coerência com o estado real.",description:"TRL, utilização externa, resultados e impacto têm de ser declarados sem exagero.",level:"Rigor"},
-              {title:"M-001 como demonstração principal.",description:"O caso real deve mostrar observação, incerteza, alternativas, restrições, decisão em aberto e aprendizagem.",level:"Prioridade"},
-              {title:"Impacto como hipótese de piloto.",description:"Benefícios devem ser apresentados com indicadores a medir, não como ganhos já comprovados.",level:"Disciplina"}
+              {title:"Preservar a versão submetida.",description:"O conteúdo público associado à candidatura deve permanecer coerente com o formulário e os anexos entregues.",level:"Rigor"},
+              {title:"Associação dos anexos por confirmar.",description:"Os documentos complementares foram enviados por email após falha técnica de upload; a associação formal depende da organização.",level:"Acompanhamento"},
+              {title:"Impacto permanece por medir.",description:"A submissão não altera o estado da validação: benefícios continuam a ser hipóteses do piloto.",level:"Disciplina"}
             ],
             chain:[
               {number:"01",label:"Problema",value:"Definido",note:"Perda do raciocínio das decisões.",state:"completed"},
@@ -1557,19 +1646,19 @@
               {number:"03",label:"Solução",value:"Operacional",note:"Registo estruturado da cadeia decisória.",state:"completed"},
               {number:"04",label:"Estado real",value:"TRL 4–5",note:"Sem utilização externa operacional.",state:"attention"},
               {number:"05",label:"Impacto",value:"A medir",note:"Indicadores definidos para o piloto.",state:"open"},
-              {number:"06",label:"Prémio",value:"Aplicação definida",note:"Instrumentação + utilização por terceiros.",state:"completed"}
+              {number:"06",label:"Submissão",value:"Concluída",note:"Formulário recebido em 9 de agosto de 2026 às 23:59.",state:"completed"}
             ]
           },
           analysis:{
-            title:"Preparação final — Prémio Empreendedorismo e Inovação Crédito Agrícola",
-            context:"O SRIS deve ser apresentado através de um problema concreto e uma missão real, deixando claros o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
-            central_question:"Qual é a demonstração mais curta e rigorosa que permite ao júri compreender problema, inovação, estado real, potencial e próximos passos sem confundir hipótese com resultado?",
+            title:"Candidatura submetida — Prémio Empreendedorismo e Inovação Crédito Agrícola",
+            context:"O SRIS foi apresentado através de um problema concreto e da M-001, declarando o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
+            central_question:"A candidatura submetida preserva a distinção entre demonstração funcional, hipótese de impacto e validação ainda inexistente?",
             available_evidence:"M-001 documentada; plataforma operacional; arquitetura conceptual; motor epistemológico; backend em produção; reconhecimento externo documentado; roadmap e indicadores de piloto definidos.",
             unknowns:"Resposta do júri, primeira organização externa, custo real de documentação, métricas de eficiência e resultados do piloto.",
             result:{
-              headline:"Demonstrar o SRIS através da M-001 e do seu estado real.",
-              summary:"A candidatura deve mostrar que a inovação não está em prever um resultado, mas em preservar a estrutura que permitirá avaliar qualquer resultado futuro.",
-              situation:"O produto tem protótipo funcional e uma missão real, mas ainda não tem utilização externa ou benefícios quantitativos medidos.",
+              headline:"A candidatura foi submetida através da M-001 e do seu estado real.",
+              summary:"A versão entregue apresenta a inovação como preservação da estrutura necessária para avaliar resultados futuros, sem declarar esses resultados como existentes.",
+              situation:"A candidatura está submetida. O produto mantém protótipo funcional e uma missão real, mas continua sem utilização externa ou benefícios quantitativos medidos.",
               principal_risk:"Sobreprometer impacto ou escala e enfraquecer a credibilidade de uma proposta que assenta precisamente em rigor e rastreabilidade.",
               assumptions:["O júri valorizará uma demonstração funcional e verificável.","M-001 é suficiente para tornar o problema concreto.","Reconhecimento externo reforça credibilidade, mas não substitui validação."],
               alternatives:[
@@ -1577,7 +1666,7 @@
                 {id:"B",title:"Percurso M-001",description:"Problema → registos → incerteza → decisão em aberto → aprendizagem."},
                 {id:"C",title:"Apresentação comercial",description:"Foco em mercados e potencial de escala."}
               ],
-              next_decision:"Usar M-001 como percurso principal; Estado Real e Impacto como prova de disciplina; reconhecimento apenas como contexto externo.",
+              next_decision:"Preservar a versão submetida, confirmar a associação dos anexos e aguardar a avaliação sem acrescentar novas alegações.",
               confidence:"Elevada"
             }
           },
@@ -1646,12 +1735,14 @@
       const id=String(m.id).trim();
       return {
         id,
+        local_only:true,
         title:String(m.title),
         subtitle:m.subtitle||"Missão importada através de pacote SRIS.",
         meta:m.meta||"Pacote SRIS importado",
         status:m.status||"Importada",
         confidence:m.confidence||"Por avaliar",
         decision:m.decision||"Por estruturar",
+        method_notice:"Visualização local importada. Não cria registos canónicos no servidor e não pode ser processada pelo motor até ser revista e integrada por um fluxo autenticado.",
         situation:m.situation||{
           summary:m.context||"Missão importada.",
           attention:[],
@@ -1708,7 +1799,14 @@
       }catch(err){
         console.warn("Estado de Mission Intelligence indisponível:",err);
       }
-      config.missions={...(config.missions||{}),...importedMissions()};
+      const localImports={};
+      Object.values(importedMissions()).forEach(raw=>{
+        try{
+          const imported=normalizeImportedMission(raw);
+          localImports[imported.id]=imported;
+        }catch(err){console.warn("Pacote local ignorado:",err)}
+      });
+      config.missions={...(config.missions||{}),...localImports};
       if(!config.missions[activeMissionId]) activeMissionId="M-001";
       renderAll();
       updateAIControl();
@@ -1759,7 +1857,7 @@
             <div class="mission-meta">${esc(m.id)} · ${esc(m.meta||m.subtitle||"")}</div>
           </div>
           <div>${statusTag(m.status)}</div>
-          <div><strong>Confiança: ${esc(String(m.confidence||"").toLowerCase())}</strong></div>
+          <div><strong>Fundamentação declarada: ${esc(String(m.confidence||"").toLowerCase())}</strong></div>
           <div class="mission-arrow">›</div>
         </button>
       `).join("");
@@ -1770,6 +1868,10 @@
       qs("#situationMission").innerHTML=options();
       qs("#situationMission").value=activeMissionId;
       qs("#situationSummary").textContent=m.situation?.summary||"";
+      qs("#missionMethodNotice").innerHTML=`
+        <strong>Limite de leitura.</strong> ${esc(m.method_notice||"Os registos representam o estado declarado da missão e não uma validação externa.")}
+        <small>Classificação operacional declarada pelo responsável; não representa probabilidade, inferência automática ou validação científica.</small>
+      `;
 
       qs("#decisionChain").innerHTML=(m.situation?.chain||[]).map(i=>`
         <article
@@ -1810,8 +1912,14 @@
       qs("#analysisQuestion").value=a.central_question||"";
       qs("#analysisEvidence").value=a.available_evidence||"";
       qs("#analysisUnknowns").value=a.unknowns||"";
+      const submit=qs("#analysisSubmit");
+      submit.disabled=Boolean(m.local_only);
+      submit.textContent=m.local_only?"Integrar registos antes de analisar":"Executar Mission Intelligence";
       qs("#resultPlaceholder").classList.remove("hidden");
       qs("#resultBlock").classList.add("hidden");
+      qs("#resultPlaceholder div").innerHTML=m.local_only
+        ? `<strong>Visualização local, ainda não canónica</strong>Revise e integre os registos num fluxo autenticado antes de executar Mission Intelligence.`
+        : `<strong>Mission Intelligence ainda não executada</strong>A análise determinística usa a missão canónica, mantém separados estado, tendência e fundamentação, e não transforma lacunas em certeza.`;
       renderSituation();
       syncFilters(id);
     }
@@ -1819,10 +1927,17 @@
     const indicatorLabels={
       critical:"Crítico",requires_attention:"Requer atenção",on_track:"No percurso",completed:"Concluída",
       improving:"A melhorar",stable:"Estável",deteriorating:"A deteriorar",not_evaluable:"Não avaliável",
-      high:"Elevada",moderate:"Moderada",low:"Baixa"
+      high:"Elevada",moderate:"Moderada",low:"Baixa",strong:"Sólida",partial:"Parcial",weak:"Frágil",
+      not_applicable:"Não aplicável"
+    };
+
+    const factorLabels={
+      evidence:"Evidência",assumptions:"Pressupostos",constraints:"Restrições",
+      alternatives:"Alternativas",decision_readiness:"Estado da decisão"
     };
 
     function indicatorLabel(value){return indicatorLabels[value]||String(value||"")}
+    function factorLabel(value){return factorLabels[value]||String(value||"")}
 
     function renderResult(result){
       const root=qs("#resultBlock");
@@ -1854,17 +1969,32 @@
           <p>${esc(d.summary||"")}</p>
         </div>
         <div class="result-metrics">
-          <article><span>Mission Status</span><strong>${esc(indicatorLabel(d.mission_status))}</strong></article>
-          <article><span>Mission Trend</span><strong>${esc(indicatorLabel(d.mission_trend))}</strong></article>
-          <article><span>Decision Confidence</span><strong>${esc(indicatorLabel(d.decision_confidence))}</strong></article>
+          <article><span>Estado da missão</span><strong>${esc(indicatorLabel(d.mission_status))}</strong></article>
+          <article><span>Tendência</span><strong>${esc(indicatorLabel(d.mission_trend))}</strong></article>
+          <article><span>Estado da fundamentação</span><strong>${esc(indicatorLabel(d.decision_confidence))}</strong></article>
         </div>
         <div class="result-section"><strong>Risco principal</strong><p>${esc(d.principal_risk||"")}</p></div>
         <div class="result-section"><strong>Lacunas críticas</strong><ul>${(d.gaps||[]).map(g=>`<li><strong>${esc(g.title)}</strong><br>${esc(g.explanation)}${g.evidence_needed?`<br><em>Evidência necessária: ${esc(g.evidence_needed)}</em>`:""}</li>`).join("")||"<li>Não foram detetadas lacunas adicionais.</li>"}</ul></div>
-        <div class="result-section"><strong>Fatores de confiança</strong><ul>${(d.confidence_factors||[]).map(f=>`<li><strong>${esc(f.factor)} · ${esc(indicatorLabel(f.assessment))}</strong><br>${esc(f.explanation)}</li>`).join("")}</ul></div>
+        <div class="result-section"><strong>Fatores da fundamentação</strong><ul>${(d.confidence_factors||[]).map(f=>`<li><strong>${esc(factorLabel(f.factor))} · ${esc(indicatorLabel(f.assessment))}</strong><br>${esc(f.explanation)}</li>`).join("")}</ul></div>
         <div class="result-section"><strong>Pressupostos a testar</strong><ul>${(d.assumptions_to_test||[]).map(x=>`<li>${esc(x)}</li>`).join("")||"<li>Nenhum pressuposto aberto foi identificado.</li>"}</ul></div>
         <div class="result-section"><strong>Alternativas representadas</strong><ul>${(d.alternatives||[]).map(a=>`<li><strong>${esc(a.canonical_id)} — ${esc(a.title)}</strong><br>${esc(a.description||"")}</li>`).join("")||"<li>Não existem alternativas canónicas suficientes.</li>"}</ul></div>
         <div class="result-section"><strong>Próxima decisão</strong><p>${esc(d.next_decision||"")}</p></div>
         <div class="result-section"><strong>O que o sistema não inferiu</strong><ul>${(d.non_inferences||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+        ${result.run_id?`
+          <section class="run-review" data-run-review="${esc(result.run_id)}">
+            <strong>Revisão humana da execução</strong>
+            <p>Esta revisão aceita ou rejeita o relatório produzido; não seleciona uma alternativa e não substitui a decisão da missão.</p>
+            ${result.review_status==="required"&&result.review_allowed?`
+              <div class="field">
+                <label for="runReviewComment">Comentário obrigatório</label>
+                <textarea id="runReviewComment" placeholder="Registe o que foi verificado, os limites mantidos e o fundamento da revisão."></textarea>
+              </div>
+              <div class="run-review-actions">
+                <button class="btn-secondary" type="button" data-review-decision="rejected">Rejeitar relatório</button>
+                <button class="btn-primary" type="button" data-review-decision="approved">Aceitar como revisto</button>
+              </div>`:
+              `<div class="run-review-status">${result.review_status==="required"?"Revisão pendente por perfil autorizado.":`Estado: ${esc(result.review_status||"revisto")}`}</div>`}
+          </section>`:""}
         ${aiNotice?`<div class="result-section"><strong>Estado da IA</strong><p>${esc(aiNotice)}</p></div>`:""}
         ${advisory?`
           <section class="ai-advisory">
@@ -1886,6 +2016,7 @@
       if(!checkbox||!status||!container)return;
       const token=sessionStorage.getItem("sris_token");
       const institutional=Boolean(token&&activeOrganizationId);
+      container.classList.toggle("hidden",!institutional);
       const available=Boolean(
         institutional&&
         intelligenceStatus.ai_configured&&
@@ -1896,7 +2027,7 @@
       if(!available)checkbox.checked=false;
       container.classList.toggle("is-unavailable",!available);
       if(!institutional){
-        status.textContent="No modo de demonstração é executado apenas o motor determinístico. A IA requer sessão institucional.";
+        status.textContent="A análise assistida só é apresentada quando existe sessão institucional e governação ativa.";
       }else if(!intelligenceStatus.ai_configured){
         status.textContent="A camada OpenAI está instalada, mas a configuração de produção ainda não está ativa.";
       }else if(!aiGovernanceStatus?.organization_authorized){
@@ -1953,7 +2084,7 @@
                   ${e.limitation?`<strong>Limitação:</strong> ${esc(e.limitation)}`:""}
                 </div>`:""}
               <div class="footer">
-                <span>${esc(e.status||"")} · Confiança ${esc(e.confidence||"")}</span>
+                <span>${esc(e.status||"")} · Qualidade declarada ${esc(e.confidence||"")}</span>
                 <span>${esc(recordOrigin(e,e.missionId))}</span>
               </div>
             </article>
@@ -2004,9 +2135,10 @@
       qs("#missionModalContent").innerHTML=`
         <div class="modal-status">
           <article><span>Estado</span><strong>${esc(m.status)}</strong></article>
-          <article><span>Confiança</span><strong>${esc(m.confidence)}</strong></article>
+          <article><span>Fundamentação declarada</span><strong>${esc(m.confidence)}</strong></article>
           <article><span>Decisão</span><strong>${esc(m.decision)}</strong></article>
         </div>
+        <section class="modal-section"><h3>Limite de leitura</h3><p>${esc(m.method_notice||"Os registos representam o estado declarado da missão e não uma validação externa.")}</p></section>
         <section class="modal-section"><h3>Contexto</h3><p>${esc(m.analysis?.context||"")}</p></section>
         <section class="modal-section"><h3>Questão central</h3><p>${esc(m.analysis?.central_question||"")}</p></section>
         <section class="modal-section"><h3>Próxima decisão</h3><p>${esc(m.analysis?.result?.next_decision||m.decision||"")}</p></section>
@@ -2044,6 +2176,38 @@
       document.body.style.overflow="";
     }
 
+    async function submitRunReview(decision,button){
+      const panel=button.closest("[data-run-review]");
+      const runId=panel?.dataset.runReview;
+      const token=sessionStorage.getItem("sris_token");
+      const comment=panel?.querySelector("#runReviewComment")?.value.trim()||"";
+      if(!runId||!token||!activeOrganizationId){toast("A revisão exige uma sessão institucional ativa.");return}
+      if(comment.length<3){toast("Registe um comentário de revisão antes de continuar.");return}
+      const buttons=qsa("[data-review-decision]",panel);
+      buttons.forEach(item=>item.disabled=true);
+      try{
+        const res=await fetch(
+          `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/runs/${encodeURIComponent(runId)}/review`,
+          {
+            method:"POST",
+            headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
+            body:JSON.stringify({decision,comment})
+          }
+        );
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||"Não foi possível concluir a revisão.");
+        panel.innerHTML=`
+          <strong>Revisão humana da execução</strong>
+          <p>Esta revisão incidiu sobre o relatório, não sobre a seleção de uma alternativa.</p>
+          <div class="run-review-status">${data.review_status==="approved"?"Relatório aceite como revisto.":"Relatório rejeitado na revisão."}</div>
+        `;
+        toast("Revisão registada no histórico de auditoria.");
+      }catch(err){
+        buttons.forEach(item=>item.disabled=false);
+        toast(err.message||"Não foi possível concluir a revisão.");
+      }
+    }
+
     function renderAll(){
       renderSituation();
       renderMissions();
@@ -2062,6 +2226,9 @@
 
     // Navigation
     document.addEventListener("click",(event)=>{
+      const review=event.target.closest("[data-review-decision]");
+      if(review){submitRunReview(review.dataset.reviewDecision,review);return}
+
       const go=event.target.closest("[data-go]");
       if(go){navigate(go.dataset.go);return}
 
@@ -2091,6 +2258,7 @@
       e.preventDefault();
       const m=mission(qs("#analysisMission").value);
       if(!m)return;
+      if(m.local_only){toast("A visualização importada ainda não contém registos canónicos no servidor.");return}
       const button=qs("#analysisSubmit"),token=sessionStorage.getItem("sris_token");
       const institutional=Boolean(token&&activeOrganizationId);
       const endpoint=institutional

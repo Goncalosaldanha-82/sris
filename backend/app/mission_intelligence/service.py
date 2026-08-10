@@ -72,6 +72,7 @@ def _base_result(
         "ai_governance": None,
         "ai_usage": None,
         "human_review_required": True,
+        "review_allowed": False,
     }
 
 
@@ -208,6 +209,7 @@ def run_organizational_analysis(
     db.refresh(mission)
     deterministic = analyze_mission(document)
     result = _base_result(document, deterministic)
+    result["review_allowed"] = user_role in {"owner", "admin", "reviewer"}
     usage_event: AIUsageEvent | None = None
 
     if payload.use_ai:

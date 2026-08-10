@@ -4,7 +4,7 @@ Estado: implementação preparada para revisão e implantação
 
 Versão da linguagem de missão: MDL 1.3
 
-Versão do motor: `mission-intelligence-deterministic-1.0`
+Versão do motor: `mission-intelligence-deterministic-1.1`
 
 ## Decisão de arquitetura
 
@@ -18,12 +18,17 @@ Princípios invariantes:
 - a cadeia é preservada como
   Realidade → Observação → Representação → Informação → Evidência →
   Conhecimento → Compreensão → Decisão → Ação → Resultado → Aprendizagem;
-- `Mission Status`, `Mission Trend` e `Decision Confidence` são calculados e
-  apresentados separadamente;
+- estado da missão, tendência e estado da fundamentação são calculados e
+  apresentados separadamente (`decision_confidence` mantém-se como nome do
+  campo no contrato API 1.0 por compatibilidade);
 - ausência de dados não é convertida em certeza;
 - texto livre é contexto declarado e não se torna evidência canónica sem um
   registo com proveniência;
-- evidência mantém origem, método e limitações; confiança é um atributo distinto;
+- evidência mantém origem, método e limitações; a qualidade declarada do registo
+  é um atributo distinto e não representa probabilidade ou validação científica;
+- requisitos como linha de base são declarados por missão e só ficam satisfeitos
+  por marcadores ou relações canónicas explícitas, nunca por palavras em texto livre;
+- alternativas rejeitadas permanecem na reconstrução da decisão;
 - uma saída de IA é provisória, cita IDs canónicos e não constitui evidência,
   decisão nem atribuição causal;
 - toda a execução institucional requer revisão humana documentada.
@@ -32,7 +37,7 @@ Princípios invariantes:
 
 1. O catálogo governado é convertido para o contrato canónico `sris.mission/1.3`.
 2. O snapshot é validado e recebe um hash SHA-256 reproduzível.
-3. O motor determinístico calcula estado, tendência, confiança, lacunas,
+3. O motor determinístico calcula estado, tendência, fundamentação, lacunas,
    pressupostos, alternativas e não-inferências explícitas.
 4. Numa sessão institucional, e apenas por opção expressa, a camada OpenAI pode
    acrescentar uma análise estruturada sobre o snapshot e o relatório.
@@ -113,14 +118,17 @@ Controlos presentes:
 
 ## Resultado da auditoria e dívida explícita
 
-A interface de produção foi verificada nas sete áreas e apresenta uma base visual
+A interface de produção foi verificada nas áreas públicas e apresenta uma base visual
 coerente. Antes deste trabalho, “Processar análise” apenas mostrava um resultado
 pré-escrito no JavaScript e as importações existiam apenas em `localStorage`.
 O backend de produção expunha autenticação, organizações, conhecimento e workflow,
 mas não tinha Mission Intelligence, persistência de missões nem análise real.
 
 Esta versão corrige o percurso demonstrativo e institucional das três missões do
-catálogo. Permanecem deliberadamente fora deste incremento:
+catálogo. A interface distingue agora a proposta de investigação do estado atual,
+declara os limites metodológicos por missão, oculta a opção de IA no modo público
+e permite rever uma execução persistida numa sessão institucional. Permanecem
+deliberadamente fora deste incremento:
 
 - transformar pacotes importados localmente em missões institucionais canónicas;
 - edição completa de relações entre objetos da cadeia;

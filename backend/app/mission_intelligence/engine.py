@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections import Counter, deque
-from typing import Iterable
-
 from .contracts import (
     AlternativeView,
     ConfidenceFactor,
@@ -16,16 +14,50 @@ from .contracts import (
 )
 
 
-ENGINE_VERSION = "mission-intelligence-deterministic-1.0"
-
-
-def _contains_any(text: str, needles: Iterable[str]) -> bool:
-    value = text.casefold()
-    return any(needle.casefold() in value for needle in needles)
+ENGINE_VERSION = "mission-intelligence-deterministic-1.1"
 
 
 def _active(record) -> bool:
     return record.state not in {"resolved", "refuted", "rejected", "completed"}
+
+
+def _count_phrase(count: int, singular: str, plural: str) -> str:
+    return f"{count} {singular if count == 1 else plural}"
+
+
+def _assessment(value: float) -> str:
+    if value >= 0.8:
+        return "strong"
+    if value >= 0.5:
+        return "partial"
+    return "weak"
+
+
+def _baseline_requirement(document: MissionDocumentV13) -> str:
+    requirements = document.metadata.get("analysis_requirements") or {}
+    baseline = requirements.get("baseline") or {}
+    value = str(baseline.get("applicability") or "undetermined")
+    return value if value in {"required", "not_applicable", "undetermined"} else "undetermined"
+
+
+def _has_explicit_baseline(document: MissionDocumentV13) -> bool:
+    """Return true only for an explicit canonical baseline marker.
+
+    A phrase in free text is never enough. A baseline must be represented by a
+    record whose metadata declares its role, or by an explicit relation in the
+    canonical graph.
+    """
+
+    if any(
+        record.metadata.get("is_baseline") is True
+        or record.metadata.get("measurement_role") == "baseline"
+        for record in document.records
+    ):
+        return True
+    return any(
+        relation.relation_type in {"establishes_baseline", "is_baseline_for"}
+        for relation in document.relations
+    )
 
 
 def propagate_review(
@@ -61,7 +93,10 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
     evidence = by_kind[RecordKind.EVIDENCE]
     assumptions = by_kind[RecordKind.ASSUMPTION]
     constraints = by_kind[RecordKind.CONSTRAINT]
-    alternatives = [item for item in by_kind[RecordKind.ALTERNATIVE] if item.state != "rejected"]
+    # Rejected alternatives remain part of the decision record. Removing them
+    # would erase precisely the discarded options that SRIS must preserve.
+    alternatives = by_kind[RecordKind.ALTERNATIVE]
+    rejected_alternatives = [item for item in alternatives if item.state == "rejected"]
     decisions = by_kind[RecordKind.DECISION]
     actions = by_kind[RecordKind.ACTION]
     outcomes = by_kind[RecordKind.OUTCOME]
@@ -73,15 +108,13 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
     refuted_assumptions = [item for item in assumptions if item.state == "refuted"]
     selected_decisions = [item for item in decisions if item.state in {"selected", "completed"}]
 
-    # Only canonical records can establish a baseline. Free text supplied in the
-    # analysis form remains contextual and must not silently become evidence.
-    evidence_text = " ".join(
-        f"{item.title} {item.description}" for item in observations + evidence
-    )
-    has_baseline = _contains_any(
-        evidence_text,
-        ["linha de base medida", "baseline measured", "série temporal de base"],
-    )
+    # Only an explicit canonical marker can establish a baseline. Free text
+    # supplied in the analysis form remains contextual and must not silently
+    # become evidence. Baseline requirements are mission-specific: a grant
+    # application, for example, must not inherit a field-intervention rule.
+    baseline_requirement = _baseline_requirement(document)
+    baseline_required = baseline_requirement == "required"
+    has_baseline = _has_explicit_baseline(document)
 
     auditable = [
         item
@@ -106,22 +139,31 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
 
     assumption_value = (
         (len(assumptions) - len(unresolved_assumptions)) / len(assumptions)
-        if assumptions else 0.4
+        if assumptions else None
     )
     constraint_value = (
         (len(constraints) - len(unresolved_constraints)) / len(constraints)
-        if constraints else 0.35
+        if constraints else None
     )
     alternative_value = min(len(alternatives) / 3.0, 1.0)
     decision_value = 1.0 if selected_decisions else (0.35 if decisions else 0.0)
+    confidence_components = [
+        (evidence_value, 0.30),
+        (alternative_value, 0.15),
+        (decision_value, 0.15),
+    ]
+    if assumption_value is not None:
+        confidence_components.append((assumption_value, 0.20))
+    if constraint_value is not None:
+        confidence_components.append((constraint_value, 0.20))
+    confidence_weight = sum(weight for _, weight in confidence_components)
     confidence_score = (
-        evidence_value * 0.30
-        + assumption_value * 0.20
-        + constraint_value * 0.20
-        + alternative_value * 0.15
-        + decision_value * 0.15
+        sum(value * weight for value, weight in confidence_components) / confidence_weight
+        if confidence_weight else 0.0
     )
-    if confidence_score >= 0.70:
+    if not decisions:
+        decision_confidence = ConfidenceLevel.NOT_EVALUABLE
+    elif confidence_score >= 0.70:
         decision_confidence = ConfidenceLevel.HIGH
     elif confidence_score >= 0.30:
         decision_confidence = ConfidenceLevel.MODERATE
@@ -142,28 +184,59 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
         ),
         ConfidenceFactor(
             factor="assumptions",
-            assessment="strong" if assumption_value == 1 else "partial" if assumption_value >= 0.5 else "weak",
-            explanation=f"{len(unresolved_assumptions)} pressuposto(s) permanece(m) por resolver.",
+            assessment=(
+                _assessment(assumption_value)
+                if assumption_value is not None
+                else "not_applicable"
+            ),
+            explanation=(
+                f"{_count_phrase(len(unresolved_assumptions), 'pressuposto', 'pressupostos')} "
+                f"{'permanece' if len(unresolved_assumptions) == 1 else 'permanecem'} por resolver."
+                if assumption_value is not None
+                else "Nenhum pressuposto canónico foi registado; este fator não é pontuado."
+            ),
         ),
         ConfidenceFactor(
             factor="constraints",
-            assessment="strong" if constraint_value == 1 else "partial" if constraint_value >= 0.5 else "weak",
-            explanation=f"{len(unresolved_constraints)} restrição(ões) permanece(m) por avaliar.",
+            assessment=(
+                _assessment(constraint_value)
+                if constraint_value is not None
+                else "not_applicable"
+            ),
+            explanation=(
+                f"{_count_phrase(len(unresolved_constraints), 'restrição', 'restrições')} "
+                f"{'permanece' if len(unresolved_constraints) == 1 else 'permanecem'} por avaliar."
+                if constraint_value is not None
+                else "Nenhuma restrição canónica foi registada; este fator não é pontuado."
+            ),
         ),
         ConfidenceFactor(
             factor="alternatives",
-            assessment="strong" if len(alternatives) >= 3 else "partial" if alternatives else "weak",
-            explanation=f"{len(alternatives)} alternativa(s) ativa(s) está(ão) explicitamente representada(s).",
+            assessment=(
+                "strong" if len(alternatives) >= 3 else "partial" if alternatives else "weak"
+            ),
+            explanation=(
+                "1 alternativa está explicitamente representada."
+                if len(alternatives) == 1
+                else (
+                    f"{len(alternatives)} alternativas estão explicitamente representadas"
+                    + (
+                        f", das quais {len(rejected_alternatives)} rejeitadas."
+                        if rejected_alternatives
+                        else "."
+                    )
+                )
+            ),
         ),
         ConfidenceFactor(
             factor="decision_readiness",
-            assessment="strong" if selected_decisions else "partial" if decisions else "weak",
+            assessment="strong" if selected_decisions else "partial" if decisions else "not_applicable",
             explanation=(
                 "Existe uma decisão selecionada."
                 if selected_decisions
                 else "Existe uma decisão em aberto, sem alternativa selecionada."
                 if decisions
-                else "Ainda não existe um objeto de decisão."
+                else "Ainda não existe um objeto de decisão; a fundamentação da decisão não é avaliável."
             ),
         ),
     ]
@@ -186,12 +259,12 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
                 code="MI-CONSTRAINTS-OPEN",
                 severity="high",
                 title="Restrições ainda não avaliadas",
-                explanation="A legitimidade ou viabilidade da intervenção permanece condicionada.",
+                explanation="A legitimidade ou viabilidade da decisão ou execução permanece condicionada.",
                 affected_ids=[item.canonical_id for item in unresolved_constraints],
-                evidence_needed="Confirmação documental junto dos titulares e entidades competentes.",
+                evidence_needed="Confirmação documental específica para cada restrição, verificada por fonte competente.",
             )
         )
-    if not has_baseline and not outcomes:
+    if baseline_required and not has_baseline and not outcomes:
         gaps.append(
             Gap(
                 code="MI-NO-BASELINE",
@@ -201,7 +274,7 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
                 evidence_needed="Definir variáveis, método, frequência e período de medição antes da execução.",
             )
         )
-    if outcomes and not has_baseline:
+    if baseline_required and outcomes and not has_baseline:
         gaps.append(
             Gap(
                 code="MI-OUTCOME-NO-BASELINE",
@@ -212,7 +285,10 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
                 evidence_needed="Baseline comparável ou desenho alternativo de atribuição com limitações explícitas.",
             )
         )
-    if not alternatives:
+    alternatives_required = bool(decisions) or str(
+        document.metadata.get("decision_stage") or ""
+    ) in {"open", "selected", "completed"}
+    if alternatives_required and not alternatives:
         gaps.append(
             Gap(
                 code="MI-NO-ALTERNATIVES",
@@ -247,7 +323,7 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
             )
         )
 
-    if violated_constraints or (outcomes and not has_baseline):
+    if violated_constraints or (baseline_required and outcomes and not has_baseline):
         mission_status = MissionStatus.CRITICAL
     elif any(gap.severity == "high" for gap in gaps):
         mission_status = MissionStatus.REQUIRES_ATTENTION
@@ -259,26 +335,40 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
     mission_trend = MissionTrend.NOT_EVALUABLE
 
     next_actions: list[str] = []
-    if not has_baseline and not outcomes:
+    if baseline_required and not has_baseline and not outcomes:
         next_actions.append("Criar e documentar a linha de base antes de qualquer intervenção")
     if unresolved_constraints:
-        next_actions.append("confirmar licenciamento, titularidade e demais restrições aplicáveis")
+        constraint_refs = "; ".join(
+            f"{item.canonical_id} — {item.title}" for item in unresolved_constraints[:3]
+        )
+        next_actions.append(f"avaliar as restrições abertas: {constraint_refs}")
     if unresolved_assumptions:
         next_actions.append("definir testes dirigidos aos pressupostos materiais")
-    if not alternatives:
+    if alternatives_required and not alternatives:
         next_actions.append("estruturar alternativas comparáveis, incluindo não agir")
+    if not decisions and not next_actions:
+        next_actions.append("definir se existe um objeto de decisão legítimo e qual é o seu âmbito")
     if not next_actions:
         next_actions.append("submeter a cadeia atual a revisão humana documentada")
-    next_decision = "; ".join(next_actions[:3]) + "."
+    next_decision_body = "; ".join(next_actions[:3])
+    next_decision = next_decision_body[:1].upper() + next_decision_body[1:] + "."
 
-    if outcomes and not has_baseline:
+    if baseline_required and outcomes and not has_baseline:
         principal_risk = "Confundir um resultado observado com efeito atribuível à intervenção."
     elif unresolved_constraints:
-        principal_risk = "Selecionar ou executar uma alternativa antes de confirmar a legitimidade e as condições da intervenção."
-    elif not has_baseline:
+        principal_risk = "Avançar para uma decisão antes de confirmar as condições de legitimidade e viabilidade."
+    elif baseline_required and not has_baseline:
         principal_risk = "Intervir antes de medir e perder a capacidade de interpretar o resultado futuro."
+    elif not decisions:
+        principal_risk = (
+            "Tratar um caso identificado como decisão madura antes de estruturar "
+            "o respetivo objeto."
+        )
     else:
-        principal_risk = "Aumentar a confiança declarada para além do que os registos auditáveis permitem."
+        principal_risk = (
+            "Apresentar a fundamentação como mais sólida do que os registos "
+            "auditáveis permitem."
+        )
 
     if selected_decisions:
         headline = "A decisão existe, mas a sua sustentação deve permanecer sob revisão."
@@ -288,14 +378,16 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
         headline = "A missão ainda não chegou ao ponto de decisão."
 
     summary = (
-        f"A missão contém {len(observations)} observação(ões), {len(evidence)} evidência(s), "
-        f"{len(alternatives)} alternativa(s), {len(unresolved_assumptions)} pressuposto(s) por resolver "
-        f"e {len(unresolved_constraints)} restrição(ões) por avaliar. "
+        f"A missão contém {_count_phrase(len(observations), 'observação', 'observações')}, "
+        f"{_count_phrase(len(evidence), 'evidência', 'evidências')}, "
+        f"{_count_phrase(len(alternatives), 'alternativa', 'alternativas')}, "
+        f"{_count_phrase(len(unresolved_assumptions), 'pressuposto por resolver', 'pressupostos por resolver')} "
+        f"e {_count_phrase(len(unresolved_constraints), 'restrição por avaliar', 'restrições por avaliar')}. "
         "O resultado preserva estes limites e não transforma ausência de informação em certeza."
     )
 
     non_inferences = [
-        "Mission Trend não é avaliável sem pelo menos dois estados temporais comparáveis.",
+        "A tendência da missão não é avaliável sem pelo menos dois estados temporais comparáveis.",
     ]
     if not selected_decisions:
         non_inferences.append("Nenhuma alternativa é apresentada como selecionada.")
@@ -303,7 +395,7 @@ def analyze_mission(document: MissionDocumentV13) -> DeterministicReport:
         non_inferences.append("Não se infere execução sem um registo de ação.")
     if not outcomes:
         non_inferences.append("Não se infere resultado nem impacto sem observação posterior.")
-    if not has_baseline:
+    if baseline_required and not has_baseline:
         non_inferences.append("Não se infere atribuição causal sem linha de base comparável.")
 
     return DeterministicReport(
