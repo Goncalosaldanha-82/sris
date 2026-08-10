@@ -26,6 +26,8 @@ from .models import (
     User,
 )
 from .schemas import (
+    InstitutionalAccessActivationRequest,
+    InstitutionalAccessActivationResponse,
     KnowledgeObjectCreate,
     KnowledgeObjectRead,
     LoginRequest,
@@ -55,6 +57,17 @@ app.include_router(public_router)
 app.include_router(organization_router)
 
 
+def _managed_runtime() -> bool:
+    return any(
+        os.getenv(name)
+        for name in (
+            "RAILWAY_ENVIRONMENT_ID",
+            "RAILWAY_PROJECT_ID",
+            "RAILWAY_SERVICE_ID",
+        )
+    )
+
+
 @app.get("/health")
 def health(db: Session = Depends(get_db)) -> dict[str, str]:
     try:
@@ -66,7 +79,10 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 
 @app.post("/api/auth/register", response_model=UserRead, status_code=201)
 def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
-    if not environment_flag("ATLAS_SELF_REGISTRATION_ENABLED", default=True):
+    if not environment_flag(
+        "ATLAS_SELF_REGISTRATION_ENABLED",
+        default=not _managed_runtime(),
+    ):
         raise HTTPException(status_code=403, detail="Self-registration is disabled")
     if db.query(User).filter(User.email == payload.email.lower()).first():
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -237,6 +253,151 @@ def emergency_password_recovery(
     return PasswordRecoveryResponse(status="password_updated")
 
 
+@app.post(
+    "/api/auth/emergency-access-activation",
+    response_model=InstitutionalAccessActivationResponse,
+    include_in_schema=False,
+)
+def emergency_access_activation(
+    payload: InstitutionalAccessActivationRequest,
+    db: Session = Depends(get_db),
+) -> InstitutionalAccessActivationResponse:
+    """Create or repair the one institutional owner behind a one-time gate.
+
+    This route exists because password recovery cannot repair an installation in
+    which the intended user was never created. It is deliberately undiscoverable,
+    exact-email scoped and single-use. No password or activation secret is stored
+    outside the normal password hash and the one-way token-use ledger.
+    """
+
+    configured_email = os.getenv(
+        "SRIS_ACCESS_ACTIVATION_EMAIL",
+        "",
+    ).strip().lower()
+    configured_token = os.getenv(
+        "SRIS_ACCESS_ACTIVATION_TOKEN",
+        "",
+    ).strip()
+
+    if not configured_email or len(configured_token) < 32:
+        raise _recovery_not_available()
+
+    requested_email = str(payload.email).strip().lower()
+    email_matches = secrets.compare_digest(
+        requested_email.encode("utf-8"),
+        configured_email.encode("utf-8"),
+    )
+    token_matches = secrets.compare_digest(
+        payload.activation_token.encode("utf-8"),
+        configured_token.encode("utf-8"),
+    )
+    if not email_matches or not token_matches:
+        raise _recovery_not_available()
+
+    token_hash = hashlib.sha256(
+        (
+            "institutional_access_activation\0"
+            f"{configured_email}\0{configured_token}"
+        ).encode("utf-8")
+    ).hexdigest()
+    if db.get(PasswordRecoveryUse, token_hash) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Access activation token already used",
+        )
+
+    try:
+        user = (
+            db.query(User)
+            .filter(User.email == configured_email)
+            .one_or_none()
+        )
+        user_created = user is None
+        if user is None:
+            user = User(
+                email=configured_email,
+                full_name=payload.full_name.strip(),
+                password_hash=hash_password(payload.new_password),
+                is_active=True,
+            )
+            db.add(user)
+        else:
+            user.full_name = payload.full_name.strip()
+            user.password_hash = hash_password(payload.new_password)
+            user.is_active = True
+        db.flush()
+
+        organization = (
+            db.query(Organization)
+            .filter(Organization.slug == payload.organization_slug)
+            .one_or_none()
+        )
+        organization_created = organization is None
+        if organization is None:
+            organization = Organization(
+                name=payload.organization_name.strip(),
+                slug=payload.organization_slug,
+            )
+            db.add(organization)
+            db.flush()
+
+        membership = (
+            db.query(Membership)
+            .filter(
+                Membership.user_id == user.id,
+                Membership.organization_id == organization.id,
+            )
+            .one_or_none()
+        )
+        membership_created = membership is None
+        if membership is None:
+            membership = Membership(
+                user_id=user.id,
+                organization_id=organization.id,
+                role=Role.OWNER.value,
+            )
+            db.add(membership)
+        else:
+            membership.role = Role.OWNER.value
+
+        # The primary-key insert reserves the activation secret atomically.
+        # Any concurrent replay rolls back all account and password changes.
+        db.add(
+            PasswordRecoveryUse(
+                token_hash=token_hash,
+                user_id=user.id,
+                organization_id=organization.id,
+            )
+        )
+        db.flush()
+        record_audit(
+            db,
+            action="user.institutional_access_activated",
+            resource_type="user",
+            resource_id=user.id,
+            organization_id=organization.id,
+            user_id=user.id,
+            payload={
+                "method": "one_time_environment_token",
+                "user_created": user_created,
+                "organization_created": organization_created,
+                "membership_created": membership_created,
+                "role": Role.OWNER.value,
+            },
+        )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Institutional access activation already completed",
+        ) from exc
+
+    return InstitutionalAccessActivationResponse(
+        status="institutional_access_activated"
+    )
+
+
 @app.get("/api/auth/me", response_model=UserRead)
 def me(user: User = Depends(current_user)) -> User:
     return user
@@ -248,7 +409,10 @@ def create_organization(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ) -> Organization:
-    if not environment_flag("ATLAS_ORGANIZATION_CREATION_ENABLED", default=True):
+    if not environment_flag(
+        "ATLAS_ORGANIZATION_CREATION_ENABLED",
+        default=not _managed_runtime(),
+    ):
         raise HTTPException(status_code=403, detail="Organization creation is disabled")
     if db.query(Organization).filter(Organization.slug == payload.slug).first():
         raise HTTPException(status_code=409, detail="Organization slug already exists")

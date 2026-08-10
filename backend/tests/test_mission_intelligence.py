@@ -10,7 +10,7 @@ import httpx
 import pytest
 from app.atlas_platform.config import Settings, validate_security_settings
 from app.atlas_platform.database import Base, SessionLocal, engine
-from app.atlas_platform.models import Membership, Role
+from app.atlas_platform.models import Membership, Role, User
 from app.main import app
 from app.mission_intelligence import ai as mission_ai
 from app.mission_intelligence import api as mission_api
@@ -1516,3 +1516,179 @@ def test_password_recovery_script_cleanup_cannot_mask_api_error() -> None:
         "-ErrorAction Stop"
     ) in script
     assert 'Write-Warning "Nao foi possivel limpar automaticamente' in script
+
+
+def test_emergency_access_activation_creates_owner_and_is_single_use(
+    monkeypatch,
+) -> None:
+    suffix = uuid4().hex[:8]
+    email = f"institutional-owner-{suffix}@example.com"
+    password = "institutional-password-123"
+    activation_token = "d" * 64
+    organization_slug = f"sris-{suffix}"
+    endpoint = "/api/auth/emergency-access-activation"
+    request = {
+        "email": email,
+        "activation_token": activation_token,
+        "new_password": password,
+        "full_name": "Institutional Owner",
+        "organization_name": f"SRIS {suffix}",
+        "organization_slug": organization_slug,
+    }
+
+    monkeypatch.delenv("SRIS_ACCESS_ACTIVATION_EMAIL", raising=False)
+    monkeypatch.delenv("SRIS_ACCESS_ACTIVATION_TOKEN", raising=False)
+    assert client.post(endpoint, json=request).status_code == 404
+    assert endpoint not in client.get("/openapi.json").json()["paths"]
+
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_EMAIL", email)
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_TOKEN", activation_token)
+
+    wrong_token = dict(request, activation_token="e" * 64)
+    assert client.post(endpoint, json=wrong_token).status_code == 404
+
+    activated = client.post(endpoint, json=request)
+    assert activated.status_code == 200, activated.text
+    assert activated.json() == {"status": "institutional_access_activated"}
+
+    login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert login.status_code == 200, login.text
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    me = client.get("/api/auth/me", headers=headers)
+    assert me.status_code == 200, me.text
+    assert me.json()["email"] == email
+    assert me.json()["full_name"] == "Institutional Owner"
+
+    organizations = client.get("/api/organizations", headers=headers)
+    assert organizations.status_code == 200, organizations.text
+    organization = next(
+        item for item in organizations.json() if item["slug"] == organization_slug
+    )
+    memberships = client.get(
+        f"/api/organizations/{organization['id']}/memberships",
+        headers=headers,
+    )
+    assert memberships.status_code == 200, memberships.text
+    assert any(
+        row["user_id"] == me.json()["id"] and row["role"] == Role.OWNER.value
+        for row in memberships.json()
+    )
+
+    replay = client.post(
+        endpoint,
+        json=dict(request, new_password="replacement-password-456"),
+    )
+    assert replay.status_code == 409
+
+    original_password_still_works = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert original_password_still_works.status_code == 200
+
+
+def test_emergency_access_activation_repairs_legacy_password_hash(
+    monkeypatch,
+) -> None:
+    suffix = uuid4().hex[:8]
+    email = f"legacy-owner-{suffix}@example.com"
+    password = "repaired-password-123"
+    activation_token = "f" * 64
+
+    with SessionLocal() as db:
+        db.add(
+            User(
+                email=email,
+                full_name="Legacy Owner",
+                password_hash="pbkdf2_sha256$legacy$hash",
+                is_active=True,
+            )
+        )
+        db.commit()
+
+    invalid_legacy_login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": "irrelevant-password"},
+    )
+    assert invalid_legacy_login.status_code == 401
+
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_EMAIL", email)
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_TOKEN", activation_token)
+    activated = client.post(
+        "/api/auth/emergency-access-activation",
+        json={
+            "email": email,
+            "activation_token": activation_token,
+            "new_password": password,
+            "full_name": "Repaired Owner",
+            "organization_name": f"Repaired SRIS {suffix}",
+            "organization_slug": f"repaired-sris-{suffix}",
+        },
+    )
+    assert activated.status_code == 200, activated.text
+
+    repaired_login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert repaired_login.status_code == 200, repaired_login.text
+
+
+def test_railway_managed_runtime_closes_public_onboarding_by_default(
+    monkeypatch,
+) -> None:
+    suffix = uuid4().hex[:8]
+    email = f"managed-{suffix}@example.com"
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_ID", f"test-{suffix}")
+    monkeypatch.delenv("ATLAS_SELF_REGISTRATION_ENABLED", raising=False)
+
+    blocked = client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "full_name": "Managed User",
+            "password": "strong-password-123",
+        },
+    )
+    assert blocked.status_code == 403
+
+    monkeypatch.setenv("ATLAS_SELF_REGISTRATION_ENABLED", "true")
+    explicitly_enabled = client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "full_name": "Managed User",
+            "password": "strong-password-123",
+        },
+    )
+    assert explicitly_enabled.status_code == 201, explicitly_enabled.text
+
+
+def test_institutional_activation_script_verifies_full_session_contract() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (
+        repo_root / "scripts" / "ACTIVATE_SRIS_INSTITUTIONAL_ACCESS.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "/api/auth/emergency-access-activation" in script
+    assert "/api/auth/login" in script
+    assert "/api/auth/me" in script
+    assert "/api/organizations" in script
+    assert "/memberships" in script
+    assert "ACESSO INSTITUCIONAL CONFIRMADO" in script
+    assert "Read-Host \"Cole o token temporario do Railway\" -AsSecureString" in script
+    assert "Read-Host \"Defina a nova palavra-passe" in script
+    assert "activation_token = $plainToken" in script
+
+    frontend = (repo_root / "frontend" / "atlas-os" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'fetch("/api/auth/me"' in frontend
+    assert '"Demonstração pública"' in frontend
+    assert '"Sem sessão institucional"' in frontend
+    assert 'openApp({mode:"institutional",...session})' in frontend
+    assert 'function openApp(name="Gonçalo Saldanha")' not in frontend

@@ -15,6 +15,9 @@ Controlled production activation:
 Production assessment:
 [application audit — 2026-08-08](docs/APP-AUDIT-2026-08-08.md).
 
+One-time creation or repair of the institutional owner:
+[institutional access activation](docs/SRIS-INSTITUTIONAL-ACCESS-ACTIVATION.md).
+
 ## Install
 
 ```bash

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 from .config import settings
 
@@ -19,7 +19,7 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     try:
         return password_hasher.verify(password_hash, password)
-    except VerifyMismatchError:
+    except (InvalidHashError, VerificationError, VerifyMismatchError):
         return False
 
 

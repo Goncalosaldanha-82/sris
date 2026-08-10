@@ -231,7 +231,9 @@
       border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.78)
     }
     .avatar{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--forest);color:#fff;font-size:10px;font-weight:800}
+    .user-identity{display:grid;gap:1px;line-height:1.15}
     .user-chip strong{font-size:11px}
+    .user-chip small{color:var(--ink-muted);font-size:8.5px;font-weight:750;letter-spacing:.025em}
 
     .page{display:none;animation:fade .25s ease}
     .page.active{display:block}
@@ -758,8 +760,11 @@
           <button id="importButton" class="btn-secondary" type="button" title="Importa uma visualização local; não cria registos canónicos no servidor.">Importar visualização</button>
           <button class="btn-secondary" type="button" data-go="workspace">Nova análise</button>
           <div class="user-chip">
-            <div class="avatar">GS</div>
-            <strong id="userName">Utilizador</strong>
+            <div id="userAvatar" class="avatar">SR</div>
+            <div class="user-identity">
+              <strong id="userName">SRIS</strong>
+              <small id="sessionKind">Acesso por identificar</small>
+            </div>
           </div>
           <button id="logoutButton" class="btn-text" type="button">Sair</button>
         </div>
@@ -1718,6 +1723,7 @@
     let modalMissionId = null;
     let activeOrganizationId = null;
     let aiGovernanceStatus = null;
+    let currentSession = null;
     let intelligenceStatus = {
       deterministic_analysis:"unavailable",
       ai_configured:false,
@@ -2142,23 +2148,51 @@
     async function loadSessionContext(token){
       activeOrganizationId=null;
       aiGovernanceStatus=null;
-      if(!token){updateAIControl();return}
+      currentSession=null;
+      if(!token){updateAIControl();return null}
       try{
-        const res=await fetch("/api/organizations",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
-        if(!res.ok)throw new Error("Não foi possível obter a organização ativa.");
-        const organizations=await res.json();
-        activeOrganizationId=organizations?.[0]?.id||null;
+        const request={headers:{Authorization:`Bearer ${token}`},cache:"no-store"};
+        const [meResponse,organizationsResponse]=await Promise.all([
+          fetch("/api/auth/me",request),
+          fetch("/api/organizations",request)
+        ]);
+        if(!meResponse.ok)throw new Error("A sessão não é válida ou expirou.");
+        if(!organizationsResponse.ok)throw new Error("Não foi possível obter a organização ativa.");
+        const user=await meResponse.json();
+        const organizations=await organizationsResponse.json();
+        const activeOrganization=organizations?.find(item=>item.slug==="sris")||organizations?.[0]||null;
+        activeOrganizationId=activeOrganization?.id||null;
+        if(!activeOrganizationId){
+          throw new Error("A conta existe, mas ainda não possui uma organização institucional.");
+        }
+        currentSession={user,organization:activeOrganization,role:null};
         if(activeOrganizationId){
-          const governance=await fetch(
-            `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
-            {headers:{Authorization:`Bearer ${token}`},cache:"no-store"}
-          );
+          const [governance,memberships]=await Promise.all([
+            fetch(
+              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
+              request
+            ),
+            fetch(
+              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/memberships`,
+              request
+            )
+          ]);
           if(governance.ok)aiGovernanceStatus=await governance.json();
+          if(memberships.ok){
+            const rows=await memberships.json();
+            currentSession.role=rows.find(item=>item.user_id===user.id)?.role||null;
+          }
         }
       }catch(err){
+        activeOrganizationId=null;
+        aiGovernanceStatus=null;
+        currentSession=null;
         console.warn("Contexto institucional indisponível:",err);
+        updateAIControl();
+        throw err;
       }
       updateAIControl();
+      return currentSession;
     }
 
     function renderEvidence(filter=activeMissionId){
@@ -2312,10 +2346,28 @@
       renderLearning(activeMissionId);
     }
 
-    function openApp(name="Gonçalo Saldanha"){
+    function displayInitials(name){
+      const parts=String(name||"SRIS").trim().split(/\s+/).filter(Boolean);
+      return (parts.length>1?parts[0][0]+parts.at(-1)[0]:parts[0]?.slice(0,2)||"SR").toUpperCase();
+    }
+
+    function roleLabel(role){
+      return ({owner:"Proprietário",admin:"Administrador",reviewer:"Revisor",contributor:"Contribuidor",observer:"Observador"})[role]||"Utilizador";
+    }
+
+    function openApp(session={mode:"demo"}){
+      const institutional=session.mode==="institutional";
+      const name=institutional
+        ? session.user?.full_name||"Utilizador institucional"
+        : "Demonstração pública";
+      const kind=institutional
+        ? `Sessão institucional · ${roleLabel(session.role)} · ${session.organization?.name||"organização ativa"}`
+        : "Sem sessão institucional";
       qs("#loginScreen").classList.add("hidden");
       qs("#appScreen").classList.remove("hidden");
       qs("#userName").textContent=name;
+      qs("#sessionKind").textContent=kind;
+      qs("#userAvatar").textContent=displayInitials(name);
       updateAIControl();
       setTimeout(()=>navigate("overview",{scroll:false}),0);
     }
@@ -2417,7 +2469,9 @@
     qs("#demoButton").addEventListener("click",()=>{
       activeOrganizationId=null;
       aiGovernanceStatus=null;
-      sessionStorage.setItem("sris_demo","true");openApp();
+      currentSession=null;
+      sessionStorage.removeItem("sris_token");
+      sessionStorage.setItem("sris_demo","true");openApp({mode:"demo"});
     });
 
     qs("#logoutButton").addEventListener("click",()=>{
@@ -2425,6 +2479,7 @@
       sessionStorage.removeItem("sris_token");
       activeOrganizationId=null;
       aiGovernanceStatus=null;
+      currentSession=null;
       qs("#appScreen").classList.add("hidden");
       qs("#loginScreen").classList.remove("hidden");
       updateAIControl();
@@ -2447,19 +2502,28 @@
             ?"Email ou palavra-passe incorretos."
             :detail||"Não foi possível autenticar.");
         }
-        sessionStorage.setItem("sris_token",data.access_token||"");
+        const token=data.access_token||"";
+        sessionStorage.setItem("sris_token",token);
         sessionStorage.removeItem("sris_demo");
-        await loadSessionContext(data.access_token||"");
+        const session=await loadSessionContext(token);
         qs("#loginMessage").textContent="";
-        openApp(email.split("@")[0]||"Utilizador");
+        openApp({mode:"institutional",...session});
       }catch(err){
+        sessionStorage.removeItem("sris_token");
         qs("#loginMessage").textContent=err.message||"Erro de autenticação.";
       }
     });
 
     const storedToken=sessionStorage.getItem("sris_token");
-    if(sessionStorage.getItem("sris_demo")==="true")openApp();
-    else if(storedToken){openApp();loadSessionContext(storedToken)}
+    if(sessionStorage.getItem("sris_demo")==="true")openApp({mode:"demo"});
+    else if(storedToken){
+      loadSessionContext(storedToken)
+        .then(session=>openApp({mode:"institutional",...session}))
+        .catch(err=>{
+          sessionStorage.removeItem("sris_token");
+          qs("#loginMessage").textContent=err.message||"A sessão guardada deixou de ser válida.";
+        });
+    }
 
     loadConfig();
   })();
