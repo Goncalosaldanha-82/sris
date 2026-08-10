@@ -23,16 +23,7 @@ the temporary gate is not fully configured.
 
 Always prove the flow in `staging` before touching `production`.
 
-1. Generate a fresh token locally. Do not paste it into chat, source code or Git.
-2. In the Railway `sris` service for the target environment, set:
-
-   - `SRIS_ACCESS_ACTIVATION_EMAIL=goncalo.saldanha82@gmail.com`
-   - `SRIS_ACCESS_ACTIVATION_TOKEN=<fresh token of at least 32 characters>`
-   - `ATLAS_SELF_REGISTRATION_ENABLED=false`
-   - `ATLAS_ORGANIZATION_CREATION_ENABLED=false`
-
-3. Deploy and wait for `ACTIVE`.
-4. From the local repository, run:
+1. From the local repository, run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
@@ -40,7 +31,26 @@ Always prove the flow in `staging` before touching `production`.
      -BaseUrl "https://sris-staging.up.railway.app"
    ```
 
-5. Enter the activation token and the new password only at the hidden prompts.
+   On its first execution the script generates a fresh token, copies it to the
+   clipboard and saves only a Windows DPAPI-encrypted copy under the current
+   user's local application data. The PowerShell window may be closed without
+   losing the prepared token. Never paste it into chat, source code or Git.
+
+2. In the Railway `sris` service for the target environment, set or replace:
+
+   - `SRIS_ACCESS_ACTIVATION_EMAIL=goncalo.saldanha82@gmail.com`
+   - `SRIS_ACCESS_ACTIVATION_TOKEN=<paste with Ctrl+V>`
+   - `ATLAS_SELF_REGISTRATION_ENABLED=false`
+   - `ATLAS_ORGANIZATION_CREATION_ENABLED=false`
+
+3. Deploy and wait for `ACTIVE`.
+4. Run exactly the same PowerShell command again. The script recovers the
+   encrypted token; it never asks the operator to paste a token into a hidden
+   prompt.
+
+5. Confirm that the deployment is `ACTIVE`, then enter the new password only at
+   the two hidden prompts.
+
 6. Require the final output `ACESSO INSTITUCIONAL CONFIRMADO`. The script proves:
 
    - password login;
@@ -52,7 +62,13 @@ Always prove the flow in `staging` before touching `production`.
 8. Sign in through the browser and confirm the header says
    `Sessão institucional · Proprietário · SRIS`.
 
-For production, repeat the sequence with a new activation token and:
+If the API returns `404`, the script does not discard the prepared token or ask
+for the password again in a loop. It copies the same token back to the clipboard
+and instructs the operator to replace only `SRIS_ACCESS_ACTIVATION_TOKEN`, deploy
+and rerun the same command. Use `-ResetPreparedToken` only when deliberately
+abandoning that prepared activation and generating a new token.
+
+For production, repeat the sequence with a separate state and:
 
 ```powershell
 -BaseUrl "https://sris-production.up.railway.app"
@@ -69,5 +85,7 @@ for the separately governed AI pilot gate.
 - the activation token is compared in constant time and recorded only as SHA-256;
 - token reuse returns `409` and cannot change the password;
 - invalid or missing gate configuration returns the same undiscoverable `404`;
+- the prepared token survives a closed PowerShell window only as DPAPI-encrypted
+  state readable by the same Windows user and is deleted after success;
 - temporary secrets are removed from the PowerShell process and clipboard;
 - public account and organization creation are closed by default on Railway.

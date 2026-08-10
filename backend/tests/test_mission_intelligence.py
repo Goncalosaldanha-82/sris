@@ -1680,9 +1680,19 @@ def test_institutional_activation_script_verifies_full_session_contract() -> Non
     assert "/api/organizations" in script
     assert "/memberships" in script
     assert "ACESSO INSTITUCIONAL CONFIRMADO" in script
-    assert "Read-Host \"Cole o token temporario do Railway\" -AsSecureString" in script
+    assert "Read-Host \"Cole o token temporario" not in script
+    assert "$srisActivationToken" not in script
     assert "Read-Host \"Defina a nova palavra-passe" in script
     assert "activation_token = $plainToken" in script
+    assert "New-ActivationToken" in script
+    assert "ConvertFrom-SecureString" in script
+    assert "ConvertTo-SecureString ([string]$state.token_ciphertext)" in script
+    assert "institutional-access-$stateName.json" in script
+    assert "Pode fechar esta janela. O token nao se perde." in script
+    assert "TOKEN DO RAILWAY DIFERENTE" in script
+    assert "ATIVACAO INTERROMPIDA" in script
+    assert "Set-Clipboard -Value $plainToken" in script
+    assert "Remove-Item -LiteralPath $statePath -Force" in script
 
     frontend = (repo_root / "frontend" / "atlas-os" / "index.html").read_text(
         encoding="utf-8"
