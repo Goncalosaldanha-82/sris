@@ -821,6 +821,8 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     assert "contextRequired=mission(activeMissionId)" in frontend.text
     assert "renderContextDossier(result)" in frontend.text
     assert "web_search_cost_usd" in frontend.text
+    assert "demonstração pública do" in frontend.text
+    assert "demonstração preparada para o" not in frontend.text
     assert "Importar visualização" in frontend.text
 
     spec = client.get("/openapi.json")
