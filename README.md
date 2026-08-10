@@ -18,6 +18,9 @@ Production assessment:
 One-time creation or repair of the institutional owner:
 [institutional access activation](docs/SRIS-INSTITUTIONAL-ACCESS-ACTIVATION.md).
 
+Invite-only account creation, roles and password recovery:
+[identity and access lifecycle](docs/SRIS-IDENTITY-AND-ACCESS.md).
+
 ## Install
 
 ```bash

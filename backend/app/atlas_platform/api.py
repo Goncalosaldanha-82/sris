@@ -17,6 +17,7 @@ from .audit import record_audit
 from .auth import current_user, require_org_role
 from .config import environment_flag
 from .database import get_db
+from .identity import router as identity_router
 from .models import (
     KnowledgeObject,
     Membership,
@@ -24,6 +25,7 @@ from .models import (
     PasswordRecoveryUse,
     Role,
     User,
+    utcnow,
 )
 from .schemas import (
     InstitutionalAccessActivationRequest,
@@ -31,6 +33,7 @@ from .schemas import (
     KnowledgeObjectCreate,
     KnowledgeObjectRead,
     LoginRequest,
+    MembershipDetailRead,
     MembershipRead,
     OrganizationCreate,
     OrganizationRead,
@@ -45,7 +48,7 @@ from .workflow_api import router as workflow_router
 
 app = FastAPI(
     title="SRIS Mission Intelligence API",
-    version="1.4.0",
+    version="1.5.0",
     description=(
         "Canonical mission intelligence, authentication, organizations, RBAC and "
         "the unified knowledge workflow."
@@ -55,6 +58,7 @@ app = FastAPI(
 app.include_router(workflow_router)
 app.include_router(public_router)
 app.include_router(organization_router)
+app.include_router(identity_router)
 
 
 def _managed_runtime() -> bool:
@@ -108,9 +112,20 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.email == payload.email.lower()).one_or_none()
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if (
+        user is None
+        or not user.is_active
+        or not verify_password(payload.password, user.password_hash)
+    ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    return TokenResponse(access_token=create_access_token(user_id=user.id))
+    user.last_login_at = utcnow()
+    db.commit()
+    return TokenResponse(
+        access_token=create_access_token(
+            user_id=user.id,
+            auth_version=user.auth_version,
+        )
+    )
 
 
 def _recovery_not_available() -> HTTPException:
@@ -230,6 +245,7 @@ def emergency_password_recovery(
         )
         db.flush()
         user.password_hash = hash_password(payload.new_password)
+        user.auth_version += 1
         record_audit(
             db,
             action="user.password_recovered",
@@ -325,6 +341,7 @@ def emergency_access_activation(
             user.full_name = payload.full_name.strip()
             user.password_hash = hash_password(payload.new_password)
             user.is_active = True
+            user.auth_version += 1
         db.flush()
 
         organization = (
@@ -454,17 +471,55 @@ def list_organizations(
 
 
 @app.get(
+    "/api/organizations/{organization_id}/membership",
+    response_model=MembershipRead,
+)
+def get_current_membership(
+    membership: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+            Role.SYSTEM_AGENT.value,
+        )
+    ),
+) -> Membership:
+    return membership
+
+
+@app.get(
     "/api/organizations/{organization_id}/memberships",
-    response_model=list[MembershipRead],
+    response_model=list[MembershipDetailRead],
 )
 def list_memberships(
     organization_id: str,
     _: Membership = Depends(
-        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+        require_org_role(Role.OWNER.value, Role.ADMIN.value)
     ),
     db: Session = Depends(get_db),
-) -> list[Membership]:
-    return db.query(Membership).filter(Membership.organization_id == organization_id).all()
+) -> list[dict]:
+    rows = (
+        db.query(Membership, User)
+        .join(User, User.id == Membership.user_id)
+        .filter(Membership.organization_id == organization_id)
+        .order_by(Membership.created_at.asc())
+        .all()
+    )
+    return [
+        {
+            "id": membership.id,
+            "user_id": membership.user_id,
+            "organization_id": membership.organization_id,
+            "role": membership.role,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+            "created_at": membership.created_at,
+        }
+        for membership, user in rows
+    ]
 
 
 @app.post(

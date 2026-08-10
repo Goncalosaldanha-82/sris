@@ -828,7 +828,7 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
     assert spec.json()["info"]["title"] == "SRIS Mission Intelligence API"
-    assert spec.json()["info"]["version"] == "1.4.0"
+    assert spec.json()["info"]["version"] == "1.5.0"
     assert "/api/mission-intelligence/demo/missions/{mission_code}/analyze" in spec.json()["paths"]
     governance_path = (
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance"

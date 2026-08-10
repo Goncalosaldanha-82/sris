@@ -71,6 +71,8 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "knowledge_objects",
             "audit_events",
             "password_recovery_uses",
+            "password_reset_tokens",
+            "user_invitations",
             "workflows",
             "workflow_candidates",
             "workflow_history",
@@ -94,6 +96,9 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "web_search_cost_microusd",
             "web_search_rate_microusd_per_call",
         }.issubset(column_names(database_url, "mi_ai_usage_events"))
+        assert {"auth_version", "last_login_at"}.issubset(
+            column_names(database_url, "users")
+        )
 
         run_alembic(
             repo_root,

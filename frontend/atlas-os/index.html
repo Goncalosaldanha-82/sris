@@ -183,6 +183,10 @@
       border-color:var(--forest-3);box-shadow:0 0 0 4px rgba(72,116,92,.10)
     }
     .login-message{min-height:20px;margin-top:12px;color:var(--red);font-size:12px}
+    .login-support{display:flex;justify-content:flex-end;margin:-5px 0 18px}
+    .login-support a{color:var(--forest);font-size:11px;font-weight:750;text-decoration:none}
+    .login-support a:hover{text-decoration:underline}
+    .account-boundary{margin:13px 0 0;color:var(--ink-muted);font-size:10.5px;line-height:1.5;text-align:center}
     .login-foot{
       margin-top:24px;padding-top:18px;border-top:1px solid var(--border);
       color:var(--ink-muted);font-size:10px;line-height:1.6;
@@ -204,7 +208,7 @@
     .nav-item{
       width:100%;min-height:46px;margin-bottom:4px;padding:0 12px;
       display:flex;align-items:center;gap:12px;border:0;border-radius:12px;
-      background:transparent;color:var(--ink-soft);font-weight:650;text-align:left;
+      background:transparent;color:var(--ink-soft);font-weight:650;text-align:left;text-decoration:none;
     }
     .nav-item:hover{background:rgba(255,255,255,.63);color:var(--ink)}
     .nav-item.active{background:#fff;color:var(--forest);box-shadow:0 4px 16px rgba(23,63,47,.08)}
@@ -689,12 +693,17 @@
             <input id="password" type="password" autocomplete="current-password" placeholder="Introduza a sua palavra-passe" required />
           </div>
 
+          <div class="login-support">
+            <a href="/account.html?mode=forgot">Esqueci-me da palavra-passe</a>
+          </div>
+
           <button class="btn-primary" type="submit" style="width:100%">Entrar no SRIS</button>
           <button id="demoButton" class="btn-secondary" type="button" style="width:100%;margin-top:10px">
             Abrir demonstração
           </button>
 
           <div id="loginMessage" class="login-message" aria-live="polite"></div>
+          <div class="account-boundary">Novas contas institucionais são criadas por convite do proprietário ou administrador da organização.</div>
         </form>
 
         <div class="login-foot">
@@ -736,6 +745,9 @@
 
         <div class="nav-label">Produto</div>
         <button class="nav-item" data-page="impact" type="button"><span class="nav-icon">◆</span><span>Impacto</span></button>
+
+        <div id="administrationLabel" class="nav-label hidden">Administração</div>
+        <a id="usersLink" class="nav-item hidden" href="/users.html"><span class="nav-icon">◉</span><span>Utilizadores</span></a>
       </nav>
 
       <div class="sidebar-bottom">
@@ -2160,12 +2172,14 @@
         if(!organizationsResponse.ok)throw new Error("Não foi possível obter a organização ativa.");
         const user=await meResponse.json();
         const organizations=await organizationsResponse.json();
-        const activeOrganization=organizations?.find(item=>item.slug==="sris")||organizations?.[0]||null;
+        const preferredOrganizationId=sessionStorage.getItem("sris_active_organization");
+        const activeOrganization=organizations?.find(item=>item.id===preferredOrganizationId)||organizations?.find(item=>item.slug==="sris")||organizations?.[0]||null;
         activeOrganizationId=activeOrganization?.id||null;
         if(!activeOrganizationId){
           throw new Error("A conta existe, mas ainda não possui uma organização institucional.");
         }
         currentSession={user,organization:activeOrganization,role:null};
+        sessionStorage.setItem("sris_active_organization",activeOrganizationId);
         if(activeOrganizationId){
           const [governance,memberships]=await Promise.all([
             fetch(
@@ -2173,14 +2187,14 @@
               request
             ),
             fetch(
-              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/memberships`,
+              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/membership`,
               request
             )
           ]);
           if(governance.ok)aiGovernanceStatus=await governance.json();
           if(memberships.ok){
-            const rows=await memberships.json();
-            currentSession.role=rows.find(item=>item.user_id===user.id)?.role||null;
+            const activeMembership=await memberships.json();
+            currentSession.role=activeMembership.role||null;
           }
         }
       }catch(err){
@@ -2368,6 +2382,9 @@
       qs("#userName").textContent=name;
       qs("#sessionKind").textContent=kind;
       qs("#userAvatar").textContent=displayInitials(name);
+      const canManageUsers=institutional&&["owner","admin"].includes(session.role);
+      qs("#usersLink").classList.toggle("hidden",!canManageUsers);
+      qs("#administrationLabel").classList.toggle("hidden",!canManageUsers);
       updateAIControl();
       setTimeout(()=>navigate("overview",{scroll:false}),0);
     }
@@ -2380,7 +2397,7 @@
       const go=event.target.closest("[data-go]");
       if(go){navigate(go.dataset.go);return}
 
-      const nav=event.target.closest(".nav-item");
+      const nav=event.target.closest(".nav-item[data-page]");
       if(nav){navigate(nav.dataset.page);return}
 
       const open=event.target.closest(".mission-open");
@@ -2480,6 +2497,8 @@
       activeOrganizationId=null;
       aiGovernanceStatus=null;
       currentSession=null;
+      qs("#usersLink").classList.add("hidden");
+      qs("#administrationLabel").classList.add("hidden");
       qs("#appScreen").classList.add("hidden");
       qs("#loginScreen").classList.remove("hidden");
       updateAIControl();

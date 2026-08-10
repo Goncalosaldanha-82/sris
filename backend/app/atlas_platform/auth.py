@@ -21,11 +21,16 @@ def current_user(
     try:
         payload = decode_access_token(credentials.credentials)
         user_id = payload["sub"]
+        auth_version = int(payload["ver"])
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
 
     user = db.get(User, user_id)
-    if user is None or not user.is_active:
+    if (
+        user is None
+        or not user.is_active
+        or user.auth_version != auth_version
+    ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive or unknown user")
     return user
 
