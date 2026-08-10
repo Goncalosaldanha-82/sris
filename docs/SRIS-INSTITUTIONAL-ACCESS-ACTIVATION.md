@@ -58,9 +58,22 @@ Always prove the flow in `staging` before touching `production`.
    - organization access;
    - `owner` membership.
 
-7. Delete both temporary `SRIS_ACCESS_ACTIVATION_*` variables and deploy again.
+7. The script copies the exact password accepted by the API. Do not type it
+   again and do not delete the temporary Railway variables yet. Open the exact
+   staging URL in an InPrivate window, enter the email and paste the password.
 8. Sign in through the browser and confirm the header says
    `Sessão institucional · Proprietário · SRIS`.
+9. Only after the browser login succeeds, clear the credential from the
+   clipboard:
+
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+     ".\scripts\ACTIVATE_SRIS_INSTITUTIONAL_ACCESS.ps1" `
+     -BaseUrl "https://sris-staging.up.railway.app" `
+     -ClearCredentialClipboard
+   ```
+
+10. Delete both temporary `SRIS_ACCESS_ACTIVATION_*` variables and deploy again.
 
 If the API returns `404`, the script does not discard the prepared token or ask
 for the password again in a loop. It copies the same token back to the clipboard
@@ -87,5 +100,9 @@ for the separately governed AI pilot gate.
 - invalid or missing gate configuration returns the same undiscoverable `404`;
 - the prepared token survives a closed PowerShell window only as DPAPI-encrypted
   state readable by the same Windows user and is deleted after success;
-- temporary secrets are removed from the PowerShell process and clipboard;
+- after the API has verified the password, that exact credential is copied only
+  long enough to prove the browser login and can be explicitly cleared with
+  `-ClearCredentialClipboard`;
+- temporary secrets are removed from the PowerShell process, and the activation
+  gate remains configured until the browser login has been proved;
 - public account and organization creation are closed by default on Railway.

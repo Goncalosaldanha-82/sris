@@ -4,7 +4,8 @@ param(
     [string]$FullName = "Goncalo Saldanha",
     [string]$OrganizationName = "SRIS",
     [string]$OrganizationSlug = "sris",
-    [switch]$ResetPreparedToken
+    [switch]$ResetPreparedToken,
+    [switch]$ClearCredentialClipboard
 )
 
 $ErrorActionPreference = "Stop"
@@ -181,16 +182,34 @@ function Write-Success {
     Write-Host "ID da organizacao: $($Session.Organization.id)"
     Write-Host "Papel: proprietario"
     Write-Host "O token ficou consumido e nao pode voltar a ser utilizado."
-    Write-Host (
-        "Elimine agora SRIS_ACCESS_ACTIVATION_EMAIL e " +
-        "SRIS_ACCESS_ACTIVATION_TOKEN no Railway."
-    ) -ForegroundColor Yellow
+    Write-Host "A palavra-passe exata que a API validou foi copiada." -ForegroundColor Green
+    Write-Host "NAO elimine ainda as variaveis temporarias do Railway." -ForegroundColor Yellow
+    Write-Host "Abra o staging numa janela InPrivate, escreva o email e cole a palavra-passe." -ForegroundColor Cyan
+    Write-Host "So depois de o login visual funcionar deve limpar a area de transferencia" -ForegroundColor Yellow
+    Write-Host "e eliminar SRIS_ACCESS_ACTIVATION_EMAIL e SRIS_ACCESS_ACTIVATION_TOKEN."
+}
+
+function Publish-VerifiedCredential {
+    param(
+        [string]$Password,
+        [PSCustomObject]$Session
+    )
+
+    Set-Clipboard -Value $Password
+    $script:credentialClipboardContainsPassword = $true
+    Write-Success -Session $Session
 }
 
 Write-Host "SRIS - ativacao unica do acesso institucional" -ForegroundColor Cyan
 Write-Host "Destino: $BaseUrl"
 Write-Host "Conta: $Email"
 Write-Host "O token nunca sera pedido manualmente nem guardado no GitHub."
+
+if ($ClearCredentialClipboard) {
+    Clear-ClipboardMarker
+    Write-Host "A credencial temporaria foi removida da area de transferencia." -ForegroundColor Green
+    exit 0
+}
 
 if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
     throw "O Windows nao disponibilizou LOCALAPPDATA; nao e possivel proteger o token."
@@ -238,6 +257,7 @@ $plainPassword = $null
 $plainConfirmation = $null
 $activationJson = $null
 $activationBody = $null
+$script:credentialClipboardContainsPassword = $false
 
 try {
     Test-SrisHealth
@@ -300,7 +320,7 @@ try {
         if ($statusCode -eq 409) {
             try {
                 $session = Confirm-InstitutionalSession -Password $plainPassword
-                Write-Success -Session $session
+                Publish-VerifiedCredential -Password $plainPassword -Session $session
                 Remove-Item -LiteralPath $statePath -Force
                 exit 0
             }
@@ -327,7 +347,7 @@ try {
 
     Write-Host "Conta ativada; a validar a sessao institucional..." -ForegroundColor Green
     $session = Confirm-InstitutionalSession -Password $plainPassword
-    Write-Success -Session $session
+    Publish-VerifiedCredential -Password $plainPassword -Session $session
     Remove-Item -LiteralPath $statePath -Force
 }
 catch {
@@ -350,7 +370,10 @@ finally {
     if ($null -ne $secureConfirmation) {
         $secureConfirmation.Dispose()
     }
-    if (-not (Test-Path -LiteralPath $statePath)) {
+    if (
+        -not (Test-Path -LiteralPath $statePath) -and
+        -not $script:credentialClipboardContainsPassword
+    ) {
         Clear-ClipboardMarker
     }
 }

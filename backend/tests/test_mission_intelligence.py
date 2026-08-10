@@ -1692,6 +1692,11 @@ def test_institutional_activation_script_verifies_full_session_contract() -> Non
     assert "TOKEN DO RAILWAY DIFERENTE" in script
     assert "ATIVACAO INTERROMPIDA" in script
     assert "Set-Clipboard -Value $plainToken" in script
+    assert "Publish-VerifiedCredential -Password $plainPassword" in script
+    assert "Set-Clipboard -Value $Password" in script
+    assert "NAO elimine ainda as variaveis temporarias" in script
+    assert "$ClearCredentialClipboard" in script
+    assert "Elimine agora SRIS_ACCESS_ACTIVATION_EMAIL" not in script
     assert "Remove-Item -LiteralPath $statePath -Force" in script
 
     frontend = (repo_root / "frontend" / "atlas-os" / "index.html").read_text(
