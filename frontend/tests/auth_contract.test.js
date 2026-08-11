@@ -70,3 +70,14 @@ test('Decision Workspace is loaded from the backend and explains confidence', ()
   assert.match(app, /Decision Workspace/i);
   assert.match(app, /Sustentação/);
 });
+
+test('logout removes credentials and institutional browser state', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const index = fs.readFileSync(path.join(__dirname, '../atlas-os/index.html'), 'utf8');
+  assert.match(index, /function clearLoginForm\(\)/);
+  assert.match(index, /form\.reset\(\)/);
+  assert.match(index, /qs\("#email"\)\.value=""/);
+  assert.match(index, /qs\("#password"\)\.value=""/);
+  assert.match(index, /sessionStorage\.removeItem\("sris_active_organization"\)/);
+});

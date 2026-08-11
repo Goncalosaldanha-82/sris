@@ -2484,20 +2484,32 @@
     });
 
     // Login / demo
+    function clearLoginForm(){
+      const form=qs("#loginForm");
+      form.reset();
+      qs("#email").value="";
+      qs("#password").value="";
+      qs("#loginMessage").textContent="";
+    }
+
     qs("#demoButton").addEventListener("click",()=>{
       activeOrganizationId=null;
       aiGovernanceStatus=null;
       currentSession=null;
       sessionStorage.removeItem("sris_token");
+      sessionStorage.removeItem("sris_active_organization");
+      clearLoginForm();
       sessionStorage.setItem("sris_demo","true");openApp({mode:"demo"});
     });
 
     qs("#logoutButton").addEventListener("click",()=>{
       sessionStorage.removeItem("sris_demo");
       sessionStorage.removeItem("sris_token");
+      sessionStorage.removeItem("sris_active_organization");
       activeOrganizationId=null;
       aiGovernanceStatus=null;
       currentSession=null;
+      clearLoginForm();
       qs("#usersLink").classList.add("hidden");
       qs("#administrationLabel").classList.add("hidden");
       qs("#appScreen").classList.add("hidden");
@@ -2526,11 +2538,13 @@
         sessionStorage.setItem("sris_token",token);
         sessionStorage.removeItem("sris_demo");
         const session=await loadSessionContext(token);
-        qs("#loginMessage").textContent="";
+        clearLoginForm();
         openApp({mode:"institutional",...session});
       }catch(err){
         sessionStorage.removeItem("sris_token");
         qs("#loginMessage").textContent=err.message||"Erro de autenticação.";
+        qs("#password").value="";
+        qs("#password").focus();
       }
     });
 
