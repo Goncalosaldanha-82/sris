@@ -735,17 +735,26 @@ def confirm_password_reset(
         .all()
     ):
         other.revoked_at = now
+    organization_id = _first_organization_id(db, user.id)
     record_audit(
         db,
         action="user.password_reset_completed",
         resource_type="user",
         resource_id=user.id,
-        organization_id=_first_organization_id(db, user.id),
+        organization_id=organization_id,
         user_id=user.id,
-        payload={"sessions_revoked": True},
+        payload={"sessions_revoked": True, "replacement_session_issued": True},
     )
     db.commit()
-    return PasswordResetConfirmResponse(status="password_updated")
+    return PasswordResetConfirmResponse(
+        status="password_updated",
+        access_token=create_access_token(
+            user_id=user.id,
+            organization_id=organization_id,
+            auth_version=user.auth_version,
+        ),
+        organization_id=organization_id,
+    )
 
 
 @router.patch(

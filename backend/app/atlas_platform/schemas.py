@@ -40,21 +40,23 @@ class PasswordRecoveryResponse(BaseModel):
     status: str
 
 
-class InstitutionalAccessActivationRequest(BaseModel):
+class InstitutionalAccessCompletionRequest(BaseModel):
     email: EmailStr
-    activation_token: str = Field(min_length=32, max_length=512)
+    activation_code: str = Field(min_length=16, max_length=32)
     new_password: str = Field(min_length=12, max_length=200)
     full_name: str = Field(min_length=2, max_length=200)
-    organization_name: str = Field(min_length=2, max_length=200)
-    organization_slug: str = Field(
-        pattern=r"^[a-z0-9-]+$",
-        min_length=2,
-        max_length=120,
-    )
 
 
-class InstitutionalAccessActivationResponse(BaseModel):
+class InstitutionalAccessCompletionResponse(BaseModel):
     status: str
+    access_token: str
+    organization_id: str
+    role: str
+    token_type: str = "bearer"
+
+
+class InstitutionalAccessStatusResponse(BaseModel):
+    available: bool
 
 
 class OrganizationCreate(BaseModel):
@@ -151,6 +153,9 @@ class PasswordResetConfirmRequest(BaseModel):
 
 class PasswordResetConfirmResponse(BaseModel):
     status: str
+    access_token: str
+    organization_id: str | None = None
+    token_type: str = "bearer"
 
 
 class AuthCapabilitiesRead(BaseModel):

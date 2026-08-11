@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import secrets
+from contextlib import asynccontextmanager
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -16,8 +18,13 @@ from . import workflow_models  # noqa: F401
 from .audit import record_audit
 from .auth import current_user, require_org_role
 from .config import environment_flag
-from .database import get_db
+from .database import SessionLocal, get_db
 from .identity import router as identity_router
+from .institutional_access import (
+    institutional_access_gate,
+    institutional_activation_url,
+    normalize_activation_code,
+)
 from .models import (
     KnowledgeObject,
     Membership,
@@ -28,8 +35,9 @@ from .models import (
     utcnow,
 )
 from .schemas import (
-    InstitutionalAccessActivationRequest,
-    InstitutionalAccessActivationResponse,
+    InstitutionalAccessCompletionRequest,
+    InstitutionalAccessCompletionResponse,
+    InstitutionalAccessStatusResponse,
     KnowledgeObjectCreate,
     KnowledgeObjectRead,
     LoginRequest,
@@ -46,6 +54,13 @@ from .schemas import (
 from .security import create_access_token, hash_password, verify_password
 from .workflow_api import router as workflow_router
 
+
+@asynccontextmanager
+async def app_lifespan(_: FastAPI):
+    announce_institutional_access()
+    yield
+
+
 app = FastAPI(
     title="SRIS Mission Intelligence API",
     version="1.5.0",
@@ -53,12 +68,15 @@ app = FastAPI(
         "Canonical mission intelligence, authentication, organizations, RBAC and "
         "the unified knowledge workflow."
     ),
+    lifespan=app_lifespan,
 )
 
 app.include_router(workflow_router)
 app.include_router(public_router)
 app.include_router(organization_router)
 app.include_router(identity_router)
+
+logger = logging.getLogger(__name__)
 
 
 def _managed_runtime() -> bool:
@@ -269,72 +287,86 @@ def emergency_password_recovery(
     return PasswordRecoveryResponse(status="password_updated")
 
 
-@app.post(
-    "/api/auth/emergency-access-activation",
-    response_model=InstitutionalAccessActivationResponse,
+def _institutional_access_available(db: Session) -> bool:
+    gate = institutional_access_gate()
+    return gate is not None and db.get(PasswordRecoveryUse, gate.ledger_hash) is None
+
+
+def announce_institutional_access() -> None:
+    """Publish the one-time browser path only to the privileged deploy log."""
+
+    gate = institutional_access_gate()
+    if gate is None:
+        return
+    with SessionLocal() as db:
+        if not _institutional_access_available(db):
+            return
+
+    activation_url = institutional_activation_url(gate.code)
+    logger.warning("=" * 72)
+    logger.warning("SRIS: PRIMEIRO ACESSO INSTITUCIONAL DISPONIVEL")
+    if activation_url:
+        logger.warning("ABRIR: %s", activation_url)
+    else:
+        logger.warning("ABRIR: /account.html?mode=activate")
+    logger.warning("CODIGO: %s", gate.code)
+    logger.warning("O codigo e pessoal, temporario e de utilizacao unica.")
+    logger.warning("=" * 72)
+
+
+@app.get(
+    "/api/auth/institutional-access/status",
+    response_model=InstitutionalAccessStatusResponse,
     include_in_schema=False,
 )
-def emergency_access_activation(
-    payload: InstitutionalAccessActivationRequest,
+def institutional_access_status(
     db: Session = Depends(get_db),
-) -> InstitutionalAccessActivationResponse:
-    """Create or repair the one institutional owner behind a one-time gate.
+) -> InstitutionalAccessStatusResponse:
+    return InstitutionalAccessStatusResponse(
+        available=_institutional_access_available(db)
+    )
 
-    This route exists because password recovery cannot repair an installation in
-    which the intended user was never created. It is deliberately undiscoverable,
-    exact-email scoped and single-use. No password or activation secret is stored
-    outside the normal password hash and the one-way token-use ledger.
-    """
 
-    configured_email = os.getenv(
-        "SRIS_ACCESS_ACTIVATION_EMAIL",
-        "",
-    ).strip().lower()
-    configured_token = os.getenv(
-        "SRIS_ACCESS_ACTIVATION_TOKEN",
-        "",
-    ).strip()
+@app.post(
+    "/api/auth/institutional-access/complete",
+    response_model=InstitutionalAccessCompletionResponse,
+    include_in_schema=False,
+)
+def complete_institutional_access(
+    payload: InstitutionalAccessCompletionRequest,
+    db: Session = Depends(get_db),
+) -> InstitutionalAccessCompletionResponse:
+    """Create or repair the owner and return the authenticated browser session."""
 
-    if not configured_email or len(configured_token) < 32:
+    gate = institutional_access_gate()
+    if gate is None or db.get(PasswordRecoveryUse, gate.ledger_hash) is not None:
         raise _recovery_not_available()
 
     requested_email = str(payload.email).strip().lower()
+    requested_code = normalize_activation_code(payload.activation_code)
     email_matches = secrets.compare_digest(
         requested_email.encode("utf-8"),
-        configured_email.encode("utf-8"),
+        gate.email.encode("utf-8"),
     )
-    token_matches = secrets.compare_digest(
-        payload.activation_token.encode("utf-8"),
-        configured_token.encode("utf-8"),
+    code_matches = secrets.compare_digest(
+        requested_code.encode("utf-8"),
+        gate.normalized_code.encode("utf-8"),
     )
-    if not email_matches or not token_matches:
+    if not email_matches or not code_matches:
         raise _recovery_not_available()
 
-    token_hash = hashlib.sha256(
-        (
-            "institutional_access_activation\0"
-            f"{configured_email}\0{configured_token}"
-        ).encode("utf-8")
-    ).hexdigest()
-    if db.get(PasswordRecoveryUse, token_hash) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Access activation token already used",
-        )
-
+    organization_name = "SRIS"
+    organization_slug = "sris"
     try:
-        user = (
-            db.query(User)
-            .filter(User.email == configured_email)
-            .one_or_none()
-        )
+        user = db.query(User).filter(User.email == gate.email).one_or_none()
         user_created = user is None
         if user is None:
             user = User(
-                email=configured_email,
+                email=gate.email,
                 full_name=payload.full_name.strip(),
                 password_hash=hash_password(payload.new_password),
                 is_active=True,
+                auth_version=1,
             )
             db.add(user)
         else:
@@ -342,18 +374,19 @@ def emergency_access_activation(
             user.password_hash = hash_password(payload.new_password)
             user.is_active = True
             user.auth_version += 1
+        user.last_login_at = utcnow()
         db.flush()
 
         organization = (
             db.query(Organization)
-            .filter(Organization.slug == payload.organization_slug)
+            .filter(Organization.slug == organization_slug)
             .one_or_none()
         )
         organization_created = organization is None
         if organization is None:
             organization = Organization(
-                name=payload.organization_name.strip(),
-                slug=payload.organization_slug,
+                name=organization_name,
+                slug=organization_slug,
             )
             db.add(organization)
             db.flush()
@@ -377,11 +410,11 @@ def emergency_access_activation(
         else:
             membership.role = Role.OWNER.value
 
-        # The primary-key insert reserves the activation secret atomically.
-        # Any concurrent replay rolls back all account and password changes.
+        # Reserving the derived proof in the database makes the complete
+        # account/password transaction atomic and single-use across restarts.
         db.add(
             PasswordRecoveryUse(
-                token_hash=token_hash,
+                token_hash=gate.ledger_hash,
                 user_id=user.id,
                 organization_id=organization.id,
             )
@@ -395,23 +428,28 @@ def emergency_access_activation(
             organization_id=organization.id,
             user_id=user.id,
             payload={
-                "method": "one_time_environment_token",
+                "method": "railway_log_browser_activation_v2",
                 "user_created": user_created,
                 "organization_created": organization_created,
                 "membership_created": membership_created,
                 "role": Role.OWNER.value,
+                "session_issued": True,
             },
         )
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Institutional access activation already completed",
-        ) from exc
+        raise _recovery_not_available() from exc
 
-    return InstitutionalAccessActivationResponse(
-        status="institutional_access_activated"
+    return InstitutionalAccessCompletionResponse(
+        status="institutional_access_activated",
+        access_token=create_access_token(
+            user_id=user.id,
+            organization_id=organization.id,
+            auth_version=user.auth_version,
+        ),
+        organization_id=organization.id,
+        role=Role.OWNER.value,
     )
 
 

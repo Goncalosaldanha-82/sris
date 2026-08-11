@@ -318,10 +318,17 @@ def test_password_reset_is_generic_single_use_and_revokes_sessions(
         },
     )
     assert confirmed.status_code == 200, confirmed.text
-    assert confirmed.json() == {"status": "password_updated"}
+    reset_session = confirmed.json()
+    assert reset_session["status"] == "password_updated"
+    assert reset_session["access_token"]
+    assert reset_session["organization_id"]
 
     # Changing the password increments auth_version, invalidating earlier JWTs.
     assert client.get("/api/auth/me", headers=headers).status_code == 401
+    assert client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {reset_session['access_token']}"},
+    ).status_code == 200
     assert client.post(
         "/api/auth/login",
         json={"email": email, "password": "owner-password-123"},

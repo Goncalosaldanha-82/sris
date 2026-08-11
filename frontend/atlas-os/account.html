@@ -46,6 +46,37 @@
 
   <main class="surface">
     <section class="card">
+      <div id="activateView" class="hidden">
+        <div class="eyebrow">Primeiro acesso institucional</div>
+        <h2>Ativar a conta proprietária</h2>
+        <p class="intro">Use o código mostrado no deployment deste ambiente. A palavra-passe é definida e a sessão é aberta neste mesmo passo.</p>
+        <form id="activateForm">
+          <div class="field">
+            <label for="activateEmail">Email institucional</label>
+            <input id="activateEmail" type="email" autocomplete="username" required placeholder="nome@organizacao.pt" />
+          </div>
+          <div class="field">
+            <label for="activateName">Nome completo</label>
+            <input id="activateName" type="text" autocomplete="name" minlength="2" maxlength="200" required />
+          </div>
+          <div class="field">
+            <label for="activateCode">Código de ativação</label>
+            <input id="activateCode" type="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" minlength="16" maxlength="24" required placeholder="XXXX-XXXX-XXXX-XXXX" />
+          </div>
+          <div class="field">
+            <label for="activatePassword">Criar palavra-passe</label>
+            <input id="activatePassword" type="password" autocomplete="new-password" minlength="12" maxlength="200" required />
+          </div>
+          <div class="field">
+            <label for="activateConfirmation">Confirmar palavra-passe</label>
+            <input id="activateConfirmation" type="password" autocomplete="new-password" minlength="12" maxlength="200" required />
+          </div>
+          <button type="submit">Ativar e entrar no SRIS</button>
+        </form>
+        <div id="activateMessage" class="message" aria-live="polite"></div>
+        <a class="button secondary" href="/">Voltar ao início de sessão</a>
+      </div>
+
       <div id="requestView" class="hidden">
         <div class="eyebrow">Recuperação de acesso</div>
         <h2>Esqueceu-se da palavra-passe?</h2>
@@ -112,12 +143,13 @@
   (()=>{
     "use strict";
     const $=selector=>document.querySelector(selector);
-    const roleLabels={admin:"Administrador",reviewer:"Revisor",contributor:"Colaborador",observer:"Observador"};
+    const roleLabels={owner:"Proprietário",admin:"Administrador",reviewer:"Revisor",contributor:"Colaborador",observer:"Observador"};
+    let activationCode="";
     let invitationToken="";
     let resetToken="";
     let invitationDetails=null;
 
-    function show(view){["requestView","inviteView","resetView"].forEach(id=>$("#"+id).classList.toggle("hidden",id!==view))}
+    function show(view){["activateView","requestView","inviteView","resetView"].forEach(id=>$("#"+id).classList.toggle("hidden",id!==view))}
     function message(target,text,type=""){
       const node=$(target);node.textContent=text;node.className=`message ${type}`.trim();
     }
@@ -129,9 +161,15 @@
     }
     function readSecretFragment(){
       const params=new URLSearchParams(location.hash.replace(/^#/,""));
+      activationCode=params.get("activate")||"";
       invitationToken=params.get("invite")||"";
       resetToken=params.get("reset")||"";
       if(location.hash)history.replaceState(null,"",location.pathname+location.search);
+    }
+
+    function loadActivation(){
+      show("activateView");
+      if(activationCode)$("#activateCode").value=activationCode;
     }
     async function loadInvitation(){
       show("inviteView");
@@ -189,6 +227,36 @@
       finally{button.disabled=false}
     });
 
+    $("#activateForm").addEventListener("submit",async event=>{
+      event.preventDefault();const button=event.submitter;button.disabled=true;
+      const password=$("#activatePassword").value;
+      if(password!==$("#activateConfirmation").value){
+        message("#activateMessage","As duas palavras-passe não coincidem.","error");button.disabled=false;return;
+      }
+      message("#activateMessage","A ativar e a abrir a sessão institucional…");
+      try{
+        const data=await jsonRequest("/api/auth/institutional-access/complete",{
+          method:"POST",
+          body:JSON.stringify({
+            email:$("#activateEmail").value.trim(),
+            full_name:$("#activateName").value.trim(),
+            activation_code:$("#activateCode").value.trim(),
+            new_password:password
+          })
+        });
+        activationCode="";
+        $("#activateForm").reset();
+        sessionStorage.setItem("sris_token",data.access_token);
+        sessionStorage.setItem("sris_active_organization",data.organization_id);
+        sessionStorage.removeItem("sris_demo");
+        message("#activateMessage","Acesso confirmado. A abrir o SRIS…","success");
+        setTimeout(()=>location.replace("/"),500);
+      }catch(error){
+        message("#activateMessage","O código não é válido, já foi utilizado ou a ativação deixou de estar disponível.","error");
+        button.disabled=false;
+      }
+    });
+
     $("#inviteForm").addEventListener("submit",async event=>{
       event.preventDefault();const button=event.submitter;button.disabled=true;
       const password=$("#invitePassword").value;
@@ -215,16 +283,22 @@
       }
       message("#resetMessage","A guardar…");
       try{
-        await jsonRequest("/api/auth/password-reset/confirm",{
+        const data=await jsonRequest("/api/auth/password-reset/confirm",{
           method:"POST",body:JSON.stringify({token:resetToken,new_password:password})
         });
-        resetToken="";$("#resetForm").classList.add("hidden");
-        message("#resetMessage","Palavra-passe alterada. As sessões anteriores foram encerradas. Já pode entrar no SRIS.","success");
+        resetToken="";$("#resetForm").reset();$("#resetForm").classList.add("hidden");
+        sessionStorage.setItem("sris_token",data.access_token);
+        if(data.organization_id)sessionStorage.setItem("sris_active_organization",data.organization_id);
+        sessionStorage.removeItem("sris_demo");
+        message("#resetMessage","Palavra-passe alterada. As sessões anteriores foram encerradas. A abrir a nova sessão…","success");
+        setTimeout(()=>location.replace("/"),500);
       }catch(error){message("#resetMessage",error.message,"error");button.disabled=false}
     });
 
     readSecretFragment();
-    if(invitationToken)loadInvitation();
+    const mode=new URLSearchParams(location.search).get("mode")||"";
+    if(activationCode||mode==="activate")loadActivation();
+    else if(invitationToken)loadInvitation();
     else if(resetToken)show("resetView");
     else{show("requestView");loadCapabilities()}
   })();

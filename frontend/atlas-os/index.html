@@ -183,7 +183,7 @@
       border-color:var(--forest-3);box-shadow:0 0 0 4px rgba(72,116,92,.10)
     }
     .login-message{min-height:20px;margin-top:12px;color:var(--red);font-size:12px}
-    .login-support{display:flex;justify-content:flex-end;margin:-5px 0 18px}
+    .login-support{display:flex;justify-content:space-between;gap:16px;margin:-5px 0 18px}
     .login-support a{color:var(--forest);font-size:11px;font-weight:750;text-decoration:none}
     .login-support a:hover{text-decoration:underline}
     .account-boundary{margin:13px 0 0;color:var(--ink-muted);font-size:10.5px;line-height:1.5;text-align:center}
@@ -695,6 +695,7 @@
 
           <div class="login-support">
             <a href="/account.html?mode=forgot">Esqueci-me da palavra-passe</a>
+            <a id="activationLink" class="hidden" href="/account.html?mode=activate">Ativar primeiro acesso</a>
           </div>
 
           <button class="btn-primary" type="submit" style="width:100%">Entrar no SRIS</button>
@@ -2532,6 +2533,11 @@
         qs("#loginMessage").textContent=err.message||"Erro de autenticação.";
       }
     });
+
+    fetch("/api/auth/institutional-access/status",{cache:"no-store"})
+      .then(response=>response.ok?response.json():{available:false})
+      .then(status=>qs("#activationLink").classList.toggle("hidden",!status.available))
+      .catch(()=>qs("#activationLink").classList.add("hidden"));
 
     const storedToken=sessionStorage.getItem("sris_token");
     if(sessionStorage.getItem("sris_demo")==="true")openApp({mode:"demo"});
