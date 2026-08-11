@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app.atlas_platform.config import settings
 from app.atlas_platform.database import Base
 from app.atlas_platform import models  # noqa: F401
 from app.atlas_platform import workflow_models  # noqa: F401
@@ -17,9 +17,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-database_url = os.getenv("ATLAS_DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+database_url = settings.database_url
+# Alembic's ConfigParser treats percent signs as interpolation markers.
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 
@@ -34,6 +34,7 @@ def run_migrations_offline() -> None:
         compare_type=True,
         compare_server_default=True,
         render_as_batch=url.startswith("sqlite"),
+        version_table_schema=settings.database_schema,
     )
 
     with context.begin_transaction():
@@ -42,11 +43,18 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     section = config.get_section(config.config_ini_section, {})
+    connect_args = {}
+    if settings.database_schema and database_url.startswith("postgresql"):
+        connect_args["options"] = (
+            f"-csearch_path={settings.database_schema},public"
+        )
+
     connectable = engine_from_config(
         section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         future=True,
+        connect_args=connect_args,
     )
 
     with connectable.connect() as connection:
@@ -56,6 +64,7 @@ def run_migrations_online() -> None:
             compare_type=True,
             compare_server_default=True,
             render_as_batch=connection.dialect.name == "sqlite",
+            version_table_schema=settings.database_schema,
         )
 
         with context.begin_transaction():

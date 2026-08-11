@@ -17,8 +17,8 @@ from app.mission_intelligence.api import organization_router, public_router
 from . import workflow_models  # noqa: F401
 from .audit import record_audit
 from .auth import current_user, require_org_role
-from .config import environment_flag
-from .database import SessionLocal, get_db
+from .config import environment_flag, settings
+from .database import SessionLocal, engine, get_db
 from .identity import router as identity_router
 from .institutional_access import (
     institutional_access_gate,
@@ -57,6 +57,7 @@ from .workflow_api import router as workflow_router
 
 @asynccontextmanager
 async def app_lifespan(_: FastAPI):
+    announce_database_runtime()
     announce_institutional_access()
     yield
 
@@ -96,7 +97,16 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
         db.execute(text("select 1"))
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Database unavailable") from exc
-    return {"status": "ok", "database": "ok"}
+    return {
+        "status": "ok",
+        "database": "ok",
+        "database_engine": db.bind.dialect.name if db.bind is not None else "unknown",
+        "database_schema": settings.database_schema or "default",
+        "database_persistence": (
+            "persistent" if db.bind is not None and db.bind.dialect.name == "postgresql"
+            else "local"
+        ),
+    }
 
 
 @app.post("/api/auth/register", response_model=UserRead, status_code=201)
@@ -289,7 +299,31 @@ def emergency_password_recovery(
 
 def _institutional_access_available(db: Session) -> bool:
     gate = institutional_access_gate()
-    return gate is not None and db.get(PasswordRecoveryUse, gate.ledger_hash) is None
+    if gate is None or db.get(PasswordRecoveryUse, gate.ledger_hash) is not None:
+        return False
+    if gate.source == "existing_recovery_gate":
+        existing_owner = (
+            db.query(Membership.id)
+            .join(User, User.id == Membership.user_id)
+            .filter(
+                Membership.role == Role.OWNER.value,
+                User.is_active.is_(True),
+            )
+            .first()
+        )
+        return existing_owner is None
+    return True
+
+
+def announce_database_runtime() -> None:
+    """Make the persistence contract inspectable without exposing credentials."""
+
+    logger.warning(
+        "SRIS: DATABASE PERSISTENCE | engine=%s | schema=%s | mode=%s",
+        engine.dialect.name,
+        settings.database_schema or "default",
+        "persistent" if engine.dialect.name == "postgresql" else "local",
+    )
 
 
 def announce_institutional_access() -> None:
@@ -339,7 +373,7 @@ def complete_institutional_access(
     """Create or repair the owner and return the authenticated browser session."""
 
     gate = institutional_access_gate()
-    if gate is None or db.get(PasswordRecoveryUse, gate.ledger_hash) is not None:
+    if gate is None or not _institutional_access_available(db):
         raise _recovery_not_available()
 
     requested_email = str(payload.email).strip().lower()
@@ -428,7 +462,7 @@ def complete_institutional_access(
             organization_id=organization.id,
             user_id=user.id,
             payload={
-                "method": "railway_log_browser_activation_v2",
+                "method": gate.source,
                 "user_created": user_created,
                 "organization_created": organization_created,
                 "membership_created": membership_created,

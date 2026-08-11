@@ -29,6 +29,7 @@ class InstitutionalAccessGate:
     code: str
     normalized_code: str
     ledger_hash: str
+    source: str
 
 
 def normalize_activation_code(value: str) -> str:
@@ -38,10 +39,29 @@ def normalize_activation_code(value: str) -> str:
 def institutional_access_gate() -> InstitutionalAccessGate | None:
     email = os.getenv("SRIS_ACCESS_ACTIVATION_EMAIL", "").strip().lower()
     server_nonce = os.getenv("SRIS_ACCESS_ACTIVATION_TOKEN", "").strip()
-    if not email or "@" not in email or not server_nonce:
+    source = "temporary_activation_gate"
+    namespace = "sris_browser_owner_activation_v3"
+
+    # Once the temporary activation variables have been removed, an empty
+    # canonical database may still be recovered without asking the operator to
+    # shuttle another secret between Railway and a browser.  Reuse the existing
+    # high-entropy emergency-recovery material only as a first-owner gate.  The
+    # API consumes the same ledger hash, so that recovery token becomes unusable
+    # atomically with the owner creation.
+    if not email and not server_nonce:
+        email = os.getenv("SRIS_PASSWORD_RECOVERY_EMAIL", "").strip().lower()
+        server_nonce = os.getenv("SRIS_PASSWORD_RECOVERY_TOKEN", "").strip()
+        source = "existing_recovery_gate"
+        namespace = "sris_browser_owner_recovery_bootstrap_v1"
+
+    if (
+        not email
+        or "@" not in email
+        or len(server_nonce.encode("utf-8")) < 32
+    ):
         return None
 
-    message = f"sris_browser_owner_activation_v2\0{email}\0{server_nonce}"
+    message = f"{namespace}\0{email}\0{server_nonce}"
     digest = hmac.new(
         settings.jwt_secret.encode("utf-8"),
         message.encode("utf-8"),
@@ -54,16 +74,23 @@ def institutional_access_gate() -> InstitutionalAccessGate | None:
         normalized_code[index : index + 4]
         for index in range(0, len(normalized_code), 4)
     )
-    ledger_hash = hashlib.sha256(
-        f"sris_browser_owner_activation_v2\0{email}\0{normalized_code}".encode(
-            "utf-8"
-        )
-    ).hexdigest()
+    if source == "existing_recovery_gate":
+        # This is intentionally identical to emergency_password_recovery's
+        # token ledger.  First-owner activation and password recovery can never
+        # spend the same environment secret independently.
+        ledger_hash = hashlib.sha256(
+            f"{email}\0{server_nonce}".encode("utf-8")
+        ).hexdigest()
+    else:
+        ledger_hash = hashlib.sha256(
+            f"{namespace}\0{email}\0{normalized_code}".encode("utf-8")
+        ).hexdigest()
     return InstitutionalAccessGate(
         email=email,
         code=code,
         normalized_code=normalized_code,
         ledger_hash=ledger_hash,
+        source=source,
     )
 
 

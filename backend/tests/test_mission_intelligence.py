@@ -502,7 +502,13 @@ def test_authenticated_run_is_persisted_versioned_and_human_reviewed() -> None:
 def test_health_checks_database_and_security_headers_are_present() -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "database": "ok"}
+    assert response.json() == {
+        "status": "ok",
+        "database": "ok",
+        "database_engine": "sqlite",
+        "database_schema": "default",
+        "database_persistence": "local",
+    }
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
@@ -1526,7 +1532,7 @@ def test_browser_access_activation_creates_owner_session_and_is_single_use(
     suffix = uuid4().hex[:8]
     email = f"institutional-owner-{suffix}@example.com"
     password = "institutional-password-123"
-    server_nonce = f"server-private-{suffix}"
+    server_nonce = f"server-private-{suffix}-at-least-32-bytes"
     endpoint = "/api/auth/institutional-access/complete"
     status_endpoint = "/api/auth/institutional-access/status"
 
@@ -1633,7 +1639,7 @@ def test_browser_access_activation_repairs_legacy_password_hash(
     suffix = uuid4().hex[:8]
     email = f"legacy-owner-{suffix}@example.com"
     password = "repaired-password-123"
-    server_nonce = f"legacy-server-private-{suffix}"
+    server_nonce = f"legacy-server-private-{suffix}-at-least-32-bytes"
 
     with SessionLocal() as db:
         db.add(

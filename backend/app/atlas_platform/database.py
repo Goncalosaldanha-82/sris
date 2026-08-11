@@ -22,6 +22,10 @@ engine_kwargs: dict = {"pool_pre_ping": True}
 
 if is_sqlite:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+elif settings.database_schema:
+    engine_kwargs["connect_args"] = {
+        "options": f"-csearch_path={settings.database_schema},public"
+    }
 
 if is_memory_sqlite:
     engine_kwargs["poolclass"] = StaticPool
