@@ -14,6 +14,8 @@ from app.atlas_platform.models import Membership, Role, User
 from app.main import app
 from app.mission_intelligence import ai as mission_ai
 from app.mission_intelligence import api as mission_api
+from app.mission_intelligence import dialogue_service
+from app.mission_intelligence import interactive as interactive_ai
 from app.mission_intelligence import service
 from app.mission_intelligence.ai import (
     AIExecution,
@@ -34,6 +36,9 @@ from app.mission_intelligence.contracts import (
     ContextDossier,
     ContextGap,
     ContextSource,
+    MIInteractionIntent,
+    MIInteractiveOutput,
+    MIInteractiveResearchBundle,
 )
 from app.mission_intelligence.engine import analyze_mission
 from app.mission_intelligence.governance import (
@@ -41,6 +46,7 @@ from app.mission_intelligence.governance import (
     reserve_ai_usage,
     settle_ai_usage,
 )
+from app.mission_intelligence.interactive import MIInteractiveExecution
 from fastapi.testclient import TestClient
 from openai import BadRequestError, OpenAI
 from pydantic import ValidationError
@@ -252,11 +258,198 @@ def _research_bundle(document) -> AIResearchBundle:
     )
 
 
+def _interactive_output(
+    document,
+    intent: MIInteractionIntent = MIInteractionIntent.DIAGNOSE,
+) -> MIInteractiveOutput:
+    basis = [record.canonical_id for record in document.records]
+    assert len(basis) >= 7
+    return MIInteractiveOutput.model_validate(
+        {
+            "intent": intent.value,
+            "direct_answer": {
+                "answer": (
+                    "A missão ainda não deve escolher uma intervenção; deve primeiro "
+                    "separar legitimidade, risco imediato e aprendizagem comparativa."
+                ),
+                "status": "conditional",
+                "what_changed": (
+                    "O turno acrescenta uma contra-hipótese, uma alternativa-piloto "
+                    "reversível e regras explícitas para decidir após medição."
+                ),
+            },
+            "mission_reading": {
+                "decision_problem": "Escolher uma gestão territorial defensável.",
+                "current_blocker": "A autorização e a linha de base estão em aberto.",
+                "key_tension": "Reduzir combustível sem destruir a capacidade de aprender.",
+                "blind_spot": "A urgência operacional ainda não foi separada da causalidade hídrica.",
+                "based_on_ids": [basis[0], basis[1], basis[2]],
+            },
+            "questions": [
+                {
+                    "question_id": "Q-AI-001",
+                    "question": "Qual é o resultado prioritário que pode excluir os restantes?",
+                    "why_it_matters": "Sem hierarquia não existe comparação coerente.",
+                    "priority": "critical",
+                    "answer_type": "single_choice",
+                    "options": ["Risco de incêndio", "Regime hídrico", "Biodiversidade"],
+                    "decision_unlocked": "Ponderação dos critérios.",
+                    "based_on_ids": [basis[0], basis[2]],
+                },
+                {
+                    "question_id": "Q-AI-002",
+                    "question": "Existe autorização para instrumentar sem intervir?",
+                    "why_it_matters": "A medição também exige legitimidade.",
+                    "priority": "critical",
+                    "answer_type": "yes_no",
+                    "options": [],
+                    "decision_unlocked": "Início legal da linha de base.",
+                    "based_on_ids": [basis[6]],
+                },
+                {
+                    "question_id": "Q-AI-003",
+                    "question": "Que área pode servir de comparação sem intervenção?",
+                    "why_it_matters": "Sem comparador a causalidade fica fraca.",
+                    "priority": "high",
+                    "answer_type": "free_text",
+                    "options": [],
+                    "decision_unlocked": "Desenho quase experimental.",
+                    "based_on_ids": [basis[0], basis[1]],
+                },
+            ],
+            "hypotheses": [
+                {
+                    "proposal_id": "HYP-AI-001",
+                    "statement": "A água observada é sobretudo sazonal.",
+                    "rationale": "Existe apenas uma observação pontual em abril.",
+                    "what_is_new": "Separa a permanência da água da presença observada num único momento.",
+                    "based_on_ids": [basis[1]],
+                    "evidence_needed": ["Série de nível e caudal durante um ciclo sazonal."],
+                    "disconfirming_evidence": ["Escoamento estável no período seco em anos comparáveis."],
+                    "confidence": "low",
+                    "impact_if_true": "Reduz o peso da hipótese de nascente permanente.",
+                },
+                {
+                    "proposal_id": "HYP-AI-002",
+                    "statement": "A carga arbustiva domina o risco imediato, não a densidade arbórea.",
+                    "rationale": "O estrato arbustivo existe, mas ainda não foi quantificado.",
+                    "what_is_new": "Cria uma contra-hipótese operacional à intervenção centrada no povoamento.",
+                    "based_on_ids": [basis[2]],
+                    "evidence_needed": ["Inventário de combustível por estrato."],
+                    "disconfirming_evidence": ["Avaliação que localize o risco dominante no estrato arbóreo."],
+                    "confidence": "low",
+                    "impact_if_true": "Favorece uma intervenção seletiva de menor perturbação.",
+                },
+            ],
+            "alternative_proposals": [
+                {
+                    "proposal_id": "ALT-AI-001",
+                    "title": "Piloto adaptativo com área de controlo",
+                    "description": "Intervenção seletiva numa parcela pequena, mantendo referência e exclusão ripícola.",
+                    "difference_from_existing": "Acrescenta comparação simultânea, reversibilidade e uma porta de expansão condicionada.",
+                    "potential_value": ["Aprendizagem antes de escalar.", "Menor exposição irreversível."],
+                    "risks": ["A parcela-piloto pode não representar a área total."],
+                    "prerequisites": ["Autorização.", "Delimitação técnica das parcelas."],
+                    "reversibility": "high",
+                    "based_on_ids": [basis[0], basis[1], basis[2]],
+                }
+            ],
+            "decision_criteria": [
+                {
+                    "proposal_id": "CRT-AI-001",
+                    "name": "Risco de combustível",
+                    "definition": "Mudança material na continuidade e carga combustível.",
+                    "measurement": "Inventário por estrato e continuidade espacial.",
+                    "threshold_or_rule": "Definir limiar técnico antes da intervenção.",
+                    "trade_off": "Redução de combustível pode aumentar perturbação do solo.",
+                    "based_on_ids": [basis[2]],
+                },
+                {
+                    "proposal_id": "CRT-AI-002",
+                    "name": "Regime hídrico",
+                    "definition": "Mudança de nível ou caudal além da variabilidade de referência.",
+                    "measurement": "Série temporal sincronizada com precipitação.",
+                    "threshold_or_rule": "Não atribuir mudança sem comparador e janela definida.",
+                    "trade_off": "A espera por uma série sazonal atrasa a decisão.",
+                    "based_on_ids": [basis[1]],
+                },
+                {
+                    "proposal_id": "CRT-AI-003",
+                    "name": "Reversibilidade",
+                    "definition": "Capacidade de suspender ou corrigir a intervenção.",
+                    "measurement": "Área, intensidade e compromissos irreversíveis.",
+                    "threshold_or_rule": "Preferir opção reversível quando a incerteza é material.",
+                    "trade_off": "Pode reduzir a velocidade de execução.",
+                    "based_on_ids": [basis[6]],
+                },
+            ],
+            "experiment_proposals": [
+                {
+                    "proposal_id": "EXP-AI-001",
+                    "title": "Piloto comparativo sazonal",
+                    "question": "A intervenção seletiva altera combustível sem degradar solo e água?",
+                    "target_hypothesis_ids": ["HYP-AI-002"],
+                    "design": "Comparar parcela-piloto, referência e faixa de exclusão com medição anterior e posterior.",
+                    "baseline": "Um ciclo sazonal anterior à decisão de expansão.",
+                    "comparator": "Parcela comparável sem intervenção.",
+                    "measures": ["Carga combustível.", "Humidade do solo.", "Nível ou caudal.", "Solo exposto."],
+                    "success_or_decision_rules": ["Expandir apenas se os limiares pré-definidos forem cumpridos."],
+                    "stop_conditions": ["Erosão material.", "Intervenção sem autorização válida."],
+                    "timeframe": "Um ciclo sazonal completo, sujeito a revisão técnica.",
+                    "limitations": ["Um único ciclo pode não representar anos extremos."],
+                    "based_on_ids": [basis[0], basis[1], basis[2], basis[5], basis[6]],
+                }
+            ],
+            "challenges": [
+                {
+                    "challenge_id": "CHL-AI-001",
+                    "target": "A centralidade imediata da água na decisão.",
+                    "objection": "O risco de incêndio pode exigir ação independente da causalidade hídrica.",
+                    "why_it_matters": "Misturar horizontes pode bloquear uma ação preventiva legítima.",
+                    "response_needed": "Separar medidas urgentes e experiência causal.",
+                    "based_on_ids": [basis[1], basis[2]],
+                }
+            ],
+            "recommended_actions": [
+                {
+                    "action_id": "ACT-AI-001",
+                    "action": "Confirmar autorização para observar e instrumentar.",
+                    "purpose": "Estabelecer legitimidade antes de atividade no terreno.",
+                    "owner_role": "Promotor e titular.",
+                    "dependencies": [],
+                    "urgency": "now",
+                    "decision_effect": "Desbloqueia ou impede toda a linha de base.",
+                    "based_on_ids": [basis[6]],
+                },
+                {
+                    "action_id": "ACT-AI-002",
+                    "action": "Definir parcelas e métricas com competência técnica.",
+                    "purpose": "Converter hipóteses em desenho comparável.",
+                    "owner_role": "Responsável técnico.",
+                    "dependencies": ["Autorização."],
+                    "urgency": "next",
+                    "decision_effect": "Torna a alternativa-piloto avaliável.",
+                    "based_on_ids": [basis[0], basis[1], basis[2]],
+                },
+            ],
+            "recommended_next_move": "Responder às três perguntas e validar a autorização antes de desenhar o protocolo final.",
+            "boundary": {
+                "statement": "Tudo o que foi acrescentado é proposta sujeita a revisão humana; nenhum facto ou decisão foi criado.",
+            },
+        }
+    )
+
+
 def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     status = client.get("/api/mission-intelligence/status")
     assert status.status_code == 200
     assert status.json()["foundation_version"] == "1.3"
     assert status.json()["engine_version"] == "mission-intelligence-deterministic-1.2"
+    assert status.json()["interactive_mission_intelligence"] == "available"
+    assert status.json()["interactive_contract_version"] == "2.0"
+    assert status.json()["interactive_state"] == "locally_persisted"
+    assert status.json()["proposal_review"] == "granular_human_review"
+    assert status.json()["canonical_auto_mutation"] is False
     assert status.json()["human_review_required"] is True
     assert status.json()["ai_pilot_gate"] == "single_organization"
     assert status.json()["ai_pilot_organization_configured"] is False
@@ -806,11 +999,501 @@ def test_context_research_rejects_a_structurally_shallow_dossier(
     assert blocked.value.web_search_calls == 1
 
 
+def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    output = _interactive_output(document)
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Interage com esta missão e acrescenta inteligência útil.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+    )
+
+    assert request.response_model is MIInteractiveOutput
+    assert request.reasoning_effort == "medium"
+    assert "Não és um redator de" in request.instructions
+    assert "Podes criar hipóteses, alternativas, critérios e experiências" in (
+        request.instructions
+    )
+    assert interactive_ai._quality_failures(
+        output,
+        MIInteractionIntent.DIAGNOSE,
+    ) == []
+    assert len(output.questions) == 3
+    assert len(output.hypotheses) == 2
+    assert len(output.alternative_proposals) == 1
+    assert len(output.decision_criteria) == 3
+    assert len(output.experiment_proposals) == 1
+    assert output.boundary.facts_added is False
+    assert output.boundary.human_review_required is True
+
+
+def test_interactive_m001_domain_eval_preserves_epistemic_and_decision_boundaries(
+) -> None:
+    rubric = json.loads(
+        (
+            Path(__file__).parent
+            / "fixtures"
+            / "mission_intelligence_m001_eval.json"
+        ).read_text(encoding="utf-8")
+    )
+    document, _deterministic = _canonical_analysis(rubric["mission_code"])
+    output = _interactive_output(document, MIInteractionIntent(rubric["intent"]))
+
+    for field, minimum in rubric["minimum_counts"].items():
+        assert len(getattr(output, field)) >= minimum
+
+    referenced = set(output.mission_reading.based_on_ids)
+    for group in (
+        output.questions,
+        output.hypotheses,
+        output.alternative_proposals,
+        output.decision_criteria,
+        output.experiment_proposals,
+        output.challenges,
+        output.recommended_actions,
+    ):
+        for item in group:
+            referenced.update(item.based_on_ids)
+    assert set(rubric["required_canonical_anchors"]).issubset(referenced)
+
+    rendered = json.dumps(output.model_dump(mode="json"), ensure_ascii=False).casefold()
+    for theme in rubric["required_operational_themes"]:
+        assert theme.casefold() in rendered
+    for prohibited in rubric["prohibited_claims"]:
+        assert prohibited.casefold() not in rendered
+
+    boundaries = rubric["required_boundaries"]
+    assert output.boundary.facts_added is boundaries["facts_added"]
+    assert (
+        output.boundary.human_review_required
+        is boundaries["human_review_required"]
+    )
+    assert output.boundary.canonical_mutation == boundaries["canonical_mutation"]
+    assert rubric["decision_selection_allowed"] is False
+
+
+def test_interactive_quality_gate_rejects_a_report_shaped_diagnosis() -> None:
+    document, _deterministic = _canonical_analysis("M-001")
+    complete = _interactive_output(document)
+    shallow = complete.model_copy(
+        update={
+            "questions": [],
+            "hypotheses": [],
+            "alternative_proposals": [],
+            "decision_criteria": [],
+            "experiment_proposals": [],
+            "challenges": [],
+            "recommended_actions": [],
+        }
+    )
+
+    failures = interactive_ai._quality_failures(
+        shallow,
+        MIInteractionIntent.DIAGNOSE,
+    )
+    assert "questions requires at least 3 item(s)" in failures
+    assert "hypotheses requires at least 2 item(s)" in failures
+    assert "alternative_proposals requires at least 1 item(s)" in failures
+    assert "experiment_proposals requires at least 1 item(s)" in failures
+
+
+def test_interactive_context_is_compacted_below_the_default_pilot_limit() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    intelligence = _interactive_output(document).model_dump(mode="json")
+    long_text = "incerteza-á-" * 1_000
+    intelligence["direct_answer"]["answer"] = long_text
+    intelligence["direct_answer"]["what_changed"] = long_text
+    for field in (
+        "decision_problem",
+        "current_blocker",
+        "key_tension",
+        "blind_spot",
+    ):
+        intelligence["mission_reading"][field] = long_text
+    for item in intelligence["questions"]:
+        item["question"] = long_text
+        item["decision_unlocked"] = long_text
+    for item in intelligence["hypotheses"]:
+        item["statement"] = long_text
+    for item in intelligence["alternative_proposals"]:
+        item["description"] = long_text
+        item["difference_from_existing"] = long_text
+    for item in intelligence["decision_criteria"]:
+        item["threshold_or_rule"] = long_text
+    for item in intelligence["experiment_proposals"]:
+        item["question"] = long_text
+        item["success_or_decision_rules"] = [long_text] * 10
+    for item in intelligence["challenges"]:
+        item["objection"] = long_text
+    intelligence["recommended_next_move"] = long_text
+
+    history = [
+        {
+            "sequence": sequence,
+            "intent": "diagnose",
+            "user_message": long_text,
+            "answers": [
+                {"question_id": f"Q-{index}", "answer": long_text}
+                for index in range(12)
+            ],
+            "intelligence": intelligence,
+        }
+        for sequence in range(1, 11)
+    ]
+    reviews = [
+        {
+            "proposal_id": f"ALT-AI-{index}",
+            "proposal_type": "alternative",
+            "decision": "deferred",
+            "comment": long_text,
+        }
+        for index in range(50)
+    ]
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Mantém o diagnóstico vivo.",
+        answers=[],
+        history=history,
+        proposal_reviews=reviews,
+        research_context=True,
+    )
+    prompt_payload = json.loads(request.input_text)
+
+    assert prompt_payload["recent_dialogue"][-1]["sequence"] == 10
+    assert len(prompt_payload["recent_dialogue"]) <= interactive_ai.MAX_HISTORY_TURNS
+    assert (
+        len(
+            json.dumps(
+                prompt_payload["recent_dialogue"],
+                ensure_ascii=False,
+            ).encode("utf-8")
+        )
+        <= interactive_ai.MAX_HISTORY_BYTES
+    )
+    assert (
+        len(
+            json.dumps(
+                prompt_payload["human_proposal_reviews"],
+                ensure_ascii=False,
+            ).encode("utf-8")
+        )
+        <= interactive_ai.MAX_REVIEW_BYTES
+    )
+    assert request.max_output_tokens == 6_000
+    assert mission_ai.conservative_input_token_reservation(request) <= 60_000
+
+
+def test_interactive_provider_rejects_unknown_canonical_references(monkeypatch) -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    invalid_payload = _interactive_output(document).model_dump(mode="json")
+    invalid_payload["mission_reading"]["based_on_ids"] = ["OBS-INVENTED"]
+    invalid = MIInteractiveOutput.model_validate(invalid_payload)
+
+    class FakeResponse:
+        id = "resp_interactive_invalid"
+        model = "gpt-5.6"
+        usage = {
+            "input_tokens": 1_000,
+            "output_tokens": 500,
+            "total_tokens": 1_500,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+        output_parsed = invalid
+
+    class FakeResponses:
+        def parse(self, **_kwargs):
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    with pytest.raises(AIUnavailableError, match="unknown canonical IDs") as blocked:
+        interactive_ai.analyze_interactively(
+            document,
+            deterministic,
+            intent=MIInteractionIntent.DIAGNOSE,
+            message="Diagnostica.",
+            answers=[],
+            history=[],
+            proposal_reviews=[],
+        )
+    assert blocked.value.failure_code == "provider_output_invalid"
+    assert blocked.value.provider_response_id == "resp_interactive_invalid"
+
+
+def test_interactive_research_validates_and_returns_a_retrieved_context_dossier(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-002")
+    research = _research_bundle(document)
+    parsed = MIInteractiveResearchBundle(
+        context_dossier=research.context_dossier,
+        intelligence=_interactive_output(document),
+    )
+
+    class FakeResponse:
+        id = "resp_interactive_research"
+        model = "gpt-5.6"
+        output_parsed = parsed
+        usage = {
+            "input_tokens": 1_500,
+            "output_tokens": 900,
+            "total_tokens": 2_400,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+
+        def model_dump(self, **_kwargs):
+            return {
+                "output": [
+                    {
+                        "type": "web_search_call",
+                        "action": {
+                            "query": "Dragos enquadramento oficial e arqueológico",
+                            "sources": [
+                                {"url": source.url}
+                                for source in research.context_dossier.sources
+                            ],
+                        },
+                    }
+                ]
+            }
+
+    class FakeResponses:
+        def parse(self, **_kwargs):
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    execution = interactive_ai.analyze_interactively(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Investiga a envolvente e atualiza as hipóteses.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+        research_context=True,
+    )
+
+    assert execution.context_dossier == research.context_dossier
+    assert execution.intelligence.intent == MIInteractionIntent.DIAGNOSE
+    assert execution.web_search_calls == 1
+    assert execution.search_queries == (
+        "Dragos enquadramento oficial e arqueológico",
+    )
+
+
+def test_interactive_experiment_must_target_an_actual_hypothesis() -> None:
+    document, _deterministic = _canonical_analysis("M-001")
+    payload = _interactive_output(document).model_dump(mode="json")
+    observation_id = next(
+        record.canonical_id
+        for record in document.records
+        if record.kind.value == "observation"
+    )
+    payload["experiment_proposals"][0]["target_hypothesis_ids"] = [observation_id]
+    output = MIInteractiveOutput.model_validate(payload)
+
+    with pytest.raises(
+        AIUnavailableError,
+        match="unknown or non-hypothesis IDs",
+    ):
+        interactive_ai._validate_references(output, document)
+
+
+def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
+    monkeypatch,
+) -> None:
+    suffix = f"interactive-{uuid4().hex[:8]}"
+    headers, organization_id = _owner_named(suffix)
+    endpoint = (
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/interact"
+    )
+    monkeypatch.setattr(dialogue_service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(mission_api, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(
+        dialogue_service,
+        "count_openai_input_tokens",
+        lambda _request: 1_200,
+    )
+    captured_history_lengths: list[int] = []
+
+    def fake_provider(document, _deterministic, **kwargs):
+        captured_history_lengths.append(len(kwargs["history"]))
+        return MIInteractiveExecution(
+            intelligence=_interactive_output(document, kwargs["intent"]),
+            provider="openai",
+            model="gpt-5.6",
+            provider_response_id=f"resp_interactive_{len(captured_history_lengths)}",
+            usage=AIProviderUsage(
+                input_tokens=1_200,
+                cached_input_tokens=100,
+                output_tokens=1_000,
+                total_tokens=2_200,
+            ),
+        )
+
+    monkeypatch.setattr(dialogue_service, "analyze_interactively", fake_provider)
+
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 500_000,
+            "monthly_output_token_limit": 50_000,
+            "monthly_budget_usd": "2.00",
+            "per_request_input_token_limit": 100_000,
+            "per_request_output_token_limit": 6_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+    assert policy.json()["ready"] is True
+
+    mission_input = _analysis_payload(use_ai=False, research_context=False)
+    first = client.post(
+        endpoint,
+        headers=headers,
+        json={
+            "intent": "diagnose",
+            "message": "Diagnostica e cria hipóteses, alternativas e um teste.",
+            "answers": [],
+            "mission_input": mission_input,
+            "research_context": False,
+        },
+    )
+    assert first.status_code == 200, first.text
+    first_data = first.json()
+    assert first_data["schema_version"] == "2.0"
+    assert first_data["ai_status"] == "completed"
+    assert first_data["execution_mode"] == "interactive"
+    assert first_data["intelligence"]["response_version"] == "2.0"
+    assert first_data["intelligence"]["alternative_proposals"][0][
+        "epistemic_status"
+    ] == "alternative_proposal"
+    assert first_data["canonical_mutation"] == "none"
+    assert first_data["ai_usage"]["intelligence_run_id"] == first_data["run_id"]
+    assert captured_history_lengths == [0]
+
+    review_url = (
+        f"/api/organizations/{organization_id}/mission-intelligence/dialogues/"
+        f"{first_data['session_id']}/turns/{first_data['turn_id']}/proposals/"
+        "ALT-AI-001/review"
+    )
+    reviewed = client.put(
+        review_url,
+        headers=headers,
+        json={
+            "decision": "accepted_as_draft",
+            "comment": "Alternativa relevante para desenvolver, ainda não validada.",
+        },
+    )
+    assert reviewed.status_code == 200, reviewed.text
+    assert reviewed.json()["decision"] == "accepted_as_draft"
+    assert reviewed.json()["canonical_effect"] == "none"
+
+    second = client.post(
+        endpoint,
+        headers=headers,
+        json={
+            "session_id": first_data["session_id"],
+            "intent": "answer",
+            "message": "Atualiza o diagnóstico com esta resposta.",
+            "answers": [
+                {
+                    "question_id": "Q-AI-002",
+                    "answer": "Ainda não existe autorização escrita.",
+                }
+            ],
+            "mission_input": mission_input,
+            "research_context": False,
+        },
+    )
+    assert second.status_code == 200, second.text
+    second_data = second.json()
+    assert second_data["turn_sequence"] == 2
+    assert second_data["intelligence"]["intent"] == "answer"
+    assert captured_history_lengths == [0, 1]
+
+    changed_input = deepcopy(mission_input)
+    changed_input["context"] += " Nova revisão humana posterior ao diálogo."
+    canonical_change = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/analyze",
+        headers=headers,
+        json=changed_input,
+    )
+    assert canonical_change.status_code == 200, canonical_change.text
+    missions_before_conflict = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions",
+        headers=headers,
+    ).json()
+    changed_mission = next(item for item in missions_before_conflict if item["code"] == "M-001")
+    assert changed_mission["revision"] == 2
+
+    stale_resume = client.post(
+        endpoint,
+        headers=headers,
+        json={
+            "session_id": first_data["session_id"],
+            "intent": "answer",
+            "message": "Tenta continuar sobre o snapshot anterior.",
+            "answers": [],
+            "mission_input": mission_input,
+            "research_context": False,
+        },
+    )
+    assert stale_resume.status_code == 409, stale_resume.text
+    assert stale_resume.json()["detail"]["code"] == "mission_snapshot_changed"
+    assert captured_history_lengths == [0, 1]
+    missions_after_conflict = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions",
+        headers=headers,
+    ).json()
+    preserved_mission = next(item for item in missions_after_conflict if item["code"] == "M-001")
+    assert preserved_mission["revision"] == 2
+    assert preserved_mission["content_hash"] == changed_mission["content_hash"]
+
+    dialogue = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/dialogues/{first_data['session_id']}",
+        headers=headers,
+    )
+    assert dialogue.status_code == 200, dialogue.text
+    assert len(dialogue.json()["turns"]) == 2
+    assert dialogue.json()["turns"][0]["proposal_reviews"][0][
+        "canonical_effect"
+    ] == "none"
+
+
 def test_frontend_and_openapi_expose_the_new_capability() -> None:
     frontend = client.get("/")
     assert frontend.status_code == 200
     assert "UI-R2 · MI-1" in frontend.text
-    assert "Executar Mission Intelligence" in frontend.text
+    assert "Iniciar Mission Intelligence" in frontend.text
+    assert "Mission Intelligence v2" in frontend.text
+    assert "Pensar com a missão, não apenas escrever sobre ela" in frontend.text
+    assert "data-mi-intent=\"design_experiment\"" in frontend.text
+    assert "data-mi-review=\"accepted_as_draft\"" in frontend.text
+    assert "Fronteira canónica" in frontend.text
+    assert '${result.context_dossier?renderContextDossier(result):""}' in frontend.text
     assert "aiGovernanceStatus?.organization_authorized" in frontend.text
     assert "Proposta de investigação" in frontend.text
     assert "Fundamentação declarada" in frontend.text
@@ -828,7 +1511,7 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
     assert spec.json()["info"]["title"] == "SRIS Mission Intelligence API"
-    assert spec.json()["info"]["version"] == "1.5.0"
+    assert spec.json()["info"]["version"] == "1.6.0"
     assert "/api/mission-intelligence/demo/missions/{mission_code}/analyze" in spec.json()["paths"]
     governance_path = (
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance"
@@ -839,6 +1522,20 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     assert policy_path in spec.json()["paths"]
     assert events_path in spec.json()["paths"]
     assert "put" in spec.json()["paths"][policy_path]
+    interact_path = (
+        "/api/organizations/{organization_id}/mission-intelligence/"
+        "demo/{mission_code}/interact"
+    )
+    dialogue_path = (
+        "/api/organizations/{organization_id}/mission-intelligence/"
+        "dialogues/{session_id}"
+    )
+    proposal_review_path = dialogue_path + (
+        "/turns/{turn_id}/proposals/{proposal_id}/review"
+    )
+    assert interact_path in spec.json()["paths"]
+    assert dialogue_path in spec.json()["paths"]
+    assert proposal_review_path in spec.json()["paths"]
 
 
 def test_ai_requires_explicit_org_policy_and_enforces_monthly_quota(monkeypatch) -> None:
@@ -1254,6 +1951,22 @@ def test_contributor_can_run_deterministic_analysis_but_cannot_spend_ai(monkeypa
     assert response.json()["ai_status"] == "governance_blocked"
     assert response.json()["ai_governance"]["code"] == "role_not_allowed"
     assert response.json()["deterministic"]
+
+    interactive = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/interact",
+        headers=headers,
+        json={
+            "intent": "diagnose",
+            "message": "Tenta iniciar um diálogo com consumo de IA.",
+            "answers": [],
+            "mission_input": _analysis_payload(
+                use_ai=False,
+                research_context=False,
+            ),
+            "research_context": False,
+        },
+    )
+    assert interactive.status_code == 403
 
 
 def test_active_reservation_blocks_a_second_concurrent_request() -> None:

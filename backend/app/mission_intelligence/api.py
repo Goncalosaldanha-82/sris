@@ -16,9 +16,24 @@ from .ai import (
     is_context_research_configured,
 )
 from .catalog import demo_mission, load_demo_catalog
-from .contracts import AIGovernancePolicyUpdate, AnalysisInput, ReviewRequest
+from .contracts import (
+    AIGovernancePolicyUpdate,
+    AnalysisInput,
+    MIInteractionInput,
+    MIProposalReviewRequest,
+    ReviewRequest,
+)
+from .dialogue_service import (
+    MIDialogueConflict,
+    dialogue_session_view,
+    get_dialogue_session,
+    list_dialogue_sessions,
+    review_dialogue_proposal,
+    run_interactive_turn,
+)
 from .engine import ENGINE_VERSION
 from .governance import governance_view, update_policy, usage_event_view
+from .interactive import INTERACTIVE_PROMPT_VERSION
 from .models import AIUsageEvent, CanonicalMission, IntelligenceRun
 from .service import analyze_demo, review_run, run_organizational_analysis, run_view
 
@@ -36,6 +51,12 @@ def capability_status() -> dict:
         "mission_language": "MDL 1.3",
         "engine_version": ENGINE_VERSION,
         "deterministic_analysis": "available",
+        "interactive_mission_intelligence": "available",
+        "interactive_contract_version": "2.0",
+        "interactive_prompt_version": INTERACTIVE_PROMPT_VERSION,
+        "interactive_state": "locally_persisted",
+        "proposal_review": "granular_human_review",
+        "canonical_auto_mutation": False,
         "ai_provider": "openai",
         "ai_model": configured_model(),
         "ai_configured": is_ai_configured(),
@@ -137,6 +158,116 @@ def analyze_organizational_demo(
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Mission not found") from exc
+
+
+@organization_router.post("/demo/{mission_code}/interact")
+def interact_with_organizational_demo(
+    organization_id: str,
+    mission_code: str,
+    payload: MIInteractionInput,
+    membership: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return run_interactive_turn(
+            db,
+            organization_id=organization_id,
+            user_id=membership.user_id,
+            user_role=membership.role,
+            mission_code=mission_code,
+            payload=payload,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Mission not found") from exc
+    except MIDialogueConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+
+@organization_router.get("/dialogues")
+def get_dialogue_sessions(
+    organization_id: str,
+    mission_code: str | None = Query(default=None, max_length=80),
+    _: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    return list_dialogue_sessions(
+        db,
+        organization_id=organization_id,
+        mission_code=mission_code,
+    )
+
+
+@organization_router.get("/dialogues/{session_id}")
+def get_dialogue(
+    organization_id: str,
+    session_id: str,
+    _: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    session = get_dialogue_session(
+        db,
+        organization_id=organization_id,
+        session_id=session_id,
+    )
+    if session is None:
+        raise HTTPException(status_code=404, detail="Dialogue session not found")
+    return dialogue_session_view(session)
+
+
+@organization_router.put(
+    "/dialogues/{session_id}/turns/{turn_id}/proposals/{proposal_id}/review"
+)
+def put_dialogue_proposal_review(
+    organization_id: str,
+    session_id: str,
+    turn_id: str,
+    proposal_id: str,
+    payload: MIProposalReviewRequest,
+    membership: Membership = Depends(
+        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return review_dialogue_proposal(
+            db,
+            organization_id=organization_id,
+            session_id=session_id,
+            turn_id=turn_id,
+            proposal_id=proposal_id,
+            user_id=membership.user_id,
+            payload=payload,
+        )
+    except MIDialogueConflict as exc:
+        raise HTTPException(
+            status_code=404 if exc.code.endswith("not_found") else 409,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
 
 
 def _run_or_404(db: Session, organization_id: str, run_id: str) -> IntelligenceRun:

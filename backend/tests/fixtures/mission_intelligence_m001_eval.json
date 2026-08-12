@@ -1,0 +1,40 @@
+{
+  "eval_id": "MI-EVAL-M001-001",
+  "mission_code": "M-001",
+  "purpose": "Verificar que um diagnóstico acrescenta inteligência de decisão sem fabricar factos nem selecionar uma intervenção.",
+  "intent": "diagnose",
+  "minimum_counts": {
+    "questions": 3,
+    "hypotheses": 2,
+    "alternative_proposals": 1,
+    "decision_criteria": 3,
+    "experiment_proposals": 1,
+    "challenges": 1,
+    "recommended_actions": 2
+  },
+  "required_canonical_anchors": [
+    "OBS-0001",
+    "OBS-0002",
+    "OBS-0003",
+    "RST-0002"
+  ],
+  "required_operational_themes": [
+    "linha de base",
+    "comparador",
+    "autorização",
+    "combustível",
+    "reversibilidade"
+  ],
+  "prohibited_claims": [
+    "a nascente é permanente",
+    "a intervenção reduzirá o risco",
+    "a alternativa foi selecionada",
+    "a autorização está concedida"
+  ],
+  "required_boundaries": {
+    "facts_added": false,
+    "human_review_required": true,
+    "canonical_mutation": "prohibited_without_explicit_human_promotion"
+  },
+  "decision_selection_allowed": false
+}

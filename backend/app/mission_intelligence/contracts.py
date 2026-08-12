@@ -340,6 +340,222 @@ class AIResearchBundle(StrictModel):
     advisory: AIAdvisory
 
 
+class MIInteractionIntent(StrEnum):
+    """The cognitive job requested from the interactive intelligence layer."""
+
+    DIAGNOSE = "diagnose"
+    ANSWER = "answer"
+    CHALLENGE = "challenge"
+    EXPLORE_ALTERNATIVES = "explore_alternatives"
+    DESIGN_EXPERIMENT = "design_experiment"
+    COMPARE_OPTIONS = "compare_options"
+    SYNTHESIZE = "synthesize"
+
+
+class MIQuestionAnswer(StrictModel):
+    question_id: str = Field(min_length=1, max_length=120)
+    answer: str = Field(min_length=1, max_length=12000)
+
+
+class MIInteractionInput(StrictModel):
+    """One governed turn in a mission-scoped intelligence dialogue."""
+
+    session_id: str | None = Field(default=None, max_length=36)
+    intent: MIInteractionIntent = MIInteractionIntent.DIAGNOSE
+    message: str = Field(min_length=1, max_length=12000)
+    answers: list[MIQuestionAnswer] = Field(default_factory=list, max_length=30)
+    mission_input: AnalysisInput = Field(default_factory=AnalysisInput)
+    research_context: bool = False
+
+
+class MIDirectAnswer(StrictModel):
+    answer: str = Field(min_length=1, max_length=12000)
+    status: Literal[
+        "provisional",
+        "conditional",
+        "blocked_by_missing_information",
+    ]
+    what_changed: str = Field(
+        min_length=1,
+        max_length=5000,
+        description=(
+            "What this turn adds or changes relative to the canonical mission and prior turns."
+        ),
+    )
+
+
+class MIMissionReading(StrictModel):
+    decision_problem: str = Field(min_length=1, max_length=5000)
+    current_blocker: str = Field(min_length=1, max_length=5000)
+    key_tension: str = Field(min_length=1, max_length=5000)
+    blind_spot: str = Field(min_length=1, max_length=5000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class MIClarifyingQuestion(StrictModel):
+    question_id: str = Field(pattern=r"^Q-[A-Z0-9][A-Z0-9_-]{1,117}$")
+    question: str = Field(min_length=1, max_length=5000)
+    why_it_matters: str = Field(min_length=1, max_length=5000)
+    priority: Literal["critical", "high", "medium", "low"]
+    answer_type: Literal[
+        "free_text",
+        "yes_no",
+        "single_choice",
+        "multi_choice",
+        "number",
+        "date",
+    ]
+    options: list[str] = Field(default_factory=list, max_length=12)
+    decision_unlocked: str = Field(min_length=1, max_length=3000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def choices_require_options(self) -> "MIClarifyingQuestion":
+        if self.answer_type in {"single_choice", "multi_choice"} and len(self.options) < 2:
+            raise ValueError("Choice questions require at least two options")
+        if self.answer_type not in {"single_choice", "multi_choice"} and self.options:
+            raise ValueError("Only choice questions may define options")
+        return self
+
+
+class MIHypothesisProposal(StrictModel):
+    proposal_id: str = Field(pattern=r"^HYP-AI-[A-Z0-9][A-Z0-9_-]{1,111}$")
+    statement: str = Field(min_length=1, max_length=5000)
+    rationale: str = Field(min_length=1, max_length=5000)
+    what_is_new: str = Field(min_length=1, max_length=3000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+    evidence_needed: list[str] = Field(min_length=1, max_length=30)
+    disconfirming_evidence: list[str] = Field(min_length=1, max_length=30)
+    confidence: ConfidenceLevel
+    impact_if_true: str = Field(min_length=1, max_length=3000)
+    epistemic_status: Literal["hypothesis_for_testing"] = "hypothesis_for_testing"
+
+
+class MIAlternativeProposal(StrictModel):
+    proposal_id: str = Field(pattern=r"^ALT-AI-[A-Z0-9][A-Z0-9_-]{1,111}$")
+    title: str = Field(min_length=1, max_length=500)
+    description: str = Field(min_length=1, max_length=7000)
+    difference_from_existing: str = Field(min_length=1, max_length=5000)
+    potential_value: list[str] = Field(min_length=1, max_length=30)
+    risks: list[str] = Field(min_length=1, max_length=30)
+    prerequisites: list[str] = Field(min_length=1, max_length=30)
+    reversibility: Literal["high", "moderate", "low", "unknown"]
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+    epistemic_status: Literal["alternative_proposal"] = "alternative_proposal"
+
+
+class MIDecisionCriterionProposal(StrictModel):
+    proposal_id: str = Field(pattern=r"^CRT-AI-[A-Z0-9][A-Z0-9_-]{1,111}$")
+    name: str = Field(min_length=1, max_length=500)
+    definition: str = Field(min_length=1, max_length=4000)
+    measurement: str = Field(min_length=1, max_length=4000)
+    threshold_or_rule: str = Field(min_length=1, max_length=4000)
+    trade_off: str = Field(min_length=1, max_length=4000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+    epistemic_status: Literal["criterion_proposal"] = "criterion_proposal"
+
+
+class MIExperimentProposal(StrictModel):
+    proposal_id: str = Field(pattern=r"^EXP-AI-[A-Z0-9][A-Z0-9_-]{1,111}$")
+    title: str = Field(min_length=1, max_length=500)
+    question: str = Field(min_length=1, max_length=5000)
+    target_hypothesis_ids: list[str] = Field(min_length=1, max_length=30)
+    design: str = Field(min_length=1, max_length=7000)
+    baseline: str = Field(min_length=1, max_length=4000)
+    comparator: str = Field(min_length=1, max_length=4000)
+    measures: list[str] = Field(min_length=1, max_length=30)
+    success_or_decision_rules: list[str] = Field(min_length=1, max_length=30)
+    stop_conditions: list[str] = Field(min_length=1, max_length=30)
+    timeframe: str = Field(min_length=1, max_length=1000)
+    limitations: list[str] = Field(min_length=1, max_length=30)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+    epistemic_status: Literal["experiment_proposal"] = "experiment_proposal"
+
+
+class MICriticalChallenge(StrictModel):
+    challenge_id: str = Field(pattern=r"^CHL-AI-[A-Z0-9][A-Z0-9_-]{1,111}$")
+    target: str = Field(min_length=1, max_length=3000)
+    objection: str = Field(min_length=1, max_length=5000)
+    why_it_matters: str = Field(min_length=1, max_length=5000)
+    response_needed: str = Field(min_length=1, max_length=5000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class MIRecommendedAction(StrictModel):
+    action_id: str = Field(pattern=r"^ACT-AI-[A-Z0-9][A-Z0-9_-]{1,111}$")
+    action: str = Field(min_length=1, max_length=5000)
+    purpose: str = Field(min_length=1, max_length=4000)
+    owner_role: str = Field(min_length=1, max_length=500)
+    dependencies: list[str] = Field(default_factory=list, max_length=30)
+    urgency: Literal["now", "next", "later"]
+    decision_effect: str = Field(min_length=1, max_length=4000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class MIInteractionBoundary(StrictModel):
+    human_review_required: Literal[True] = True
+    canonical_mutation: Literal["prohibited_without_explicit_human_promotion"] = (
+        "prohibited_without_explicit_human_promotion"
+    )
+    facts_added: Literal[False] = False
+    statement: str = Field(min_length=1, max_length=3000)
+
+
+class MIInteractiveOutput(StrictModel):
+    """Structured output for an active, mission-scoped reasoning turn."""
+
+    response_version: Literal["2.0"] = "2.0"
+    intent: MIInteractionIntent
+    direct_answer: MIDirectAnswer
+    mission_reading: MIMissionReading
+    questions: list[MIClarifyingQuestion] = Field(default_factory=list, max_length=8)
+    hypotheses: list[MIHypothesisProposal] = Field(default_factory=list, max_length=8)
+    alternative_proposals: list[MIAlternativeProposal] = Field(
+        default_factory=list,
+        max_length=8,
+    )
+    decision_criteria: list[MIDecisionCriterionProposal] = Field(
+        default_factory=list,
+        max_length=12,
+    )
+    experiment_proposals: list[MIExperimentProposal] = Field(
+        default_factory=list,
+        max_length=6,
+    )
+    challenges: list[MICriticalChallenge] = Field(default_factory=list, max_length=8)
+    recommended_actions: list[MIRecommendedAction] = Field(
+        default_factory=list,
+        max_length=10,
+    )
+    recommended_next_move: str = Field(min_length=1, max_length=5000)
+    boundary: MIInteractionBoundary
+
+    @model_validator(mode="after")
+    def require_unique_generated_ids(self) -> "MIInteractiveOutput":
+        generated = [
+            *(item.question_id for item in self.questions),
+            *(item.proposal_id for item in self.hypotheses),
+            *(item.proposal_id for item in self.alternative_proposals),
+            *(item.proposal_id for item in self.decision_criteria),
+            *(item.proposal_id for item in self.experiment_proposals),
+            *(item.challenge_id for item in self.challenges),
+            *(item.action_id for item in self.recommended_actions),
+        ]
+        if len(generated) != len(set(generated)):
+            raise ValueError("Interactive output IDs must be unique within a turn")
+        return self
+
+
+class MIInteractiveResearchBundle(StrictModel):
+    context_dossier: ContextDossier
+    intelligence: MIInteractiveOutput
+
+
+class MIProposalReviewRequest(StrictModel):
+    decision: Literal["accepted_as_draft", "rejected", "deferred"]
+    comment: str = Field(min_length=3, max_length=10000)
+
+
 class ReviewRequest(StrictModel):
     decision: Literal["approved", "rejected"]
     comment: str = Field(min_length=3, max_length=10000)

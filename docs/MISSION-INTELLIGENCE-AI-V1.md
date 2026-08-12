@@ -1,5 +1,9 @@
 # SRIS — Mission Intelligence & AI v1
 
+> Esta especificação continua a governar a fundação determinística e o modo
+> de auditoria assistiva. A capacidade principal de diálogo ativo é definida em
+> [Mission Intelligence interativa v2](MISSION-INTELLIGENCE-INTERACTIVE-V2.md).
+
 Estado: implementação preparada para revisão e implantação
 
 Versão da linguagem de missão: MDL 1.3

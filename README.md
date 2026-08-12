@@ -1,9 +1,14 @@
-# SRIS · Mission Intelligence 1.0
+# SRIS · Mission Intelligence 2.0
 
 Operational SRIS foundation powered by ATLAS Core, with canonical mission
-intelligence, deterministic analysis and an optional human-reviewed AI advisory.
+intelligence, deterministic analysis and a governed, persistent AI dialogue that
+creates questions, hypotheses, alternatives, criteria and experiments for human
+review without mutating the canonical mission.
 
-Implementation and deployment controls:
+Active reasoning, dialogue state and granular proposal review:
+[Mission Intelligence interactive v2](docs/MISSION-INTELLIGENCE-INTERACTIVE-V2.md).
+
+Deterministic foundation and legacy advisory mode:
 [Mission Intelligence & AI v1](docs/MISSION-INTELLIGENCE-AI-V1.md).
 
 Single-organization pilot authorization, per-organization quotas and cost controls:

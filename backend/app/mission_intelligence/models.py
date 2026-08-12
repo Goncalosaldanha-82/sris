@@ -56,6 +56,9 @@ class CanonicalMission(Base):
     intelligence_runs: Mapped[list["IntelligenceRun"]] = relationship(
         back_populates="mission", cascade="all, delete-orphan"
     )
+    dialogue_sessions: Mapped[list["MissionDialogueSession"]] = relationship(
+        back_populates="mission", cascade="all, delete-orphan"
+    )
 
 
 class MissionRevision(Base):
@@ -122,6 +125,123 @@ class IntelligenceRun(Base):
         back_populates="intelligence_run",
         uselist=False,
     )
+    dialogue_turn: Mapped["MissionDialogueTurn | None"] = relationship(
+        back_populates="intelligence_run",
+        uselist=False,
+    )
+
+
+class MissionDialogueSession(Base):
+    """Long-running, locally persisted intelligence dialogue for one snapshot."""
+
+    __tablename__ = "mi_dialogue_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    mission_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_missions.id", ondelete="CASCADE"), index=True
+    )
+    mission_code: Mapped[str] = mapped_column(String(80), index=True)
+    title: Mapped[str] = mapped_column(String(300))
+    objective: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(30), default="active", index=True)
+    snapshot_hash: Mapped[str] = mapped_column(String(64), index=True)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    mission: Mapped[CanonicalMission] = relationship(back_populates="dialogue_sessions")
+    turns: Mapped[list["MissionDialogueTurn"]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="MissionDialogueTurn.sequence",
+    )
+
+
+class MissionDialogueTurn(Base):
+    """One governed user/model exchange, linked to the existing run ledger."""
+
+    __tablename__ = "mi_dialogue_turns"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "sequence",
+            name="uq_mi_dialogue_turn_sequence",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_dialogue_sessions.id", ondelete="CASCADE"), index=True
+    )
+    intelligence_run_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_intelligence_runs.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+    )
+    sequence: Mapped[int] = mapped_column(Integer)
+    intent: Mapped[str] = mapped_column(String(40))
+    user_message: Mapped[str] = mapped_column(Text)
+    answers_json: Mapped[str] = mapped_column(Text, default="[]")
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    session: Mapped[MissionDialogueSession] = relationship(back_populates="turns")
+    intelligence_run: Mapped[IntelligenceRun] = relationship(
+        back_populates="dialogue_turn"
+    )
+    proposal_reviews: Mapped[list["MissionProposalReview"]] = relationship(
+        back_populates="turn",
+        cascade="all, delete-orphan",
+    )
+
+
+class MissionProposalReview(Base):
+    """Granular human disposition of an AI proposal; never canonical by itself."""
+
+    __tablename__ = "mi_proposal_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "turn_id",
+            "proposal_id",
+            name="uq_mi_proposal_review_turn_proposal",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_dialogue_sessions.id", ondelete="CASCADE"), index=True
+    )
+    turn_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_dialogue_turns.id", ondelete="CASCADE"), index=True
+    )
+    proposal_id: Mapped[str] = mapped_column(String(120), index=True)
+    proposal_type: Mapped[str] = mapped_column(String(40))
+    decision: Mapped[str] = mapped_column(String(40), index=True)
+    comment: Mapped[str] = mapped_column(Text)
+    reviewed_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    turn: Mapped[MissionDialogueTurn] = relationship(back_populates="proposal_reviews")
 
 
 class AIOrganizationPolicy(Base):

@@ -48,7 +48,7 @@ from .workflow_api import router as workflow_router
 
 app = FastAPI(
     title="SRIS Mission Intelligence API",
-    version="1.5.0",
+    version="1.6.0",
     description=(
         "Canonical mission intelligence, authentication, organizations, RBAC and "
         "the unified knowledge workflow."

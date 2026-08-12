@@ -88,6 +88,24 @@ Se qualquer critério falhar, não reativar a política até o evento ser revist
 
 ## 6. Abrir o piloto de investigação contextual
 
+Antes da investigação externa, validar a Mission Intelligence interativa:
+
+1. confirmar que `alembic current` apresenta `20260812_0007`;
+2. configurar na política `per_request_input_token_limit>=60000`,
+   `per_request_output_token_limit>=6000` e `max_concurrent_requests=1`;
+3. na interface institucional, abrir M-001 e executar **Diagnosticar** sem
+   pesquisa contextual;
+4. confirmar pelo menos três perguntas, duas hipóteses, uma alternativa nova,
+   três critérios, uma experiência, um desafio e duas ações;
+5. confirmar que todas as propostas estão ancoradas em IDs canónicos e que
+   `canonical_mutation=none`;
+6. aceitar uma alternativa como rascunho, responder a uma pergunta num segundo
+   turno e confirmar que a sessão e o custo foram reconstruídos do servidor;
+7. confirmar que a revisão não alterou a missão canónica e voltar a desativar a
+   política antes de analisar o ledger.
+
+## 7. Abrir o piloto de investigação contextual
+
 Só depois de a chamada assistiva simples estar aprovada:
 
 1. confirmar que a política da organização permite pelo menos `6000` tokens de

@@ -8,6 +8,8 @@ from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import UUID
 
+from pydantic import BaseModel
+
 from .contracts import (
     AIAdvisory,
     AIResearchBundle,
@@ -84,7 +86,7 @@ class PreparedAIRequest:
     input_text: str
     text_config: dict[str, Any]
     max_output_tokens: int
-    response_model: type[AIAdvisory] | type[AIResearchBundle] = AIAdvisory
+    response_model: type[BaseModel] = AIAdvisory
     tools: tuple[dict[str, Any], ...] = ()
     include: tuple[str, ...] = ()
     tool_choice: str = "auto"
