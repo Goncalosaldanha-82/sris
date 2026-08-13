@@ -70,3 +70,18 @@ test('Decision Workspace is loaded from the backend and explains confidence', ()
   assert.match(app, /Decision Workspace/i);
   assert.match(app, /Sustentação/);
 });
+
+test('Mission portfolio UI creates canonical missions and renders hierarchy', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '../atlas-os/index.html'), 'utf8');
+  assert.match(html, /id="missionCreateForm"/);
+  assert.match(html, /parent_mission_id/);
+  assert.match(html, /mission_kind/);
+  assert.match(html, /mission-intelligence\/missions`/);
+  assert.match(html, /method:editing\?"PATCH":"POST"/);
+  assert.match(html, /data-depth=/);
+  assert.match(html, /function missionOrder/);
+  assert.match(html, /children\.get\(item\.id\)/);
+  assert.match(html, /\|\| "M-002"/);
+});

@@ -21,6 +21,8 @@ from .contracts import (
     AnalysisInput,
     MIInteractionInput,
     MIProposalReviewRequest,
+    MissionCreateRequest,
+    MissionUpdateRequest,
     ReviewRequest,
 )
 from .dialogue_service import (
@@ -35,6 +37,12 @@ from .engine import ENGINE_VERSION
 from .governance import governance_view, update_policy, usage_event_view
 from .interactive import INTERACTIVE_PROMPT_VERSION
 from .models import AIUsageEvent, CanonicalMission, IntelligenceRun
+from .portfolio import (
+    create_mission,
+    list_mission_portfolio,
+    mission_view,
+    update_mission,
+)
 from .service import analyze_demo, review_run, run_organizational_analysis, run_view
 
 public_router = APIRouter(prefix="/api/mission-intelligence", tags=["Mission Intelligence"])
@@ -48,6 +56,9 @@ organization_router = APIRouter(
 def capability_status() -> dict:
     return {
         "foundation_version": "1.3",
+        "portfolio_contract_version": "1.0",
+        "mission_hierarchy": "available",
+        "institutional_mission_creation": "available",
         "mission_language": "MDL 1.3",
         "engine_version": ENGINE_VERSION,
         "deterministic_analysis": "available",
@@ -111,25 +122,79 @@ def list_canonical_missions(
     ),
     db: Session = Depends(get_db),
 ) -> list[dict]:
-    rows = (
-        db.query(CanonicalMission)
-        .filter(CanonicalMission.organization_id == organization_id)
-        .order_by(CanonicalMission.updated_at.desc())
-        .all()
+    return list_mission_portfolio(db, organization_id=organization_id)
+
+
+@organization_router.post("/missions", status_code=201)
+def post_canonical_mission(
+    organization_id: str,
+    payload: MissionCreateRequest,
+    membership: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.CONTRIBUTOR.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    return create_mission(
+        db,
+        organization_id=organization_id,
+        user_id=membership.user_id,
+        payload=payload,
     )
-    return [
-        {
-            "id": row.id,
-            "code": row.code,
-            "title": row.title,
-            "schema_version": row.schema_version,
-            "revision": row.revision,
-            "content_hash": row.content_hash,
-            "lifecycle_state": row.lifecycle_state,
-            "updated_at": row.updated_at,
-        }
-        for row in rows
-    ]
+
+
+@organization_router.get("/missions/{mission_id}")
+def get_canonical_mission(
+    organization_id: str,
+    mission_id: str,
+    _: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    row = (
+        db.query(CanonicalMission)
+        .filter(
+            CanonicalMission.id == mission_id,
+            CanonicalMission.organization_id == organization_id,
+        )
+        .one_or_none()
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return mission_view(db, organization_id=organization_id, row=row)
+
+
+@organization_router.patch("/missions/{mission_id}")
+def patch_canonical_mission(
+    organization_id: str,
+    mission_id: str,
+    payload: MissionUpdateRequest,
+    membership: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.CONTRIBUTOR.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    return update_mission(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
+        user_id=membership.user_id,
+        payload=payload,
+    )
 
 
 @organization_router.post("/demo/{mission_code}/analyze")
@@ -160,8 +225,68 @@ def analyze_organizational_demo(
         raise HTTPException(status_code=404, detail="Mission not found") from exc
 
 
+@organization_router.post("/missions/{mission_code}/analyze")
+def analyze_organizational_mission(
+    organization_id: str,
+    mission_code: str,
+    payload: AnalysisInput,
+    membership: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return run_organizational_analysis(
+            db,
+            organization_id=organization_id,
+            user_id=membership.user_id,
+            user_role=membership.role,
+            mission_code=mission_code,
+            payload=payload,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Mission not found") from exc
+
+
 @organization_router.post("/demo/{mission_code}/interact")
 def interact_with_organizational_demo(
+    organization_id: str,
+    mission_code: str,
+    payload: MIInteractionInput,
+    membership: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return run_interactive_turn(
+            db,
+            organization_id=organization_id,
+            user_id=membership.user_id,
+            user_role=membership.role,
+            mission_code=mission_code,
+            payload=payload,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Mission not found") from exc
+    except MIDialogueConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+
+@organization_router.post("/missions/{mission_code}/interact")
+def interact_with_organizational_mission(
     organization_id: str,
     mission_code: str,
     payload: MIInteractionInput,

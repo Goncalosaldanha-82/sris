@@ -35,8 +35,15 @@ class CanonicalMission(Base):
     organization_id: Mapped[str] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), index=True
     )
+    parent_mission_id: Mapped[str | None] = mapped_column(
+        ForeignKey("mi_missions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     code: Mapped[str] = mapped_column(String(80), index=True)
     title: Mapped[str] = mapped_column(String(300))
+    mission_kind: Mapped[str] = mapped_column(String(30), default="mission", index=True)
+    domain: Mapped[str] = mapped_column(String(80), default="cross_domain", index=True)
+    priority: Mapped[str] = mapped_column(String(20), default="strategic", index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
     schema_version: Mapped[str] = mapped_column(String(20), default="1.3")
     document_json: Mapped[str] = mapped_column(Text)
     content_hash: Mapped[str] = mapped_column(String(64), index=True)
@@ -52,6 +59,15 @@ class CanonicalMission(Base):
 
     revisions: Mapped[list["MissionRevision"]] = relationship(
         back_populates="mission", cascade="all, delete-orphan"
+    )
+    parent: Mapped["CanonicalMission | None"] = relationship(
+        remote_side="CanonicalMission.id",
+        back_populates="children",
+        foreign_keys=[parent_mission_id],
+    )
+    children: Mapped[list["CanonicalMission"]] = relationship(
+        back_populates="parent",
+        foreign_keys=[parent_mission_id],
     )
     intelligence_runs: Mapped[list["IntelligenceRun"]] = relationship(
         back_populates="mission", cascade="all, delete-orphan"

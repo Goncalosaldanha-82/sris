@@ -18,8 +18,6 @@ from .ai import (
     is_ai_organization_authorized,
     is_context_research_configured,
 )
-from .canonical import legacy_to_canonical
-from .catalog import demo_mission
 from .contracts import MIInteractionInput, MIProposalReviewRequest, MissionDocumentV13
 from .engine import ENGINE_VERSION, analyze_mission
 from .governance import (
@@ -46,7 +44,7 @@ from .models import (
     MissionDialogueTurn,
     MissionProposalReview,
 )
-from .service import _hash, _json, persist_demo_mission
+from .service import _hash, _json, apply_analysis_input, persist_mission
 
 
 class MIDialogueConflict(RuntimeError):
@@ -107,22 +105,20 @@ def _resume_session_or_conflict(
             "A missão canónica mudou. Inicie uma nova sessão sobre a nova revisão.",
         )
 
-    legacy = demo_mission(mission_code)
-    if legacy is None:
-        raise KeyError(mission_code)
-    submitted_document = legacy_to_canonical(legacy, payload.mission_input)
-    if _hash(submitted_document) != session.snapshot_hash:
-        raise MIDialogueConflict(
-            "dialogue_input_changed",
-            "Os dados do formulário diferem do snapshot desta sessão. Inicie uma nova sessão para os usar.",
-        )
-
     document = MissionDocumentV13.model_validate_json(mission.document_json)
     if _hash(document) != mission.content_hash:
         raise MIDialogueConflict(
             "mission_snapshot_invalid",
             "O snapshot canónico persistido falhou a verificação de integridade.",
         )
+
+    submitted_document = apply_analysis_input(document, payload.mission_input)
+    if _hash(submitted_document) != session.snapshot_hash:
+        raise MIDialogueConflict(
+            "dialogue_input_changed",
+            "Os dados do formulário diferem do snapshot desta sessão. Inicie uma nova sessão para os usar.",
+        )
+
     return session, mission, document
 
 
@@ -321,7 +317,7 @@ def run_interactive_turn(
             payload=payload,
         )
     else:
-        mission, document = persist_demo_mission(
+        mission, document = persist_mission(
             db,
             organization_id=organization_id,
             user_id=user_id,

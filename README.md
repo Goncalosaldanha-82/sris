@@ -1,9 +1,13 @@
-# SRIS · Mission Intelligence 2.0
+# SRIS · Mission Intelligence 3.0
 
 Operational SRIS foundation powered by ATLAS Core, with canonical mission
-intelligence, deterministic analysis and a governed, persistent AI dialogue that
-creates questions, hypotheses, alternatives, criteria and experiments for human
-review without mutating the canonical mission.
+portfolios, recursive mission hierarchy, deterministic analysis and a governed,
+persistent AI dialogue that creates questions, hypotheses, alternatives,
+criteria and experiments for human review without mutating the canonical
+mission.
+
+Institutional creation, editing and mission-of-missions architecture:
+[Mission Portfolios v3](docs/MISSION-PORTFOLIOS-V3.md).
 
 Active reasoning, dialogue state and granular proposal review:
 [Mission Intelligence interactive v2](docs/MISSION-INTELLIGENCE-INTERACTIVE-V2.md).

@@ -99,6 +99,13 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
         assert {"auth_version", "last_login_at"}.issubset(
             column_names(database_url, "users")
         )
+        assert {
+            "parent_mission_id",
+            "mission_kind",
+            "domain",
+            "priority",
+            "sort_order",
+        }.issubset(column_names(database_url, "mi_missions"))
 
         run_alembic(
             repo_root,

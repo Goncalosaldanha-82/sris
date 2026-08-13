@@ -114,6 +114,47 @@ class MissionDocumentV13(StrictModel):
         return self
 
 
+class MissionCreateRequest(StrictModel):
+    """Create an institutional mission without converting narrative into evidence."""
+
+    code: str | None = Field(default=None, min_length=2, max_length=80, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+    title: str = Field(min_length=3, max_length=300)
+    objective: str = Field(min_length=10, max_length=10000)
+    context: str = Field(min_length=10, max_length=30000)
+    central_question: str = Field(min_length=10, max_length=10000)
+    parent_mission_id: str | None = Field(default=None, max_length=36)
+    mission_kind: Literal["program", "mission"] = "mission"
+    domain: str = Field(default="cross_domain", min_length=2, max_length=80)
+    priority: Literal["critical", "strategic", "standard", "exploratory"] = "strategic"
+    horizon: str = Field(default="", max_length=120)
+    stakeholders: list[str] = Field(default_factory=list, max_length=50)
+
+
+class MissionUpdateRequest(StrictModel):
+    """Revise mission identity or hierarchy with optimistic concurrency."""
+
+    expected_revision: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=3, max_length=300)
+    objective: str | None = Field(default=None, min_length=10, max_length=10000)
+    context: str | None = Field(default=None, min_length=10, max_length=30000)
+    central_question: str | None = Field(default=None, min_length=10, max_length=10000)
+    parent_mission_id: str | None = Field(default=None, max_length=36)
+    clear_parent: bool = False
+    mission_kind: Literal["program", "mission"] | None = None
+    domain: str | None = Field(default=None, min_length=2, max_length=80)
+    priority: Literal["critical", "strategic", "standard", "exploratory"] | None = None
+    horizon: str | None = Field(default=None, max_length=120)
+    stakeholders: list[str] | None = Field(default=None, max_length=50)
+    lifecycle_state: Literal["active", "paused", "completed", "archived"] | None = None
+    change_note: str = Field(min_length=3, max_length=1000)
+
+    @model_validator(mode="after")
+    def parent_instruction_is_unambiguous(self) -> "MissionUpdateRequest":
+        if self.clear_parent and self.parent_mission_id is not None:
+            raise ValueError("Use clear_parent or parent_mission_id, not both")
+        return self
+
+
 class AnalysisInput(StrictModel):
     title: str = Field(default="", max_length=500)
     context: str = Field(default="", max_length=30000)

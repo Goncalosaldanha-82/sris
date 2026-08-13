@@ -172,7 +172,33 @@ def analyze_demo(
     return result
 
 
-def persist_demo_mission(
+def apply_analysis_input(
+    document: MissionDocumentV13,
+    payload: AnalysisInput,
+) -> MissionDocumentV13:
+    """Apply declared analysis context without promoting prose to evidence."""
+
+    metadata = dict(document.metadata)
+    metadata["unstructured_input"] = {
+        "available_evidence_claim": payload.available_evidence,
+        "unknowns_claim": payload.unknowns,
+        "epistemic_status": "context_only_not_canonical_evidence",
+    }
+    return document.model_copy(
+        update={
+            # Analysis labels must not silently rename the canonical mission.
+            # Identity changes use the explicit, revision-checked PATCH route.
+            "title": document.title,
+            "context": payload.context or document.context,
+            "central_question": (
+                payload.central_question or document.central_question
+            ),
+            "metadata": metadata,
+        }
+    )
+
+
+def persist_mission(
     db: Session,
     *,
     organization_id: str,
@@ -180,10 +206,6 @@ def persist_demo_mission(
     mission_code: str,
     payload: AnalysisInput,
 ) -> tuple[CanonicalMission, MissionDocumentV13]:
-    legacy = _legacy_or_error(mission_code)
-    document = legacy_to_canonical(legacy, payload)
-    document_json = _json(document.model_dump(mode="json"))
-    content_hash = _hash(document)
     mission = (
         db.query(CanonicalMission)
         .filter(
@@ -192,11 +214,29 @@ def persist_demo_mission(
         )
         .one_or_none()
     )
+
+    legacy: dict[str, Any] | None = None
     if mission is None:
+        legacy = _legacy_or_error(mission_code)
+        document = legacy_to_canonical(legacy, payload)
+    else:
+        document = apply_analysis_input(
+            MissionDocumentV13.model_validate_json(mission.document_json),
+            payload,
+        )
+
+    document_json = _json(document.model_dump(mode="json"))
+    content_hash = _hash(document)
+    if mission is None:
+        assert legacy is not None
         mission = CanonicalMission(
             organization_id=organization_id,
             code=mission_code,
             title=document.title,
+            mission_kind=str(legacy.get("mission_kind") or "mission"),
+            domain=str(legacy.get("domain") or "cross_domain"),
+            priority=str(legacy.get("priority") or "strategic"),
+            sort_order=int(legacy.get("featured_rank") or 0),
             schema_version=document.schema_version,
             document_json=document_json,
             content_hash=content_hash,
@@ -235,6 +275,25 @@ def persist_demo_mission(
     return mission, document
 
 
+def persist_demo_mission(
+    db: Session,
+    *,
+    organization_id: str,
+    user_id: str,
+    mission_code: str,
+    payload: AnalysisInput,
+) -> tuple[CanonicalMission, MissionDocumentV13]:
+    """Backward-compatible alias for callers using the v1 demo route."""
+
+    return persist_mission(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+        mission_code=mission_code,
+        payload=payload,
+    )
+
+
 def run_organizational_analysis(
     db: Session,
     *,
@@ -244,7 +303,7 @@ def run_organizational_analysis(
     mission_code: str,
     payload: AnalysisInput,
 ) -> dict[str, Any]:
-    mission, document = persist_demo_mission(
+    mission, document = persist_mission(
         db,
         organization_id=organization_id,
         user_id=user_id,

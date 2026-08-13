@@ -7,7 +7,7 @@
     name="description"
     content="SRIS — Strategic Resilience & Intelligence System. Preserva o raciocínio das decisões, da observação ao resultado e à aprendizagem."
   />
-  <meta name="sris-build" content="mission-intelligence-interactive-v2-2026-08-12" />
+  <meta name="sris-build" content="mission-portfolio-intelligence-v3-2026-08-13" />
   <title>SRIS — Preservar o raciocínio das decisões</title>
 
   <style>
@@ -361,9 +361,20 @@
     }
     .mission-row:last-child{border-bottom:0}
     .mission-row:hover{background:var(--sage-soft)}
+    .mission-row[data-kind="program"]{background:linear-gradient(90deg,rgba(23,63,47,.075),rgba(255,255,255,.25))}
+    .mission-row[data-depth="1"]{padding-left:42px}
+    .mission-row[data-depth="2"]{padding-left:66px}
+    .mission-row[data-depth="3"],.mission-row[data-depth="4"],.mission-row[data-depth="5"]{padding-left:88px}
+    .mission-row[data-depth]:not([data-depth="0"]) .mission-title:before{content:"↳";margin-right:9px;color:var(--gold);font-weight:500}
     .mission-title{font-weight:780}
     .mission-meta{margin-top:4px;color:var(--ink-muted);font-size:11px;line-height:1.45}
     .mission-arrow{justify-self:end;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.68);color:var(--ink-muted);font-size:21px}
+    .mission-type{display:inline-flex;margin-right:7px;padding:3px 7px;border-radius:999px;background:var(--sage-soft);color:var(--forest);font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
+    .mission-row[data-kind="program"] .mission-type{background:var(--gold-soft);color:var(--gold-ink)}
+    .portfolio-metrics{margin:0 0 16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+    .portfolio-metrics article{padding:16px 17px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.7);box-shadow:var(--shadow)}
+    .portfolio-metrics span{display:block;color:var(--ink-muted);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+    .portfolio-metrics strong{display:block;margin-top:7px;font-family:Georgia,serif;font-size:25px;font-weight:400}
 
     /* ---------- Workspace ---------- */
     .workspace{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:16px;align-items:start}
@@ -609,6 +620,13 @@
     .modal-section h3{margin:0 0 8px;font-family:Georgia,serif;font-size:21px;font-weight:400}
     .modal-section p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
     .modal-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:18px;border-top:1px solid var(--border)}
+    .mission-form{padding-top:20px}
+    .mission-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+    .mission-form-grid .field-wide{grid-column:1/-1}
+    .mission-form .field{margin:0}
+    .mission-form textarea{min-height:96px;resize:vertical}
+    .mission-form-note{margin:0 0 18px;padding:13px 15px;border-left:3px solid var(--gold);background:var(--gold-soft);color:var(--ink-soft);font-size:11px;line-height:1.55}
+    .mission-form-error{min-height:20px;margin-top:12px;color:var(--red);font-size:11px;line-height:1.45}
 
     .lightbox-panel{
       position:relative;width:min(920px,94vw);max-height:91vh;padding:18px;border-radius:18px;background:#fff;box-shadow:0 28px 100px rgba(0,0,0,.34)
@@ -656,7 +674,8 @@
       .topbar{position:relative;padding-block:15px 17px;align-items:flex-start;flex-direction:column}
       .mission-row{grid-template-columns:1fr auto}
       .mission-row>div:nth-child(3){display:none}
-      .form-row,.modal-status,.mission-context,.two-col,.award-use-grid,.result-metrics{grid-template-columns:1fr}
+      .form-row,.modal-status,.mission-context,.two-col,.award-use-grid,.result-metrics,.portfolio-metrics,.mission-form-grid{grid-template-columns:1fr}
+      .mission-form-grid .field-wide{grid-column:auto}
     }
     @media(max-width:650px){
       .main{--page-gutter:16px}
@@ -671,6 +690,8 @@
       .filterbar{align-items:flex-start;flex-direction:column}
       .filterbar select{width:100%;min-width:0}
       .mission-row{padding:14px;gap:10px}
+      .mission-row[data-depth="1"]{padding-left:28px}
+      .mission-row[data-depth="2"],.mission-row[data-depth="3"],.mission-row[data-depth="4"],.mission-row[data-depth="5"]{padding-left:40px}
       .recognition-card{grid-template-rows:auto 220px 1fr}
       .recognition-media{height:220px}
       .modal,.lightbox{padding:14px}
@@ -692,7 +713,7 @@
     - Content aligned to the Executive Brief supplied for the 2026 application.
     - Correct award name used in the platform:
       “Prémio Empreendedorismo e Inovação Crédito Agrícola”.
-    - M-001 remains open: no decision, no execution, no result.
+    - Demonstration missions preserve open decisions: no invented execution or result.
     - Benefits in Impact are explicitly expected/pilot metrics, not demonstrated results.
     - Recognition appears only on Impact.
     - Evidence and Learning remain mission-specific.
@@ -725,12 +746,12 @@
         </p>
 
         <div class="login-case">
-          <strong>Demonstração principal — M-001.</strong>
-          Cinco hectares em Podentes, Penela: cerca de 2 ha de eucalipto,
-          cerca de 3 ha de vegetação espontânea e uma linha de água com
-          escoamento visível em abril de 2026. Existe uma decisão de gestão por
-          tomar. Não existe medição prévia, não se conhece o regime hídrico
-          histórico e nenhuma alternativa foi selecionada.
+          <strong>Missão-farol — Nascente de Dragos.</strong>
+          Um caso onde água, património, arqueologia, memória local e governação
+          se encontram. As fontes justificam investigação, mas não provam a
+          ligação funcional entre a nascente e os vestígios romanos, nem
+          propriedades medicinais. O SRIS torna precisamente essa fronteira útil
+          para decidir o que investigar, com quem e em que ordem.
         </div>
       </div>
 
@@ -847,6 +868,7 @@
         <div class="top-actions">
           <input id="importInput" type="file" accept=".json,application/json" hidden />
           <button id="importButton" class="btn-secondary" type="button" title="Importa uma visualização local; não cria registos canónicos no servidor.">Importar visualização</button>
+          <button id="newMissionButton" class="btn-primary hidden" type="button">Nova missão</button>
           <button class="btn-secondary" type="button" data-go="workspace">Nova análise</button>
           <div class="user-chip">
             <div id="userAvatar" class="avatar">SR</div>
@@ -920,22 +942,25 @@
       <section id="page-missions" class="page">
         <div class="hero">
           <div class="hero-copy">
-            <div class="eyebrow">Portefólio de missões</div>
-            <h1>Decisões com contexto preservado.</h1>
+            <div class="eyebrow">Arquitetura de missões</div>
+            <h1>Do propósito comum à decisão verificável.</h1>
             <p>
-              A M-001 é a missão real aberta que originou a demonstração.
-              A M-002 é um segundo caso identificado, ainda dependente de
-              autorizações. A candidatura é tratada como uma missão própria de
-              preparação e decisão.
+              Uma missão complexa pode abrir várias missões-filhas. O SRIS torna
+              visíveis as dependências entre território, água, clima, património,
+              pessoas e instituições — sem confundir intenção com evidência ou
+              benefício esperado com impacto demonstrado.
             </p>
           </div>
+          <button id="newMissionHeroButton" class="btn-primary hidden" type="button">Criar missão institucional</button>
         </div>
+
+        <div id="missionPortfolioSummary" class="portfolio-metrics" aria-label="Resumo do portefólio"></div>
 
         <section class="panel">
           <div class="panel-header">
             <div>
               <h2>Missões no SRIS</h2>
-              <p>Selecione uma missão para consultar o detalhe.</p>
+              <p>Programas agregam propósito; missões e sub-missões preservam decisões, evidência e aprendizagem próprias.</p>
             </div>
           </div>
           <div id="missionList" class="mission-list"></div>
@@ -1113,7 +1138,7 @@
           </div>
           <div class="hero-actions">
             <button class="btn-secondary" type="button" data-go="knowledge">Ver o modelo</button>
-            <button class="btn-primary" type="button" data-go="workspace">Executar M-001</button>
+            <button class="btn-primary" type="button" data-go="workspace">Abrir missão ativa</button>
           </div>
         </div>
 
@@ -1237,9 +1262,9 @@
             <div class="eyebrow">Evidência e incerteza</div>
             <h1>O que se sabe — e o que ainda não se sabe.</h1>
             <p>
-              Na M-001, observações, pressupostos, restrições, alternativas e
-              estado da decisão são apresentados como registos distintos.
-              O método, a limitação e o estado fazem parte do próprio registo.
+              Em cada missão, observações, pressupostos, restrições, alternativas
+              e estado da decisão são registos distintos. O método, a limitação,
+              a proveniência e o grau de confiança fazem parte do próprio registo.
             </p>
           </div>
         </div>
@@ -1259,9 +1284,9 @@
             <div class="eyebrow">Aprendizagem institucional</div>
             <h1>O que a missão já permite aprender antes de decidir.</h1>
             <p>
-              Aprendizagem não exige fingir que existe um resultado. Na M-001,
-              a ausência de linha de base já produz uma consequência prática:
-              a instrumentação tem de preceder a intervenção.
+              Aprendizagem não exige fingir que existe um resultado. Uma lacuna
+              de evidência, uma restrição descoberta ou uma hipótese refutada
+              pode gerar uma sub-missão, um teste ou uma condição de revisão.
             </p>
           </div>
         </div>
@@ -1314,7 +1339,8 @@
               <li>Arquitetura conceptual definida e ontologia formal alinhada à W3C PROV-O.</li>
               <li>Motor epistemológico com refutação, dependências e sinalização de revisão, implementado e coberto por testes.</li>
               <li>Backend operacional em produção: autenticação, base de dados, organizações e missões.</li>
-              <li>Protótipo funcional em navegador.</li>
+              <li>Criação, edição e decomposição de programas em missões e sub-missões.</li>
+              <li>Protótipo funcional em navegador com análise e diálogo governado.</li>
               <li>Uma missão real aberta e documentada: M-001.</li>
             </ul>
           </article>
@@ -1325,6 +1351,7 @@
               <li>Utilização por organizações externas ao promotor.</li>
               <li>Qualquer intervenção executada no terreno na M-001.</li>
               <li>Medição instrumentada de caudal ou de nível freático.</li>
+              <li>Autorização institucional para estudar ou recuperar a Nascente de Dragos.</li>
               <li>Medição do custo real de documentação.</li>
               <li>Resultados quantificados de eficiência ou poupança.</li>
               <li>Avaliação independente ou revisão por pares.</li>
@@ -1348,55 +1375,56 @@
             </thead>
             <tbody>
               <tr><td><strong>Ambiental</strong></td><td>Intervenções decididas com pressupostos explícitos e linha de base instrumentada.</td><td>Proporção de intervenções com medição prévia à decisão.</td></tr>
-              <tr><td><strong>Económico</strong></td><td>Menor repetição de opções já avaliadas e descartadas.</td><td>Alternativas reavaliadas que já constavam de registo anterior.</td></tr>
+              <tr><td><strong>Clima e proteção</strong></td><td>Melhor articulação entre prevenção, preparação, resposta e recuperação.</td><td>Riscos críticos com responsável, limiar, ação e condição de revisão explícitos.</td></tr>
+              <tr><td><strong>Social</strong></td><td>Participação mais transparente de comunidades e entidades afetadas.</td><td>Decisões com atores, contributos, divergências e efeitos distributivos registados.</td></tr>
+              <tr><td><strong>Económico-financeiro</strong></td><td>Menor repetição de opções já avaliadas e melhor visibilidade de compromissos.</td><td>Alternativas reavaliadas e decisões com custo, risco e condição de revisão documentados.</td></tr>
               <tr><td><strong>Operacional</strong></td><td>Redução do tempo necessário para reconstruir o fundamento de uma decisão anterior.</td><td>Tempo de reconstrução, comparado com documentação convencional.</td></tr>
               <tr><td><strong>Institucional</strong></td><td>Prestação de contas verificável perante financiadores e entidades licenciadoras.</td><td>Proporção de resultados reportados com grau de atribuição declarado.</td></tr>
+              <tr><td><strong>Bem-estar</strong></td><td>Decisões organizacionais mais conscientes de carga, acesso, segurança e capacidade humana.</td><td>Missões com riscos humanos, salvaguardas e indicadores não clínicos definidos antes da execução.</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="section-title">
           <div class="eyebrow">Sustentabilidade e replicação</div>
-          <h2>Primeiro floresta e municípios. Depois, outros contextos onde a arquitetura faça sentido.</h2>
+          <h2>Começar num laboratório territorial. Escalar pela arquitetura da decisão.</h2>
           <p>
             O modelo previsto é de subscrição e implementação faseada. A unidade
-            de escala é a missão. Os dois primeiros mercados são empresas de
-            gestão florestal e municípios, onde a perda de contexto tem
-            consequência imediata e existe obrigação de justificar decisões
-            perante terceiros.
+            de escala é a missão. O primeiro contexto combina território,
+            universidade, municípios e entidades técnicas; a expansão depende de
+            demonstrar utilidade, segurança e custo de adoção em cada domínio.
           </p>
         </div>
 
         <div class="cards">
           <article class="card">
-            <div class="type">Mercado 01</div>
-            <h3>Gestão florestal</h3>
-            <p>Decisões com impactos ecológicos, operacionais, financeiros e regulatórios que exigem rastreabilidade.</p>
-            <div class="footer"><span>Mercado inicial</span><span class="tag green">Prioritário</span></div>
+            <div class="type">Laboratório 01</div>
+            <h3>Território vivo</h3>
+            <p>Água, biodiversidade, património, incêndio e adaptação climática tratados como um sistema de decisões interdependentes.</p>
+            <div class="footer"><span>Penela · Coimbra</span><span class="tag green">Piloto</span></div>
           </article>
           <article class="card">
-            <div class="type">Mercado 02</div>
-            <h3>Municípios</h3>
-            <p>Planeamento territorial, investimento público e decisões que têm de permanecer justificáveis perante terceiros.</p>
-            <div class="footer"><span>Mercado inicial</span><span class="tag green">Prioritário</span></div>
+            <div class="type">Rede pública</div>
+            <h3>Municípios e proteção civil</h3>
+            <p>Planeamento territorial, prevenção multirriscos e decisões públicas que têm de permanecer justificáveis perante terceiros.</p>
+            <div class="footer"><span>Adoção institucional</span><span class="tag green">Prioritária</span></div>
           </article>
           <article class="card">
-            <div class="type">Modelo</div>
-            <h3>Arquitetura por missão</h3>
-            <p>O núcleo não depende de uma cultura ou operação específica; a expansão é uma hipótese de replicação, não um mercado já provado.</p>
-            <div class="footer"><span>Software configurável</span><span class="tag blue">Escala</span></div>
+            <div class="type">Rede de conhecimento</div>
+            <h3>Universidades e instituições</h3>
+            <p>Investigação, financiamento e ação conectados por evidência, versões, responsabilidades e aprendizagem transferível.</p>
+            <div class="footer"><span>Colaboração governada</span><span class="tag blue">Escala</span></div>
           </article>
         </div>
 
         <div class="section-title">
-          <div class="eyebrow">Segundo caso identificado</div>
+          <div class="eyebrow">Missão-farol para parceria académica</div>
           <h2>M-002 · Nascente de Dragos</h2>
           <p>
-            Caso candidato para testar a arquitetura fora do controlo direto do
-            promotor. Uma eventual recuperação envolveria múltiplos decisores,
-            autorizações e restrições patrimoniais. Não é um compromisso:
-            depende de autorização das entidades titulares e competentes, ainda
-            não solicitada.
+            Caso candidato para ligar memória local, património, água e ciência
+            num processo verificável. O objetivo imediato não é prometer uma
+            recuperação: é determinar que investigação, legitimidade, autorizações
+            e salvaguardas seriam necessárias antes de qualquer intervenção.
           </p>
         </div>
 
@@ -1408,60 +1436,60 @@
         <div class="timeline">
           <article class="timeline-card">
             <div class="month">3 meses</div>
-            <h3>Instrumentação da M-001</h3>
-            <p>Medição de caudal e nível instalada antes de qualquer decisão.</p>
+            <h3>Protocolo da Nascente de Dragos</h3>
+            <p>Perguntas, entidades competentes, autorizações e linha de base definidos antes de qualquer intervenção.</p>
           </article>
           <article class="timeline-card">
-            <div class="month">4 meses</div>
+            <div class="month">4–6 meses</div>
             <h3>Primeira organização externa</h3>
-            <p>Uma missão real registada por uma equipa que não a do promotor.</p>
+            <p>Um programa e respetivas sub-missões geridos por uma equipa que não a do promotor.</p>
           </article>
           <article class="timeline-card">
             <div class="month">8 meses</div>
-            <h3>Custo real de documentação</h3>
-            <p>Tempo por registo medido, não estimado. Se exceder o razoável, o modelo é revisto.</p>
+            <h3>Utilidade e custo de adoção</h3>
+            <p>Tempo por registo, decisões reconstruídas e fricção de uso medidos, não estimados.</p>
           </article>
           <article class="timeline-card">
             <div class="month">12 meses</div>
-            <h3>Três organizações · dez missões</h3>
-            <p>Custo de captura abaixo de 4% do tempo afeto à decisão.</p>
+            <h3>Avaliação independente</h3>
+            <p>Revisão da qualidade epistemológica, utilidade institucional e segurança antes de escalar.</p>
           </article>
         </div>
 
         <div class="section-title">
-          <div class="eyebrow">Aplicação do prémio</div>
+          <div class="eyebrow">Aplicação do investimento-piloto</div>
           <h2>O apoio teria duas utilizações diretamente verificáveis.</h2>
         </div>
 
         <div class="award-use">
-          <h3>Prémio Empreendedorismo e Inovação Crédito Agrícola</h3>
+          <h3>Financiamento ou parceria institucional</h3>
           <p>
             O apoio seria aplicado em duas frentes coerentes com o estado real do
-            projeto e com a aprendizagem já produzida pela M-001.
+            projeto e com a necessidade de validação externa.
           </p>
           <div class="award-use-grid">
             <article>
-              <strong>1 · Instrumentação de campo</strong>
+              <strong>1 · Investigação e instrumentação</strong>
               <p>
-                Medição de caudal e nível freático na M-001, instalada antes de
-                qualquer decisão de gestão, para criar uma linha de base
-                defensável.
+                Linhas de base ambientais, territoriais e operacionais definidas
+                antes de decisões ou intervenções, com método e limitações
+                preservados.
               </p>
             </article>
             <article>
-              <strong>2 · Utilização por terceiros</strong>
+              <strong>2 · Utilização e avaliação por terceiros</strong>
               <p>
-                Completar as funcionalidades necessárias para que uma organização
-                externa possa registar as suas próprias missões sem apoio técnico.
+                Permitir que organizações externas criem portefólios, trabalhem
+                missões reais e avaliem utilidade, segurança e custo de adoção.
               </p>
             </article>
           </div>
         </div>
 
         <div class="callout">
-          A M-001 concluiu, antes de decidir, que não se pode atribuir um resultado
-          sem linha de base. A consequência prática é instalar essa linha de base
-          antes da intervenção, e não depois.
+          O SRIS não vende certeza. Torna visível o que sustenta uma decisão, o que
+          ainda falta saber, quem deve participar e em que condições a decisão
+          terá de ser revista.
         </div>
 
         <div class="section-title">
@@ -1534,9 +1562,96 @@
       </header>
       <div id="missionModalContent"></div>
       <div class="modal-actions">
+        <button id="missionModalEdit" class="btn-secondary hidden" type="button">Editar missão</button>
+        <button id="missionModalCreateChild" class="btn-primary hidden" type="button">Criar sub-missão</button>
         <button id="printMission" class="btn-secondary" type="button">Imprimir</button>
         <button id="exportMission" class="btn-secondary" type="button">Exportar JSON</button>
       </div>
+    </section>
+  </div>
+
+  <!-- Institutional mission builder -->
+  <div id="missionCreateModal" class="modal hidden" aria-hidden="true">
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="missionCreateTitle">
+      <header class="modal-head">
+        <div>
+          <div class="eyebrow">Construtor institucional</div>
+          <h2 id="missionCreateTitle">Nova missão</h2>
+          <p>Crie uma missão autónoma ou ligue-a a um programa ou missão já existente.</p>
+        </div>
+        <button class="btn-icon mission-create-close" type="button" aria-label="Fechar">×</button>
+      </header>
+      <form id="missionCreateForm" class="mission-form">
+        <p class="mission-form-note"><strong>Fronteira de rigor.</strong> O texto criado aqui define intenção, contexto e pergunta. Só passa a evidência quando existir um registo com método, proveniência e revisão humana.</p>
+        <div class="mission-form-grid">
+          <div class="field field-wide">
+            <label for="newMissionTitle">Título</label>
+            <input id="newMissionTitle" name="title" required minlength="3" maxlength="300" placeholder="Ex.: Preparação comunitária para ondas de calor" />
+          </div>
+          <div class="field">
+            <label for="newMissionKind">Tipo</label>
+            <select id="newMissionKind" name="mission_kind">
+              <option value="mission">Missão</option>
+              <option value="program">Programa de missões</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="newMissionParent">Missão-mãe</label>
+            <select id="newMissionParent" name="parent_mission_id"><option value="">Sem missão-mãe</option></select>
+          </div>
+          <div class="field">
+            <label for="newMissionDomain">Domínio principal</label>
+            <select id="newMissionDomain" name="domain">
+              <option value="cross_domain">Sistémico / transversal</option>
+              <option value="territorial_resilience">Resiliência territorial</option>
+              <option value="wildfire_landscape">Incêndio e paisagem</option>
+              <option value="water_heritage">Água e património</option>
+              <option value="ecology_climate">Ecologia e clima</option>
+              <option value="human_wellbeing">Bem-estar e capacidade humana</option>
+              <option value="institutional_innovation">Inovação institucional</option>
+              <option value="financial_resilience">Resiliência financeira</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="newMissionPriority">Prioridade</label>
+            <select id="newMissionPriority" name="priority">
+              <option value="critical">Crítica</option>
+              <option value="strategic" selected>Estratégica</option>
+              <option value="standard">Normal</option>
+              <option value="exploratory">Exploratória</option>
+            </select>
+          </div>
+          <div class="field field-wide">
+            <label for="newMissionObjective">Objetivo de transformação</label>
+            <textarea id="newMissionObjective" name="objective" required minlength="10" maxlength="10000" placeholder="Que condição relevante deve mudar, para quem e porquê?"></textarea>
+          </div>
+          <div class="field field-wide">
+            <label for="newMissionContext">Contexto inicial</label>
+            <textarea id="newMissionContext" name="context" required minlength="10" maxlength="30000" placeholder="O que é observado, declarado ou conhecido neste momento? Indique limites e incertezas."></textarea>
+          </div>
+          <div class="field field-wide">
+            <label for="newMissionQuestion">Pergunta central</label>
+            <textarea id="newMissionQuestion" name="central_question" required minlength="10" maxlength="10000" placeholder="Que pergunta, se bem respondida, melhora materialmente a decisão?"></textarea>
+          </div>
+          <div class="field">
+            <label for="newMissionHorizon">Horizonte</label>
+            <input id="newMissionHorizon" name="horizon" maxlength="120" placeholder="Ex.: 2026–2030" />
+          </div>
+          <div class="field">
+            <label for="newMissionStakeholders">Atores envolvidos</label>
+            <input id="newMissionStakeholders" name="stakeholders" maxlength="1000" placeholder="Separados por vírgulas" />
+          </div>
+          <div id="newMissionChangeNoteField" class="field field-wide hidden">
+            <label for="newMissionChangeNote">Motivo da revisão</label>
+            <input id="newMissionChangeNote" name="change_note" minlength="3" maxlength="1000" placeholder="Explique brevemente o que mudou e porquê" />
+          </div>
+        </div>
+        <div id="missionCreateError" class="mission-form-error" role="alert"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary mission-create-close" type="button">Cancelar</button>
+          <button id="missionCreateSubmit" class="btn-primary" type="submit">Criar missão</button>
+        </div>
+      </form>
     </section>
   </div>
 
@@ -1580,8 +1695,8 @@
       missions: {
         "M-001": {
           id: "M-001",
-          title: "Cinco hectares, e uma decisão por tomar",
-          subtitle: "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução, sem resultado.",
+          title: "Paisagem Resiliente",
+          subtitle: "Reduzir o risco de incêndio sem perder água, solo ou biodiversidade.",
           meta: "Gestão do território florestal · Podentes, Penela · aproximadamente 5 ha",
           status: "Em avaliação",
           confidence: "Moderada",
@@ -1872,8 +1987,12 @@
     };
 
     let config = structuredClone(BRIEF_ALIGNMENT);
-    let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-001";
+    let publicMissionCatalog = {};
+    const institutionalMissionCodes = new Set();
+    let canCreateInstitutionalMissions = false;
+    let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-002";
     let modalMissionId = null;
+    let missionBuilderEditingId = null;
     let activeOrganizationId = null;
     let aiGovernanceStatus = null;
     let currentSession = null;
@@ -1967,6 +2086,135 @@
       };
     }
 
+    function domainLabel(value){
+      return ({
+        cross_domain:"Sistémico / transversal",
+        territorial_resilience:"Resiliência territorial",
+        wildfire_landscape:"Incêndio e paisagem",
+        water_heritage:"Água e património",
+        ecology_climate:"Ecologia e clima",
+        human_wellbeing:"Bem-estar e capacidade humana",
+        institutional_innovation:"Inovação institucional",
+        organizational_innovation:"Inovação organizacional",
+        financial_resilience:"Resiliência financeira"
+      })[value]||String(value||"Domínio por classificar").replaceAll("_"," ");
+    }
+
+    function lifecycleLabel(value){
+      return ({active:"Ativa",paused:"Pausada",completed:"Concluída",archived:"Arquivada"})[value]||"Ativa";
+    }
+
+    function normalizeCanonicalMission(row){
+      const base=publicMissionCatalog[row.code];
+      if(base){
+        return {
+          ...structuredClone(base),
+          id:row.code,
+          canonical_id:row.id,
+          server_managed:true,
+          title:row.title||base.title,
+          objective:row.objective||base.subtitle||"",
+          mission_kind:row.mission_kind||base.mission_kind||"mission",
+          domain:row.domain||base.domain||"cross_domain",
+          priority:row.priority||base.priority||"strategic",
+          parent_id:row.parent_code||base.parent_id||null,
+          parent_mission_id:row.parent_mission_id||null,
+          horizon:row.horizon||"",
+          stakeholders:Array.isArray(row.stakeholders)?row.stakeholders:[],
+          depth:Number.isInteger(row.depth)?row.depth:undefined,
+          children_count:row.children_count||0,
+          revision:row.revision,
+          lifecycle_state:row.lifecycle_state,
+          status:lifecycleLabel(row.lifecycle_state),
+          subtitle:row.objective||base.subtitle||"",
+          analysis:{
+            ...(base.analysis||{}),
+            title:`${row.code} — ${row.title||base.title}`,
+            context:row.context||base.analysis?.context||"",
+            central_question:row.central_question||base.analysis?.central_question||""
+          }
+        };
+      }
+      const records=Array.isArray(row.records)?row.records:[];
+      const evidence=records.map(record=>({
+        id:record.canonical_id,
+        type:String(record.kind||"Registo").replaceAll("_"," "),
+        title:record.title,
+        description:record.description,
+        method:record.provenance?.method||"Método ainda não registado.",
+        limitation:record.provenance?.limitations||"Limitação ainda não registada.",
+        status:record.state||"Declarado",
+        confidence:record.confidence||"not_evaluable",
+        source:record.provenance?.source||row.code
+      }));
+      const objective=row.objective||"Objetivo institucional por consolidar.";
+      return {
+        id:row.code,
+        canonical_id:row.id,
+        server_managed:true,
+        title:row.title,
+        objective,
+        subtitle:objective,
+        meta:`${domainLabel(row.domain)} · revisão ${row.revision}`,
+        status:lifecycleLabel(row.lifecycle_state),
+        confidence:records.length?"Em revisão":"Por avaliar",
+        decision:"Por estruturar",
+        method_notice:"Missão institucional canónica. O contexto é declarado; evidência, decisões e resultados exigem registos próprios, proveniência e revisão humana.",
+        mission_kind:row.mission_kind||"mission",
+        domain:row.domain||"cross_domain",
+        priority:row.priority||"strategic",
+        parent_id:row.parent_code||null,
+        parent_mission_id:row.parent_mission_id||null,
+        horizon:row.horizon||"",
+        stakeholders:Array.isArray(row.stakeholders)?row.stakeholders:[],
+        depth:Number(row.depth||0),
+        children_count:row.children_count||0,
+        revision:row.revision,
+        lifecycle_state:row.lifecycle_state,
+        situation:{
+          summary:row.context||objective,
+          attention:[
+            {title:"Evidência por estruturar.",description:records.length?"Existem registos, mas permanecem sujeitos ao respetivo estado e proveniência.":"A missão ainda não possui registos classificados como evidência.",level:"Próximo movimento"},
+            {title:"Pergunta de decisão.",description:row.central_question||"A pergunta central ainda não foi formulada.",level:"Inteligência"}
+          ],
+          chain:[
+            {number:"01",label:"Missão",value:"Criada",note:`Revisão canónica ${row.revision}.`,state:"completed"},
+            {number:"02",label:"Registos",value:String(records.length),note:"Registos com estado e proveniência próprios.",state:records.length?"open":"attention"},
+            {number:"03",label:"Decisão",value:"Por estruturar",note:"Nenhuma alternativa foi selecionada por defeito.",state:"open"},
+            {number:"04",label:"Resultado",value:"Não declarado",note:"Impacto exige execução, linha de base e avaliação.",state:"unavailable"}
+          ]
+        },
+        analysis:{
+          title:`${row.code} — ${row.title}`,
+          context:row.context||"",
+          central_question:row.central_question||"",
+          available_evidence:records.map(record=>`${record.canonical_id}: ${record.title}`).join("\n"),
+          unknowns:"Identificar pressupostos, restrições, lacunas e dependências que podem alterar a decisão.",
+          result:{headline:"Missão pronta para estruturação.",summary:"Execute a auditoria determinística ou inicie um diálogo governado.",situation:row.context||"",principal_risk:"Decidir antes de reduzir a incerteza material.",assumptions:[],alternatives:[],next_decision:"Identificar o ponto de decisão e a evidência mínima necessária.",confidence:"Por avaliar"}
+        },
+        evidence,
+        learning:evidence.filter(item=>String(item.type).toLowerCase()==="learning")
+      };
+    }
+
+    function clearInstitutionalMissions(){
+      institutionalMissionCodes.forEach(code=>{
+        if(publicMissionCatalog[code])config.missions[code]=structuredClone(publicMissionCatalog[code]);
+        else delete config.missions[code];
+      });
+      institutionalMissionCodes.clear();
+      canCreateInstitutionalMissions=false;
+    }
+
+    function mergeCanonicalMissions(rows){
+      clearInstitutionalMissions();
+      (rows||[]).forEach(row=>{
+        const normalized=normalizeCanonicalMission(row);
+        config.missions[normalized.id]=normalized;
+        institutionalMissionCodes.add(normalized.id);
+      });
+    }
+
     async function loadConfig(){
       let external={};
       try{
@@ -1981,6 +2229,7 @@
         if(res.ok){
           const catalog=await res.json();
           if(catalog?.schema==="sris_mission_catalog"&&isPlainObject(catalog.missions)){
+            publicMissionCatalog=structuredClone(catalog.missions);
             config.missions={...(config.missions||{}),...catalog.missions};
           }
         }
@@ -2001,14 +2250,46 @@
         }catch(err){console.warn("Pacote local ignorado:",err)}
       });
       config.missions={...(config.missions||{}),...localImports};
-      if(!config.missions[activeMissionId]) activeMissionId="M-001";
+      if(!config.missions[activeMissionId]) activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
       renderAll();
       updateAIControl();
       const current=qs(".page.active")?.id?.replace("page-","")||"overview";
       navigate(current,{scroll:false});
     }
 
-    function missions(){return Object.values(config.missions||{})}
+    function missionDepth(m){
+      if(Number.isInteger(m.depth))return Math.min(5,Math.max(0,m.depth));
+      let depth=0,cursor=m,seen=new Set([m.id]);
+      while(cursor?.parent_id&&config.missions?.[cursor.parent_id]&&!seen.has(cursor.parent_id)&&depth<5){
+        depth+=1;seen.add(cursor.parent_id);cursor=config.missions[cursor.parent_id];
+      }
+      return depth;
+    }
+    function missionOrder(a,b){
+      const rankA=Number.isFinite(Number(a.featured_rank))?Number(a.featured_rank):500;
+      const rankB=Number.isFinite(Number(b.featured_rank))?Number(b.featured_rank):500;
+      return rankA-rankB||String(a.id).localeCompare(String(b.id),"pt");
+    }
+    function missions(){
+      const all=Object.values(config.missions||{}),byId=new Map(all.map(item=>[item.id,item]));
+      const children=new Map(),roots=[];
+      all.forEach(item=>{
+        if(item.parent_id&&item.parent_id!==item.id&&byId.has(item.parent_id)){
+          if(!children.has(item.parent_id))children.set(item.parent_id,[]);
+          children.get(item.parent_id).push(item);
+        }else roots.push(item);
+      });
+      roots.sort(missionOrder);children.forEach(items=>items.sort(missionOrder));
+      const ordered=[],visited=new Set();
+      function visit(item){
+        if(visited.has(item.id))return;
+        visited.add(item.id);ordered.push(item);
+        (children.get(item.id)||[]).forEach(visit);
+      }
+      roots.forEach(visit);
+      all.sort(missionOrder).forEach(visit);
+      return ordered;
+    }
     function mission(id=activeMissionId){return config.missions?.[id]}
     function options(includeAll=false){
       const first=includeAll?'<option value="all">Todas as missões</option>':"";
@@ -2045,9 +2326,9 @@
     function renderMissionRows(root){
       if(!root)return;
       root.innerHTML=missions().map(m=>`
-        <button class="mission-row mission-open" type="button" data-mission="${esc(m.id)}">
+        <button class="mission-row mission-open" type="button" data-mission="${esc(m.id)}" data-kind="${esc(m.mission_kind||"mission")}" data-depth="${missionDepth(m)}">
           <div>
-            <div class="mission-title">${esc(m.title)}</div>
+            <div class="mission-title"><span class="mission-type">${m.mission_kind==="program"?"Programa":missionDepth(m)>0?"Sub-missão":"Missão"}</span>${esc(m.title)}</div>
             <div class="mission-meta">${esc(m.id)} · ${esc(m.meta||m.subtitle||"")}</div>
           </div>
           <div>${statusTag(m.status)}</div>
@@ -2093,7 +2374,18 @@
       renderMissionRows(qs("#overviewMissionList"));
     }
 
-    function renderMissions(){renderMissionRows(qs("#missionList"))}
+    function renderMissions(){
+      renderMissionRows(qs("#missionList"));
+      const all=missions(),programs=all.filter(m=>m.mission_kind==="program").length;
+      const nested=all.filter(m=>missionDepth(m)>0).length;
+      const institutional=all.filter(m=>m.server_managed).length;
+      qs("#missionPortfolioSummary").innerHTML=`
+        <article><span>Programas</span><strong>${programs}</strong></article>
+        <article><span>Missões</span><strong>${all.length-programs}</strong></article>
+        <article><span>Ligadas em árvore</span><strong>${nested}</strong></article>
+        <article><span>Canónicas da organização</span><strong>${institutional}</strong></article>
+      `;
+    }
 
     function fillWorkspace(id=activeMissionId){
       const m=mission(id); if(!m)return;
@@ -2508,13 +2800,17 @@
         currentSession={user,organization:activeOrganization,role:null};
         sessionStorage.setItem("sris_active_organization",activeOrganizationId);
         if(activeOrganizationId){
-          const [governance,memberships]=await Promise.all([
+          const [governance,memberships,portfolioResponse]=await Promise.all([
             fetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
               request
             ),
             fetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/membership`,
+              request
+            ),
+            fetch(
+              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`,
               request
             )
           ]);
@@ -2523,6 +2819,8 @@
             const activeMembership=await memberships.json();
             currentSession.role=activeMembership.role||null;
           }
+          if(portfolioResponse.ok)mergeCanonicalMissions(await portfolioResponse.json());
+          canCreateInstitutionalMissions=["owner","admin","contributor"].includes(currentSession.role);
         }
       }catch(err){
         activeOrganizationId=null;
@@ -2533,6 +2831,7 @@
         throw err;
       }
       updateAIControl();
+      renderAll();
       prepareDialogueForMission(activeMissionId);
       return currentSession;
     }
@@ -2598,23 +2897,114 @@
       renderEvidence(id);renderLearning(id);
     }
 
+    function canonicalParentOptions(selected="",excludeId=""){
+      const candidates=missions().filter(m=>m.server_managed&&m.canonical_id&&m.canonical_id!==excludeId&&m.lifecycle_state!=="archived");
+      return '<option value="">Sem missão-mãe</option>'+candidates.map(m=>`<option value="${esc(m.canonical_id)}" ${m.canonical_id===selected?"selected":""}>${esc(m.id)} — ${esc(m.title)}</option>`).join("");
+    }
+
+    function openMissionBuilder(parentMissionId="",editingMission=null){
+      if(!canCreateInstitutionalMissions||!activeOrganizationId){toast("A criação de missões exige uma sessão institucional com permissão de edição.");return}
+      const form=qs("#missionCreateForm");form.reset();
+      missionBuilderEditingId=editingMission?.canonical_id||null;
+      qs("#missionCreateTitle").textContent=missionBuilderEditingId?"Editar missão":"Nova missão";
+      qs("#newMissionParent").innerHTML=canonicalParentOptions(parentMissionId,missionBuilderEditingId||"");
+      qs("#newMissionKind").value=editingMission?.mission_kind||"mission";
+      qs("#newMissionDomain").value=editingMission?.domain||"cross_domain";
+      qs("#newMissionPriority").value=editingMission?.priority||"strategic";
+      qs("#newMissionTitle").value=editingMission?.title||"";
+      qs("#newMissionObjective").value=editingMission?.objective||editingMission?.subtitle||"";
+      qs("#newMissionContext").value=editingMission?.analysis?.context||"";
+      qs("#newMissionQuestion").value=editingMission?.analysis?.central_question||"";
+      qs("#newMissionHorizon").value=editingMission?.horizon||"";
+      qs("#newMissionStakeholders").value=(editingMission?.stakeholders||[]).join(", ");
+      qs("#newMissionChangeNoteField").classList.toggle("hidden",!missionBuilderEditingId);
+      qs("#newMissionChangeNote").required=Boolean(missionBuilderEditingId);
+      qs("#missionCreateSubmit").textContent=missionBuilderEditingId?"Guardar revisão":"Criar missão";
+      qs("#missionCreateError").textContent="";
+      qs("#missionCreateModal").classList.remove("hidden");
+      qs("#missionCreateModal").setAttribute("aria-hidden","false");
+      document.body.style.overflow="hidden";
+      setTimeout(()=>qs("#newMissionTitle").focus(),20);
+    }
+
+    function closeMissionBuilder(){
+      qs("#missionCreateModal").classList.add("hidden");
+      qs("#missionCreateModal").setAttribute("aria-hidden","true");
+      qs("#missionCreateError").textContent="";
+      missionBuilderEditingId=null;
+      document.body.style.overflow="";
+    }
+
+    async function submitMissionCreation(){
+      const token=sessionStorage.getItem("sris_token"),button=qs("#missionCreateSubmit");
+      const stakeholders=qs("#newMissionStakeholders").value.split(",").map(value=>value.trim()).filter(Boolean);
+      const payload={
+        title:qs("#newMissionTitle").value.trim(),
+        mission_kind:qs("#newMissionKind").value,
+        parent_mission_id:qs("#newMissionParent").value||null,
+        domain:qs("#newMissionDomain").value,
+        priority:qs("#newMissionPriority").value,
+        objective:qs("#newMissionObjective").value.trim(),
+        context:qs("#newMissionContext").value.trim(),
+        central_question:qs("#newMissionQuestion").value.trim(),
+        horizon:qs("#newMissionHorizon").value.trim(),
+        stakeholders
+      };
+      const editing=missionBuilderEditingId?missions().find(m=>m.canonical_id===missionBuilderEditingId):null;
+      if(editing){
+        payload.expected_revision=editing.revision;
+        payload.change_note=qs("#newMissionChangeNote").value.trim();
+        if(!payload.parent_mission_id){delete payload.parent_mission_id;payload.clear_parent=true}
+      }
+      button.disabled=true;button.textContent=editing?"A guardar revisão…":"A criar missão…";
+      qs("#missionCreateError").textContent="";
+      try{
+        const endpoint=editing
+          ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(editing.canonical_id)}`
+          : `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`;
+        const res=await fetch(endpoint,{
+          method:editing?"PATCH":"POST",
+          headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
+          body:JSON.stringify(payload)
+        });
+        const data=await res.json();
+        if(!res.ok){
+          const detail=data.detail, message=typeof detail==="string"?detail:detail?.message||"Não foi possível criar a missão.";
+          throw new Error(message);
+        }
+        const normalized=normalizeCanonicalMission(data);
+        config.missions[normalized.id]=normalized;
+        institutionalMissionCodes.add(normalized.id);
+        activeMissionId=normalized.id;sessionStorage.setItem(ACTIVE_KEY,activeMissionId);
+        closeMissionBuilder();
+        renderAll();fillWorkspace(activeMissionId);navigate("workspace");
+        toast(editing?`${data.code} atualizada na revisão ${data.revision}.`:`${data.code} criada e ligada ao portefólio institucional.`);
+      }catch(err){qs("#missionCreateError").textContent=err.message||"Não foi possível guardar a missão."}
+      finally{button.disabled=false;button.textContent=editing?"Guardar revisão":"Criar missão"}
+    }
+
     function openMission(id){
       const m=config.missions?.[id];if(!m)return;
       modalMissionId=id;
-      qs("#missionModalEyebrow").textContent=`Missão ${m.id}`;
+      qs("#missionModalEyebrow").textContent=`${m.mission_kind==="program"?"Programa":"Missão"} ${m.id}`;
       qs("#missionModalTitle").textContent=m.title;
       qs("#missionModalSubtitle").textContent=m.subtitle||"";
+      const parent=m.parent_id?config.missions?.[m.parent_id]:null;
       qs("#missionModalContent").innerHTML=`
         <div class="modal-status">
           <article><span>Estado</span><strong>${esc(m.status)}</strong></article>
           <article><span>Fundamentação declarada</span><strong>${esc(m.confidence)}</strong></article>
-          <article><span>Decisão</span><strong>${esc(m.decision)}</strong></article>
+          <article><span>Hierarquia</span><strong>${parent?`${esc(parent.id)} · ${esc(parent.title)}`:m.mission_kind==="program"?"Programa-raiz":"Missão autónoma"}</strong></article>
         </div>
         <section class="modal-section"><h3>Limite de leitura</h3><p>${esc(m.method_notice||"Os registos representam o estado declarado da missão e não uma validação externa.")}</p></section>
         <section class="modal-section"><h3>Contexto</h3><p>${esc(m.analysis?.context||"")}</p></section>
         <section class="modal-section"><h3>Questão central</h3><p>${esc(m.analysis?.central_question||"")}</p></section>
         <section class="modal-section"><h3>Próxima decisão</h3><p>${esc(m.analysis?.result?.next_decision||m.decision||"")}</p></section>
       `;
+      const childButton=qs("#missionModalCreateChild");
+      const editButton=qs("#missionModalEdit");
+      childButton.classList.toggle("hidden",!(canCreateInstitutionalMissions&&m.server_managed));
+      editButton.classList.toggle("hidden",!(canCreateInstitutionalMissions&&m.server_managed));
       qs("#missionModal").classList.remove("hidden");
       qs("#missionModal").setAttribute("aria-hidden","false");
       document.body.style.overflow="hidden";
@@ -2727,7 +3117,7 @@
       };
       button.disabled=true;button.textContent=payload.research_context?"A investigar e raciocinar…":"A raciocinar com a missão…";
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/demo/${encodeURIComponent(m.id)}/interact`,{
+        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/interact`,{
           method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(payload)
         });
         const data=await res.json();
@@ -2789,8 +3179,11 @@
       qs("#sessionKind").textContent=kind;
       qs("#userAvatar").textContent=displayInitials(name);
       const canManageUsers=institutional&&["owner","admin"].includes(session.role);
+      canCreateInstitutionalMissions=institutional&&["owner","admin","contributor"].includes(session.role);
       qs("#usersLink").classList.toggle("hidden",!canManageUsers);
       qs("#administrationLabel").classList.toggle("hidden",!canManageUsers);
+      qs("#newMissionButton").classList.toggle("hidden",!canCreateInstitutionalMissions);
+      qs("#newMissionHeroButton").classList.toggle("hidden",!canCreateInstitutionalMissions);
       updateAIControl();
       setTimeout(()=>navigate("overview",{scroll:false}),0);
     }
@@ -2827,7 +3220,27 @@
     });
 
     document.addEventListener("keydown",(event)=>{
-      if(event.key==="Escape"){closeMission();closeLightbox()}
+      if(event.key==="Escape"){closeMission();closeMissionBuilder();closeLightbox()}
+    });
+
+    qs("#newMissionButton").addEventListener("click",()=>openMissionBuilder());
+    qs("#newMissionHeroButton").addEventListener("click",()=>openMissionBuilder());
+    qs("#missionModalCreateChild").addEventListener("click",()=>{
+      const parent=config.missions?.[modalMissionId];
+      if(!parent?.canonical_id)return;
+      closeMission();openMissionBuilder(parent.canonical_id);
+    });
+    qs("#missionModalEdit").addEventListener("click",()=>{
+      const current=config.missions?.[modalMissionId];
+      if(!current?.canonical_id)return;
+      closeMission();openMissionBuilder(current.parent_mission_id||"",current);
+    });
+    qsa(".mission-create-close").forEach(button=>button.addEventListener("click",closeMissionBuilder));
+    qs("#missionCreateModal").addEventListener("click",event=>{
+      if(event.target.id==="missionCreateModal")closeMissionBuilder();
+    });
+    qs("#missionCreateForm").addEventListener("submit",async event=>{
+      event.preventDefault();await submitMissionCreation();
     });
 
     qs("#situationMission").addEventListener("change",e=>setActiveMission(e.target.value));
@@ -2861,7 +3274,7 @@
       const button=qs("#analysisSubmit"),token=sessionStorage.getItem("sris_token");
       const institutional=Boolean(token&&activeOrganizationId);
       const endpoint=institutional
-        ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/demo/${encodeURIComponent(m.id)}/analyze`
+        ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/analyze`
         : `/api/mission-intelligence/demo/missions/${encodeURIComponent(m.id)}/analyze`;
       const payload={
         title:qs("#analysisTitle").value.trim(),
@@ -2918,12 +3331,15 @@
 
     // Login / demo
     qs("#demoButton").addEventListener("click",()=>{
+      clearInstitutionalMissions();
       activeOrganizationId=null;
       aiGovernanceStatus=null;
       currentSession=null;
       activeDialogueSessionId=null;
       latestDialogueTurn=null;
       sessionStorage.removeItem("sris_token");
+      activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
+      renderAll();
       sessionStorage.setItem("sris_demo","true");openApp({mode:"demo"});
     });
 
@@ -2935,10 +3351,15 @@
       currentSession=null;
       activeDialogueSessionId=null;
       latestDialogueTurn=null;
+      clearInstitutionalMissions();
+      activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
       qs("#usersLink").classList.add("hidden");
       qs("#administrationLabel").classList.add("hidden");
+      qs("#newMissionButton").classList.add("hidden");
+      qs("#newMissionHeroButton").classList.add("hidden");
       qs("#appScreen").classList.add("hidden");
       qs("#loginScreen").classList.remove("hidden");
+      renderAll();
       updateAIControl();
     });
 
@@ -2971,18 +3392,21 @@
       }
     });
 
-    const storedToken=sessionStorage.getItem("sris_token");
-    if(sessionStorage.getItem("sris_demo")==="true")openApp({mode:"demo"});
-    else if(storedToken){
-      loadSessionContext(storedToken)
-        .then(session=>openApp({mode:"institutional",...session}))
-        .catch(err=>{
+    async function boot(){
+      await loadConfig();
+      const storedToken=sessionStorage.getItem("sris_token");
+      if(sessionStorage.getItem("sris_demo")==="true")openApp({mode:"demo"});
+      else if(storedToken){
+        try{
+          const session=await loadSessionContext(storedToken);
+          openApp({mode:"institutional",...session});
+        }catch(err){
           sessionStorage.removeItem("sris_token");
           qs("#loginMessage").textContent=err.message||"A sessão guardada deixou de ser válida.";
-        });
+        }
+      }
     }
-
-    loadConfig();
+    boot();
   })();
   </script>
 </body>

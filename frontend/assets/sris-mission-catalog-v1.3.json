@@ -1,13 +1,91 @@
 {
   "schema": "sris_mission_catalog",
   "schema_version": "1.3",
-  "catalog_version": "2026-08-10",
+  "catalog_version": "2026-08-13",
   "missions": {
+    "P-001": {
+      "id": "P-001",
+      "title": "Penela Vivo 2035",
+      "subtitle": "Programa territorial para antecipar risco, regenerar sistemas vivos e reforçar a capacidade coletiva.",
+      "meta": "Programa de missões · território, clima, água, património e bem-estar",
+      "status": "Programa em estruturação",
+      "confidence": "Por avaliar",
+      "decision": "Arquitetura de missões aberta",
+      "mission_kind": "program",
+      "domain": "territorial_resilience",
+      "priority": "critical",
+      "featured_rank": 0,
+      "children": ["M-002", "M-001", "M-003", "M-004"],
+      "method_notice": "Programa demonstrativo. Organiza missões relacionadas sem declarar compromissos institucionais, execução ou impactos que ainda não foram medidos.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "context_research": {
+          "required": true,
+          "reason": "A governação de um programa territorial exige integrar risco, ecologia, água, património, saúde, economia e capacidade institucional."
+        }
+      },
+      "situation": {
+        "summary": "Um território não enfrenta incêndios, escassez de água, perda de biodiversidade, vulnerabilidade social e pressão económica como problemas isolados. O programa transforma esse sistema de riscos num portefólio governável de missões ligadas, cada uma com pergunta, evidência, decisão, responsáveis e aprendizagem próprios.",
+        "attention": [
+          {
+            "title": "Dependências entre missões por explicitar.",
+            "description": "As missões de água, paisagem, biodiversidade e bem-estar podem partilhar recursos, riscos e indicadores.",
+            "level": "Arquitetura necessária"
+          },
+          {
+            "title": "Legitimidade antes da execução.",
+            "description": "Cada missão depende de titulares, parceiros, competências e autorizações próprias.",
+            "level": "Governação"
+          },
+          {
+            "title": "Impacto ainda não demonstrado.",
+            "description": "Os benefícios descritos são objetivos de missão; exigem linhas de base e avaliação independente.",
+            "level": "Fronteira epistemológica"
+          }
+        ],
+        "chain": [
+          {"number": "01", "label": "Programa", "value": "1 arquitetura", "note": "Penela Vivo 2035 organiza o propósito comum.", "state": "completed"},
+          {"number": "02", "label": "Missões", "value": "4 frentes", "note": "Património e água, fogo e paisagem, corredores vivos e bem-estar.", "state": "open"},
+          {"number": "03", "label": "Dependências", "value": "Por mapear", "note": "Recursos, riscos, indicadores e decisões partilhadas.", "state": "attention"},
+          {"number": "04", "label": "Decisão", "value": "Portefólio em aberto", "note": "Prioridades e responsáveis ainda não foram formalizados.", "state": "open"},
+          {"number": "05", "label": "Impacto", "value": "Não medido", "note": "Sem execução e linha de base não existe atribuição.", "state": "unavailable"}
+        ]
+      },
+      "analysis": {
+        "title": "P-001 — Penela Vivo 2035",
+        "context": "Programa demonstrativo para estruturar um portefólio de missões territoriais interdependentes em Penela. Integra prevenção de risco, água, biodiversidade, património, bem-estar e capacidade institucional, mantendo cada alegação no seu estatuto real.",
+        "central_question": "Que combinação de missões, parceiros, evidência e decisões aumenta de forma verificável a resiliência territorial sem transferir risco entre pessoas, ecossistemas ou gerações?",
+        "available_evidence": "Documentação de enquadramento territorial, plano de gestão florestal, propostas de colaboração académica e ambiental e registos de casos candidatos; todos sujeitos às limitações declaradas em cada missão.",
+        "unknowns": "Prioridades institucionais, mandato, responsáveis, financiamento, indicadores comuns, dependências, linhas de base e condições de autorização de cada missão.",
+        "result": {
+          "headline": "Governar o portefólio antes de multiplicar iniciativas.",
+          "summary": "A primeira decisão não é escolher uma intervenção isolada; é definir uma arquitetura de missões que torne visíveis dependências, conflitos, recursos e critérios de sucesso.",
+          "situation": "O programa está em estruturação e não representa um compromisso das entidades referidas.",
+          "principal_risk": "Criar projetos paralelos que concorram por recursos, usem indicadores incompatíveis ou resolvam um problema agravando outro.",
+          "assumptions": ["As missões exigirão governação interinstitucional.", "Os indicadores devem ligar resultados locais a capacidade sistémica."],
+          "alternatives": [
+            {"id": "A", "title": "Portefólio mínimo", "description": "Priorizar duas missões com dependências controláveis e linhas de base claras."},
+            {"id": "B", "title": "Laboratório territorial", "description": "Estruturar as quatro missões como agenda comum de investigação, decisão e aprendizagem."}
+          ],
+          "next_decision": "Validar o problema comum, os parceiros legitimados e os critérios usados para priorizar as missões-filhas.",
+          "confidence": "Baixa"
+        }
+      },
+      "evidence": [],
+      "learning": [
+        {"id": "LRN-P001-001", "title": "Uma missão não é uma lista de tarefas", "description": "Quando problemas partilham causas e recursos, a unidade de governação deve tornar explícitas as dependências entre missões e não apenas agregar atividades."}
+      ]
+    },
     "M-001": {
       "id": "M-001",
-      "title": "Cinco hectares, e uma decisão por tomar",
-      "subtitle": "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução, sem resultado.",
-      "meta": "Gestão do território florestal · Podentes, Penela · aproximadamente 5 ha",
+      "title": "Paisagem Resiliente",
+      "subtitle": "Reduzir o risco de incêndio sem perder água, solo ou biodiversidade.",
+      "meta": "Prevenção de incêndio e gestão da paisagem · Podentes, Penela",
+      "mission_kind": "mission",
+      "domain": "wildfire_landscape",
+      "priority": "critical",
+      "parent_id": "P-001",
+      "featured_rank": 2,
       "status": "Em avaliação",
       "confidence": "Moderada",
       "decision": "DEC-0001 · Em aberto",
@@ -278,8 +356,13 @@
     "M-002": {
       "id": "M-002",
       "title": "Nascente de Dragos",
-      "subtitle": "Segundo caso identificado · candidato, não compromisso.",
-      "meta": "Património e território · Podentes, Penela",
+      "subtitle": "Água, património e ciência: investigar antes de recuperar.",
+      "meta": "Missão-farol · água, património e território · Podentes, Penela",
+      "mission_kind": "mission",
+      "domain": "water_heritage",
+      "priority": "strategic",
+      "parent_id": "P-001",
+      "featured_rank": 1,
       "status": "Caso identificado",
       "confidence": "Não avaliável",
       "decision": "Não iniciada",
@@ -606,11 +689,137 @@
         }
       ]
     },
+    "M-003": {
+      "id": "M-003",
+      "title": "Corredores Vivos",
+      "subtitle": "Água, biodiversidade e adaptação climática como uma só infraestrutura territorial.",
+      "meta": "Ecologia, água e clima · laboratório territorial",
+      "status": "Missão candidata",
+      "confidence": "Moderada",
+      "decision": "Desenho do diagnóstico",
+      "mission_kind": "mission",
+      "domain": "ecology_climate",
+      "priority": "strategic",
+      "parent_id": "P-001",
+      "featured_rank": 3,
+      "method_notice": "Missão candidata construída a partir de documentação técnica do território. A presença de elementos ecológicos não demonstra ainda conectividade, melhoria de biodiversidade ou adaptação climática.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "baseline": {"applicability": "required", "reason": "A missão pretende comparar condição ecológica antes e depois de eventuais intervenções."},
+        "context_research": {"required": true, "reason": "A decisão depende de hidrologia sazonal, habitats, espécies, usos do solo, risco de fogo e conectividade ecológica."}
+      },
+      "situation": {
+        "summary": "A documentação técnica identifica linhas de água sazonais, uma nascente permanente declarada, charcos temporários e sinais de regeneração após incêndios. Estes elementos sugerem uma rede ecológica potencial, mas faltam cartografia funcional, inventário sazonal e indicadores de conectividade.",
+        "attention": [
+          {"title": "Conectividade ainda é hipótese.", "description": "Elementos de água e habitat podem estar presentes sem funcionarem como corredor ecológico.", "level": "Teste necessário"},
+          {"title": "Sazonalidade pode alterar o diagnóstico.", "description": "Uma campanha pontual não caracteriza disponibilidade de água nem uso por espécies ao longo do ano.", "level": "Linha de base"},
+          {"title": "Intervenções podem deslocar risco.", "description": "A gestão de combustível, acessos ou água deve ser avaliada também pelos efeitos em solo e habitat.", "level": "Risco sistémico"}
+        ],
+        "chain": [
+          {"number": "01", "label": "Contexto", "value": "Documentado", "note": "Elementos hídricos e ecológicos descritos em documentação técnica.", "state": "completed"},
+          {"number": "02", "label": "Hipótese", "value": "Rede ecológica", "note": "Conectividade funcional ainda não demonstrada.", "state": "attention"},
+          {"number": "03", "label": "Linha de base", "value": "Por desenhar", "note": "Cartografia, água, habitats e espécies por estação.", "state": "open"},
+          {"number": "04", "label": "Decisão", "value": "Não iniciada", "note": "Nenhuma intervenção selecionada.", "state": "unavailable"},
+          {"number": "05", "label": "Resultado", "value": "Não existe", "note": "Sem intervenção e avaliação não há impacto atribuível.", "state": "unavailable"}
+        ]
+      },
+      "analysis": {
+        "title": "M-003 — Corredores Vivos",
+        "context": "O plano de gestão e a proposta de colaboração ambiental descrevem linhas de água sazonais, zonas húmidas temporárias, uma nascente declarada, regeneração pós-incêndio e oportunidades de gestão seletiva. A missão testa se estes elementos podem formar uma infraestrutura ecológica coerente e verificável.",
+        "central_question": "Que configuração de água, vegetação, solo e gestão reduz vulnerabilidade climática e aumenta conectividade ecológica sem criar novos riscos de incêndio, erosão ou perturbação?",
+        "available_evidence": "Documentação técnica do plano de gestão; proposta de colaboração ambiental; observações territoriais declaradas sobre linhas de água, charcos e regeneração.",
+        "unknowns": "Cartografia funcional, regime hídrico sazonal, inventário de habitats e espécies, pressão de invasoras, conectividade, usos, titularidade, custos e efeitos das alternativas.",
+        "result": {
+          "headline": "Mapear o sistema antes de desenhar o corredor.",
+          "summary": "A oportunidade é plausível, mas o primeiro produto da missão deve ser uma linha de base espacial e sazonal, não uma intervenção física.",
+          "situation": "Missão candidata com base documental e lacunas empíricas relevantes.",
+          "principal_risk": "Chamar corredor ecológico a um conjunto de elementos próximos sem demonstrar função ou continuidade.",
+          "assumptions": ["A água é um organizador relevante da paisagem.", "Gestão seletiva pode melhorar resiliência, mas o efeito local não está medido."],
+          "alternatives": [
+            {"id": "A", "title": "Diagnóstico sazonal mínimo", "description": "Mapear água, habitat e espécies antes de intervir."},
+            {"id": "B", "title": "Experiências reversíveis", "description": "Testar pequenas intervenções com controlo e critérios de paragem."}
+          ],
+          "next_decision": "Aprovar o protocolo de linha de base e os critérios usados para confirmar ou rejeitar a hipótese de conectividade.",
+          "confidence": "Moderada"
+        }
+      },
+      "evidence": [
+        {"id": "EVD-M003-001", "type": "Evidência documental", "title": "Elementos hídricos e ecológicos descritos", "description": "A documentação técnica descreve linhas de água sazonais, uma nascente declarada, charcos temporários e regeneração pós-incêndio.", "method": "Leitura de documentação de projeto.", "limitation": "Não substitui levantamento de campo independente nem caracteriza função ecológica.", "status": "Documentada", "confidence": "Moderada", "source": "Plano de Gestão Florestal e proposta Quercus"}
+      ],
+      "learning": [
+        {"id": "LRN-M003-001", "title": "Proximidade não é conectividade", "description": "Um mapa de elementos naturais só se torna arquitetura ecológica quando a função, a continuidade e a sazonalidade são verificadas."}
+      ]
+    },
+    "M-004": {
+      "id": "M-004",
+      "title": "Capacidade Humana",
+      "subtitle": "Bem-estar, participação e prontidão como infraestrutura de resiliência.",
+      "meta": "Pessoas, instituições e território · missão não clínica",
+      "status": "Missão candidata",
+      "confidence": "Baixa",
+      "decision": "Âmbito por validar",
+      "mission_kind": "mission",
+      "domain": "human_wellbeing",
+      "priority": "strategic",
+      "parent_id": "P-001",
+      "featured_rank": 4,
+      "method_notice": "Missão de bem-estar e capacidade coletiva, não clínica. Não faz diagnóstico, promessa terapêutica ou alegação de saúde. Qualquer medição exige consentimento, proteção de dados e supervisão competente.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "baseline": {"applicability": "required", "reason": "Qualquer mudança em bem-estar ou capacidade requer linha de base, consentimento e instrumentos adequados."},
+        "context_research": {"required": true, "reason": "A missão cruza bem-estar, participação, inclusão, proteção de dados, saúde pública e preparação comunitária."}
+      },
+      "situation": {
+        "summary": "Os documentos do Sanctuary propõem ligar natureza, experiência, aprendizagem e economia local. A missão reformula essa intenção como pergunta de resiliência humana: que capacidades ajudam pessoas e instituições a preparar-se, cooperar e recuperar, sem confundir bem-estar com tratamento clínico?",
+        "attention": [
+          {"title": "Fronteira clínica obrigatória.", "description": "Bem-estar percebido não equivale a diagnóstico, prevenção ou tratamento de doença.", "level": "Ética e segurança"},
+          {"title": "Consentimento e privacidade.", "description": "Instrumentos individuais exigem finalidade, minimização de dados e condições claras de participação.", "level": "Proteção de pessoas"},
+          {"title": "Inclusão deve ser verificável.", "description": "Acesso físico, económico, cultural e digital não pode ser presumido.", "level": "Equidade"}
+        ],
+        "chain": [
+          {"number": "01", "label": "Propósito", "value": "Capacidade coletiva", "note": "Preparar, cooperar, aprender e recuperar.", "state": "completed"},
+          {"number": "02", "label": "Fronteiras", "value": "Não clínica", "note": "Sem diagnóstico ou promessa terapêutica.", "state": "attention"},
+          {"number": "03", "label": "Indicadores", "value": "Por validar", "note": "Bem-estar, participação, aprendizagem e prontidão.", "state": "open"},
+          {"number": "04", "label": "Decisão", "value": "Âmbito em aberto", "note": "População, parceiros e protocolo não formalizados.", "state": "open"},
+          {"number": "05", "label": "Resultado", "value": "Não existe", "note": "Sem piloto avaliado não há efeito demonstrado.", "state": "unavailable"}
+        ]
+      },
+      "analysis": {
+        "title": "M-004 — Capacidade Humana",
+        "context": "Missão candidata inspirada em propostas de bem-estar territorial e parceria académica. Procura estudar capacidade de participação, aprendizagem, cooperação e recuperação em contacto com o território, dentro de limites éticos e não clínicos.",
+        "central_question": "Que experiências e condições aumentam de forma segura, inclusiva e mensurável a capacidade de pessoas e instituições para antecipar adversidades, cooperar e recuperar?",
+        "available_evidence": "Propostas de parceria e desenho de experiência; referência a instrumentos de bem-estar percebido como possibilidades metodológicas, ainda sem protocolo aprovado ou dados recolhidos.",
+        "unknowns": "Populações, necessidades, parceiros competentes, acessibilidade, protocolo ético, consentimento, indicadores, efeitos adversos, proteção de dados, custos e sustentabilidade.",
+        "result": {
+          "headline": "Definir capacidade antes de prometer bem-estar.",
+          "summary": "A missão precisa de um âmbito não clínico explícito, teoria de mudança, proteção de participantes e indicadores que não confundam satisfação momentânea com resiliência duradoura.",
+          "situation": "Missão candidata sem protocolo, parceria formal ou resultados.",
+          "principal_risk": "Produzir alegações de saúde ou inclusão que a evidência e a governação não suportam.",
+          "assumptions": ["Natureza e participação podem contribuir para bem-estar percebido.", "Capacidade coletiva exige mais do que experiências individuais."],
+          "alternatives": [
+            {"id": "A", "title": "Piloto de aprendizagem e participação", "description": "Focar competências, cooperação e experiência, sem objetivos clínicos."},
+            {"id": "B", "title": "Observatório de capacidade", "description": "Começar por escuta, acessibilidade e linha de base institucional."}
+          ],
+          "next_decision": "Validar com parceiros competentes o âmbito, as salvaguardas e a pergunta de avaliação antes de recrutar participantes.",
+          "confidence": "Baixa"
+        }
+      },
+      "evidence": [
+        {"id": "EVD-M004-001", "type": "Evidência documental", "title": "Proposta de bem-estar territorial", "description": "Os documentos apresentam uma experiência que articula natureza, aprendizagem, bem-estar e economia local.", "method": "Leitura de proposta de projeto e parceria.", "limitation": "É intenção de desenho; não demonstra resultado em saúde, bem-estar ou resiliência.", "status": "Documentada", "confidence": "Moderada", "source": "Documentos Sanctuary e proposta UC"}
+      ],
+      "learning": [
+        {"id": "LRN-M004-001", "title": "Servir pessoas começa por proteger pessoas", "description": "Uma missão de bem-estar só é credível quando consentimento, inclusão, privacidade, efeitos adversos e limites clínicos fazem parte da arquitetura desde o início."}
+      ]
+    },
     "CA-AWARD-APPLICATION": {
       "id": "CA-AWARD-APPLICATION",
       "title": "Prémio Empreendedorismo e Inovação Crédito Agrícola",
       "subtitle": "Candidatura 2026 · submetida em 9 de agosto de 2026.",
       "meta": "Candidatura · Empreendedorismo · Inovação",
+      "mission_kind": "mission",
+      "domain": "organizational_innovation",
+      "priority": "standard",
+      "featured_rank": 99,
       "status": "Submetida · avaliação pendente",
       "confidence": "Elevada",
       "decision": "DEC-CA-001 · Candidatura submetida",

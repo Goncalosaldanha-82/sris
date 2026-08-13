@@ -14,9 +14,8 @@ from app.atlas_platform.models import Membership, Role, User
 from app.main import app
 from app.mission_intelligence import ai as mission_ai
 from app.mission_intelligence import api as mission_api
-from app.mission_intelligence import dialogue_service
+from app.mission_intelligence import dialogue_service, service
 from app.mission_intelligence import interactive as interactive_ai
-from app.mission_intelligence import service
 from app.mission_intelligence.ai import (
     AIExecution,
     AIProviderUsage,
@@ -584,10 +583,20 @@ def test_public_catalog_declares_methodological_boundaries() -> None:
     response = client.get("/api/mission-intelligence/demo/missions")
     assert response.status_code == 200
     catalog = response.json()
-    assert catalog["catalog_version"] == "2026-08-10"
+    assert catalog["catalog_version"] == "2026-08-13"
+    program = catalog["missions"]["P-001"]
     m1 = catalog["missions"]["M-001"]
     m2 = catalog["missions"]["M-002"]
+    m3 = catalog["missions"]["M-003"]
+    m4 = catalog["missions"]["M-004"]
     award = catalog["missions"]["CA-AWARD-APPLICATION"]
+    assert program["mission_kind"] == "program"
+    assert program["children"] == ["M-002", "M-001", "M-003", "M-004"]
+    assert m1["title"] == "Paisagem Resiliente"
+    assert m1["parent_id"] == "P-001"
+    assert m2["featured_rank"] == 1
+    assert m3["parent_id"] == "P-001"
+    assert "não clínica" in m4["method_notice"]
     assert "Caso real aberto" in m1["method_notice"]
     assert m1["analysis_requirements"]["context_research"]["required"] is True
     assert "não compromisso" in m2["method_notice"]
@@ -2405,3 +2414,227 @@ def test_institutional_activation_script_verifies_full_session_contract() -> Non
     assert '"Sem sessão institucional"' in frontend
     assert 'openApp({mode:"institutional",...session})' in frontend
     assert 'function openApp(name="Gonçalo Saldanha")' not in frontend
+
+
+def test_institutional_mission_portfolio_creation_hierarchy_and_analysis() -> None:
+    suffix = uuid4().hex[:8]
+    headers, organization_id = _owner_named(f"portfolio-{suffix}")
+    base = f"/api/organizations/{organization_id}/mission-intelligence"
+
+    program = client.post(
+        f"{base}/missions",
+        headers=headers,
+        json={
+            "title": "Território Preparado 2035",
+            "objective": "Aumentar a capacidade territorial para antecipar riscos sistémicos.",
+            "context": "Programa institucional em estruturação, ainda sem execução ou resultados.",
+            "central_question": "Que portefólio de missões reduz vulnerabilidade sem transferir risco?",
+            "mission_kind": "program",
+            "domain": "territorial_resilience",
+            "priority": "critical",
+            "horizon": "2026–2035",
+            "stakeholders": ["Município", "Universidade", "Comunidade"],
+        },
+    )
+    assert program.status_code == 201, program.text
+    program_row = program.json()
+    assert program_row["code"] == "PRG-001"
+    assert program_row["depth"] == 0
+    assert program_row["record_counts"] == {}
+
+    mission = client.post(
+        f"{base}/missions",
+        headers=headers,
+        json={
+            "title": "Preparação para incêndios extremos",
+            "objective": "Reduzir exposição e melhorar prontidão sem degradar solo e habitat.",
+            "context": "Risco territorial a caracterizar com entidades e população local.",
+            "central_question": "Que combinação de prevenção e prontidão reduz o risco total?",
+            "parent_mission_id": program_row["id"],
+            "mission_kind": "mission",
+            "domain": "wildfire_landscape",
+            "priority": "critical",
+        },
+    )
+    assert mission.status_code == 201, mission.text
+    mission_row = mission.json()
+    assert mission_row["code"] == "MIS-001"
+    assert mission_row["parent_code"] == "PRG-001"
+    assert mission_row["depth"] == 1
+
+    child = client.post(
+        f"{base}/missions",
+        headers=headers,
+        json={
+            "title": "Rede local de alerta e apoio",
+            "objective": "Definir uma experiência reversível de alerta e apoio de proximidade.",
+            "context": "Sub-missão ainda sem protocolo, participantes ou dados pessoais.",
+            "central_question": "Qual é o teste mínimo seguro para validar a rede local?",
+            "parent_mission_id": mission_row["id"],
+            "mission_kind": "mission",
+            "domain": "human_wellbeing",
+            "priority": "strategic",
+        },
+    )
+    assert child.status_code == 201, child.text
+    child_row = child.json()
+    assert child_row["code"] == "MIS-002"
+    assert child_row["depth"] == 2
+    assert child_row["path_codes"] == ["PRG-001", "MIS-001", "MIS-002"]
+
+    portfolio = client.get(f"{base}/missions", headers=headers)
+    assert portfolio.status_code == 200, portfolio.text
+    rows = {row["code"]: row for row in portfolio.json()}
+    assert rows["PRG-001"]["children_count"] == 1
+    assert rows["MIS-001"]["children_count"] == 1
+
+    analyzed = client.post(
+        f"{base}/missions/MIS-001/analyze",
+        headers=headers,
+        json={
+            "title": "Preparação para incêndios extremos",
+            "context": "Risco territorial a caracterizar com entidades e população local.",
+            "central_question": "Que combinação de prevenção e prontidão reduz o risco total?",
+            "available_evidence": "Ainda sem registos canónicos de evidência.",
+            "unknowns": "Exposição, capacidade, tempos de resposta e efeitos distributivos.",
+            "use_ai": False,
+            "research_context": False,
+        },
+    )
+    assert analyzed.status_code == 200, analyzed.text
+    assert analyzed.json()["mission_id"] == "MIS-001"
+    assert analyzed.json()["mission_revision"] == 2
+
+    edited = client.patch(
+        f"{base}/missions/{mission_row['id']}",
+        headers=headers,
+        json={
+            "expected_revision": 2,
+            "title": "Preparação integrada para incêndios extremos",
+            "priority": "strategic",
+            "change_note": "Clarificação do âmbito após a primeira análise.",
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    edited_row = edited.json()
+    assert edited_row["title"] == "Preparação integrada para incêndios extremos"
+    assert edited_row["priority"] == "strategic"
+    assert edited_row["revision"] == 3
+
+    dialogue = client.post(
+        f"{base}/missions/MIS-001/interact",
+        headers=headers,
+        json={
+            "intent": "diagnose",
+            "message": "Estrutura as perguntas e salvaguardas desta missão.",
+            "answers": [],
+            "mission_input": {
+                "title": "Preparação integrada para incêndios extremos",
+                "context": (
+                    "Risco territorial a caracterizar com entidades e população local."
+                ),
+                "central_question": (
+                    "Que combinação de prevenção e prontidão reduz o risco total?"
+                ),
+                "available_evidence": (
+                    "Ainda sem registos canónicos de evidência."
+                ),
+                "unknowns": (
+                    "Exposição, capacidade, tempos de resposta e efeitos distributivos."
+                ),
+                "use_ai": False,
+                "research_context": False,
+            },
+            "research_context": False,
+        },
+    )
+    assert dialogue.status_code == 200, dialogue.text
+    assert dialogue.json()["mission_id"] == "MIS-001"
+    assert dialogue.json()["ai_status"] == "not_configured"
+
+    deepest_parent_id = child_row["id"]
+    for expected_depth in range(3, 6):
+        deeper = client.post(
+            f"{base}/missions",
+            headers=headers,
+            json={
+                "title": f"Camada territorial {expected_depth}",
+                "objective": "Preservar uma decomposição governada e verificável.",
+                "context": "Sub-missão de teste ainda sem execução nem resultados.",
+                "central_question": "A profundidade mantém-se dentro do limite governado?",
+                "parent_mission_id": deepest_parent_id,
+                "mission_kind": "mission",
+                "domain": "territorial_resilience",
+                "priority": "standard",
+            },
+        )
+        assert deeper.status_code == 201, deeper.text
+        assert deeper.json()["depth"] == expected_depth
+        deepest_parent_id = deeper.json()["id"]
+
+    second_program = client.post(
+        f"{base}/missions",
+        headers=headers,
+        json={
+            "title": "Programa independente",
+            "objective": "Validar movimentos de árvores completas sem perder integridade.",
+            "context": "Programa de teste independente e ainda sem sub-missões.",
+            "central_question": "Uma árvore profunda pode ser movida para este programa?",
+            "mission_kind": "program",
+            "domain": "institutional_innovation",
+            "priority": "standard",
+        },
+    )
+    assert second_program.status_code == 201, second_program.text
+    too_deep = client.patch(
+        f"{base}/missions/{program_row['id']}",
+        headers=headers,
+        json={
+            "expected_revision": 1,
+            "parent_mission_id": second_program.json()["id"],
+            "change_note": "Mover a árvore completa para testar o limite de profundidade.",
+        },
+    )
+    assert too_deep.status_code == 409
+    assert too_deep.json()["detail"]["code"] == "mission_hierarchy_too_deep"
+
+    stale = client.patch(
+        f"{base}/missions/{mission_row['id']}",
+        headers=headers,
+        json={
+            "expected_revision": 1,
+            "priority": "strategic",
+            "change_note": "Tentativa baseada numa revisão antiga.",
+        },
+    )
+    assert stale.status_code == 409
+    assert stale.json()["detail"]["code"] == "mission_revision_conflict"
+
+    cycle = client.patch(
+        f"{base}/missions/{program_row['id']}",
+        headers=headers,
+        json={
+            "expected_revision": 1,
+            "parent_mission_id": child_row["id"],
+            "change_note": "Esta relação deveria ser rejeitada por criar um ciclo.",
+        },
+    )
+    assert cycle.status_code == 409
+    assert cycle.json()["detail"]["code"] == "mission_hierarchy_cycle"
+
+    other_headers, other_organization_id = _owner_named(f"portfolio-other-{suffix}")
+    cross_organization = client.post(
+        f"/api/organizations/{other_organization_id}/mission-intelligence/missions",
+        headers=other_headers,
+        json={
+            "title": "Missão com pai inacessível",
+            "objective": "Confirmar que a hierarquia permanece isolada por organização.",
+            "context": "O identificador pertence deliberadamente a outra organização.",
+            "central_question": "A plataforma rejeita a relação entre organizações?",
+            "parent_mission_id": program_row["id"],
+            "mission_kind": "mission",
+            "domain": "cross_domain",
+            "priority": "standard",
+        },
+    )
+    assert cross_organization.status_code == 404
