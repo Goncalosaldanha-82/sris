@@ -35,6 +35,18 @@ def table_names(database_url: str) -> set[str]:
         engine.dispose()
 
 
+def column_names(database_url: str, table_name: str) -> set[str]:
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            return {
+                column["name"]
+                for column in inspect(connection).get_columns(table_name)
+            }
+    finally:
+        engine.dispose()
+
+
 def test_upgrade_and_downgrade_initial_schema() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
@@ -59,6 +71,8 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "knowledge_objects",
             "audit_events",
             "password_recovery_uses",
+            "password_reset_tokens",
+            "user_invitations",
             "workflows",
             "workflow_candidates",
             "workflow_history",
@@ -72,6 +86,26 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
         }
 
         assert expected.issubset(tables)
+        assert {
+            "web_search_calls",
+            "reserved_web_search_calls",
+        }.issubset(column_names(database_url, "mi_ai_usage_periods"))
+        assert {
+            "reserved_web_search_calls",
+            "web_search_calls",
+            "web_search_cost_microusd",
+            "web_search_rate_microusd_per_call",
+        }.issubset(column_names(database_url, "mi_ai_usage_events"))
+        assert {"auth_version", "last_login_at"}.issubset(
+            column_names(database_url, "users")
+        )
+        assert {
+            "parent_mission_id",
+            "mission_kind",
+            "domain",
+            "priority",
+            "sort_order",
+        }.issubset(column_names(database_url, "mi_missions"))
 
         run_alembic(
             repo_root,

@@ -7,7 +7,7 @@
     name="description"
     content="SRIS — Strategic Resilience & Intelligence System. Preserva o raciocínio das decisões, da observação ao resultado e à aprendizagem."
   />
-  <meta name="sris-build" content="executive-brief-ui-r2-2026-08-08" />
+  <meta name="sris-build" content="mission-portfolio-intelligence-v3-2026-08-13" />
   <title>SRIS — Preservar o raciocínio das decisões</title>
 
   <style>
@@ -183,6 +183,10 @@
       border-color:var(--forest-3);box-shadow:0 0 0 4px rgba(72,116,92,.10)
     }
     .login-message{min-height:20px;margin-top:12px;color:var(--red);font-size:12px}
+    .login-support{display:flex;justify-content:flex-end;margin:-5px 0 18px}
+    .login-support a{color:var(--forest);font-size:11px;font-weight:750;text-decoration:none}
+    .login-support a:hover{text-decoration:underline}
+    .account-boundary{margin:13px 0 0;color:var(--ink-muted);font-size:10.5px;line-height:1.5;text-align:center}
     .login-foot{
       margin-top:24px;padding-top:18px;border-top:1px solid var(--border);
       color:var(--ink-muted);font-size:10px;line-height:1.6;
@@ -204,7 +208,7 @@
     .nav-item{
       width:100%;min-height:46px;margin-bottom:4px;padding:0 12px;
       display:flex;align-items:center;gap:12px;border:0;border-radius:12px;
-      background:transparent;color:var(--ink-soft);font-weight:650;text-align:left;
+      background:transparent;color:var(--ink-soft);font-weight:650;text-align:left;text-decoration:none;
     }
     .nav-item:hover{background:rgba(255,255,255,.63);color:var(--ink)}
     .nav-item.active{background:#fff;color:var(--forest);box-shadow:0 4px 16px rgba(23,63,47,.08)}
@@ -231,7 +235,9 @@
       border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.78)
     }
     .avatar{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--forest);color:#fff;font-size:10px;font-weight:800}
+    .user-identity{display:grid;gap:1px;line-height:1.15}
     .user-chip strong{font-size:11px}
+    .user-chip small{color:var(--ink-muted);font-size:8.5px;font-weight:750;letter-spacing:.025em}
 
     .page{display:none;animation:fade .25s ease}
     .page.active{display:block}
@@ -269,6 +275,24 @@
       border-radius:0 14px 14px 0;background:var(--gold-soft);color:var(--ink-soft);
       font-family:Georgia,serif;font-size:18px;font-style:italic;line-height:1.55;
     }
+    .method-notice{
+      margin:-2px 0 15px;padding:12px 15px;border:1px solid rgba(149,103,31,.22);
+      border-left:3px solid var(--gold);border-radius:0 12px 12px 0;
+      background:#fbf8f1;color:var(--ink-soft);font-size:11.5px;line-height:1.55
+    }
+    .method-notice strong{color:var(--ink);font-weight:800}
+    .method-notice small{display:block;margin-top:5px;color:var(--ink-muted);font-size:10.5px;line-height:1.5}
+    .research-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+    .research-card{
+      min-height:190px;padding:21px;border:1px solid var(--border);border-radius:var(--radius);
+      background:var(--surface-glass);box-shadow:var(--shadow)
+    }
+    .research-card .type{color:var(--gold-ink);font-size:9px;font-weight:850;letter-spacing:.11em;text-transform:uppercase}
+    .research-card h3{margin:15px 0 9px;font-family:Georgia,serif;font-size:23px;font-weight:400;line-height:1.25}
+    .research-card p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
+    .research-boundary{margin-top:16px;padding:19px 21px;border:1px solid var(--border);border-radius:var(--radius);background:#f5f8f6}
+    .research-boundary strong{display:block;margin-bottom:7px}
+    .research-boundary p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
 
     .tag{
       display:inline-flex;align-items:center;min-height:26px;padding:0 9px;
@@ -337,9 +361,20 @@
     }
     .mission-row:last-child{border-bottom:0}
     .mission-row:hover{background:var(--sage-soft)}
+    .mission-row[data-kind="program"]{background:linear-gradient(90deg,rgba(23,63,47,.075),rgba(255,255,255,.25))}
+    .mission-row[data-depth="1"]{padding-left:42px}
+    .mission-row[data-depth="2"]{padding-left:66px}
+    .mission-row[data-depth="3"],.mission-row[data-depth="4"],.mission-row[data-depth="5"]{padding-left:88px}
+    .mission-row[data-depth]:not([data-depth="0"]) .mission-title:before{content:"↳";margin-right:9px;color:var(--gold);font-weight:500}
     .mission-title{font-weight:780}
     .mission-meta{margin-top:4px;color:var(--ink-muted);font-size:11px;line-height:1.45}
     .mission-arrow{justify-self:end;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.68);color:var(--ink-muted);font-size:21px}
+    .mission-type{display:inline-flex;margin-right:7px;padding:3px 7px;border-radius:999px;background:var(--sage-soft);color:var(--forest);font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
+    .mission-row[data-kind="program"] .mission-type{background:var(--gold-soft);color:var(--gold-ink)}
+    .portfolio-metrics{margin:0 0 16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+    .portfolio-metrics article{padding:16px 17px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.7);box-shadow:var(--shadow)}
+    .portfolio-metrics span{display:block;color:var(--ink-muted);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+    .portfolio-metrics strong{display:block;margin-top:7px;font-family:Georgia,serif;font-size:25px;font-weight:400}
 
     /* ---------- Workspace ---------- */
     .workspace{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:16px;align-items:start}
@@ -353,6 +388,7 @@
     .analysis-mode input{width:17px;height:17px;margin:2px 0 0;accent-color:var(--forest)}
     .analysis-mode label{font-size:12px;font-weight:780;line-height:1.4}
     .analysis-mode small{display:block;margin-top:4px;color:var(--ink-muted);font-size:10.5px;font-weight:500;line-height:1.5}
+    .analysis-mode .ai-boundary{margin-top:7px;color:#78531c;font-weight:720}
     .analysis-mode.is-unavailable{opacity:.72}
     .result-panel{min-height:550px;padding:22px}
     .result-placeholder{
@@ -378,6 +414,100 @@
     .ai-advisory h4{margin:0 0 8px;font-family:Georgia,serif;font-size:20px;font-weight:400}
     .ai-advisory p,.ai-advisory li{color:var(--ink-soft);font-size:11.5px;line-height:1.6}
     .ai-provenance{margin-top:13px;padding-top:11px;border-top:1px solid rgba(164,134,73,.25);color:var(--ink-muted);font-size:9.5px;line-height:1.5}
+    .context-dossier{margin:16px 0;padding:18px;border:1px solid rgba(45,93,70,.22);border-radius:13px;background:#f2f7f4}
+    .context-dossier h4{margin:0 0 8px;font-family:Georgia,serif;font-size:21px;font-weight:400}
+    .context-dossier p,.context-dossier li{color:var(--ink-soft);font-size:11.5px;line-height:1.6}
+    .context-domains{margin:11px 0;display:flex;gap:6px;flex-wrap:wrap}
+    .context-domains span{padding:5px 8px;border-radius:999px;background:rgba(45,93,70,.09);color:var(--forest);font-size:9px;font-weight:760}
+    .context-claim{margin-top:9px;padding:11px;border-radius:10px;background:rgba(255,255,255,.72)}
+    .context-claim span{display:block;margin-bottom:4px;color:var(--gold-ink);font-size:8.5px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+    .context-claim--supported{border-left:3px solid var(--green)}
+    .context-claim--partially_supported{border-left:3px solid var(--blue)}
+    .context-claim--hypothesis{border-left:3px solid var(--gold)}
+    .context-claim--contested{border-left:3px solid var(--red)}
+    .context-claim--unverified{border-left:3px solid var(--amber)}
+    .context-source-list a{color:var(--forest);font-weight:740;text-decoration-thickness:1px;text-underline-offset:2px}
+    .context-boundary{margin-top:13px;padding-top:11px;border-top:1px solid rgba(45,93,70,.18);color:var(--ink-muted);font-size:9.5px;line-height:1.55}
+    .run-review{margin-top:16px;padding:17px;border:1px solid rgba(45,93,70,.24);border-radius:13px;background:#f1f7f3}
+    .run-review .field{margin:13px 0 10px}
+    .run-review textarea{min-height:90px}
+    .run-review-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .run-review-status{margin-top:11px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.7);font-size:11px;font-weight:750}
+
+    /* ---------- Interactive Mission Intelligence ---------- */
+    .intelligence-studio{margin:18px 0;padding:0;overflow:hidden;border-color:rgba(23,63,47,.2)}
+    .mi-studio-header{
+      padding:26px 28px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;
+      color:#fff;background:linear-gradient(135deg,#102f22,#24543d 68%,#3b684f)
+    }
+    .mi-studio-header .eyebrow{margin:0 0 10px;color:#d8bd82}
+    .mi-studio-header h2{margin:0;font-family:Georgia,serif;font-size:30px;font-weight:400;letter-spacing:-.02em}
+    .mi-studio-header p{margin:9px 0 0;max-width:780px;color:rgba(255,255,255,.72);font-size:12.5px;line-height:1.65}
+    .mi-studio-status{flex:0 0 auto;padding:8px 11px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.08);font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+    .mi-studio-body{padding:24px 28px 28px}
+    .mi-boundary{margin-bottom:18px;padding:13px 15px;border-left:3px solid var(--gold);border-radius:0 10px 10px 0;background:var(--gold-soft);color:var(--gold-ink);font-size:11px;line-height:1.6}
+    .mi-intents{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:18px}
+    .mi-intent{
+      min-height:66px;padding:10px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft);color:var(--ink);text-align:left
+    }
+    .mi-intent strong{display:block;font-size:11px}
+    .mi-intent span{display:block;margin-top:5px;color:var(--ink-muted);font-size:9px;line-height:1.35}
+    .mi-intent.is-active{border-color:var(--forest-3);background:var(--sage-soft);box-shadow:inset 0 0 0 1px rgba(23,63,47,.08)}
+    .mi-conversation{display:grid;gap:14px;margin:0 0 18px}
+    .mi-empty{padding:28px;border:1px dashed var(--border-strong);border-radius:14px;background:rgba(247,246,242,.72);text-align:center;color:var(--ink-muted);font-size:12px;line-height:1.65}
+    .mi-empty strong{display:block;margin-bottom:6px;color:var(--ink);font-family:Georgia,serif;font-size:21px;font-weight:400}
+    .mi-turn{border:1px solid var(--border);border-radius:15px;background:#fff;overflow:hidden}
+    .mi-user-message{padding:13px 16px;background:var(--surface-soft);color:var(--ink-soft);font-size:11px;line-height:1.55}
+    .mi-user-message strong{color:var(--ink)}
+    .mi-answer{padding:20px}
+    .mi-answer-head{padding-bottom:16px;border-bottom:1px solid var(--border)}
+    .mi-answer-head small{color:var(--gold-ink);font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+    .mi-answer-head h3{margin:9px 0 7px;font-family:Georgia,serif;font-size:24px;font-weight:400;line-height:1.2}
+    .mi-answer-head p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
+    .mi-reading{margin:14px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .mi-reading article{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft)}
+    .mi-reading span{display:block;color:var(--ink-muted);font-size:8px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+    .mi-reading p{margin:6px 0 0;color:var(--ink-soft);font-size:10.5px;line-height:1.5}
+    .mi-section{padding:16px 0;border-top:1px solid var(--border)}
+    .mi-section>h4{margin:0 0 10px;font-family:Georgia,serif;font-size:20px;font-weight:400}
+    .mi-section-note{margin:-4px 0 11px;color:var(--ink-muted);font-size:10px;line-height:1.5}
+    .mi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+    .mi-card{padding:14px;border:1px solid var(--border);border-radius:11px;background:#fff}
+    .mi-card--hypothesis{border-left:3px solid var(--gold)}
+    .mi-card--alternative{border-left:3px solid var(--green)}
+    .mi-card--criterion{border-left:3px solid var(--blue)}
+    .mi-card--experiment{border-left:3px solid var(--forest-3)}
+    .mi-card .mi-type{color:var(--gold-ink);font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
+    .mi-card h5{margin:8px 0 6px;font-size:12px;line-height:1.42}
+    .mi-card p,.mi-card li{color:var(--ink-soft);font-size:10.5px;line-height:1.55}
+    .mi-card ul{margin:7px 0 0;padding-left:18px}
+    .mi-card .mi-detail{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--ink-soft);line-height:1.5}
+    .mi-basis{margin-top:8px;color:var(--ink-muted);font-size:8.5px}
+    .mi-proposal-review{margin-top:11px;padding-top:10px;border-top:1px solid var(--border)}
+    .mi-proposal-review input{width:100%;height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:10px}
+    .mi-proposal-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+    .mi-review-button{min-height:31px;padding:0 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface-soft);color:var(--ink-soft);font-size:9px;font-weight:750}
+    .mi-review-button[data-mi-review="accepted_as_draft"]{color:var(--forest);border-color:rgba(63,118,88,.3)}
+    .mi-review-button[data-mi-review="rejected"]{color:var(--red);border-color:rgba(149,72,65,.25)}
+    .mi-review-state{padding:8px;border-radius:8px;background:var(--sage-soft);color:var(--forest);font-size:9.5px;font-weight:750;line-height:1.45}
+    .mi-questions{display:grid;gap:8px}
+    .mi-question{padding:13px;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft)}
+    .mi-question label{display:block;font-size:11px;font-weight:760;line-height:1.5}
+    .mi-question small{display:block;margin:5px 0 8px;color:var(--ink-muted);font-size:9.5px;line-height:1.5}
+    .mi-question input,.mi-question select,.mi-question textarea{width:100%;padding:10px;border:1px solid var(--border-strong);border-radius:9px;background:#fff;font-size:11px}
+    .mi-question textarea{min-height:76px;resize:vertical}
+    .mi-list{margin:0;padding-left:20px}
+    .mi-list li{margin:6px 0;color:var(--ink-soft);font-size:11px;line-height:1.55}
+    .mi-next{padding:14px;border-radius:10px;background:var(--sage-soft);color:var(--forest);font-size:11.5px;line-height:1.55}
+    .mi-turn-meta{margin-top:13px;padding-top:11px;border-top:1px solid var(--border);color:var(--ink-muted);font-size:9px;line-height:1.5}
+    .mi-composer{padding:16px;border:1px solid var(--border);border-radius:13px;background:var(--surface-soft)}
+    .mi-composer textarea{width:100%;min-height:92px;padding:12px;border:1px solid var(--border-strong);border-radius:10px;resize:vertical;background:#fff;line-height:1.55}
+    .mi-composer-row{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+    .mi-research-toggle{display:flex;align-items:flex-start;gap:8px;max-width:650px;color:var(--ink-soft);font-size:10px;line-height:1.45}
+    .mi-research-toggle input{margin-top:2px;accent-color:var(--forest)}
+    .mi-research-toggle small{display:block;color:var(--ink-muted)}
+    .mi-composer-actions{display:flex;align-items:center;gap:8px}
+    .mi-session-reset{border:0;background:transparent;color:var(--ink-muted);font-size:10px;font-weight:750}
 
     /* ---------- Cards / records ---------- */
     .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
@@ -490,6 +620,13 @@
     .modal-section h3{margin:0 0 8px;font-family:Georgia,serif;font-size:21px;font-weight:400}
     .modal-section p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
     .modal-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:18px;border-top:1px solid var(--border)}
+    .mission-form{padding-top:20px}
+    .mission-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+    .mission-form-grid .field-wide{grid-column:1/-1}
+    .mission-form .field{margin:0}
+    .mission-form textarea{min-height:96px;resize:vertical}
+    .mission-form-note{margin:0 0 18px;padding:13px 15px;border-left:3px solid var(--gold);background:var(--gold-soft);color:var(--ink-soft);font-size:11px;line-height:1.55}
+    .mission-form-error{min-height:20px;margin-top:12px;color:var(--red);font-size:11px;line-height:1.45}
 
     .lightbox-panel{
       position:relative;width:min(920px,94vw);max-height:91vh;padding:18px;border-radius:18px;background:#fff;box-shadow:0 28px 100px rgba(0,0,0,.34)
@@ -508,6 +645,8 @@
       .chain{grid-template-columns:repeat(2,minmax(0,1fr))}
       .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
       .workspace,.section-grid{grid-template-columns:1fr}
+      .mi-intents{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .mi-grid,.mi-reading{grid-template-columns:1fr}
       .mission-context{grid-template-columns:1fr}
       .context-insight{padding-left:0}
       .timeline{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -535,12 +674,13 @@
       .topbar{position:relative;padding-block:15px 17px;align-items:flex-start;flex-direction:column}
       .mission-row{grid-template-columns:1fr auto}
       .mission-row>div:nth-child(3){display:none}
-      .form-row,.modal-status,.mission-context,.two-col,.award-use-grid,.result-metrics{grid-template-columns:1fr}
+      .form-row,.modal-status,.mission-context,.two-col,.award-use-grid,.result-metrics,.portfolio-metrics,.mission-form-grid{grid-template-columns:1fr}
+      .mission-form-grid .field-wide{grid-column:auto}
     }
     @media(max-width:650px){
       .main{--page-gutter:16px}
       .login-visual,.login-panel{padding:28px}
-      .principles,.chain,.cards,.recognition-grid,.timeline{grid-template-columns:1fr}
+      .principles,.chain,.cards,.research-grid,.recognition-grid,.timeline{grid-template-columns:1fr}
       .chain{grid-auto-rows:auto}
       .chain-card{min-height:0}
       .cards.is-single{grid-template-columns:1fr}
@@ -550,6 +690,8 @@
       .filterbar{align-items:flex-start;flex-direction:column}
       .filterbar select{width:100%;min-width:0}
       .mission-row{padding:14px;gap:10px}
+      .mission-row[data-depth="1"]{padding-left:28px}
+      .mission-row[data-depth="2"],.mission-row[data-depth="3"],.mission-row[data-depth="4"],.mission-row[data-depth="5"]{padding-left:40px}
       .recognition-card{grid-template-rows:auto 220px 1fr}
       .recognition-media{height:220px}
       .modal,.lightbox{padding:14px}
@@ -571,7 +713,7 @@
     - Content aligned to the Executive Brief supplied for the 2026 application.
     - Correct award name used in the platform:
       “Prémio Empreendedorismo e Inovação Crédito Agrícola”.
-    - M-001 remains open: no decision, no execution, no result.
+    - Demonstration missions preserve open decisions: no invented execution or result.
     - Benefits in Impact are explicitly expected/pilot metrics, not demonstrated results.
     - Recognition appears only on Impact.
     - Evidence and Learning remain mission-specific.
@@ -604,12 +746,12 @@
         </p>
 
         <div class="login-case">
-          <strong>Demonstração principal — M-001.</strong>
-          Cinco hectares em Podentes, Penela: cerca de 2 ha de eucalipto,
-          cerca de 3 ha de vegetação espontânea e uma linha de água com
-          escoamento visível em abril de 2026. Existe uma decisão de gestão por
-          tomar. Não existe medição prévia, não se conhece o regime hídrico
-          histórico e nenhuma alternativa foi selecionada.
+          <strong>Missão-farol — Nascente de Dragos.</strong>
+          Um caso onde água, património, arqueologia, memória local e governação
+          se encontram. As fontes justificam investigação, mas não provam a
+          ligação funcional entre a nascente e os vestígios romanos, nem
+          propriedades medicinais. O SRIS torna precisamente essa fronteira útil
+          para decidir o que investigar, com quem e em que ordem.
         </div>
       </div>
 
@@ -634,8 +776,8 @@
         <div class="eyebrow">Acesso institucional</div>
         <h2>Entrar no SRIS</h2>
         <p>
-          Aceda à plataforma ou abra a demonstração preparada para o
-          Prémio Empreendedorismo e Inovação Crédito Agrícola.
+          Aceda à área institucional ou explore a demonstração pública do
+          motor Mission Intelligence.
         </p>
 
         <form id="loginForm">
@@ -649,12 +791,17 @@
             <input id="password" type="password" autocomplete="current-password" placeholder="Introduza a sua palavra-passe" required />
           </div>
 
+          <div class="login-support">
+            <a href="/account.html?mode=forgot">Esqueci-me da palavra-passe</a>
+          </div>
+
           <button class="btn-primary" type="submit" style="width:100%">Entrar no SRIS</button>
           <button id="demoButton" class="btn-secondary" type="button" style="width:100%;margin-top:10px">
             Abrir demonstração
           </button>
 
           <div id="loginMessage" class="login-message" aria-live="polite"></div>
+          <div class="account-boundary">Novas contas institucionais são criadas por convite do proprietário ou administrador da organização.</div>
         </form>
 
         <div class="login-foot">
@@ -689,12 +836,16 @@
         <button class="nav-item" data-page="workspace" type="button"><span class="nav-icon">◇</span><span>Nova análise</span></button>
 
         <div class="nav-label">Inteligência</div>
+        <button class="nav-item" data-page="research" type="button"><span class="nav-icon">⌁</span><span>Investigação</span></button>
         <button class="nav-item" data-page="knowledge" type="button"><span class="nav-icon">▦</span><span>Conhecimento</span></button>
         <button class="nav-item" data-page="evidence" type="button"><span class="nav-icon">◌</span><span>Evidência</span></button>
         <button class="nav-item" data-page="learning" type="button"><span class="nav-icon">↗</span><span>Aprendizagem</span></button>
 
         <div class="nav-label">Produto</div>
         <button class="nav-item" data-page="impact" type="button"><span class="nav-icon">◆</span><span>Impacto</span></button>
+
+        <div id="administrationLabel" class="nav-label hidden">Administração</div>
+        <a id="usersLink" class="nav-item hidden" href="/users.html"><span class="nav-icon">◉</span><span>Utilizadores</span></a>
       </nav>
 
       <div class="sidebar-bottom">
@@ -716,11 +867,15 @@
 
         <div class="top-actions">
           <input id="importInput" type="file" accept=".json,application/json" hidden />
-          <button id="importButton" class="btn-secondary" type="button">Importar pacote</button>
+          <button id="importButton" class="btn-secondary" type="button" title="Importa uma visualização local; não cria registos canónicos no servidor.">Importar visualização</button>
+          <button id="newMissionButton" class="btn-primary hidden" type="button">Nova missão</button>
           <button class="btn-secondary" type="button" data-go="workspace">Nova análise</button>
           <div class="user-chip">
-            <div class="avatar">GS</div>
-            <strong id="userName">Utilizador</strong>
+            <div id="userAvatar" class="avatar">SR</div>
+            <div class="user-identity">
+              <strong id="userName">SRIS</strong>
+              <small id="sessionKind">Acesso por identificar</small>
+            </div>
           </div>
           <button id="logoutButton" class="btn-text" type="button">Sair</button>
         </div>
@@ -731,7 +886,7 @@
         <div class="hero">
           <div class="hero-copy">
             <div class="eyebrow">Mission Intelligence · missão ativa</div>
-            <h1>Qual é a próxima decisão que pode ser tomada com confiança?</h1>
+            <h1>Qual é a próxima decisão com fundamentação suficiente?</h1>
             <p>
               O SRIS preserva a cadeia até ao ponto em que ela efetivamente se
               encontra — e não além dele. Uma missão sem decisão, execução ou
@@ -754,6 +909,8 @@
             <div id="situationSummary" class="context-summary"></div>
           </div>
         </div>
+
+        <div id="missionMethodNotice" class="method-notice" role="note"></div>
 
         <div id="decisionChain" class="chain" role="list" aria-label="Cadeia da missão ativa" aria-live="polite"></div>
 
@@ -785,22 +942,25 @@
       <section id="page-missions" class="page">
         <div class="hero">
           <div class="hero-copy">
-            <div class="eyebrow">Portefólio de missões</div>
-            <h1>Decisões com contexto preservado.</h1>
+            <div class="eyebrow">Arquitetura de missões</div>
+            <h1>Do propósito comum à decisão verificável.</h1>
             <p>
-              A M-001 é a missão real aberta que originou a demonstração.
-              A M-002 é um segundo caso identificado, ainda dependente de
-              autorizações. A candidatura é tratada como uma missão própria de
-              preparação e decisão.
+              Uma missão complexa pode abrir várias missões-filhas. O SRIS torna
+              visíveis as dependências entre território, água, clima, património,
+              pessoas e instituições — sem confundir intenção com evidência ou
+              benefício esperado com impacto demonstrado.
             </p>
           </div>
+          <button id="newMissionHeroButton" class="btn-primary hidden" type="button">Criar missão institucional</button>
         </div>
+
+        <div id="missionPortfolioSummary" class="portfolio-metrics" aria-label="Resumo do portefólio"></div>
 
         <section class="panel">
           <div class="panel-header">
             <div>
               <h2>Missões no SRIS</h2>
-              <p>Selecione uma missão para consultar o detalhe.</p>
+              <p>Programas agregam propósito; missões e sub-missões preservam decisões, evidência e aprendizagem próprias.</p>
             </div>
           </div>
           <div id="missionList" class="mission-list"></div>
@@ -811,22 +971,89 @@
       <section id="page-workspace" class="page">
         <div class="hero">
           <div class="hero-copy">
-            <div class="eyebrow">Estruturar antes de processar</div>
-            <h1>Transformar informação dispersa numa decisão verificável.</h1>
+            <div class="eyebrow">Mission Intelligence · diálogo governado</div>
+            <h1>Pensar com a missão, não apenas escrever sobre ela.</h1>
             <p>
-              Antes de recomendar, o SRIS separa o que foi observado do que foi
-              assumido; identifica alternativas, restrições e lacunas; preserva
-              a origem da evidência; e impede que uma conclusão seja apresentada
-              com maior confiança do que a cadeia permite. O objetivo não é
-              produzir respostas mais depressa. É preservar a capacidade de
-              saber, mais tarde, se uma conclusão ainda se sustenta.
+              O SRIS preserva os factos e abre um espaço separado para a
+              inteligência: questiona pressupostos, formula hipóteses, cria
+              alternativas, desenha testes e aprende com novas respostas. As
+              propostas permanecem rascunhos até uma decisão humana explícita.
             </p>
           </div>
         </div>
 
+        <section id="intelligenceStudio" class="panel intelligence-studio">
+          <header class="mi-studio-header">
+            <div>
+              <div class="eyebrow">Mission Intelligence v2</div>
+              <h2>Diálogo ativo com a missão</h2>
+              <p>
+                Escolha o trabalho cognitivo, diga o que precisa de decidir e
+                responda às perguntas de maior valor. A IA pode propor; não pode
+                transformar uma proposta em facto ou decisão.
+              </p>
+            </div>
+            <div id="miStudioStatus" class="mi-studio-status">A verificar disponibilidade</div>
+          </header>
+          <div class="mi-studio-body">
+            <div class="mi-boundary">
+              <strong>Fronteira canónica.</strong> Hipóteses, alternativas,
+              critérios e experiências gerados pela IA ficam fora da missão
+              canónica. “Aceitar como rascunho” preserva a proposta para trabalho
+              posterior; não a valida nem altera os registos.
+            </div>
+            <div id="miIntents" class="mi-intents" role="group" aria-label="Objetivo do diálogo">
+              <button class="mi-intent is-active" type="button" data-mi-intent="diagnose">
+                <strong>Diagnosticar</strong><span>Pontos cegos, perguntas e hipóteses.</span>
+              </button>
+              <button class="mi-intent" type="button" data-mi-intent="challenge">
+                <strong>Contestar</strong><span>Atacar pressupostos e lógica atual.</span>
+              </button>
+              <button class="mi-intent" type="button" data-mi-intent="explore_alternatives">
+                <strong>Criar alternativas</strong><span>Opções novas e reversíveis.</span>
+              </button>
+              <button class="mi-intent" type="button" data-mi-intent="design_experiment">
+                <strong>Desenhar teste</strong><span>Linha de base, comparador e limiares.</span>
+              </button>
+              <button class="mi-intent" type="button" data-mi-intent="compare_options">
+                <strong>Comparar opções</strong><span>Critérios, trade-offs e incerteza.</span>
+              </button>
+            </div>
+            <div id="miConversation" class="mi-conversation" aria-live="polite">
+              <div class="mi-empty">
+                <strong>A missão ainda não respondeu.</strong>
+                Inicie um diagnóstico para obter perguntas, hipóteses, uma
+                alternativa nova e um desenho de teste — não apenas um resumo.
+              </div>
+            </div>
+            <form id="miDialogueForm" class="mi-composer">
+              <label class="field" for="miMessage">
+                <span>O que quer que a Mission Intelligence faça agora?</span>
+                <textarea id="miMessage">Interage com esta missão: identifica o ponto cego principal, coloca as perguntas que podem mudar a decisão, formula hipóteses testáveis, propõe pelo menos uma alternativa verdadeiramente nova e desenha a forma mais curta de reduzir a incerteza relevante.</textarea>
+              </label>
+              <div class="mi-composer-row">
+                <label class="mi-research-toggle" for="miResearch">
+                  <input id="miResearch" type="checkbox" disabled />
+                  <span>
+                    Investigar também a envolvente externa
+                    <small id="miResearchStatus">A pesquisa contextual mantém-se desligada neste turno.</small>
+                  </span>
+                </label>
+                <div class="mi-composer-actions">
+                  <button id="miNewSession" class="mi-session-reset hidden" type="button">Nova sessão</button>
+                  <button id="miDialogueSubmit" class="btn-primary" type="submit" disabled>Iniciar Mission Intelligence</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
         <div class="workspace">
           <section class="panel form-panel">
             <form id="analysisForm">
+              <div class="method-notice">
+                <strong>Contrato da análise.</strong> O relatório determinístico lê apenas os registos canónicos da missão. O texto abaixo preserva contexto e pode enquadrar uma análise assistida, mas não se transforma automaticamente em observação, evidência, pressuposto ou decisão.
+              </div>
               <div class="form-row">
                 <div class="field">
                   <label for="analysisMission">Missão</label>
@@ -859,16 +1086,26 @@
                 <textarea id="analysisUnknowns"></textarea>
               </div>
 
-              <div id="analysisMode" class="analysis-mode is-unavailable">
+              <div id="analysisMode" class="analysis-mode is-unavailable hidden">
                 <input id="analysisAI" type="checkbox" disabled />
                 <label for="analysisAI">
-                  Complementar com análise assistida por IA
+                  Modo de auditoria narrativa por IA · saída provisória
+                  <small class="ai-boundary">Este modo resume e audita o snapshot. O diálogo inteligente, as hipóteses e as experiências ficam no painel Mission Intelligence v2 acima.</small>
                   <small id="analysisAIStatus">A verificar a capacidade disponível.</small>
                 </label>
               </div>
 
+              <div id="contextResearchMode" class="analysis-mode is-unavailable hidden">
+                <input id="analysisResearch" type="checkbox" disabled />
+                <label for="analysisResearch">
+                  Investigar automaticamente a envolvente da missão
+                  <small class="ai-boundary">Pesquisa fontes externas e separa alegações sustentadas, hipóteses, controvérsias e lacunas. O dossier fica em revisão e não altera registos canónicos automaticamente.</small>
+                  <small id="analysisResearchStatus">A verificar a capacidade de investigação contextual.</small>
+                </label>
+              </div>
+
               <div class="form-actions">
-                <button id="analysisSubmit" class="btn-primary" type="submit">Executar Mission Intelligence</button>
+                <button id="analysisSubmit" class="btn-primary" type="submit">Executar auditoria da missão</button>
               </div>
             </form>
           </section>
@@ -878,11 +1115,64 @@
               <div>
                 <strong>Mission Intelligence ainda não executada</strong>
                 A análise determinística usa a missão canónica, mantém separados
-                estado, tendência e confiança, e não transforma lacunas em certeza.
+                estado, tendência e fundamentação, e não transforma lacunas em certeza.
               </div>
             </div>
             <div id="resultBlock" class="hidden" aria-live="polite"></div>
           </aside>
+        </div>
+      </section>
+
+      <!-- INVESTIGAÇÃO -->
+      <section id="page-research" class="page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Proposta de investigação</div>
+            <h1>Pode uma organização reconstruir, anos depois, por que decidiu?</h1>
+            <p>
+              Esta é uma proposta metodológica em estado inicial. O SRIS já
+              preserva e reconstrói uma cadeia de registos; ainda não demonstrou
+              que o faz melhor, mais depressa ou com menor fricção do que as
+              práticas documentais existentes.
+            </p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-secondary" type="button" data-go="knowledge">Ver o modelo</button>
+            <button class="btn-primary" type="button" data-go="workspace">Abrir missão ativa</button>
+          </div>
+        </div>
+
+        <div class="research-grid">
+          <article class="research-card">
+            <div class="type">Pergunta</div>
+            <h3>É possível preservar e reconstruir a justificação de uma decisão ao longo do tempo?</h3>
+            <p>A pergunta incide na memória do processo decisório, não na previsão do resultado nem na avaliação ecológica da decisão.</p>
+          </article>
+          <article class="research-card">
+            <div class="type">Hipótese metodológica</div>
+            <h3>Uma cadeia estruturada pode tornar a reconstrução mais completa e auditável.</h3>
+            <p>Observação, evidência, alternativa, pressuposto, restrição, decisão, execução, resultado e aprendizagem permanecem distintos e relacionados.</p>
+          </article>
+          <article class="research-card">
+            <div class="type">O que será testado</div>
+            <h3>Completude, tempo, fricção e qualidade da proveniência.</h3>
+            <p>O piloto deverá comparar o SRIS com práticas documentais existentes, usando tarefas e critérios definidos antes da recolha.</p>
+          </article>
+          <article class="research-card">
+            <div class="type">O que não será alegado</div>
+            <h3>Nenhuma superioridade ou eficácia antes de evidência adequada.</h3>
+            <p>Não se alegam causalidade, resiliência, regeneração, eficácia ecológica, superioridade metodológica ou validação científica.</p>
+          </article>
+        </div>
+
+        <div class="research-boundary">
+          <strong>Estado atual da proposta</strong>
+          <p>
+            O motor determinístico, o contrato canónico, a proveniência, o
+            versionamento e a revisão humana estão implementados. A comparação
+            externa, o protocolo final, os participantes, os limiares e a análise
+            independente ainda não estão definidos nem autorizados.
+          </p>
         </div>
       </section>
 
@@ -908,7 +1198,7 @@
         </div>
 
         <div class="section-title">
-          <div class="eyebrow">Os oito elos da decisão</div>
+          <div class="eyebrow">Os nove elementos da cadeia</div>
           <h2>O que o SRIS regista — e por que importa</h2>
         </div>
 
@@ -921,9 +1211,10 @@
               <tr><td><strong>Observação</strong></td><td>O facto observado, com método e limitação declarados.</td><td>Impede confundir o que se viu com o que se interpretou.</td></tr>
               <tr><td><strong>Evidência</strong></td><td>O que sustenta ou contradiz cada explicação.</td><td>Torna visível a evidência contrária, que normalmente se perde.</td></tr>
               <tr><td><strong>Alternativas</strong></td><td>As opções em avaliação e o critério que as separa.</td><td>Evita repetir avaliações já feitas em decisões anteriores.</td></tr>
-              <tr><td><strong>Pressupostos</strong></td><td>O que é assumido sem verificação, com estado e confiança.</td><td>Permite saber, mais tarde, o que deixou de ser verdade.</td></tr>
+              <tr><td><strong>Pressupostos</strong></td><td>O que é assumido sem verificação, com estado e qualidade declarada.</td><td>Permite saber, mais tarde, o que deixou de ser verdade.</td></tr>
               <tr><td><strong>Restrições</strong></td><td>Prazos, autorizações e condições impostas ao processo.</td><td>Regista condicionantes e desvios como dados explícitos.</td></tr>
-              <tr><td><strong>Decisão e execução</strong></td><td>A escolha, os critérios e o que efetivamente foi feito.</td><td>Distingue o que se decidiu do que foi executado.</td></tr>
+              <tr><td><strong>Decisão</strong></td><td>A escolha, os critérios e a condição de revisão.</td><td>Preserva o compromisso assumido e a fundamentação disponível nesse momento.</td></tr>
+              <tr><td><strong>Execução</strong></td><td>O que foi efetivamente feito, por quem e em que condições.</td><td>Distingue o que se decidiu do que foi executado.</td></tr>
               <tr><td><strong>Resultado</strong></td><td>O efeito observado e o grau em que é atribuível à intervenção.</td><td>Impede declarar êxito quando a cadeia não o sustenta.</td></tr>
               <tr><td><strong>Aprendizagem</strong></td><td>O que fica e pode originar novas missões ou decisões.</td><td>Transfere conhecimento entre campanhas, equipas e organizações.</td></tr>
             </tbody>
@@ -971,9 +1262,9 @@
             <div class="eyebrow">Evidência e incerteza</div>
             <h1>O que se sabe — e o que ainda não se sabe.</h1>
             <p>
-              Na M-001, observações, pressupostos, restrições, alternativas e
-              estado da decisão são apresentados como registos distintos.
-              O método, a limitação e o estado fazem parte do próprio registo.
+              Em cada missão, observações, pressupostos, restrições, alternativas
+              e estado da decisão são registos distintos. O método, a limitação,
+              a proveniência e o grau de confiança fazem parte do próprio registo.
             </p>
           </div>
         </div>
@@ -993,9 +1284,9 @@
             <div class="eyebrow">Aprendizagem institucional</div>
             <h1>O que a missão já permite aprender antes de decidir.</h1>
             <p>
-              Aprendizagem não exige fingir que existe um resultado. Na M-001,
-              a ausência de linha de base já produz uma consequência prática:
-              a instrumentação tem de preceder a intervenção.
+              Aprendizagem não exige fingir que existe um resultado. Uma lacuna
+              de evidência, uma restrição descoberta ou uma hipótese refutada
+              pode gerar uma sub-missão, um teste ou uma condição de revisão.
             </p>
           </div>
         </div>
@@ -1048,7 +1339,8 @@
               <li>Arquitetura conceptual definida e ontologia formal alinhada à W3C PROV-O.</li>
               <li>Motor epistemológico com refutação, dependências e sinalização de revisão, implementado e coberto por testes.</li>
               <li>Backend operacional em produção: autenticação, base de dados, organizações e missões.</li>
-              <li>Protótipo funcional em navegador.</li>
+              <li>Criação, edição e decomposição de programas em missões e sub-missões.</li>
+              <li>Protótipo funcional em navegador com análise e diálogo governado.</li>
               <li>Uma missão real aberta e documentada: M-001.</li>
             </ul>
           </article>
@@ -1059,6 +1351,7 @@
               <li>Utilização por organizações externas ao promotor.</li>
               <li>Qualquer intervenção executada no terreno na M-001.</li>
               <li>Medição instrumentada de caudal ou de nível freático.</li>
+              <li>Autorização institucional para estudar ou recuperar a Nascente de Dragos.</li>
               <li>Medição do custo real de documentação.</li>
               <li>Resultados quantificados de eficiência ou poupança.</li>
               <li>Avaliação independente ou revisão por pares.</li>
@@ -1082,55 +1375,56 @@
             </thead>
             <tbody>
               <tr><td><strong>Ambiental</strong></td><td>Intervenções decididas com pressupostos explícitos e linha de base instrumentada.</td><td>Proporção de intervenções com medição prévia à decisão.</td></tr>
-              <tr><td><strong>Económico</strong></td><td>Menor repetição de opções já avaliadas e descartadas.</td><td>Alternativas reavaliadas que já constavam de registo anterior.</td></tr>
+              <tr><td><strong>Clima e proteção</strong></td><td>Melhor articulação entre prevenção, preparação, resposta e recuperação.</td><td>Riscos críticos com responsável, limiar, ação e condição de revisão explícitos.</td></tr>
+              <tr><td><strong>Social</strong></td><td>Participação mais transparente de comunidades e entidades afetadas.</td><td>Decisões com atores, contributos, divergências e efeitos distributivos registados.</td></tr>
+              <tr><td><strong>Económico-financeiro</strong></td><td>Menor repetição de opções já avaliadas e melhor visibilidade de compromissos.</td><td>Alternativas reavaliadas e decisões com custo, risco e condição de revisão documentados.</td></tr>
               <tr><td><strong>Operacional</strong></td><td>Redução do tempo necessário para reconstruir o fundamento de uma decisão anterior.</td><td>Tempo de reconstrução, comparado com documentação convencional.</td></tr>
               <tr><td><strong>Institucional</strong></td><td>Prestação de contas verificável perante financiadores e entidades licenciadoras.</td><td>Proporção de resultados reportados com grau de atribuição declarado.</td></tr>
+              <tr><td><strong>Bem-estar</strong></td><td>Decisões organizacionais mais conscientes de carga, acesso, segurança e capacidade humana.</td><td>Missões com riscos humanos, salvaguardas e indicadores não clínicos definidos antes da execução.</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="section-title">
           <div class="eyebrow">Sustentabilidade e replicação</div>
-          <h2>Primeiro floresta e municípios. Depois, outros contextos onde a arquitetura faça sentido.</h2>
+          <h2>Começar num laboratório territorial. Escalar pela arquitetura da decisão.</h2>
           <p>
             O modelo previsto é de subscrição e implementação faseada. A unidade
-            de escala é a missão. Os dois primeiros mercados são empresas de
-            gestão florestal e municípios, onde a perda de contexto tem
-            consequência imediata e existe obrigação de justificar decisões
-            perante terceiros.
+            de escala é a missão. O primeiro contexto combina território,
+            universidade, municípios e entidades técnicas; a expansão depende de
+            demonstrar utilidade, segurança e custo de adoção em cada domínio.
           </p>
         </div>
 
         <div class="cards">
           <article class="card">
-            <div class="type">Mercado 01</div>
-            <h3>Gestão florestal</h3>
-            <p>Decisões com impactos ecológicos, operacionais, financeiros e regulatórios que exigem rastreabilidade.</p>
-            <div class="footer"><span>Mercado inicial</span><span class="tag green">Prioritário</span></div>
+            <div class="type">Laboratório 01</div>
+            <h3>Território vivo</h3>
+            <p>Água, biodiversidade, património, incêndio e adaptação climática tratados como um sistema de decisões interdependentes.</p>
+            <div class="footer"><span>Penela · Coimbra</span><span class="tag green">Piloto</span></div>
           </article>
           <article class="card">
-            <div class="type">Mercado 02</div>
-            <h3>Municípios</h3>
-            <p>Planeamento territorial, investimento público e decisões que têm de permanecer justificáveis perante terceiros.</p>
-            <div class="footer"><span>Mercado inicial</span><span class="tag green">Prioritário</span></div>
+            <div class="type">Rede pública</div>
+            <h3>Municípios e proteção civil</h3>
+            <p>Planeamento territorial, prevenção multirriscos e decisões públicas que têm de permanecer justificáveis perante terceiros.</p>
+            <div class="footer"><span>Adoção institucional</span><span class="tag green">Prioritária</span></div>
           </article>
           <article class="card">
-            <div class="type">Modelo</div>
-            <h3>Arquitetura por missão</h3>
-            <p>O núcleo não depende de uma cultura ou operação específica; a expansão é uma hipótese de replicação, não um mercado já provado.</p>
-            <div class="footer"><span>Software configurável</span><span class="tag blue">Escala</span></div>
+            <div class="type">Rede de conhecimento</div>
+            <h3>Universidades e instituições</h3>
+            <p>Investigação, financiamento e ação conectados por evidência, versões, responsabilidades e aprendizagem transferível.</p>
+            <div class="footer"><span>Colaboração governada</span><span class="tag blue">Escala</span></div>
           </article>
         </div>
 
         <div class="section-title">
-          <div class="eyebrow">Segundo caso identificado</div>
+          <div class="eyebrow">Missão-farol para parceria académica</div>
           <h2>M-002 · Nascente de Dragos</h2>
           <p>
-            Caso candidato para testar a arquitetura fora do controlo direto do
-            promotor. Uma eventual recuperação envolveria múltiplos decisores,
-            autorizações e restrições patrimoniais. Não é um compromisso:
-            depende de autorização das entidades titulares e competentes, ainda
-            não solicitada.
+            Caso candidato para ligar memória local, património, água e ciência
+            num processo verificável. O objetivo imediato não é prometer uma
+            recuperação: é determinar que investigação, legitimidade, autorizações
+            e salvaguardas seriam necessárias antes de qualquer intervenção.
           </p>
         </div>
 
@@ -1142,60 +1436,60 @@
         <div class="timeline">
           <article class="timeline-card">
             <div class="month">3 meses</div>
-            <h3>Instrumentação da M-001</h3>
-            <p>Medição de caudal e nível instalada antes de qualquer decisão.</p>
+            <h3>Protocolo da Nascente de Dragos</h3>
+            <p>Perguntas, entidades competentes, autorizações e linha de base definidos antes de qualquer intervenção.</p>
           </article>
           <article class="timeline-card">
-            <div class="month">4 meses</div>
+            <div class="month">4–6 meses</div>
             <h3>Primeira organização externa</h3>
-            <p>Uma missão real registada por uma equipa que não a do promotor.</p>
+            <p>Um programa e respetivas sub-missões geridos por uma equipa que não a do promotor.</p>
           </article>
           <article class="timeline-card">
             <div class="month">8 meses</div>
-            <h3>Custo real de documentação</h3>
-            <p>Tempo por registo medido, não estimado. Se exceder o razoável, o modelo é revisto.</p>
+            <h3>Utilidade e custo de adoção</h3>
+            <p>Tempo por registo, decisões reconstruídas e fricção de uso medidos, não estimados.</p>
           </article>
           <article class="timeline-card">
             <div class="month">12 meses</div>
-            <h3>Três organizações · dez missões</h3>
-            <p>Custo de captura abaixo de 4% do tempo afeto à decisão.</p>
+            <h3>Avaliação independente</h3>
+            <p>Revisão da qualidade epistemológica, utilidade institucional e segurança antes de escalar.</p>
           </article>
         </div>
 
         <div class="section-title">
-          <div class="eyebrow">Aplicação do prémio</div>
+          <div class="eyebrow">Aplicação do investimento-piloto</div>
           <h2>O apoio teria duas utilizações diretamente verificáveis.</h2>
         </div>
 
         <div class="award-use">
-          <h3>Prémio Empreendedorismo e Inovação Crédito Agrícola</h3>
+          <h3>Financiamento ou parceria institucional</h3>
           <p>
             O apoio seria aplicado em duas frentes coerentes com o estado real do
-            projeto e com a aprendizagem já produzida pela M-001.
+            projeto e com a necessidade de validação externa.
           </p>
           <div class="award-use-grid">
             <article>
-              <strong>1 · Instrumentação de campo</strong>
+              <strong>1 · Investigação e instrumentação</strong>
               <p>
-                Medição de caudal e nível freático na M-001, instalada antes de
-                qualquer decisão de gestão, para criar uma linha de base
-                defensável.
+                Linhas de base ambientais, territoriais e operacionais definidas
+                antes de decisões ou intervenções, com método e limitações
+                preservados.
               </p>
             </article>
             <article>
-              <strong>2 · Utilização por terceiros</strong>
+              <strong>2 · Utilização e avaliação por terceiros</strong>
               <p>
-                Completar as funcionalidades necessárias para que uma organização
-                externa possa registar as suas próprias missões sem apoio técnico.
+                Permitir que organizações externas criem portefólios, trabalhem
+                missões reais e avaliem utilidade, segurança e custo de adoção.
               </p>
             </article>
           </div>
         </div>
 
         <div class="callout">
-          A M-001 concluiu, antes de decidir, que não se pode atribuir um resultado
-          sem linha de base. A consequência prática é instalar essa linha de base
-          antes da intervenção, e não depois.
+          O SRIS não vende certeza. Torna visível o que sustenta uma decisão, o que
+          ainda falta saber, quem deve participar e em que condições a decisão
+          terá de ser revista.
         </div>
 
         <div class="section-title">
@@ -1268,9 +1562,96 @@
       </header>
       <div id="missionModalContent"></div>
       <div class="modal-actions">
+        <button id="missionModalEdit" class="btn-secondary hidden" type="button">Editar missão</button>
+        <button id="missionModalCreateChild" class="btn-primary hidden" type="button">Criar sub-missão</button>
         <button id="printMission" class="btn-secondary" type="button">Imprimir</button>
         <button id="exportMission" class="btn-secondary" type="button">Exportar JSON</button>
       </div>
+    </section>
+  </div>
+
+  <!-- Institutional mission builder -->
+  <div id="missionCreateModal" class="modal hidden" aria-hidden="true">
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="missionCreateTitle">
+      <header class="modal-head">
+        <div>
+          <div class="eyebrow">Construtor institucional</div>
+          <h2 id="missionCreateTitle">Nova missão</h2>
+          <p>Crie uma missão autónoma ou ligue-a a um programa ou missão já existente.</p>
+        </div>
+        <button class="btn-icon mission-create-close" type="button" aria-label="Fechar">×</button>
+      </header>
+      <form id="missionCreateForm" class="mission-form">
+        <p class="mission-form-note"><strong>Fronteira de rigor.</strong> O texto criado aqui define intenção, contexto e pergunta. Só passa a evidência quando existir um registo com método, proveniência e revisão humana.</p>
+        <div class="mission-form-grid">
+          <div class="field field-wide">
+            <label for="newMissionTitle">Título</label>
+            <input id="newMissionTitle" name="title" required minlength="3" maxlength="300" placeholder="Ex.: Preparação comunitária para ondas de calor" />
+          </div>
+          <div class="field">
+            <label for="newMissionKind">Tipo</label>
+            <select id="newMissionKind" name="mission_kind">
+              <option value="mission">Missão</option>
+              <option value="program">Programa de missões</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="newMissionParent">Missão-mãe</label>
+            <select id="newMissionParent" name="parent_mission_id"><option value="">Sem missão-mãe</option></select>
+          </div>
+          <div class="field">
+            <label for="newMissionDomain">Domínio principal</label>
+            <select id="newMissionDomain" name="domain">
+              <option value="cross_domain">Sistémico / transversal</option>
+              <option value="territorial_resilience">Resiliência territorial</option>
+              <option value="wildfire_landscape">Incêndio e paisagem</option>
+              <option value="water_heritage">Água e património</option>
+              <option value="ecology_climate">Ecologia e clima</option>
+              <option value="human_wellbeing">Bem-estar e capacidade humana</option>
+              <option value="institutional_innovation">Inovação institucional</option>
+              <option value="financial_resilience">Resiliência financeira</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="newMissionPriority">Prioridade</label>
+            <select id="newMissionPriority" name="priority">
+              <option value="critical">Crítica</option>
+              <option value="strategic" selected>Estratégica</option>
+              <option value="standard">Normal</option>
+              <option value="exploratory">Exploratória</option>
+            </select>
+          </div>
+          <div class="field field-wide">
+            <label for="newMissionObjective">Objetivo de transformação</label>
+            <textarea id="newMissionObjective" name="objective" required minlength="10" maxlength="10000" placeholder="Que condição relevante deve mudar, para quem e porquê?"></textarea>
+          </div>
+          <div class="field field-wide">
+            <label for="newMissionContext">Contexto inicial</label>
+            <textarea id="newMissionContext" name="context" required minlength="10" maxlength="30000" placeholder="O que é observado, declarado ou conhecido neste momento? Indique limites e incertezas."></textarea>
+          </div>
+          <div class="field field-wide">
+            <label for="newMissionQuestion">Pergunta central</label>
+            <textarea id="newMissionQuestion" name="central_question" required minlength="10" maxlength="10000" placeholder="Que pergunta, se bem respondida, melhora materialmente a decisão?"></textarea>
+          </div>
+          <div class="field">
+            <label for="newMissionHorizon">Horizonte</label>
+            <input id="newMissionHorizon" name="horizon" maxlength="120" placeholder="Ex.: 2026–2030" />
+          </div>
+          <div class="field">
+            <label for="newMissionStakeholders">Atores envolvidos</label>
+            <input id="newMissionStakeholders" name="stakeholders" maxlength="1000" placeholder="Separados por vírgulas" />
+          </div>
+          <div id="newMissionChangeNoteField" class="field field-wide hidden">
+            <label for="newMissionChangeNote">Motivo da revisão</label>
+            <input id="newMissionChangeNote" name="change_note" minlength="3" maxlength="1000" placeholder="Explique brevemente o que mudou e porquê" />
+          </div>
+        </div>
+        <div id="missionCreateError" class="mission-form-error" role="alert"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary mission-create-close" type="button">Cancelar</button>
+          <button id="missionCreateSubmit" class="btn-primary" type="submit">Criar missão</button>
+        </div>
+      </form>
     </section>
   </div>
 
@@ -1302,6 +1683,7 @@
             overview: ["Situação", "Estado da missão ativa"],
             missions: ["Missões", "Portefólio acompanhado pelo SRIS"],
             workspace: ["Nova análise", "Estruturar contexto antes de decidir"],
+            research: ["Investigação", "Pergunta, hipótese metodológica e teste"],
             knowledge: ["Conhecimento", "Problema, arquitetura e percurso da decisão"],
             evidence: ["Evidência", "Registos, método, limitações e estado"],
             learning: ["Aprendizagem", "O que fica antes e depois da decisão"],
@@ -1313,12 +1695,14 @@
       missions: {
         "M-001": {
           id: "M-001",
-          title: "Cinco hectares, e uma decisão por tomar",
-          subtitle: "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução, sem resultado.",
+          title: "Paisagem Resiliente",
+          subtitle: "Reduzir o risco de incêndio sem perder água, solo ou biodiversidade.",
           meta: "Gestão do território florestal · Podentes, Penela · aproximadamente 5 ha",
           status: "Em avaliação",
           confidence: "Moderada",
           decision: "DEC-0001 · Em aberto",
+          method_notice: "Caso real aberto. Os registos foram declarados pelo promotor e ainda não tiveram validação independente. Não existe decisão tomada, execução ou resultado.",
+          analysis_requirements:{context_research:{required:true}},
           situation: {
             summary:
               "Existem três observações, três alternativas em avaliação, dois pressupostos por verificar e duas restrições não avaliadas. Nenhuma alternativa foi selecionada. Não existe execução nem resultado.",
@@ -1489,13 +1873,16 @@
           subtitle:"Segundo caso identificado · candidato, não compromisso.",
           meta:"Património e território · Podentes, Penela",
           status:"Caso identificado",
-          confidence:"Baixa",
+          confidence:"Não avaliável",
           decision:"Não iniciada",
+          method_notice:"Caso candidato, não compromisso de intervenção. Os registos preservam declarações e referências iniciais; não demonstram autorização, parceria, decisão ou resultado.",
+          analysis_requirements:{context_research:{required:true}},
           situation:{
-            summary:"Caso identificado para testar a arquitetura fora do controlo direto do promotor. Uma eventual recuperação depende de múltiplos decisores, autorizações e restrições patrimoniais.",
+            summary:"Caso territorial com contexto histórico e arqueológico relevante. A nascente e uma árula romana estão documentadas em fontes académicas distintas; a relação entre ambas, o uso romano e as alegadas propriedades medicinais permanecem por demonstrar.",
             attention:[
               {title:"Autorizações não solicitadas.",description:"O caso depende das entidades titulares e competentes.",level:"Condição prévia"},
-              {title:"Restrições patrimoniais.",description:"Qualquer intervenção deve respeitar o enquadramento patrimonial aplicável.",level:"A confirmar"}
+              {title:"Restrições patrimoniais.",description:"Qualquer intervenção deve respeitar o enquadramento patrimonial aplicável.",level:"A confirmar"},
+              {title:"Ligação romana e medicinal por demonstrar.",description:"A convergência territorial justifica investigação dirigida, mas ainda não constitui prova histórica, arqueológica ou hidrogeológica.",level:"Hipótese prioritária"}
             ],
             chain:[
               {number:"01",label:"Observação",value:"Caso identificado",note:"Estado de abandono identificado.",state:"completed"},
@@ -1510,10 +1897,10 @@
           },
           analysis:{
             title:"M-002 — Nascente de Dragos",
-            context:"A Nascente de Dragos, em Podentes, encontra-se em estado de abandono. Uma eventual recuperação envolveria múltiplos decisores, autorização das entidades competentes e restrições patrimoniais explícitas.",
-            central_question:"Que condições teriam de estar verificadas antes de transformar este caso identificado numa missão operacional legítima?",
-            available_evidence:"Enquadramento patrimonial documentado e identificação do estado atual do local.",
-            unknowns:"Titularidade operacional, autorizações, competências das entidades, condições patrimoniais detalhadas, objetivos de intervenção e recursos.",
+            context:"A Nascente de Dragos, em Podentes, encontra-se em estado de abandono. Uma investigação académica regista a nascente; outra documenta uma árula romana no microtopónimo Dragos. A relação funcional, o eventual uso romano e as propriedades medicinais da água permanecem por demonstrar.",
+            central_question:"Que evidência histórica, arqueológica, hidrogeológica, jurídica e institucional é necessária para determinar se a Nascente de Dragos pode ser estudada e recuperada de forma legítima e cientificamente defensável?",
+            available_evidence:"Registo académico da nascente; Ficheiro Epigráfico n.º 797 sobre a árula romana de Dragos; identificação declarada do estado atual.",
+            unknowns:"Relação entre nascente e vestígios romanos, eventual uso romano, propriedades da água, georreferenciação, titularidade, autorizações, competências e memória oral documentável.",
             result:{
               headline:"Não transformar ainda o caso em compromisso de intervenção.",
               summary:"O SRIS deve preservar o caso como candidato enquanto as condições de legitimidade e governação não forem confirmadas.",
@@ -1529,7 +1916,9 @@
             }
           },
           evidence:[
-            {id:"EVD-M002-001",type:"Evidência documental",title:"Enquadramento patrimonial identificado",description:"O local tem enquadramento patrimonial documentado, relevante para qualquer eventual recuperação.",method:"Referência documental preservada na missão.",limitation:"Não constitui autorização para intervir.",status:"Documentada",confidence:"Moderada",source:"Documentação do caso"}
+            {id:"EVD-M002-001",type:"Evidência documental",title:"Árula romana de Dragos — Ficheiro Epigráfico n.º 797",description:"Publicação académica documenta uma árula romana fragmentada identificada no microtopónimo Dragos.",method:"Referência bibliográfica preservada.",limitation:"Não demonstra ligação à nascente, uso romano da água ou propriedades medicinais.",status:"Documentada",confidence:"Elevada",source:"Universidade de Coimbra"},
+            {id:"EVD-M002-002",type:"Evidência documental",title:"Registo académico da Nascente de Dragos",description:"Investigação depositada no Estudo Geral regista a permanência da nascente na memória e toponímia local.",method:"Referência bibliográfica preservada.",limitation:"Não é estudo hidrogeológico ou arqueológico da nascente.",status:"Documentada",confidence:"Moderada",source:"Universidade de Coimbra"},
+            {id:"HYP-M002-001",type:"Hipótese",title:"Possível relação entre nascente, ocupação romana e uso medicinal",description:"A coexistência territorial justifica investigação dirigida.",method:"Cruzamento preliminar de fontes e alegação local.",limitation:"Relação ainda não demonstrada.",status:"Por verificar",confidence:"Baixa",source:"Dossier contextual preliminar"}
           ],
           learning:[
             {id:"LRN-M002-001",title:"Caso identificado não é compromisso",description:"A existência de um problema ou oportunidade não autoriza converter intenção em intervenção sem titulares, competências e restrições explicitadas."}
@@ -1539,17 +1928,20 @@
         "CA-AWARD-APPLICATION": {
           id:"CA-AWARD-APPLICATION",
           title:"Prémio Empreendedorismo e Inovação Crédito Agrícola",
-          subtitle:"Candidatura 2026 · demonstração operacional do SRIS.",
+          subtitle:"Candidatura 2026 · submetida em 9 de agosto de 2026.",
           meta:"Candidatura · Empreendedorismo · Inovação",
-          status:"Em preparação final",
+          status:"Submetida · avaliação pendente",
           confidence:"Elevada",
-          decision:"Percurso de demonstração definido",
+          decision:"DEC-CA-001 · Candidatura submetida",
+          method_notice:"Missão organizacional real. A candidatura foi submetida; não existe ainda decisão do júri. A submissão e o reconhecimento externo não constituem validação científica nem prova de impacto.",
+          analysis_requirements:{context_research:{required:true}},
           situation:{
-            summary:"A candidatura deve provar o princípio nuclear do SRIS através de uma missão real, sem transformar visão futura em resultado já demonstrado.",
+            summary:"A candidatura foi submetida usando a M-001 como demonstração principal, sem transformar visão futura em resultado já demonstrado.",
             attention:[
-              {title:"Coerência com o estado real.",description:"TRL, utilização externa, resultados e impacto têm de ser declarados sem exagero.",level:"Rigor"},
-              {title:"M-001 como demonstração principal.",description:"O caso real deve mostrar observação, incerteza, alternativas, restrições, decisão em aberto e aprendizagem.",level:"Prioridade"},
-              {title:"Impacto como hipótese de piloto.",description:"Benefícios devem ser apresentados com indicadores a medir, não como ganhos já comprovados.",level:"Disciplina"}
+              {title:"Preservar a versão submetida.",description:"O conteúdo público associado à candidatura deve permanecer coerente com o formulário e os anexos entregues.",level:"Rigor"},
+              {title:"Manter ativo o URL entregue na candidatura.",description:"sris-production.up.railway.app é o endereço submetido ao júri; staging é independente e nunca o pode substituir ou desativar.",level:"Continuidade crítica"},
+              {title:"Associação dos anexos por confirmar.",description:"Os documentos complementares foram enviados por email após falha técnica de upload; a associação formal depende da organização.",level:"Acompanhamento"},
+              {title:"Impacto permanece por medir.",description:"A submissão não altera o estado da validação: benefícios continuam a ser hipóteses do piloto.",level:"Disciplina"}
             ],
             chain:[
               {number:"01",label:"Problema",value:"Definido",note:"Perda do raciocínio das decisões.",state:"completed"},
@@ -1557,19 +1949,19 @@
               {number:"03",label:"Solução",value:"Operacional",note:"Registo estruturado da cadeia decisória.",state:"completed"},
               {number:"04",label:"Estado real",value:"TRL 4–5",note:"Sem utilização externa operacional.",state:"attention"},
               {number:"05",label:"Impacto",value:"A medir",note:"Indicadores definidos para o piloto.",state:"open"},
-              {number:"06",label:"Prémio",value:"Aplicação definida",note:"Instrumentação + utilização por terceiros.",state:"completed"}
+              {number:"06",label:"Submissão",value:"Concluída",note:"Formulário recebido em 9 de agosto de 2026 às 23:59.",state:"completed"}
             ]
           },
           analysis:{
-            title:"Preparação final — Prémio Empreendedorismo e Inovação Crédito Agrícola",
-            context:"O SRIS deve ser apresentado através de um problema concreto e uma missão real, deixando claros o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
-            central_question:"Qual é a demonstração mais curta e rigorosa que permite ao júri compreender problema, inovação, estado real, potencial e próximos passos sem confundir hipótese com resultado?",
+            title:"Candidatura submetida — Prémio Empreendedorismo e Inovação Crédito Agrícola",
+            context:"O SRIS foi apresentado através de um problema concreto e da M-001. O URL entregue ao júri foi sris-production.up.railway.app; staging é uma cópia de validação independente e não substitui produção.",
+            central_question:"A candidatura permanece acessível no URL entregue e preserva a distinção entre demonstração funcional, hipótese de impacto e validação ainda inexistente?",
             available_evidence:"M-001 documentada; plataforma operacional; arquitetura conceptual; motor epistemológico; backend em produção; reconhecimento externo documentado; roadmap e indicadores de piloto definidos.",
-            unknowns:"Resposta do júri, primeira organização externa, custo real de documentação, métricas de eficiência e resultados do piloto.",
+            unknowns:"Resposta e calendário do júri; continuidade operacional do URL durante a avaliação; primeira organização externa; custo real de documentação; métricas de eficiência e resultados do piloto.",
             result:{
-              headline:"Demonstrar o SRIS através da M-001 e do seu estado real.",
-              summary:"A candidatura deve mostrar que a inovação não está em prever um resultado, mas em preservar a estrutura que permitirá avaliar qualquer resultado futuro.",
-              situation:"O produto tem protótipo funcional e uma missão real, mas ainda não tem utilização externa ou benefícios quantitativos medidos.",
+              headline:"A candidatura foi submetida através da M-001 e do seu estado real.",
+              summary:"A versão entregue apresenta a inovação como preservação da estrutura necessária para avaliar resultados futuros, sem declarar esses resultados como existentes.",
+              situation:"A candidatura está submetida. O produto mantém protótipo funcional e uma missão real, mas continua sem utilização externa ou benefícios quantitativos medidos.",
               principal_risk:"Sobreprometer impacto ou escala e enfraquecer a credibilidade de uma proposta que assenta precisamente em rigor e rastreabilidade.",
               assumptions:["O júri valorizará uma demonstração funcional e verificável.","M-001 é suficiente para tornar o problema concreto.","Reconhecimento externo reforça credibilidade, mas não substitui validação."],
               alternatives:[
@@ -1577,7 +1969,7 @@
                 {id:"B",title:"Percurso M-001",description:"Problema → registos → incerteza → decisão em aberto → aprendizagem."},
                 {id:"C",title:"Apresentação comercial",description:"Foco em mercados e potencial de escala."}
               ],
-              next_decision:"Usar M-001 como percurso principal; Estado Real e Impacto como prova de disciplina; reconhecimento apenas como contexto externo.",
+              next_decision:"Manter o URL de produção ativo e monitorizado, preservar a versão submetida, confirmar a associação dos anexos e aguardar a avaliação sem acrescentar novas alegações.",
               confidence:"Elevada"
             }
           },
@@ -1595,13 +1987,23 @@
     };
 
     let config = structuredClone(BRIEF_ALIGNMENT);
-    let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-001";
+    let publicMissionCatalog = {};
+    const institutionalMissionCodes = new Set();
+    let canCreateInstitutionalMissions = false;
+    let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-002";
     let modalMissionId = null;
+    let missionBuilderEditingId = null;
     let activeOrganizationId = null;
     let aiGovernanceStatus = null;
+    let currentSession = null;
+    let activeDialogueSessionId = null;
+    let activeDialogueIntent = "diagnose";
+    let latestDialogueTurn = null;
+    const DIALOGUE_SESSION_KEY_PREFIX = "sris_mi_dialogue_";
     let intelligenceStatus = {
       deterministic_analysis:"unavailable",
       ai_configured:false,
+      context_research_configured:false,
       ai_requires_authentication:true,
       ai_model:""
     };
@@ -1646,12 +2048,14 @@
       const id=String(m.id).trim();
       return {
         id,
+        local_only:true,
         title:String(m.title),
         subtitle:m.subtitle||"Missão importada através de pacote SRIS.",
         meta:m.meta||"Pacote SRIS importado",
         status:m.status||"Importada",
         confidence:m.confidence||"Por avaliar",
         decision:m.decision||"Por estruturar",
+        method_notice:"Visualização local importada. Não cria registos canónicos no servidor e não pode ser processada pelo motor até ser revista e integrada por um fluxo autenticado.",
         situation:m.situation||{
           summary:m.context||"Missão importada.",
           attention:[],
@@ -1682,6 +2086,135 @@
       };
     }
 
+    function domainLabel(value){
+      return ({
+        cross_domain:"Sistémico / transversal",
+        territorial_resilience:"Resiliência territorial",
+        wildfire_landscape:"Incêndio e paisagem",
+        water_heritage:"Água e património",
+        ecology_climate:"Ecologia e clima",
+        human_wellbeing:"Bem-estar e capacidade humana",
+        institutional_innovation:"Inovação institucional",
+        organizational_innovation:"Inovação organizacional",
+        financial_resilience:"Resiliência financeira"
+      })[value]||String(value||"Domínio por classificar").replaceAll("_"," ");
+    }
+
+    function lifecycleLabel(value){
+      return ({active:"Ativa",paused:"Pausada",completed:"Concluída",archived:"Arquivada"})[value]||"Ativa";
+    }
+
+    function normalizeCanonicalMission(row){
+      const base=publicMissionCatalog[row.code];
+      if(base){
+        return {
+          ...structuredClone(base),
+          id:row.code,
+          canonical_id:row.id,
+          server_managed:true,
+          title:row.title||base.title,
+          objective:row.objective||base.subtitle||"",
+          mission_kind:row.mission_kind||base.mission_kind||"mission",
+          domain:row.domain||base.domain||"cross_domain",
+          priority:row.priority||base.priority||"strategic",
+          parent_id:row.parent_code||base.parent_id||null,
+          parent_mission_id:row.parent_mission_id||null,
+          horizon:row.horizon||"",
+          stakeholders:Array.isArray(row.stakeholders)?row.stakeholders:[],
+          depth:Number.isInteger(row.depth)?row.depth:undefined,
+          children_count:row.children_count||0,
+          revision:row.revision,
+          lifecycle_state:row.lifecycle_state,
+          status:lifecycleLabel(row.lifecycle_state),
+          subtitle:row.objective||base.subtitle||"",
+          analysis:{
+            ...(base.analysis||{}),
+            title:`${row.code} — ${row.title||base.title}`,
+            context:row.context||base.analysis?.context||"",
+            central_question:row.central_question||base.analysis?.central_question||""
+          }
+        };
+      }
+      const records=Array.isArray(row.records)?row.records:[];
+      const evidence=records.map(record=>({
+        id:record.canonical_id,
+        type:String(record.kind||"Registo").replaceAll("_"," "),
+        title:record.title,
+        description:record.description,
+        method:record.provenance?.method||"Método ainda não registado.",
+        limitation:record.provenance?.limitations||"Limitação ainda não registada.",
+        status:record.state||"Declarado",
+        confidence:record.confidence||"not_evaluable",
+        source:record.provenance?.source||row.code
+      }));
+      const objective=row.objective||"Objetivo institucional por consolidar.";
+      return {
+        id:row.code,
+        canonical_id:row.id,
+        server_managed:true,
+        title:row.title,
+        objective,
+        subtitle:objective,
+        meta:`${domainLabel(row.domain)} · revisão ${row.revision}`,
+        status:lifecycleLabel(row.lifecycle_state),
+        confidence:records.length?"Em revisão":"Por avaliar",
+        decision:"Por estruturar",
+        method_notice:"Missão institucional canónica. O contexto é declarado; evidência, decisões e resultados exigem registos próprios, proveniência e revisão humana.",
+        mission_kind:row.mission_kind||"mission",
+        domain:row.domain||"cross_domain",
+        priority:row.priority||"strategic",
+        parent_id:row.parent_code||null,
+        parent_mission_id:row.parent_mission_id||null,
+        horizon:row.horizon||"",
+        stakeholders:Array.isArray(row.stakeholders)?row.stakeholders:[],
+        depth:Number(row.depth||0),
+        children_count:row.children_count||0,
+        revision:row.revision,
+        lifecycle_state:row.lifecycle_state,
+        situation:{
+          summary:row.context||objective,
+          attention:[
+            {title:"Evidência por estruturar.",description:records.length?"Existem registos, mas permanecem sujeitos ao respetivo estado e proveniência.":"A missão ainda não possui registos classificados como evidência.",level:"Próximo movimento"},
+            {title:"Pergunta de decisão.",description:row.central_question||"A pergunta central ainda não foi formulada.",level:"Inteligência"}
+          ],
+          chain:[
+            {number:"01",label:"Missão",value:"Criada",note:`Revisão canónica ${row.revision}.`,state:"completed"},
+            {number:"02",label:"Registos",value:String(records.length),note:"Registos com estado e proveniência próprios.",state:records.length?"open":"attention"},
+            {number:"03",label:"Decisão",value:"Por estruturar",note:"Nenhuma alternativa foi selecionada por defeito.",state:"open"},
+            {number:"04",label:"Resultado",value:"Não declarado",note:"Impacto exige execução, linha de base e avaliação.",state:"unavailable"}
+          ]
+        },
+        analysis:{
+          title:`${row.code} — ${row.title}`,
+          context:row.context||"",
+          central_question:row.central_question||"",
+          available_evidence:records.map(record=>`${record.canonical_id}: ${record.title}`).join("\n"),
+          unknowns:"Identificar pressupostos, restrições, lacunas e dependências que podem alterar a decisão.",
+          result:{headline:"Missão pronta para estruturação.",summary:"Execute a auditoria determinística ou inicie um diálogo governado.",situation:row.context||"",principal_risk:"Decidir antes de reduzir a incerteza material.",assumptions:[],alternatives:[],next_decision:"Identificar o ponto de decisão e a evidência mínima necessária.",confidence:"Por avaliar"}
+        },
+        evidence,
+        learning:evidence.filter(item=>String(item.type).toLowerCase()==="learning")
+      };
+    }
+
+    function clearInstitutionalMissions(){
+      institutionalMissionCodes.forEach(code=>{
+        if(publicMissionCatalog[code])config.missions[code]=structuredClone(publicMissionCatalog[code]);
+        else delete config.missions[code];
+      });
+      institutionalMissionCodes.clear();
+      canCreateInstitutionalMissions=false;
+    }
+
+    function mergeCanonicalMissions(rows){
+      clearInstitutionalMissions();
+      (rows||[]).forEach(row=>{
+        const normalized=normalizeCanonicalMission(row);
+        config.missions[normalized.id]=normalized;
+        institutionalMissionCodes.add(normalized.id);
+      });
+    }
+
     async function loadConfig(){
       let external={};
       try{
@@ -1696,6 +2229,7 @@
         if(res.ok){
           const catalog=await res.json();
           if(catalog?.schema==="sris_mission_catalog"&&isPlainObject(catalog.missions)){
+            publicMissionCatalog=structuredClone(catalog.missions);
             config.missions={...(config.missions||{}),...catalog.missions};
           }
         }
@@ -1708,15 +2242,54 @@
       }catch(err){
         console.warn("Estado de Mission Intelligence indisponível:",err);
       }
-      config.missions={...(config.missions||{}),...importedMissions()};
-      if(!config.missions[activeMissionId]) activeMissionId="M-001";
+      const localImports={};
+      Object.values(importedMissions()).forEach(raw=>{
+        try{
+          const imported=normalizeImportedMission(raw);
+          localImports[imported.id]=imported;
+        }catch(err){console.warn("Pacote local ignorado:",err)}
+      });
+      config.missions={...(config.missions||{}),...localImports};
+      if(!config.missions[activeMissionId]) activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
       renderAll();
       updateAIControl();
       const current=qs(".page.active")?.id?.replace("page-","")||"overview";
       navigate(current,{scroll:false});
     }
 
-    function missions(){return Object.values(config.missions||{})}
+    function missionDepth(m){
+      if(Number.isInteger(m.depth))return Math.min(5,Math.max(0,m.depth));
+      let depth=0,cursor=m,seen=new Set([m.id]);
+      while(cursor?.parent_id&&config.missions?.[cursor.parent_id]&&!seen.has(cursor.parent_id)&&depth<5){
+        depth+=1;seen.add(cursor.parent_id);cursor=config.missions[cursor.parent_id];
+      }
+      return depth;
+    }
+    function missionOrder(a,b){
+      const rankA=Number.isFinite(Number(a.featured_rank))?Number(a.featured_rank):500;
+      const rankB=Number.isFinite(Number(b.featured_rank))?Number(b.featured_rank):500;
+      return rankA-rankB||String(a.id).localeCompare(String(b.id),"pt");
+    }
+    function missions(){
+      const all=Object.values(config.missions||{}),byId=new Map(all.map(item=>[item.id,item]));
+      const children=new Map(),roots=[];
+      all.forEach(item=>{
+        if(item.parent_id&&item.parent_id!==item.id&&byId.has(item.parent_id)){
+          if(!children.has(item.parent_id))children.set(item.parent_id,[]);
+          children.get(item.parent_id).push(item);
+        }else roots.push(item);
+      });
+      roots.sort(missionOrder);children.forEach(items=>items.sort(missionOrder));
+      const ordered=[],visited=new Set();
+      function visit(item){
+        if(visited.has(item.id))return;
+        visited.add(item.id);ordered.push(item);
+        (children.get(item.id)||[]).forEach(visit);
+      }
+      roots.forEach(visit);
+      all.sort(missionOrder).forEach(visit);
+      return ordered;
+    }
     function mission(id=activeMissionId){return config.missions?.[id]}
     function options(includeAll=false){
       const first=includeAll?'<option value="all">Todas as missões</option>':"";
@@ -1753,13 +2326,13 @@
     function renderMissionRows(root){
       if(!root)return;
       root.innerHTML=missions().map(m=>`
-        <button class="mission-row mission-open" type="button" data-mission="${esc(m.id)}">
+        <button class="mission-row mission-open" type="button" data-mission="${esc(m.id)}" data-kind="${esc(m.mission_kind||"mission")}" data-depth="${missionDepth(m)}">
           <div>
-            <div class="mission-title">${esc(m.title)}</div>
+            <div class="mission-title"><span class="mission-type">${m.mission_kind==="program"?"Programa":missionDepth(m)>0?"Sub-missão":"Missão"}</span>${esc(m.title)}</div>
             <div class="mission-meta">${esc(m.id)} · ${esc(m.meta||m.subtitle||"")}</div>
           </div>
           <div>${statusTag(m.status)}</div>
-          <div><strong>Confiança: ${esc(String(m.confidence||"").toLowerCase())}</strong></div>
+          <div><strong>Fundamentação declarada: ${esc(String(m.confidence||"").toLowerCase())}</strong></div>
           <div class="mission-arrow">›</div>
         </button>
       `).join("");
@@ -1770,6 +2343,10 @@
       qs("#situationMission").innerHTML=options();
       qs("#situationMission").value=activeMissionId;
       qs("#situationSummary").textContent=m.situation?.summary||"";
+      qs("#missionMethodNotice").innerHTML=`
+        <strong>Limite de leitura.</strong> ${esc(m.method_notice||"Os registos representam o estado declarado da missão e não uma validação externa.")}
+        <small>Classificação operacional declarada pelo responsável; não representa probabilidade, inferência automática ou validação científica.</small>
+      `;
 
       qs("#decisionChain").innerHTML=(m.situation?.chain||[]).map(i=>`
         <article
@@ -1797,7 +2374,18 @@
       renderMissionRows(qs("#overviewMissionList"));
     }
 
-    function renderMissions(){renderMissionRows(qs("#missionList"))}
+    function renderMissions(){
+      renderMissionRows(qs("#missionList"));
+      const all=missions(),programs=all.filter(m=>m.mission_kind==="program").length;
+      const nested=all.filter(m=>missionDepth(m)>0).length;
+      const institutional=all.filter(m=>m.server_managed).length;
+      qs("#missionPortfolioSummary").innerHTML=`
+        <article><span>Programas</span><strong>${programs}</strong></article>
+        <article><span>Missões</span><strong>${all.length-programs}</strong></article>
+        <article><span>Ligadas em árvore</span><strong>${nested}</strong></article>
+        <article><span>Canónicas da organização</span><strong>${institutional}</strong></article>
+      `;
+    }
 
     function fillWorkspace(id=activeMissionId){
       const m=mission(id); if(!m)return;
@@ -1810,8 +2398,18 @@
       qs("#analysisQuestion").value=a.central_question||"";
       qs("#analysisEvidence").value=a.available_evidence||"";
       qs("#analysisUnknowns").value=a.unknowns||"";
+      const research=qs("#analysisResearch");
+      if(research)delete research.dataset.userChoice;
+      updateAIControl();
+      const submit=qs("#analysisSubmit");
+      submit.disabled=Boolean(m.local_only);
+      submit.textContent=m.local_only?"Integrar registos antes de auditar":"Executar auditoria da missão";
       qs("#resultPlaceholder").classList.remove("hidden");
       qs("#resultBlock").classList.add("hidden");
+      qs("#resultPlaceholder div").innerHTML=m.local_only
+        ? `<strong>Visualização local, ainda não canónica</strong>Revise e integre os registos num fluxo autenticado antes de executar Mission Intelligence.`
+        : `<strong>Mission Intelligence ainda não executada</strong>A análise determinística usa a missão canónica, mantém separados estado, tendência e fundamentação, e não transforma lacunas em certeza.`;
+      prepareDialogueForMission(id);
       renderSituation();
       syncFilters(id);
     }
@@ -1819,10 +2417,48 @@
     const indicatorLabels={
       critical:"Crítico",requires_attention:"Requer atenção",on_track:"No percurso",completed:"Concluída",
       improving:"A melhorar",stable:"Estável",deteriorating:"A deteriorar",not_evaluable:"Não avaliável",
-      high:"Elevada",moderate:"Moderada",low:"Baixa"
+      high:"Elevada",moderate:"Moderada",low:"Baixa",strong:"Suficiente para este fator",partial:"Parcial",weak:"Insuficiente",
+      not_applicable:"Não aplicável"
+    };
+
+    const factorLabels={
+      evidence:"Qualidade documental dos registos",assumptions:"Pressupostos",constraints:"Restrições",
+      alternatives:"Alternativas",decision_readiness:"Estado da decisão",context_coverage:"Cobertura da envolvente"
     };
 
     function indicatorLabel(value){return indicatorLabels[value]||String(value||"")}
+    function factorLabel(value){return factorLabels[value]||String(value||"")}
+
+    const contextClaimLabels={
+      supported:"Sustentado por fonte",partially_supported:"Parcialmente sustentado",
+      hypothesis:"Hipótese de investigação",contested:"Contestado",unverified:"Não verificado"
+    };
+    const contextStatusLabels={
+      not_started:"não iniciada",preliminary:"preliminar",in_review:"em revisão",reviewed:"revista"
+    };
+
+    function renderContextDossier(result){
+      const dossier=result?.context_dossier;
+      if(!dossier)return "";
+      const provenance=result?.context_dossier_provenance||{};
+      const claims=dossier.claims||[],sources=dossier.sources||[],gaps=dossier.gaps||[];
+      return `
+        <section class="context-dossier">
+          <small class="eyebrow">CONTEXT INTELLIGENCE · ${esc(contextStatusLabels[dossier.research_status]||dossier.research_status||"em revisão")}</small>
+          <h4>Envolvente da missão</h4>
+          <p>${esc(dossier.synthesis||"")}</p>
+          <div class="context-domains">${(dossier.domains||[]).map(x=>`<span>${esc(x)}</span>`).join("")}</div>
+          <strong>Alegações e hipóteses</strong>
+          ${claims.map(claim=>`
+            <div class="context-claim context-claim--${esc(claim.epistemic_status)}">
+              <span>${esc(contextClaimLabels[claim.epistemic_status]||claim.epistemic_status)} · ${esc(claim.domain)}</span>
+              <p><strong>${esc(claim.statement)}</strong><br>${esc(claim.relevance||"")}${(claim.source_ids||[]).length?`<br><em>Fontes: ${esc(claim.source_ids.join(", "))}</em>`:""}${claim.limitations?`<br><em>Limite: ${esc(claim.limitations)}</em>`:""}</p>
+            </div>`).join("")||"<p>Nenhuma alegação contextual estruturada.</p>"}
+          <div class="result-section context-source-list"><strong>Fontes rastreáveis</strong><ul>${sources.map(source=>`<li><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a><br>${esc(source.publisher||"")} · ${esc(source.source_type||"")}${source.limitations?`<br><em>Limite: ${esc(source.limitations)}</em>`:""}</li>`).join("")||"<li>Nenhuma fonte preservada.</li>"}</ul></div>
+          <div class="result-section"><strong>Perguntas que a missão tem de investigar</strong><ul>${gaps.map(gap=>`<li><strong>${esc(gap.question)}</strong><br>${esc(gap.why_it_matters||"")}${gap.evidence_needed?`<br><em>Evidência necessária: ${esc(gap.evidence_needed)}</em>`:""}</li>`).join("")||"<li>Sem lacunas contextuais estruturadas.</li>"}</ul></div>
+          <div class="context-boundary">${esc(provenance.limitations||"Dossier sujeito a revisão humana; não constitui prova, autorização ou conclusão científica.")}</div>
+        </section>`;
+    }
 
     function renderResult(result){
       const root=qs("#resultBlock");
@@ -1838,6 +2474,10 @@
       }
       const advisory=result?.ai?.advisory;
       const provenance=result?.ai?.provenance;
+      const usage=result?.ai_usage;
+      const contextAssessmentTitle=result?.context_dossier_provenance?.origin_type==="ai_model_with_web_search"
+        ? "Leitura determinística do contexto canónico anterior à pesquisa"
+        : "Leitura da cobertura contextual";
       const aiNotice=result.ai_status==="authentication_required"
         ? "A análise por IA não é executada no modo de demonstração. Requer sessão institucional."
         : result.ai_status==="not_configured"
@@ -1854,24 +2494,44 @@
           <p>${esc(d.summary||"")}</p>
         </div>
         <div class="result-metrics">
-          <article><span>Mission Status</span><strong>${esc(indicatorLabel(d.mission_status))}</strong></article>
-          <article><span>Mission Trend</span><strong>${esc(indicatorLabel(d.mission_trend))}</strong></article>
-          <article><span>Decision Confidence</span><strong>${esc(indicatorLabel(d.decision_confidence))}</strong></article>
+          <article><span>Estado da missão</span><strong>${esc(indicatorLabel(d.mission_status))}</strong></article>
+          <article><span>Tendência</span><strong>${esc(indicatorLabel(d.mission_trend))}</strong></article>
+          <article><span>Estado da fundamentação</span><strong>${esc(indicatorLabel(d.decision_confidence))}</strong></article>
         </div>
+        ${renderContextDossier(result)}
+        ${d.context_assessment?`<div class="result-section"><strong>${esc(contextAssessmentTitle)}</strong><p>${esc(d.context_assessment.synthesis||d.context_assessment.boundary||"")}</p><p><em>${esc(d.context_assessment.boundary||"")}</em></p></div>`:""}
         <div class="result-section"><strong>Risco principal</strong><p>${esc(d.principal_risk||"")}</p></div>
         <div class="result-section"><strong>Lacunas críticas</strong><ul>${(d.gaps||[]).map(g=>`<li><strong>${esc(g.title)}</strong><br>${esc(g.explanation)}${g.evidence_needed?`<br><em>Evidência necessária: ${esc(g.evidence_needed)}</em>`:""}</li>`).join("")||"<li>Não foram detetadas lacunas adicionais.</li>"}</ul></div>
-        <div class="result-section"><strong>Fatores de confiança</strong><ul>${(d.confidence_factors||[]).map(f=>`<li><strong>${esc(f.factor)} · ${esc(indicatorLabel(f.assessment))}</strong><br>${esc(f.explanation)}</li>`).join("")}</ul></div>
+        <div class="result-section"><strong>Fatores da fundamentação</strong><ul>${(d.confidence_factors||[]).map(f=>`<li><strong>${esc(factorLabel(f.factor))} · ${esc(indicatorLabel(f.assessment))}</strong><br>${esc(f.explanation)}</li>`).join("")}</ul></div>
         <div class="result-section"><strong>Pressupostos a testar</strong><ul>${(d.assumptions_to_test||[]).map(x=>`<li>${esc(x)}</li>`).join("")||"<li>Nenhum pressuposto aberto foi identificado.</li>"}</ul></div>
         <div class="result-section"><strong>Alternativas representadas</strong><ul>${(d.alternatives||[]).map(a=>`<li><strong>${esc(a.canonical_id)} — ${esc(a.title)}</strong><br>${esc(a.description||"")}</li>`).join("")||"<li>Não existem alternativas canónicas suficientes.</li>"}</ul></div>
         <div class="result-section"><strong>Próxima decisão</strong><p>${esc(d.next_decision||"")}</p></div>
         <div class="result-section"><strong>O que o sistema não inferiu</strong><ul>${(d.non_inferences||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+        ${result.run_id?`
+          <section class="run-review" data-run-review="${esc(result.run_id)}">
+            <strong>Revisão humana da execução</strong>
+            <p>Esta revisão aceita ou rejeita o relatório produzido; não seleciona uma alternativa e não substitui a decisão da missão.</p>
+            ${result.review_status==="required"&&result.review_allowed?`
+              <div class="field">
+                <label for="runReviewComment">Comentário obrigatório</label>
+                <textarea id="runReviewComment" placeholder="Registe o que foi verificado, os limites mantidos e o fundamento da revisão."></textarea>
+              </div>
+              <div class="run-review-actions">
+                <button class="btn-secondary" type="button" data-review-decision="rejected">Rejeitar relatório</button>
+                <button class="btn-primary" type="button" data-review-decision="approved">Aceitar como revisto</button>
+              </div>`:
+              `<div class="run-review-status">${result.review_status==="required"?"Revisão pendente por perfil autorizado.":`Estado: ${esc(result.review_status||"revisto")}`}</div>`}
+          </section>`:""}
         ${aiNotice?`<div class="result-section"><strong>Estado da IA</strong><p>${esc(aiNotice)}</p></div>`:""}
+        ${usage?`<div class="result-section"><strong>Utilização governada</strong><p>${esc(String(usage.web_search_calls||0))} pesquisas web · custo de pesquisa USD ${esc(usage.web_search_cost_usd||"0.000000")} · custo total estimado USD ${esc(usage.estimated_cost_usd||"0.000000")}.</p></div>`:""}
         ${advisory?`
           <section class="ai-advisory">
             <h4>Análise assistida por IA · provisória</h4>
             <p>${esc(advisory.executive_summary||"")}</p>
-            ${(advisory.inferences||[]).length?`<strong>Inferências</strong><ul>${advisory.inferences.map(i=>`<li>${esc(i.statement)} <em>(${esc((i.based_on_ids||[]).join(", "))})</em></li>`).join("")}</ul>`:""}
+            ${(advisory.inferences||[]).length?`<strong>Inferências</strong><ul>${advisory.inferences.map(i=>`<li>${esc(i.statement)} <em>(${esc((i.based_on_ids||[]).join(", "))}; confiança ${esc(indicatorLabel(i.confidence))}; ${esc(i.uncertainty||"incerteza não explicitada")})</em></li>`).join("")}</ul>`:""}
             ${(advisory.critical_gaps||[]).length?`<strong>Lacunas</strong><ul>${advisory.critical_gaps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+            ${(advisory.decision_options||[]).length?`<strong>Opções assistivas</strong><ul>${advisory.decision_options.map(x=>`<li><strong>${esc(x.title)}</strong> — ${esc(x.rationale)}<br><em>Riscos: ${esc((x.risks||[]).join("; "))}. Pré-requisitos: ${esc((x.prerequisites||[]).join("; "))}. Base: ${esc((x.based_on_ids||[]).join(", "))}.</em></li>`).join("")}</ul>`:""}
+            ${(advisory.cautions||[]).length?`<strong>Cautelas</strong><ul>${advisory.cautions.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
             <strong>Próximo passo sugerido</strong><p>${esc(advisory.recommended_next_step||"")}</p>
             <div class="ai-provenance">
               ${esc(provenance?.provider||"OpenAI")} · ${esc(provenance?.model_or_system||"")} ·
@@ -1881,22 +2541,199 @@
       `;
     }
 
+    const miIntentLabels={
+      diagnose:"Diagnóstico",answer:"Resposta às perguntas",challenge:"Contestação",
+      explore_alternatives:"Exploração de alternativas",design_experiment:"Desenho experimental",
+      compare_options:"Comparação de opções",synthesize:"Síntese"
+    };
+
+    function dialogueSessionKey(missionId){return `${DIALOGUE_SESSION_KEY_PREFIX}${missionId}`}
+
+    function miList(items){
+      return (items||[]).length?`<ul>${items.map(item=>`<li>${esc(item)}</li>`).join("")}</ul>`:"";
+    }
+
+    function miProposalReviewControls(proposalId,existingReview=null){
+      if(existingReview){
+        const labels={accepted_as_draft:"Aceite como rascunho",rejected:"Rejeitada",deferred:"Adiada"};
+        return `<div class="mi-proposal-review"><div class="mi-review-state">${esc(labels[existingReview.decision]||existingReview.decision)} · sem efeito no registo canónico<br><span>${esc(existingReview.comment||"")}</span></div></div>`;
+      }
+      const canReview=["owner","admin","reviewer"].includes(currentSession?.role);
+      if(!canReview)return `<div class="mi-basis">Revisão pendente por perfil autorizado.</div>`;
+      return `
+        <div class="mi-proposal-review" data-mi-proposal="${esc(proposalId)}">
+          <input type="text" data-mi-review-comment aria-label="Comentário de revisão da proposta ${esc(proposalId)}" placeholder="Comentário obrigatório sobre esta proposta" />
+          <div class="mi-proposal-actions">
+            <button class="mi-review-button" type="button" data-mi-review="accepted_as_draft">Aceitar como rascunho</button>
+            <button class="mi-review-button" type="button" data-mi-review="deferred">Adiar</button>
+            <button class="mi-review-button" type="button" data-mi-review="rejected">Rejeitar</button>
+          </div>
+        </div>`;
+    }
+
+    function miProposalCard(item,type,reviews){
+      const review=(reviews||[]).find(row=>row.proposal_id===item.proposal_id)||null;
+      const basis=`<div class="mi-basis">Base canónica: ${esc((item.based_on_ids||[]).join(", "))}</div>`;
+      if(type==="hypothesis")return `
+        <article class="mi-card mi-card--hypothesis">
+          <div class="mi-type">${esc(item.proposal_id)} · hipótese por testar</div>
+          <h5>${esc(item.statement)}</h5>
+          <p>${esc(item.rationale)}</p>
+          <div class="mi-detail"><strong>O que acrescenta:</strong> ${esc(item.what_is_new)}<br><strong>Se for verdadeira:</strong> ${esc(item.impact_if_true)}<br><strong>Confiança:</strong> ${esc(indicatorLabel(item.confidence))}</div>
+          <div class="mi-detail"><strong>Evidência necessária</strong>${miList(item.evidence_needed)}<strong>O que a pode refutar</strong>${miList(item.disconfirming_evidence)}</div>
+          ${basis}${miProposalReviewControls(item.proposal_id,review)}
+        </article>`;
+      if(type==="alternative")return `
+        <article class="mi-card mi-card--alternative">
+          <div class="mi-type">${esc(item.proposal_id)} · alternativa proposta</div>
+          <h5>${esc(item.title)}</h5><p>${esc(item.description)}</p>
+          <div class="mi-detail"><strong>Diferença real:</strong> ${esc(item.difference_from_existing)}<br><strong>Reversibilidade:</strong> ${esc(item.reversibility)}</div>
+          <div class="mi-detail"><strong>Valor potencial</strong>${miList(item.potential_value)}<strong>Riscos</strong>${miList(item.risks)}<strong>Pré-requisitos</strong>${miList(item.prerequisites)}</div>
+          ${basis}${miProposalReviewControls(item.proposal_id,review)}
+        </article>`;
+      if(type==="criterion")return `
+        <article class="mi-card mi-card--criterion">
+          <div class="mi-type">${esc(item.proposal_id)} · critério proposto</div>
+          <h5>${esc(item.name)}</h5><p>${esc(item.definition)}</p>
+          <div class="mi-detail"><strong>Medição:</strong> ${esc(item.measurement)}<br><strong>Limiar ou regra:</strong> ${esc(item.threshold_or_rule)}<br><strong>Trade-off:</strong> ${esc(item.trade_off)}</div>
+          ${basis}${miProposalReviewControls(item.proposal_id,review)}
+        </article>`;
+      return `
+        <article class="mi-card mi-card--experiment">
+          <div class="mi-type">${esc(item.proposal_id)} · experiência proposta</div>
+          <h5>${esc(item.title)}</h5><p>${esc(item.question)}</p>
+          <div class="mi-detail"><strong>Desenho:</strong> ${esc(item.design)}<br><strong>Linha de base:</strong> ${esc(item.baseline)}<br><strong>Comparador:</strong> ${esc(item.comparator)}<br><strong>Horizonte:</strong> ${esc(item.timeframe)}</div>
+          <div class="mi-detail"><strong>Medidas</strong>${miList(item.measures)}<strong>Regras de decisão</strong>${miList(item.success_or_decision_rules)}<strong>Condições de paragem</strong>${miList(item.stop_conditions)}<strong>Limitações</strong>${miList(item.limitations)}</div>
+          ${basis}${miProposalReviewControls(item.proposal_id,review)}
+        </article>`;
+    }
+
+    function miQuestionControl(question){
+      const id=esc(question.question_id),label=esc(question.question),options=question.options||[];
+      if(question.answer_type==="single_choice")return `<select data-mi-question-id="${id}" aria-label="${label}"><option value="">Selecione…</option>${options.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")}</select>`;
+      if(question.answer_type==="multi_choice")return `<textarea data-mi-question-id="${id}" aria-label="${label}" placeholder="Indique uma ou mais opções: ${esc(options.join(" · "))}"></textarea>`;
+      if(question.answer_type==="yes_no")return `<select data-mi-question-id="${id}" aria-label="${label}"><option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Ainda não sei">Ainda não sei</option></select>`;
+      if(question.answer_type==="number")return `<input data-mi-question-id="${id}" aria-label="${label}" type="number" />`;
+      if(question.answer_type==="date")return `<input data-mi-question-id="${id}" aria-label="${label}" type="date" />`;
+      return `<textarea data-mi-question-id="${id}" aria-label="${label}" placeholder="A sua resposta"></textarea>`;
+    }
+
+    function renderInteractiveTurn(result,{append=true}={}){
+      const root=qs("#miConversation");
+      if(!append)root.innerHTML="";
+      if(result.ai_status!=="completed"||!result.intelligence){
+        const code=result.ai_governance?.code||result.ai_status||"indisponível";
+        root.insertAdjacentHTML("beforeend",`<article class="mi-turn"><div class="mi-answer"><div class="mi-answer-head"><small>Mission Intelligence não executada</small><h3>${esc(code)}</h3><p>${esc(result.ai_governance?.message||result.ai_error||"A governação não permitiu este turno.")}</p></div></div></article>`);
+        return;
+      }
+      const i=result.intelligence,reading=i.mission_reading||{},reviews=result.proposal_reviews||[];
+      const userMessage=result.user_message||"Pedido registado neste turno.";
+      const turnId=result.turn_id||"";
+      const proposalSections=[
+        ["Hipóteses novas","Propostas explicativas. Não são factos.",i.hypotheses||[],"hypothesis"],
+        ["Alternativas propostas","Opções que não entram automaticamente no conjunto canónico.",i.alternative_proposals||[],"alternative"],
+        ["Critérios de decisão","Regras propostas para comparar opções sem esconder trade-offs.",i.decision_criteria||[],"criterion"],
+        ["Experiências propostas","Formas de transformar incerteza em aprendizagem verificável.",i.experiment_proposals||[],"experiment"]
+      ];
+      const html=`
+        <article class="mi-turn" data-mi-turn-id="${esc(turnId)}">
+          <div class="mi-user-message"><strong>Pedido ${esc(result.turn_sequence||"")}:</strong> ${esc(userMessage)}</div>
+          <div class="mi-answer">
+            <div class="mi-answer-head">
+              <small>${esc(miIntentLabels[i.intent]||i.intent)} · ${esc(i.direct_answer?.status||"provisório")}</small>
+              <h3>${esc(i.direct_answer?.answer||"")}</h3>
+              <p><strong>Valor acrescentado neste turno:</strong> ${esc(i.direct_answer?.what_changed||"")}</p>
+            </div>
+            <div class="mi-reading">
+              <article><span>Problema decisório</span><p>${esc(reading.decision_problem||"")}</p></article>
+              <article><span>Bloqueio atual</span><p>${esc(reading.current_blocker||"")}</p></article>
+              <article><span>Tensão principal</span><p>${esc(reading.key_tension||"")}</p></article>
+              <article><span>Ponto cego</span><p>${esc(reading.blind_spot||"")}</p></article>
+            </div>
+            <div class="mi-basis">Leitura ancorada em: ${esc((reading.based_on_ids||[]).join(", "))}</div>
+            ${result.context_dossier?renderContextDossier(result):""}
+            ${(i.questions||[]).length?`
+              <section class="mi-section"><h4>Perguntas que podem mudar a decisão</h4><p class="mi-section-note">Responda apenas ao que sabe. “Ainda não sei” também é informação útil.</p>
+                <div class="mi-questions">${i.questions.map(q=>`<div class="mi-question"><label>${esc(q.question_id)} · ${esc(q.question)}</label><small>${esc(q.why_it_matters)} · Desbloqueia: ${esc(q.decision_unlocked)} · Base: ${esc((q.based_on_ids||[]).join(", "))}</small>${miQuestionControl(q)}</div>`).join("")}</div>
+              </section>`:""}
+            ${proposalSections.map(([title,note,items,type])=>(items||[]).length?`<section class="mi-section"><h4>${esc(title)}</h4><p class="mi-section-note">${esc(note)}</p><div class="mi-grid">${items.map(item=>miProposalCard(item,type,reviews)).join("")}</div></section>`:"").join("")}
+            ${(i.challenges||[]).length?`<section class="mi-section"><h4>Contestações críticas</h4><ul class="mi-list">${i.challenges.map(x=>`<li><strong>${esc(x.target)}</strong> — ${esc(x.objection)}<br><em>${esc(x.why_it_matters)} Resposta necessária: ${esc(x.response_needed)} · Base: ${esc((x.based_on_ids||[]).join(", "))}</em></li>`).join("")}</ul></section>`:""}
+            ${(i.recommended_actions||[]).length?`<section class="mi-section"><h4>Ações recomendadas</h4><ul class="mi-list">${i.recommended_actions.map(x=>`<li><strong>${esc(x.urgency)} · ${esc(x.action)}</strong><br>${esc(x.purpose)} · Responsável: ${esc(x.owner_role)} · Efeito: ${esc(x.decision_effect)}<br><em>Base: ${esc((x.based_on_ids||[]).join(", "))}</em></li>`).join("")}</ul></section>`:""}
+            <section class="mi-section"><h4>Próximo movimento</h4><div class="mi-next">${esc(i.recommended_next_move||"")}</div></section>
+            <div class="mi-turn-meta">${esc(i.boundary?.statement||"Revisão humana obrigatória; nenhuma alteração canónica.")}${result.ai_usage?` · custo estimado USD ${esc(result.ai_usage.estimated_cost_usd||"0.000000")}`:""}</div>
+          </div>
+        </article>`;
+      if(root.querySelector(".mi-empty"))root.innerHTML="";
+      root.insertAdjacentHTML("beforeend",html);
+      latestDialogueTurn={session_id:result.session_id,turn_id:turnId,sequence:result.turn_sequence,intelligence:i};
+      root.lastElementChild?.scrollIntoView({behavior:"smooth",block:"start"});
+    }
+
+    async function loadDialogueSession(sessionId){
+      const token=sessionStorage.getItem("sris_token");
+      if(!sessionId||!token||!activeOrganizationId)return;
+      try{
+        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(sessionId)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+        if(res.status===404){sessionStorage.removeItem(dialogueSessionKey(activeMissionId));activeDialogueSessionId=null;return}
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail?.message||data.detail||"Não foi possível recuperar o diálogo.");
+        const root=qs("#miConversation");root.innerHTML="";
+        (data.turns||[]).forEach(turn=>renderInteractiveTurn({...turn,session_id:data.id,turn_sequence:turn.sequence},{append:true}));
+        if(!(data.turns||[]).length)resetDialogueView();
+        activeDialogueSessionId=data.id;
+        qs("#miNewSession").classList.remove("hidden");
+        qs("#miMessage").value="Analisa as minhas respostas e atualiza as hipóteses, alternativas e próximo movimento. Explica concretamente o que mudou.";
+      }catch(err){console.warn("Histórico Mission Intelligence indisponível:",err)}
+    }
+
+    function resetDialogueView(){
+      qs("#miConversation").innerHTML=`<div class="mi-empty"><strong>A missão ainda não respondeu.</strong>Inicie um diagnóstico para obter perguntas, hipóteses, uma alternativa nova e um desenho de teste — não apenas um resumo.</div>`;
+      latestDialogueTurn=null;
+    }
+
+    function prepareDialogueForMission(missionId){
+      activeDialogueSessionId=sessionStorage.getItem(dialogueSessionKey(missionId));
+      resetDialogueView();
+      qs("#miNewSession").classList.toggle("hidden",!activeDialogueSessionId);
+      if(activeDialogueSessionId&&sessionStorage.getItem("sris_token")&&activeOrganizationId)loadDialogueSession(activeDialogueSessionId);
+    }
+
+    function collectMIAnswers(){
+      const last=qs("#miConversation .mi-turn:last-child");
+      if(!last)return [];
+      return qsa("[data-mi-question-id]",last).map(field=>({question_id:field.dataset.miQuestionId,answer:String(field.value||"").trim()})).filter(item=>item.answer);
+    }
+
     function updateAIControl(){
       const checkbox=qs("#analysisAI"),status=qs("#analysisAIStatus"),container=qs("#analysisMode");
-      if(!checkbox||!status||!container)return;
+      const research=qs("#analysisResearch"),researchStatus=qs("#analysisResearchStatus"),researchContainer=qs("#contextResearchMode");
+      const dialogueButton=qs("#miDialogueSubmit"),studioStatus=qs("#miStudioStatus"),miResearch=qs("#miResearch"),miResearchStatus=qs("#miResearchStatus");
+      if(!checkbox||!status||!container||!research||!researchStatus||!researchContainer)return;
       const token=sessionStorage.getItem("sris_token");
       const institutional=Boolean(token&&activeOrganizationId);
+      container.classList.toggle("hidden",!institutional);
+      researchContainer.classList.toggle("hidden",!institutional);
       const available=Boolean(
         institutional&&
         intelligenceStatus.ai_configured&&
         aiGovernanceStatus?.organization_authorized&&
-        aiGovernanceStatus?.ready
+        aiGovernanceStatus?.ready&&
+        ["owner","admin","reviewer"].includes(currentSession?.role)
       );
       checkbox.disabled=!available;
       if(!available)checkbox.checked=false;
       container.classList.toggle("is-unavailable",!available);
+      const researchAvailable=Boolean(available&&intelligenceStatus.context_research_configured);
+      research.disabled=!researchAvailable;
+      if(!researchAvailable)research.checked=false;
+      const contextRequired=mission(activeMissionId)?.analysis_requirements?.context_research?.required===true;
+      if(researchAvailable&&contextRequired&&research.dataset.userChoice!=="true"){
+        research.checked=true;
+        checkbox.checked=true;
+      }
+      researchContainer.classList.toggle("is-unavailable",!researchAvailable);
       if(!institutional){
-        status.textContent="No modo de demonstração é executado apenas o motor determinístico. A IA requer sessão institucional.";
+        status.textContent="A análise assistida só é apresentada quando existe sessão institucional e governação ativa.";
       }else if(!intelligenceStatus.ai_configured){
         status.textContent="A camada OpenAI está instalada, mas a configuração de produção ainda não está ativa.";
       }else if(!aiGovernanceStatus?.organization_authorized){
@@ -1910,28 +2747,93 @@
       }else{
         status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. A saída é provisória e exige revisão humana.`;
       }
+      if(!institutional){
+        researchStatus.textContent="A investigação contextual só é executada numa sessão institucional governada.";
+      }else if(!intelligenceStatus.context_research_configured){
+        researchStatus.textContent="O motor de pesquisa contextual está instalado, mas permanece desativado até existir configuração e orçamento explícitos.";
+      }else if(!researchAvailable){
+        researchStatus.textContent="A investigação contextual está bloqueada pela governação institucional atual.";
+      }else if(contextRequired){
+        researchStatus.textContent="Esta missão exige aprofundamento contextual. A pesquisa será incluída nesta execução e ficará pendente de revisão humana.";
+      }else{
+        researchStatus.textContent="Pesquisa web com fontes, limite de chamadas, registo de custo e revisão humana obrigatória.";
+      }
+      research.onchange=()=>{research.dataset.userChoice="true";if(research.checked)checkbox.checked=true};
+      checkbox.onchange=()=>{if(!checkbox.checked)research.checked=false};
+      if(dialogueButton&&studioStatus&&miResearch&&miResearchStatus){
+        const interactiveAvailable=Boolean(available&&intelligenceStatus.interactive_mission_intelligence==="available");
+        dialogueButton.disabled=!interactiveAvailable;
+        studioStatus.textContent=interactiveAvailable?"Diálogo disponível":institutional?"Bloqueado pela governação":"Sessão institucional necessária";
+        miResearch.disabled=!(interactiveAvailable&&intelligenceStatus.context_research_configured);
+        if(miResearch.disabled)miResearch.checked=false;
+        miResearchStatus.textContent=!interactiveAvailable
+          ? "Ative a política institucional de IA para iniciar o diálogo."
+          : intelligenceStatus.context_research_configured
+            ? "Opcional neste turno; usa pesquisa web governada e acrescenta custo."
+            : "O motor de pesquisa contextual está instalado, mas permanece desativado.";
+      }
     }
 
     async function loadSessionContext(token){
       activeOrganizationId=null;
       aiGovernanceStatus=null;
-      if(!token){updateAIControl();return}
+      currentSession=null;
+      activeDialogueSessionId=null;
+      latestDialogueTurn=null;
+      if(!token){updateAIControl();return null}
       try{
-        const res=await fetch("/api/organizations",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
-        if(!res.ok)throw new Error("Não foi possível obter a organização ativa.");
-        const organizations=await res.json();
-        activeOrganizationId=organizations?.[0]?.id||null;
+        const request={headers:{Authorization:`Bearer ${token}`},cache:"no-store"};
+        const [meResponse,organizationsResponse]=await Promise.all([
+          fetch("/api/auth/me",request),
+          fetch("/api/organizations",request)
+        ]);
+        if(!meResponse.ok)throw new Error("A sessão não é válida ou expirou.");
+        if(!organizationsResponse.ok)throw new Error("Não foi possível obter a organização ativa.");
+        const user=await meResponse.json();
+        const organizations=await organizationsResponse.json();
+        const preferredOrganizationId=sessionStorage.getItem("sris_active_organization");
+        const activeOrganization=organizations?.find(item=>item.id===preferredOrganizationId)||organizations?.find(item=>item.slug==="sris")||organizations?.[0]||null;
+        activeOrganizationId=activeOrganization?.id||null;
+        if(!activeOrganizationId){
+          throw new Error("A conta existe, mas ainda não possui uma organização institucional.");
+        }
+        currentSession={user,organization:activeOrganization,role:null};
+        sessionStorage.setItem("sris_active_organization",activeOrganizationId);
         if(activeOrganizationId){
-          const governance=await fetch(
-            `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
-            {headers:{Authorization:`Bearer ${token}`},cache:"no-store"}
-          );
+          const [governance,memberships,portfolioResponse]=await Promise.all([
+            fetch(
+              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
+              request
+            ),
+            fetch(
+              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/membership`,
+              request
+            ),
+            fetch(
+              `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`,
+              request
+            )
+          ]);
           if(governance.ok)aiGovernanceStatus=await governance.json();
+          if(memberships.ok){
+            const activeMembership=await memberships.json();
+            currentSession.role=activeMembership.role||null;
+          }
+          if(portfolioResponse.ok)mergeCanonicalMissions(await portfolioResponse.json());
+          canCreateInstitutionalMissions=["owner","admin","contributor"].includes(currentSession.role);
         }
       }catch(err){
+        activeOrganizationId=null;
+        aiGovernanceStatus=null;
+        currentSession=null;
         console.warn("Contexto institucional indisponível:",err);
+        updateAIControl();
+        throw err;
       }
       updateAIControl();
+      renderAll();
+      prepareDialogueForMission(activeMissionId);
+      return currentSession;
     }
 
     function renderEvidence(filter=activeMissionId){
@@ -1953,7 +2855,7 @@
                   ${e.limitation?`<strong>Limitação:</strong> ${esc(e.limitation)}`:""}
                 </div>`:""}
               <div class="footer">
-                <span>${esc(e.status||"")} · Confiança ${esc(e.confidence||"")}</span>
+                <span>${esc(e.status||"")} · Qualidade declarada ${esc(e.confidence||"")}</span>
                 <span>${esc(recordOrigin(e,e.missionId))}</span>
               </div>
             </article>
@@ -1995,22 +2897,114 @@
       renderEvidence(id);renderLearning(id);
     }
 
+    function canonicalParentOptions(selected="",excludeId=""){
+      const candidates=missions().filter(m=>m.server_managed&&m.canonical_id&&m.canonical_id!==excludeId&&m.lifecycle_state!=="archived");
+      return '<option value="">Sem missão-mãe</option>'+candidates.map(m=>`<option value="${esc(m.canonical_id)}" ${m.canonical_id===selected?"selected":""}>${esc(m.id)} — ${esc(m.title)}</option>`).join("");
+    }
+
+    function openMissionBuilder(parentMissionId="",editingMission=null){
+      if(!canCreateInstitutionalMissions||!activeOrganizationId){toast("A criação de missões exige uma sessão institucional com permissão de edição.");return}
+      const form=qs("#missionCreateForm");form.reset();
+      missionBuilderEditingId=editingMission?.canonical_id||null;
+      qs("#missionCreateTitle").textContent=missionBuilderEditingId?"Editar missão":"Nova missão";
+      qs("#newMissionParent").innerHTML=canonicalParentOptions(parentMissionId,missionBuilderEditingId||"");
+      qs("#newMissionKind").value=editingMission?.mission_kind||"mission";
+      qs("#newMissionDomain").value=editingMission?.domain||"cross_domain";
+      qs("#newMissionPriority").value=editingMission?.priority||"strategic";
+      qs("#newMissionTitle").value=editingMission?.title||"";
+      qs("#newMissionObjective").value=editingMission?.objective||editingMission?.subtitle||"";
+      qs("#newMissionContext").value=editingMission?.analysis?.context||"";
+      qs("#newMissionQuestion").value=editingMission?.analysis?.central_question||"";
+      qs("#newMissionHorizon").value=editingMission?.horizon||"";
+      qs("#newMissionStakeholders").value=(editingMission?.stakeholders||[]).join(", ");
+      qs("#newMissionChangeNoteField").classList.toggle("hidden",!missionBuilderEditingId);
+      qs("#newMissionChangeNote").required=Boolean(missionBuilderEditingId);
+      qs("#missionCreateSubmit").textContent=missionBuilderEditingId?"Guardar revisão":"Criar missão";
+      qs("#missionCreateError").textContent="";
+      qs("#missionCreateModal").classList.remove("hidden");
+      qs("#missionCreateModal").setAttribute("aria-hidden","false");
+      document.body.style.overflow="hidden";
+      setTimeout(()=>qs("#newMissionTitle").focus(),20);
+    }
+
+    function closeMissionBuilder(){
+      qs("#missionCreateModal").classList.add("hidden");
+      qs("#missionCreateModal").setAttribute("aria-hidden","true");
+      qs("#missionCreateError").textContent="";
+      missionBuilderEditingId=null;
+      document.body.style.overflow="";
+    }
+
+    async function submitMissionCreation(){
+      const token=sessionStorage.getItem("sris_token"),button=qs("#missionCreateSubmit");
+      const stakeholders=qs("#newMissionStakeholders").value.split(",").map(value=>value.trim()).filter(Boolean);
+      const payload={
+        title:qs("#newMissionTitle").value.trim(),
+        mission_kind:qs("#newMissionKind").value,
+        parent_mission_id:qs("#newMissionParent").value||null,
+        domain:qs("#newMissionDomain").value,
+        priority:qs("#newMissionPriority").value,
+        objective:qs("#newMissionObjective").value.trim(),
+        context:qs("#newMissionContext").value.trim(),
+        central_question:qs("#newMissionQuestion").value.trim(),
+        horizon:qs("#newMissionHorizon").value.trim(),
+        stakeholders
+      };
+      const editing=missionBuilderEditingId?missions().find(m=>m.canonical_id===missionBuilderEditingId):null;
+      if(editing){
+        payload.expected_revision=editing.revision;
+        payload.change_note=qs("#newMissionChangeNote").value.trim();
+        if(!payload.parent_mission_id){delete payload.parent_mission_id;payload.clear_parent=true}
+      }
+      button.disabled=true;button.textContent=editing?"A guardar revisão…":"A criar missão…";
+      qs("#missionCreateError").textContent="";
+      try{
+        const endpoint=editing
+          ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(editing.canonical_id)}`
+          : `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`;
+        const res=await fetch(endpoint,{
+          method:editing?"PATCH":"POST",
+          headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
+          body:JSON.stringify(payload)
+        });
+        const data=await res.json();
+        if(!res.ok){
+          const detail=data.detail, message=typeof detail==="string"?detail:detail?.message||"Não foi possível criar a missão.";
+          throw new Error(message);
+        }
+        const normalized=normalizeCanonicalMission(data);
+        config.missions[normalized.id]=normalized;
+        institutionalMissionCodes.add(normalized.id);
+        activeMissionId=normalized.id;sessionStorage.setItem(ACTIVE_KEY,activeMissionId);
+        closeMissionBuilder();
+        renderAll();fillWorkspace(activeMissionId);navigate("workspace");
+        toast(editing?`${data.code} atualizada na revisão ${data.revision}.`:`${data.code} criada e ligada ao portefólio institucional.`);
+      }catch(err){qs("#missionCreateError").textContent=err.message||"Não foi possível guardar a missão."}
+      finally{button.disabled=false;button.textContent=editing?"Guardar revisão":"Criar missão"}
+    }
+
     function openMission(id){
       const m=config.missions?.[id];if(!m)return;
       modalMissionId=id;
-      qs("#missionModalEyebrow").textContent=`Missão ${m.id}`;
+      qs("#missionModalEyebrow").textContent=`${m.mission_kind==="program"?"Programa":"Missão"} ${m.id}`;
       qs("#missionModalTitle").textContent=m.title;
       qs("#missionModalSubtitle").textContent=m.subtitle||"";
+      const parent=m.parent_id?config.missions?.[m.parent_id]:null;
       qs("#missionModalContent").innerHTML=`
         <div class="modal-status">
           <article><span>Estado</span><strong>${esc(m.status)}</strong></article>
-          <article><span>Confiança</span><strong>${esc(m.confidence)}</strong></article>
-          <article><span>Decisão</span><strong>${esc(m.decision)}</strong></article>
+          <article><span>Fundamentação declarada</span><strong>${esc(m.confidence)}</strong></article>
+          <article><span>Hierarquia</span><strong>${parent?`${esc(parent.id)} · ${esc(parent.title)}`:m.mission_kind==="program"?"Programa-raiz":"Missão autónoma"}</strong></article>
         </div>
+        <section class="modal-section"><h3>Limite de leitura</h3><p>${esc(m.method_notice||"Os registos representam o estado declarado da missão e não uma validação externa.")}</p></section>
         <section class="modal-section"><h3>Contexto</h3><p>${esc(m.analysis?.context||"")}</p></section>
         <section class="modal-section"><h3>Questão central</h3><p>${esc(m.analysis?.central_question||"")}</p></section>
         <section class="modal-section"><h3>Próxima decisão</h3><p>${esc(m.analysis?.result?.next_decision||m.decision||"")}</p></section>
       `;
+      const childButton=qs("#missionModalCreateChild");
+      const editButton=qs("#missionModalEdit");
+      childButton.classList.toggle("hidden",!(canCreateInstitutionalMissions&&m.server_managed));
+      editButton.classList.toggle("hidden",!(canCreateInstitutionalMissions&&m.server_managed));
       qs("#missionModal").classList.remove("hidden");
       qs("#missionModal").setAttribute("aria-hidden","false");
       document.body.style.overflow="hidden";
@@ -2044,6 +3038,116 @@
       document.body.style.overflow="";
     }
 
+    async function submitRunReview(decision,button){
+      const panel=button.closest("[data-run-review]");
+      const runId=panel?.dataset.runReview;
+      const token=sessionStorage.getItem("sris_token");
+      const comment=panel?.querySelector("#runReviewComment")?.value.trim()||"";
+      if(!runId||!token||!activeOrganizationId){toast("A revisão exige uma sessão institucional ativa.");return}
+      if(comment.length<3){toast("Registe um comentário de revisão antes de continuar.");return}
+      const buttons=qsa("[data-review-decision]",panel);
+      buttons.forEach(item=>item.disabled=true);
+      try{
+        const res=await fetch(
+          `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/runs/${encodeURIComponent(runId)}/review`,
+          {
+            method:"POST",
+            headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
+            body:JSON.stringify({decision,comment})
+          }
+        );
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail||"Não foi possível concluir a revisão.");
+        panel.innerHTML=`
+          <strong>Revisão humana da execução</strong>
+          <p>Esta revisão incidiu sobre o relatório, não sobre a seleção de uma alternativa.</p>
+          <div class="run-review-status">${data.review_status==="approved"?"Relatório aceite como revisto.":"Relatório rejeitado na revisão."}</div>
+        `;
+        toast("Revisão registada no histórico de auditoria.");
+      }catch(err){
+        buttons.forEach(item=>item.disabled=false);
+        toast(err.message||"Não foi possível concluir a revisão.");
+      }
+    }
+
+    async function submitMIProposalReview(decision,button){
+      const reviewRoot=button.closest("[data-mi-proposal]");
+      const turnRoot=button.closest("[data-mi-turn-id]");
+      const proposalId=reviewRoot?.dataset.miProposal,turnId=turnRoot?.dataset.miTurnId;
+      const comment=reviewRoot?.querySelector("[data-mi-review-comment]")?.value.trim()||"";
+      const token=sessionStorage.getItem("sris_token");
+      if(!proposalId||!turnId||!activeDialogueSessionId||!activeOrganizationId||!token){toast("A revisão da proposta exige uma sessão institucional ativa.");return}
+      if(comment.length<3){toast("Registe um comentário antes de rever a proposta.");return}
+      const buttons=qsa("[data-mi-review]",reviewRoot);buttons.forEach(item=>item.disabled=true);
+      try{
+        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(activeDialogueSessionId)}/turns/${encodeURIComponent(turnId)}/proposals/${encodeURIComponent(proposalId)}/review`,{
+          method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({decision,comment})
+        });
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail?.message||data.detail||"Não foi possível rever a proposta.");
+        const labels={accepted_as_draft:"Aceite como rascunho",rejected:"Rejeitada",deferred:"Adiada"};
+        reviewRoot.innerHTML=`<div class="mi-review-state">${esc(labels[data.decision]||data.decision)} · sem efeito no registo canónico<br><span>${esc(data.comment||"")}</span></div>`;
+        toast("Revisão da proposta registada. A missão canónica não foi alterada.");
+      }catch(err){buttons.forEach(item=>item.disabled=false);toast(err.message||"Não foi possível rever a proposta.")}
+    }
+
+    async function submitMIDialogue(){
+      const m=mission(activeMissionId),token=sessionStorage.getItem("sris_token");
+      const button=qs("#miDialogueSubmit"),message=qs("#miMessage").value.trim();
+      if(!m||m.local_only){toast("Esta missão ainda não está disponível no registo canónico do servidor.");return}
+      if(!token||!activeOrganizationId){toast("Mission Intelligence exige uma sessão institucional ativa.");return}
+      if(!message){toast("Indique o que pretende trabalhar neste turno.");return}
+      const answers=collectMIAnswers();
+      const intent=answers.length&&activeDialogueIntent==="diagnose"?"answer":activeDialogueIntent;
+      const payload={
+        session_id:activeDialogueSessionId,
+        intent,
+        message,
+        answers,
+        research_context:qs("#miResearch").checked,
+        mission_input:{
+          title:qs("#analysisTitle").value.trim(),
+          context:qs("#analysisContext").value.trim(),
+          central_question:qs("#analysisQuestion").value.trim(),
+          available_evidence:qs("#analysisEvidence").value.trim(),
+          unknowns:qs("#analysisUnknowns").value.trim(),
+          use_ai:false,
+          research_context:false
+        }
+      };
+      button.disabled=true;button.textContent=payload.research_context?"A investigar e raciocinar…":"A raciocinar com a missão…";
+      try{
+        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/interact`,{
+          method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(payload)
+        });
+        const data=await res.json();
+        if(!res.ok){
+          const code=data.detail?.code;
+          if(["mission_snapshot_changed","dialogue_input_changed","session_not_found","session_not_active"].includes(code)){
+            sessionStorage.removeItem(dialogueSessionKey(m.id));
+            activeDialogueSessionId=null;
+            latestDialogueTurn=null;
+            qs("#miNewSession").classList.add("hidden");
+          }
+          throw new Error(data.detail?.message||data.detail||"Não foi possível executar o diálogo inteligente.");
+        }
+        data.user_message=message;
+        renderInteractiveTurn(data,{append:true});
+        if(data.ai_status==="completed"){
+          activeDialogueSessionId=data.session_id;
+          sessionStorage.setItem(dialogueSessionKey(m.id),data.session_id);
+          qs("#miNewSession").classList.remove("hidden");
+          qs("#miMessage").value=(data.intelligence?.questions||[]).length
+            ? "Analisa as minhas respostas, atualiza o diagnóstico e diz concretamente o que mudou na decisão."
+            : "Aprofunda o próximo movimento e transforma-o numa sequência operacional verificável.";
+          if(activeDialogueIntent==="diagnose")activeDialogueIntent="answer";
+          qsa(".mi-intent").forEach(item=>item.classList.toggle("is-active",item.dataset.miIntent===activeDialogueIntent));
+        }
+        await loadSessionContext(token);
+      }catch(err){toast(err.message||"Não foi possível executar o diálogo inteligente.")}
+      finally{updateAIControl();button.textContent=activeDialogueSessionId?"Continuar Mission Intelligence":"Iniciar Mission Intelligence"}
+    }
+
     function renderAll(){
       renderSituation();
       renderMissions();
@@ -2052,20 +3156,57 @@
       renderLearning(activeMissionId);
     }
 
-    function openApp(name="Gonçalo Saldanha"){
+    function displayInitials(name){
+      const parts=String(name||"SRIS").trim().split(/\s+/).filter(Boolean);
+      return (parts.length>1?parts[0][0]+parts.at(-1)[0]:parts[0]?.slice(0,2)||"SR").toUpperCase();
+    }
+
+    function roleLabel(role){
+      return ({owner:"Proprietário",admin:"Administrador",reviewer:"Revisor",contributor:"Contribuidor",observer:"Observador"})[role]||"Utilizador";
+    }
+
+    function openApp(session={mode:"demo"}){
+      const institutional=session.mode==="institutional";
+      const name=institutional
+        ? session.user?.full_name||"Utilizador institucional"
+        : "Demonstração pública";
+      const kind=institutional
+        ? `Sessão institucional · ${roleLabel(session.role)} · ${session.organization?.name||"organização ativa"}`
+        : "Sem sessão institucional";
       qs("#loginScreen").classList.add("hidden");
       qs("#appScreen").classList.remove("hidden");
       qs("#userName").textContent=name;
+      qs("#sessionKind").textContent=kind;
+      qs("#userAvatar").textContent=displayInitials(name);
+      const canManageUsers=institutional&&["owner","admin"].includes(session.role);
+      canCreateInstitutionalMissions=institutional&&["owner","admin","contributor"].includes(session.role);
+      qs("#usersLink").classList.toggle("hidden",!canManageUsers);
+      qs("#administrationLabel").classList.toggle("hidden",!canManageUsers);
+      qs("#newMissionButton").classList.toggle("hidden",!canCreateInstitutionalMissions);
+      qs("#newMissionHeroButton").classList.toggle("hidden",!canCreateInstitutionalMissions);
       updateAIControl();
       setTimeout(()=>navigate("overview",{scroll:false}),0);
     }
 
     // Navigation
     document.addEventListener("click",(event)=>{
+      const miReview=event.target.closest("[data-mi-review]");
+      if(miReview){submitMIProposalReview(miReview.dataset.miReview,miReview);return}
+
+      const miIntent=event.target.closest("[data-mi-intent]");
+      if(miIntent){
+        activeDialogueIntent=miIntent.dataset.miIntent;
+        qsa(".mi-intent").forEach(item=>item.classList.toggle("is-active",item===miIntent));
+        return;
+      }
+
+      const review=event.target.closest("[data-review-decision]");
+      if(review){submitRunReview(review.dataset.reviewDecision,review);return}
+
       const go=event.target.closest("[data-go]");
       if(go){navigate(go.dataset.go);return}
 
-      const nav=event.target.closest(".nav-item");
+      const nav=event.target.closest(".nav-item[data-page]");
       if(nav){navigate(nav.dataset.page);return}
 
       const open=event.target.closest(".mission-open");
@@ -2079,7 +3220,27 @@
     });
 
     document.addEventListener("keydown",(event)=>{
-      if(event.key==="Escape"){closeMission();closeLightbox()}
+      if(event.key==="Escape"){closeMission();closeMissionBuilder();closeLightbox()}
+    });
+
+    qs("#newMissionButton").addEventListener("click",()=>openMissionBuilder());
+    qs("#newMissionHeroButton").addEventListener("click",()=>openMissionBuilder());
+    qs("#missionModalCreateChild").addEventListener("click",()=>{
+      const parent=config.missions?.[modalMissionId];
+      if(!parent?.canonical_id)return;
+      closeMission();openMissionBuilder(parent.canonical_id);
+    });
+    qs("#missionModalEdit").addEventListener("click",()=>{
+      const current=config.missions?.[modalMissionId];
+      if(!current?.canonical_id)return;
+      closeMission();openMissionBuilder(current.parent_mission_id||"",current);
+    });
+    qsa(".mission-create-close").forEach(button=>button.addEventListener("click",closeMissionBuilder));
+    qs("#missionCreateModal").addEventListener("click",event=>{
+      if(event.target.id==="missionCreateModal")closeMissionBuilder();
+    });
+    qs("#missionCreateForm").addEventListener("submit",async event=>{
+      event.preventDefault();await submitMissionCreation();
     });
 
     qs("#situationMission").addEventListener("change",e=>setActiveMission(e.target.value));
@@ -2087,14 +3248,33 @@
     qs("#evidenceMission").addEventListener("change",e=>renderEvidence(e.target.value));
     qs("#learningMission").addEventListener("change",e=>renderLearning(e.target.value));
 
+    qs("#miDialogueForm").addEventListener("submit",async event=>{
+      event.preventDefault();
+      await submitMIDialogue();
+    });
+
+    qs("#miNewSession").addEventListener("click",()=>{
+      sessionStorage.removeItem(dialogueSessionKey(activeMissionId));
+      activeDialogueSessionId=null;
+      latestDialogueTurn=null;
+      activeDialogueIntent="diagnose";
+      qsa(".mi-intent").forEach(item=>item.classList.toggle("is-active",item.dataset.miIntent==="diagnose"));
+      qs("#miMessage").value="Interage com esta missão: identifica o ponto cego principal, coloca as perguntas que podem mudar a decisão, formula hipóteses testáveis, propõe pelo menos uma alternativa verdadeiramente nova e desenha a forma mais curta de reduzir a incerteza relevante.";
+      qs("#miNewSession").classList.add("hidden");
+      resetDialogueView();
+      updateAIControl();
+      toast("Nova sessão preparada. O histórico anterior continua preservado no SRIS.");
+    });
+
     qs("#analysisForm").addEventListener("submit",async e=>{
       e.preventDefault();
       const m=mission(qs("#analysisMission").value);
       if(!m)return;
+      if(m.local_only){toast("A visualização importada ainda não contém registos canónicos no servidor.");return}
       const button=qs("#analysisSubmit"),token=sessionStorage.getItem("sris_token");
       const institutional=Boolean(token&&activeOrganizationId);
       const endpoint=institutional
-        ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/demo/${encodeURIComponent(m.id)}/analyze`
+        ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/analyze`
         : `/api/mission-intelligence/demo/missions/${encodeURIComponent(m.id)}/analyze`;
       const payload={
         title:qs("#analysisTitle").value.trim(),
@@ -2102,9 +3282,10 @@
         central_question:qs("#analysisQuestion").value.trim(),
         available_evidence:qs("#analysisEvidence").value.trim(),
         unknowns:qs("#analysisUnknowns").value.trim(),
-        use_ai:institutional&&qs("#analysisAI").checked
+        use_ai:institutional&&qs("#analysisAI").checked,
+        research_context:institutional&&qs("#analysisResearch").checked
       };
-      button.disabled=true;button.textContent="A analisar…";
+      button.disabled=true;button.textContent=payload.research_context?"A investigar a envolvente…":"A analisar…";
       try{
         const headers={"Content-Type":"application/json"};
         if(institutional)headers.Authorization=`Bearer ${token}`;
@@ -2119,7 +3300,7 @@
       }catch(err){
         toast(err.message||"Não foi possível executar Mission Intelligence.");
       }finally{
-        button.disabled=false;button.textContent="Executar Mission Intelligence";
+        button.disabled=false;button.textContent="Executar auditoria da missão";
       }
     });
 
@@ -2150,9 +3331,16 @@
 
     // Login / demo
     qs("#demoButton").addEventListener("click",()=>{
+      clearInstitutionalMissions();
       activeOrganizationId=null;
       aiGovernanceStatus=null;
-      sessionStorage.setItem("sris_demo","true");openApp();
+      currentSession=null;
+      activeDialogueSessionId=null;
+      latestDialogueTurn=null;
+      sessionStorage.removeItem("sris_token");
+      activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
+      renderAll();
+      sessionStorage.setItem("sris_demo","true");openApp({mode:"demo"});
     });
 
     qs("#logoutButton").addEventListener("click",()=>{
@@ -2160,8 +3348,18 @@
       sessionStorage.removeItem("sris_token");
       activeOrganizationId=null;
       aiGovernanceStatus=null;
+      currentSession=null;
+      activeDialogueSessionId=null;
+      latestDialogueTurn=null;
+      clearInstitutionalMissions();
+      activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
+      qs("#usersLink").classList.add("hidden");
+      qs("#administrationLabel").classList.add("hidden");
+      qs("#newMissionButton").classList.add("hidden");
+      qs("#newMissionHeroButton").classList.add("hidden");
       qs("#appScreen").classList.add("hidden");
       qs("#loginScreen").classList.remove("hidden");
+      renderAll();
       updateAIControl();
     });
 
@@ -2182,21 +3380,33 @@
             ?"Email ou palavra-passe incorretos."
             :detail||"Não foi possível autenticar.");
         }
-        sessionStorage.setItem("sris_token",data.access_token||"");
+        const token=data.access_token||"";
+        sessionStorage.setItem("sris_token",token);
         sessionStorage.removeItem("sris_demo");
-        await loadSessionContext(data.access_token||"");
+        const session=await loadSessionContext(token);
         qs("#loginMessage").textContent="";
-        openApp(email.split("@")[0]||"Utilizador");
+        openApp({mode:"institutional",...session});
       }catch(err){
+        sessionStorage.removeItem("sris_token");
         qs("#loginMessage").textContent=err.message||"Erro de autenticação.";
       }
     });
 
-    const storedToken=sessionStorage.getItem("sris_token");
-    if(sessionStorage.getItem("sris_demo")==="true")openApp();
-    else if(storedToken){openApp();loadSessionContext(storedToken)}
-
-    loadConfig();
+    async function boot(){
+      await loadConfig();
+      const storedToken=sessionStorage.getItem("sris_token");
+      if(sessionStorage.getItem("sris_demo")==="true")openApp({mode:"demo"});
+      else if(storedToken){
+        try{
+          const session=await loadSessionContext(storedToken);
+          openApp({mode:"institutional",...session});
+        }catch(err){
+          sessionStorage.removeItem("sris_token");
+          qs("#loginMessage").textContent=err.message||"A sessão guardada deixou de ser válida.";
+        }
+      }
+    }
+    boot();
   })();
   </script>
 </body>

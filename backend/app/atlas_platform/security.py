@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 from .config import settings
 
@@ -19,15 +19,21 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     try:
         return password_hasher.verify(password_hash, password)
-    except VerifyMismatchError:
+    except (InvalidHashError, VerificationError, VerifyMismatchError):
         return False
 
 
-def create_access_token(*, user_id: str, organization_id: str | None = None) -> str:
+def create_access_token(
+    *,
+    user_id: str,
+    organization_id: str | None = None,
+    auth_version: int = 1,
+) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
         "org": organization_id,
+        "ver": auth_version,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=settings.access_token_minutes)).timestamp()),
     }

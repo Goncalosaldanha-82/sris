@@ -25,6 +25,19 @@ Do not onboard confidential client data until every item below has an owner, evi
 - RPO and RTO agreed with the client.
 - Application, database and queue monitoring active.
 
+## Public URL continuity
+- `https://sris-production.up.railway.app` is the canonical public URL already
+  submitted in the Crédito Agrícola award application and must remain live
+  throughout the evaluation period.
+- `https://sris-staging.up.railway.app` is an independent validation environment;
+  creating or updating it must never rename, replace or delete the production
+  service/domain.
+- Every staging checkpoint must verify `GET /` and `GET /health` on both domains
+  and record the HTTP status before any production promotion.
+- If a future domain migration is unavoidable, the existing production domain
+  must first receive a tested redirect or proxy to the new canonical endpoint;
+  an application document must never be left pointing to a dead URL.
+
 ## Privacy and governance
 - Data inventory and retention schedule approved.
 - DPIA completed when required.

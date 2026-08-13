@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Conta institucional · SRIS</title>
+  <style>
+    :root{
+      --forest:#173f2f;--forest-deep:#0d281e;--gold:#b18a3b;--paper:#f6f4ed;
+      --white:#fff;--ink:#17231d;--muted:#66736c;--line:#d9ddd7;--red:#973e37;
+      --shadow:0 30px 90px rgba(8,30,21,.18);--serif:Georgia,"Times New Roman",serif;
+      --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif
+    }
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font:15px/1.55 var(--sans)}
+    body{display:grid;grid-template-columns:minmax(280px,.82fr) minmax(420px,1.18fr)}
+    .context{min-height:100vh;padding:54px clamp(28px,5vw,76px);display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(150deg,var(--forest-deep),var(--forest));color:#f4f0e6}
+    .brand{display:flex;align-items:center;gap:14px}.mark{width:47px;height:47px;border:1px solid #ffffff55;border-radius:50%;display:grid;place-items:center;font:700 18px var(--serif)}
+    .brand strong{display:block;font:700 21px var(--serif);letter-spacing:.08em}.brand span{display:block;color:#b9c8c0;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+    .context-copy{max-width:560px}.eyebrow{color:#d7bd82;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}.context h1{margin:18px 0 16px;font:400 clamp(38px,5vw,66px)/1.02 var(--serif)}
+    .context p{max-width:520px;color:#c9d4ce;font-size:16px}.boundary{padding-top:24px;border-top:1px solid #ffffff29;color:#aebfb6;font-size:12px}
+    .surface{min-height:100vh;display:grid;place-items:center;padding:34px}.card{width:min(570px,100%);background:var(--white);padding:clamp(28px,5vw,54px);box-shadow:var(--shadow);border-top:4px solid var(--gold)}
+    h2{margin:10px 0 9px;font:400 38px/1.08 var(--serif)}.intro{margin:0 0 26px;color:var(--muted)}
+    .field{margin:17px 0}.field label{display:block;margin-bottom:6px;font-size:12px;font-weight:750}.field input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:3px;background:#fff;color:var(--ink);font:inherit}.field input:focus{outline:3px solid #b18a3b2c;border-color:var(--gold)}
+    .summary{margin:18px 0;padding:16px;background:#f0f3ef;border-left:3px solid var(--forest)}.summary strong,.summary span{display:block}.summary span{margin-top:4px;color:var(--muted);font-size:12px}
+    button,.button{display:inline-flex;align-items:center;justify-content:center;width:100%;min-height:46px;padding:11px 18px;border:1px solid var(--forest);border-radius:3px;background:var(--forest);color:#fff;font:750 13px var(--sans);text-decoration:none;cursor:pointer}
+    button:hover,.button:hover{background:var(--forest-deep)}button:disabled{opacity:.6;cursor:wait}.secondary{margin-top:10px;background:#fff;color:var(--forest)}.secondary:hover{background:#eef2ef}
+    .message{min-height:22px;margin-top:16px;color:var(--muted);font-size:13px}.message.error{color:var(--red)}.message.success{padding:14px;background:#edf5ef;color:#285c42}
+    .note{margin-top:22px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}.hidden{display:none!important}
+    @media(max-width:850px){body{display:block}.context{min-height:auto;padding:30px}.context-copy{display:none}.boundary{margin-top:30px}.surface{min-height:auto;padding:22px}.card{padding:30px 24px}}
+  </style>
+</head>
+<body>
+  <aside class="context">
+    <div class="brand">
+      <div class="mark">SR</div>
+      <div><strong>SRIS</strong><span>Strategic Resilience &amp; Intelligence System</span></div>
+    </div>
+    <div class="context-copy">
+      <div class="eyebrow">Identidade institucional</div>
+      <h1>Acesso controlado, responsabilidade identificada.</h1>
+      <p>Cada conta pertence a uma pessoa e cada permissão pertence a uma organização. Os convites e as recuperações expiram, são pessoais e só podem ser usados uma vez.</p>
+    </div>
+    <div class="boundary">O SRIS não permite criação pública indiscriminada de organizações. Novas contas institucionais são ativadas por convite.</div>
+  </aside>
+
+  <main class="surface">
+    <section class="card">
+      <div id="requestView" class="hidden">
+        <div class="eyebrow">Recuperação de acesso</div>
+        <h2>Esqueceu-se da palavra-passe?</h2>
+        <p class="intro">Introduza o email da conta. Se estiver ativo, receberá um link temporário.</p>
+        <form id="requestForm">
+          <div class="field">
+            <label for="requestEmail">Email</label>
+            <input id="requestEmail" type="email" autocomplete="email" required placeholder="nome@organizacao.pt" />
+          </div>
+          <button id="requestSubmit" type="submit">Enviar instruções</button>
+        </form>
+        <div id="requestMessage" class="message" aria-live="polite"></div>
+        <a class="button secondary" href="/">Voltar ao início de sessão</a>
+      </div>
+
+      <div id="inviteView" class="hidden">
+        <div class="eyebrow">Convite institucional</div>
+        <h2>Ativar acesso ao SRIS</h2>
+        <p id="inviteIntro" class="intro">A validar o convite…</p>
+        <div id="inviteSummary" class="summary hidden"></div>
+        <form id="inviteForm" class="hidden">
+          <div id="inviteNameField" class="field">
+            <label for="inviteName">Nome completo</label>
+            <input id="inviteName" type="text" autocomplete="name" minlength="2" maxlength="200" required />
+          </div>
+          <div class="field">
+            <label id="invitePasswordLabel" for="invitePassword">Criar palavra-passe</label>
+            <input id="invitePassword" type="password" autocomplete="new-password" minlength="12" maxlength="200" required />
+          </div>
+          <div id="inviteConfirmationField" class="field">
+            <label for="inviteConfirmation">Confirmar palavra-passe</label>
+            <input id="inviteConfirmation" type="password" autocomplete="new-password" minlength="12" maxlength="200" required />
+          </div>
+          <button type="submit">Ativar conta</button>
+        </form>
+        <div id="inviteMessage" class="message" aria-live="polite"></div>
+        <a class="button secondary" href="/">Voltar ao início de sessão</a>
+      </div>
+
+      <div id="resetView" class="hidden">
+        <div class="eyebrow">Nova palavra-passe</div>
+        <h2>Recuperar a conta</h2>
+        <p class="intro">Defina uma palavra-passe nova, com pelo menos 12 caracteres.</p>
+        <form id="resetForm">
+          <div class="field">
+            <label for="resetPassword">Nova palavra-passe</label>
+            <input id="resetPassword" type="password" autocomplete="new-password" minlength="12" maxlength="200" required />
+          </div>
+          <div class="field">
+            <label for="resetConfirmation">Confirmar nova palavra-passe</label>
+            <input id="resetConfirmation" type="password" autocomplete="new-password" minlength="12" maxlength="200" required />
+          </div>
+          <button type="submit">Guardar nova palavra-passe</button>
+        </form>
+        <div id="resetMessage" class="message" aria-live="polite"></div>
+        <a class="button secondary" href="/">Voltar ao início de sessão</a>
+      </div>
+
+      <div class="note">Nunca envie a palavra-passe nem o link pessoal a terceiros. A equipa SRIS não solicita palavras-passe por email ou telefone.</div>
+    </section>
+  </main>
+
+  <script>
+  (()=>{
+    "use strict";
+    const $=selector=>document.querySelector(selector);
+    const roleLabels={admin:"Administrador",reviewer:"Revisor",contributor:"Colaborador",observer:"Observador"};
+    let invitationToken="";
+    let resetToken="";
+    let invitationDetails=null;
+
+    function show(view){["requestView","inviteView","resetView"].forEach(id=>$("#"+id).classList.toggle("hidden",id!==view))}
+    function message(target,text,type=""){
+      const node=$(target);node.textContent=text;node.className=`message ${type}`.trim();
+    }
+    async function jsonRequest(url,options={}){
+      const response=await fetch(url,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.detail||"Não foi possível concluir o pedido.");
+      return data;
+    }
+    function readSecretFragment(){
+      const params=new URLSearchParams(location.hash.replace(/^#/,""));
+      invitationToken=params.get("invite")||"";
+      resetToken=params.get("reset")||"";
+      if(location.hash)history.replaceState(null,"",location.pathname+location.search);
+    }
+    async function loadInvitation(){
+      show("inviteView");
+      try{
+        invitationDetails=await jsonRequest("/api/auth/invitations/inspect",{
+          method:"POST",body:JSON.stringify({token:invitationToken})
+        });
+        $("#inviteIntro").textContent=invitationDetails.existing_account
+          ? "A conta já existe. Confirme a sua palavra-passe atual para aceitar esta nova associação."
+          : "Confirme os dados e crie a palavra-passe da sua conta institucional.";
+        const summary=$("#inviteSummary");
+        summary.innerHTML="";
+        const title=document.createElement("strong");
+        title.textContent=invitationDetails.organization_name;
+        const detail=document.createElement("span");
+        detail.textContent=`${invitationDetails.email} · ${roleLabels[invitationDetails.role]||invitationDetails.role}`;
+        summary.append(title,detail);summary.classList.remove("hidden");
+        $("#inviteName").value=invitationDetails.full_name||"";
+        $("#inviteNameField").classList.toggle("hidden",invitationDetails.existing_account);
+        $("#inviteName").required=!invitationDetails.existing_account;
+        $("#invitePasswordLabel").textContent=invitationDetails.existing_account?"Palavra-passe atual":"Criar palavra-passe";
+        $("#invitePassword").autocomplete=invitationDetails.existing_account?"current-password":"new-password";
+        $("#inviteConfirmationField").classList.toggle("hidden",invitationDetails.existing_account);
+        $("#inviteConfirmation").required=!invitationDetails.existing_account;
+        $("#inviteForm").classList.remove("hidden");
+      }catch(error){
+        $("#inviteIntro").textContent="Não foi possível validar este convite.";
+        message("#inviteMessage",error.message,"error");
+      }
+    }
+
+    async function loadCapabilities(){
+      if(invitationToken||resetToken)return;
+      try{
+        const response=await fetch("/api/auth/capabilities",{cache:"no-store"});
+        if(!response.ok)return;
+        const capabilities=await response.json();
+        if(!capabilities.password_reset_enabled){
+          $("#requestSubmit").disabled=true;
+          message("#requestMessage","A recuperação por email ainda não está configurada neste ambiente. Contacte o administrador da organização.","error");
+        }
+      }catch{}
+    }
+
+    $("#requestForm").addEventListener("submit",async event=>{
+      event.preventDefault();const button=event.submitter;button.disabled=true;
+      message("#requestMessage","A processar…");
+      try{
+        const data=await jsonRequest("/api/auth/password-reset/request",{
+          method:"POST",body:JSON.stringify({email:$("#requestEmail").value.trim()})
+        });
+        $("#requestForm").reset();
+        message("#requestMessage",data.message||"Se a conta existir, receberá instruções por email.","success");
+      }catch(error){message("#requestMessage",error.message,"error")}
+      finally{button.disabled=false}
+    });
+
+    $("#inviteForm").addEventListener("submit",async event=>{
+      event.preventDefault();const button=event.submitter;button.disabled=true;
+      const password=$("#invitePassword").value;
+      if(!invitationDetails?.existing_account&&password!==$("#inviteConfirmation").value){
+        message("#inviteMessage","As duas palavras-passe não coincidem.","error");button.disabled=false;return;
+      }
+      message("#inviteMessage","A ativar a conta…");
+      try{
+        const data=await jsonRequest("/api/auth/invitations/accept",{
+          method:"POST",
+          body:JSON.stringify({token:invitationToken,password,full_name:invitationDetails?.existing_account?null:$("#inviteName").value.trim()})
+        });
+        invitationToken="";sessionStorage.setItem("sris_token",data.access_token);sessionStorage.setItem("sris_active_organization",data.organization_id);sessionStorage.removeItem("sris_demo");
+        message("#inviteMessage","Conta ativada. A abrir a sessão institucional…","success");
+        setTimeout(()=>location.replace("/"),700);
+      }catch(error){message("#inviteMessage",error.message,"error");button.disabled=false}
+    });
+
+    $("#resetForm").addEventListener("submit",async event=>{
+      event.preventDefault();const button=event.submitter;button.disabled=true;
+      const password=$("#resetPassword").value;
+      if(password!==$("#resetConfirmation").value){
+        message("#resetMessage","As duas palavras-passe não coincidem.","error");button.disabled=false;return;
+      }
+      message("#resetMessage","A guardar…");
+      try{
+        await jsonRequest("/api/auth/password-reset/confirm",{
+          method:"POST",body:JSON.stringify({token:resetToken,new_password:password})
+        });
+        resetToken="";$("#resetForm").classList.add("hidden");
+        message("#resetMessage","Palavra-passe alterada. As sessões anteriores foram encerradas. Já pode entrar no SRIS.","success");
+      }catch(error){message("#resetMessage",error.message,"error");button.disabled=false}
+    });
+
+    readSecretFragment();
+    if(invitationToken)loadInvitation();
+    else if(resetToken)show("resetView");
+    else{show("requestView");loadCapabilities()}
+  })();
+  </script>
+</body>
+</html>

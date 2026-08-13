@@ -1,16 +1,106 @@
 {
   "schema": "sris_mission_catalog",
   "schema_version": "1.3",
-  "catalog_version": "2026-08-08",
+  "catalog_version": "2026-08-13",
   "missions": {
+    "P-001": {
+      "id": "P-001",
+      "title": "Penela Vivo 2035",
+      "subtitle": "Programa territorial para antecipar risco, regenerar sistemas vivos e reforçar a capacidade coletiva.",
+      "meta": "Programa de missões · território, clima, água, património e bem-estar",
+      "status": "Programa em estruturação",
+      "confidence": "Por avaliar",
+      "decision": "Arquitetura de missões aberta",
+      "mission_kind": "program",
+      "domain": "territorial_resilience",
+      "priority": "critical",
+      "featured_rank": 0,
+      "children": ["M-002", "M-001", "M-003", "M-004"],
+      "method_notice": "Programa demonstrativo. Organiza missões relacionadas sem declarar compromissos institucionais, execução ou impactos que ainda não foram medidos.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "context_research": {
+          "required": true,
+          "reason": "A governação de um programa territorial exige integrar risco, ecologia, água, património, saúde, economia e capacidade institucional."
+        }
+      },
+      "situation": {
+        "summary": "Um território não enfrenta incêndios, escassez de água, perda de biodiversidade, vulnerabilidade social e pressão económica como problemas isolados. O programa transforma esse sistema de riscos num portefólio governável de missões ligadas, cada uma com pergunta, evidência, decisão, responsáveis e aprendizagem próprios.",
+        "attention": [
+          {
+            "title": "Dependências entre missões por explicitar.",
+            "description": "As missões de água, paisagem, biodiversidade e bem-estar podem partilhar recursos, riscos e indicadores.",
+            "level": "Arquitetura necessária"
+          },
+          {
+            "title": "Legitimidade antes da execução.",
+            "description": "Cada missão depende de titulares, parceiros, competências e autorizações próprias.",
+            "level": "Governação"
+          },
+          {
+            "title": "Impacto ainda não demonstrado.",
+            "description": "Os benefícios descritos são objetivos de missão; exigem linhas de base e avaliação independente.",
+            "level": "Fronteira epistemológica"
+          }
+        ],
+        "chain": [
+          {"number": "01", "label": "Programa", "value": "1 arquitetura", "note": "Penela Vivo 2035 organiza o propósito comum.", "state": "completed"},
+          {"number": "02", "label": "Missões", "value": "4 frentes", "note": "Património e água, fogo e paisagem, corredores vivos e bem-estar.", "state": "open"},
+          {"number": "03", "label": "Dependências", "value": "Por mapear", "note": "Recursos, riscos, indicadores e decisões partilhadas.", "state": "attention"},
+          {"number": "04", "label": "Decisão", "value": "Portefólio em aberto", "note": "Prioridades e responsáveis ainda não foram formalizados.", "state": "open"},
+          {"number": "05", "label": "Impacto", "value": "Não medido", "note": "Sem execução e linha de base não existe atribuição.", "state": "unavailable"}
+        ]
+      },
+      "analysis": {
+        "title": "P-001 — Penela Vivo 2035",
+        "context": "Programa demonstrativo para estruturar um portefólio de missões territoriais interdependentes em Penela. Integra prevenção de risco, água, biodiversidade, património, bem-estar e capacidade institucional, mantendo cada alegação no seu estatuto real.",
+        "central_question": "Que combinação de missões, parceiros, evidência e decisões aumenta de forma verificável a resiliência territorial sem transferir risco entre pessoas, ecossistemas ou gerações?",
+        "available_evidence": "Documentação de enquadramento territorial, plano de gestão florestal, propostas de colaboração académica e ambiental e registos de casos candidatos; todos sujeitos às limitações declaradas em cada missão.",
+        "unknowns": "Prioridades institucionais, mandato, responsáveis, financiamento, indicadores comuns, dependências, linhas de base e condições de autorização de cada missão.",
+        "result": {
+          "headline": "Governar o portefólio antes de multiplicar iniciativas.",
+          "summary": "A primeira decisão não é escolher uma intervenção isolada; é definir uma arquitetura de missões que torne visíveis dependências, conflitos, recursos e critérios de sucesso.",
+          "situation": "O programa está em estruturação e não representa um compromisso das entidades referidas.",
+          "principal_risk": "Criar projetos paralelos que concorram por recursos, usem indicadores incompatíveis ou resolvam um problema agravando outro.",
+          "assumptions": ["As missões exigirão governação interinstitucional.", "Os indicadores devem ligar resultados locais a capacidade sistémica."],
+          "alternatives": [
+            {"id": "A", "title": "Portefólio mínimo", "description": "Priorizar duas missões com dependências controláveis e linhas de base claras."},
+            {"id": "B", "title": "Laboratório territorial", "description": "Estruturar as quatro missões como agenda comum de investigação, decisão e aprendizagem."}
+          ],
+          "next_decision": "Validar o problema comum, os parceiros legitimados e os critérios usados para priorizar as missões-filhas.",
+          "confidence": "Baixa"
+        }
+      },
+      "evidence": [],
+      "learning": [
+        {"id": "LRN-P001-001", "title": "Uma missão não é uma lista de tarefas", "description": "Quando problemas partilham causas e recursos, a unidade de governação deve tornar explícitas as dependências entre missões e não apenas agregar atividades."}
+      ]
+    },
     "M-001": {
       "id": "M-001",
-      "title": "Cinco hectares, e uma decisão por tomar",
-      "subtitle": "Podentes, Penela, Coimbra. Missão aberta: sem decisão tomada, sem execução, sem resultado.",
-      "meta": "Gestão do território florestal · Podentes, Penela · aproximadamente 5 ha",
+      "title": "Paisagem Resiliente",
+      "subtitle": "Reduzir o risco de incêndio sem perder água, solo ou biodiversidade.",
+      "meta": "Prevenção de incêndio e gestão da paisagem · Podentes, Penela",
+      "mission_kind": "mission",
+      "domain": "wildfire_landscape",
+      "priority": "critical",
+      "parent_id": "P-001",
+      "featured_rank": 2,
       "status": "Em avaliação",
       "confidence": "Moderada",
       "decision": "DEC-0001 · Em aberto",
+      "method_notice": "Caso real aberto. Os registos foram declarados pelo promotor e ainda não tiveram validação independente. Não existe decisão tomada, execução ou resultado.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "baseline": {
+          "applicability": "required",
+          "reason": "A missão pretende comparar resultados de uma futura intervenção territorial."
+        },
+        "context_research": {
+          "required": true,
+          "reason": "A decisão florestal depende também da envolvente ecológica, territorial, legal, climática e institucional da parcela."
+        }
+      },
       "situation": {
         "summary": "Existem três observações, três alternativas em avaliação, dois pressupostos por verificar e duas restrições não avaliadas. Nenhuma alternativa foi selecionada. Não existe execução nem resultado.",
         "attention": [
@@ -266,13 +356,156 @@
     "M-002": {
       "id": "M-002",
       "title": "Nascente de Dragos",
-      "subtitle": "Segundo caso identificado · candidato, não compromisso.",
-      "meta": "Património e território · Podentes, Penela",
+      "subtitle": "Água, património e ciência: investigar antes de recuperar.",
+      "meta": "Missão-farol · água, património e território · Podentes, Penela",
+      "mission_kind": "mission",
+      "domain": "water_heritage",
+      "priority": "strategic",
+      "parent_id": "P-001",
+      "featured_rank": 1,
       "status": "Caso identificado",
-      "confidence": "Baixa",
+      "confidence": "Não avaliável",
       "decision": "Não iniciada",
+      "method_notice": "Caso candidato, não compromisso de intervenção. Os registos preservam declarações e referências iniciais; não demonstram autorização, parceria, decisão ou resultado.",
+      "decision_stage": "not_started",
+      "analysis_requirements": {
+        "baseline": {
+          "applicability": "undetermined",
+          "reason": "O caso ainda não tem objeto de decisão, intervenção ou variáveis de resultado definidos."
+        },
+        "context_research": {
+          "required": true,
+          "reason": "A abertura legítima da missão depende de compreender a envolvente histórica, arqueológica, hidrogeológica, patrimonial, jurídica, territorial e institucional."
+        }
+      },
+      "context_dossier": {
+        "dossier_version": "1.0",
+        "mission_id": "M-002",
+        "scope": "Investigação contextual preliminar da Nascente de Dragos e das relações históricas, arqueológicas, hídricas, patrimoniais, jurídicas, territoriais e institucionais relevantes para decidir se a missão pode ser formalmente aberta.",
+        "synthesis": "Existem duas pistas académicas distintas e materialmente relevantes: uma tese da Universidade de Coimbra regista a permanência atual da Nascente de Dragos e do respetivo microtopónimo; o Ficheiro Epigráfico documenta uma árula romana encontrada numa vinha associada a Dragos, em Podentes. Estas fontes justificam investigar uma possível relação territorial e histórica, mas não demonstram, por si só, que a nascente foi usada pelos romanos, que a água possuía ou possui propriedades medicinais, nem que a árula estava funcionalmente ligada à nascente.",
+        "domains": [
+          "história local",
+          "arqueologia romana",
+          "hidrogeologia",
+          "qualidade da água",
+          "património cultural",
+          "direito da água",
+          "ordenamento do território",
+          "governação institucional"
+        ],
+        "sources": [
+          {
+            "source_id": "SRC-M002-001",
+            "title": "Árula romana de Dragos, Podentes, Penela (Ficheiro Epigráfico 228, n.º 797)",
+            "url": "https://www.uc.pt/site/assets/files/1504192/fe_228_2022.pdf",
+            "publisher": "Faculdade de Letras da Universidade de Coimbra · Ficheiro Epigráfico / Conimbriga",
+            "source_type": "academic",
+            "authority": "primary",
+            "publication_date": "2022",
+            "limitations": "Documenta o achado epigráfico e o seu contexto conhecido; não demonstra uso romano da nascente nem propriedades medicinais da água."
+          },
+          {
+            "source_id": "SRC-M002-002",
+            "title": "A ‘construção’ de memórias locais: contributo para a História Medieval da freguesia de Podentes",
+            "url": "https://estudogeral.uc.pt/bitstream/10316/93733/1/JoaoCosta_versaofinal.pdf",
+            "publisher": "Universidade de Coimbra · Estudo Geral",
+            "source_type": "academic",
+            "authority": "secondary",
+            "publication_date": "2020",
+            "limitations": "Regista a permanência local da nascente e do topónimo; não é um estudo hidrogeológico, arqueológico da nascente ou análise de propriedades medicinais."
+          }
+        ],
+        "claims": [
+          {
+            "claim_id": "CLM-M002-001",
+            "statement": "Uma árula romana fragmentada foi identificada em 2020 numa vinha junto à EM 570 associada ao microtopónimo Dragos, em Podentes.",
+            "domain": "arqueologia romana",
+            "epistemic_status": "supported",
+            "source_ids": ["SRC-M002-001"],
+            "relevance": "Confirma presença material romana no espaço de Dragos e torna o contexto arqueológico incontornável para qualquer intervenção.",
+            "limitations": "O local do achado e o local funcional original da peça podem não coincidir; a fonte não liga a árula à nascente."
+          },
+          {
+            "claim_id": "CLM-M002-002",
+            "statement": "A Nascente de Dragos permanece identificada na memória e toponímia local de Podentes.",
+            "domain": "história local",
+            "epistemic_status": "supported",
+            "source_ids": ["SRC-M002-002"],
+            "relevance": "Demonstra que a nascente é um objeto territorial e histórico reconhecível, não apenas uma designação criada para a missão.",
+            "limitations": "A fonte não fornece levantamento hidrogeológico, coordenadas validadas ou caracterização do estado atual."
+          },
+          {
+            "claim_id": "CLM-M002-003",
+            "statement": "A nascente e a árula podem integrar um mesmo contexto territorial de ocupação romana em Dragos.",
+            "domain": "paisagem histórica",
+            "epistemic_status": "hypothesis",
+            "source_ids": ["SRC-M002-001", "SRC-M002-002"],
+            "relevance": "É uma hipótese de investigação com potencial para alterar o valor patrimonial e o desenho da recuperação.",
+            "limitations": "A coexistência do topónimo e dos vestígios não prova relação funcional, cronológica ou cultual."
+          },
+          {
+            "claim_id": "CLM-M002-004",
+            "statement": "A água da Nascente de Dragos teria propriedades medicinais e teria sido utilizada pelos romanos.",
+            "domain": "hidrogeologia e história da medicina",
+            "epistemic_status": "unverified",
+            "source_ids": [],
+            "relevance": "Se fosse demonstrada, esta relação mudaria substancialmente o valor científico, patrimonial e territorial da missão.",
+            "limitations": "Não foi localizada, neste dossier preliminar, fonte arqueológica, análise físico-química ou estudo histórico que demonstre esta alegação específica."
+          }
+        ],
+        "gaps": [
+          {
+            "gap_id": "GAP-M002-001",
+            "question": "Qual é a localização georreferenciada da nascente e qual a distância e relação topográfica com o local do achado da árula?",
+            "domain": "cartografia e arqueologia",
+            "why_it_matters": "Sem relação espacial verificada, a ligação histórica permanece especulativa.",
+            "evidence_needed": "Levantamento georreferenciado, cartografia cadastral e validação por arqueólogo.",
+            "priority": "critical"
+          },
+          {
+            "gap_id": "GAP-M002-002",
+            "question": "Existem vestígios, materiais, estruturas, caminhos ou registos que liguem a nascente à ocupação romana de Dragos?",
+            "domain": "arqueologia romana",
+            "why_it_matters": "É a pergunta necessária para passar de coexistência territorial a relação histórica sustentada.",
+            "evidence_needed": "Prospeção arqueológica não invasiva, consulta de inventários e parecer especializado.",
+            "priority": "critical"
+          },
+          {
+            "gap_id": "GAP-M002-003",
+            "question": "Qual é a composição físico-química e microbiológica atual da água e existe fundamento técnico para a qualificar como mineral ou medicinal?",
+            "domain": "hidrogeologia e qualidade da água",
+            "why_it_matters": "Uma reputação medicinal não pode ser apresentada como propriedade demonstrada sem análises e enquadramento legal.",
+            "evidence_needed": "Campanha sazonal de análises por laboratório acreditado e interpretação hidrogeológica independente.",
+            "priority": "critical"
+          },
+          {
+            "gap_id": "GAP-M002-004",
+            "question": "Quem são os titulares do terreno e do recurso hídrico e que entidades têm competência patrimonial, ambiental, hídrica e municipal?",
+            "domain": "direito e governação",
+            "why_it_matters": "A investigação e qualquer recuperação exigem legitimidade, acesso e autorizações distintas.",
+            "evidence_needed": "Certidões prediais, cadastro, enquadramento APA, património cultural e Município de Penela.",
+            "priority": "high"
+          },
+          {
+            "gap_id": "GAP-M002-005",
+            "question": "Que usos, narrativas e práticas locais sobre a nascente permanecem documentáveis e quem os pode testemunhar?",
+            "domain": "história oral",
+            "why_it_matters": "A memória local pode revelar pistas de pesquisa, desde que permaneça distinguida de prova histórica.",
+            "evidence_needed": "Protocolo de história oral, entrevistas identificadas, arquivo local e triangulação documental.",
+            "priority": "medium"
+          }
+        ],
+        "limits": [
+          "Dossier preliminar construído a partir de duas fontes académicas localizadas; não é inventário exaustivo.",
+          "A relação entre a nascente, a árula, uso romano e propriedades medicinais não está demonstrada.",
+          "Nenhuma fonte do dossier constitui autorização para aceder, estudar, captar água ou intervir no local.",
+          "Alegações de saúde exigem evidência laboratorial, enquadramento regulatório e validação competente."
+        ],
+        "research_status": "preliminary",
+        "review_required": true
+      },
       "situation": {
-        "summary": "Caso identificado para testar a arquitetura fora do controlo direto do promotor. Uma eventual recuperação depende de múltiplos decisores, autorizações e restrições patrimoniais.",
+        "summary": "Caso territorial com contexto histórico e arqueológico relevante: a existência da Nascente de Dragos é registada em investigação académica e uma árula romana foi documentada no microtopónimo Dragos. A relação funcional entre a nascente, uso romano e propriedades medicinais permanece por demonstrar. Uma eventual recuperação depende de investigação multidisciplinar, titulares, múltiplos decisores, autorizações e restrições patrimoniais.",
         "attention": [
           {
             "title": "Autorizações não solicitadas.",
@@ -283,6 +516,11 @@
             "title": "Restrições patrimoniais.",
             "description": "Qualquer intervenção deve respeitar o enquadramento patrimonial aplicável.",
             "level": "A confirmar"
+          },
+          {
+            "title": "Relação romana e medicinal ainda não demonstrada.",
+            "description": "As fontes justificam investigação dirigida, mas não permitem apresentar como facto o uso romano da nascente ou propriedades medicinais da água.",
+            "level": "Hipótese prioritária"
           }
         ],
         "chain": [
@@ -346,10 +584,10 @@
       },
       "analysis": {
         "title": "M-002 — Nascente de Dragos",
-        "context": "A Nascente de Dragos, em Podentes, encontra-se em estado de abandono. Uma eventual recuperação envolveria múltiplos decisores, autorização das entidades competentes e restrições patrimoniais explícitas.",
-        "central_question": "Que condições teriam de estar verificadas antes de transformar este caso identificado numa missão operacional legítima?",
-        "available_evidence": "Enquadramento patrimonial documentado e identificação do estado atual do local.",
-        "unknowns": "Titularidade operacional, autorizações, competências das entidades, condições patrimoniais detalhadas, objetivos de intervenção e recursos.",
+        "context": "A Nascente de Dragos, em Podentes, encontra-se em estado de abandono. Investigação académica regista a permanência da nascente e do topónimo Dragos; outra publicação documenta uma árula romana encontrada no mesmo microtopónimo. Esta convergência abre uma hipótese histórica relevante, mas ainda não demonstra uso romano da nascente nem propriedades medicinais da água. Uma eventual recuperação envolveria investigação multidisciplinar, múltiplos decisores, autorização das entidades competentes e restrições patrimoniais explícitas.",
+        "central_question": "Que evidência histórica, arqueológica, hidrogeológica, jurídica e institucional é necessária para determinar se a Nascente de Dragos pode ser estudada e recuperada de forma legítima e cientificamente defensável?",
+        "available_evidence": "Registo académico da existência da Nascente de Dragos; publicação da árula romana de Dragos no Ficheiro Epigráfico n.º 797; identificação declarada do estado atual do local.",
+        "unknowns": "Relação espacial e funcional entre nascente e vestígios romanos; eventual uso romano; composição e propriedades da água; localização georreferenciada; titularidade; autorizações; competências das entidades; regime patrimonial e hídrico; memória oral documentável; objetivos e recursos.",
         "result": {
           "headline": "Não transformar ainda o caso em compromisso de intervenção.",
           "summary": "O SRIS deve preservar o caso como candidato enquanto as condições de legitimidade e governação não forem confirmadas.",
@@ -377,13 +615,68 @@
       },
       "evidence": [
         {
+          "id": "OBS-M002-001",
+          "type": "Observação",
+          "title": "Estado atual do local identificado",
+          "description": "O local foi identificado pelo promotor como estando em estado de abandono.",
+          "method": "Identificação visual declarada pelo promotor; sem protocolo formal associado.",
+          "limitation": "Data, extensão e critérios do estado de abandono ainda não foram documentados de forma canónica.",
+          "status": "Registada",
+          "confidence": "Baixa",
+          "source": "Declaração do promotor"
+        },
+        {
           "id": "EVD-M002-001",
           "type": "Evidência documental",
-          "title": "Enquadramento patrimonial identificado",
-          "description": "O local tem enquadramento patrimonial documentado, relevante para qualquer eventual recuperação.",
-          "method": "Referência documental preservada na missão.",
-          "limitation": "Não constitui autorização para intervir.",
+          "title": "Árula romana de Dragos — Ficheiro Epigráfico n.º 797",
+          "description": "Publicação académica documenta uma árula romana fragmentada identificada numa vinha associada ao microtopónimo Dragos, em Podentes.",
+          "method": "Referência bibliográfica e URL da publicação preservadas no dossier contextual.",
+          "limitation": "Documenta o achado epigráfico; não demonstra que a árula estava ligada à nascente, que esta foi usada pelos romanos ou que a água era medicinal.",
           "status": "Documentada",
+          "confidence": "Elevada",
+          "source": "https://www.uc.pt/site/assets/files/1504192/fe_228_2022.pdf"
+        },
+        {
+          "id": "EVD-M002-002",
+          "type": "Evidência documental",
+          "title": "Registo académico da Nascente de Dragos",
+          "description": "Uma investigação depositada no Estudo Geral da Universidade de Coimbra regista a permanência atual da Nascente de Dragos na memória e toponímia local de Podentes.",
+          "method": "Referência bibliográfica e URL do repositório académico preservadas no dossier contextual.",
+          "limitation": "Não é estudo hidrogeológico ou arqueológico da nascente e não demonstra uso romano ou propriedades medicinais.",
+          "status": "Documentada",
+          "confidence": "Moderada",
+          "source": "https://estudogeral.uc.pt/bitstream/10316/93733/1/JoaoCosta_versaofinal.pdf"
+        },
+        {
+          "id": "HYP-M002-001",
+          "type": "Hipótese",
+          "title": "Possível relação entre nascente, ocupação romana e uso medicinal",
+          "description": "A coexistência territorial da nascente, do microtopónimo e de vestígios romanos justifica investigar se existiu relação histórica ou funcional e se a água foi usada por propriedades consideradas medicinais.",
+          "method": "Hipótese formulada por cruzamento de duas fontes distintas e por alegação local a verificar.",
+          "limitation": "Não existe ainda evidência direta, análise físico-química, contexto arqueológico funcional ou fonte histórica que demonstre a relação.",
+          "status": "Por verificar",
+          "confidence": "Baixa",
+          "source": "Dossier contextual preliminar M-002"
+        },
+        {
+          "id": "RST-M002-001",
+          "type": "Restrição",
+          "title": "Titularidade e competências por confirmar",
+          "description": "Qualquer eventual intervenção depende da identificação dos titulares e das entidades competentes.",
+          "method": "Condição de legitimidade declarada para abertura da missão.",
+          "limitation": "Titulares, competências e autorizações ainda não foram confirmados documentalmente.",
+          "status": "Não avaliada",
+          "confidence": "Elevada",
+          "source": "Condição jurídica do caso"
+        },
+        {
+          "id": "RST-M002-002",
+          "type": "Restrição",
+          "title": "Enquadramento patrimonial por verificar",
+          "description": "O desenho de uma eventual intervenção depende do enquadramento patrimonial aplicável.",
+          "method": "Requisito de análise institucional prévia.",
+          "limitation": "O regime aplicável e os seus efeitos operacionais ainda não foram verificados.",
+          "status": "Não avaliada",
           "confidence": "Moderada",
           "source": "Documentação do caso"
         }
@@ -396,30 +689,173 @@
         }
       ]
     },
+    "M-003": {
+      "id": "M-003",
+      "title": "Corredores Vivos",
+      "subtitle": "Água, biodiversidade e adaptação climática como uma só infraestrutura territorial.",
+      "meta": "Ecologia, água e clima · laboratório territorial",
+      "status": "Missão candidata",
+      "confidence": "Moderada",
+      "decision": "Desenho do diagnóstico",
+      "mission_kind": "mission",
+      "domain": "ecology_climate",
+      "priority": "strategic",
+      "parent_id": "P-001",
+      "featured_rank": 3,
+      "method_notice": "Missão candidata construída a partir de documentação técnica do território. A presença de elementos ecológicos não demonstra ainda conectividade, melhoria de biodiversidade ou adaptação climática.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "baseline": {"applicability": "required", "reason": "A missão pretende comparar condição ecológica antes e depois de eventuais intervenções."},
+        "context_research": {"required": true, "reason": "A decisão depende de hidrologia sazonal, habitats, espécies, usos do solo, risco de fogo e conectividade ecológica."}
+      },
+      "situation": {
+        "summary": "A documentação técnica identifica linhas de água sazonais, uma nascente permanente declarada, charcos temporários e sinais de regeneração após incêndios. Estes elementos sugerem uma rede ecológica potencial, mas faltam cartografia funcional, inventário sazonal e indicadores de conectividade.",
+        "attention": [
+          {"title": "Conectividade ainda é hipótese.", "description": "Elementos de água e habitat podem estar presentes sem funcionarem como corredor ecológico.", "level": "Teste necessário"},
+          {"title": "Sazonalidade pode alterar o diagnóstico.", "description": "Uma campanha pontual não caracteriza disponibilidade de água nem uso por espécies ao longo do ano.", "level": "Linha de base"},
+          {"title": "Intervenções podem deslocar risco.", "description": "A gestão de combustível, acessos ou água deve ser avaliada também pelos efeitos em solo e habitat.", "level": "Risco sistémico"}
+        ],
+        "chain": [
+          {"number": "01", "label": "Contexto", "value": "Documentado", "note": "Elementos hídricos e ecológicos descritos em documentação técnica.", "state": "completed"},
+          {"number": "02", "label": "Hipótese", "value": "Rede ecológica", "note": "Conectividade funcional ainda não demonstrada.", "state": "attention"},
+          {"number": "03", "label": "Linha de base", "value": "Por desenhar", "note": "Cartografia, água, habitats e espécies por estação.", "state": "open"},
+          {"number": "04", "label": "Decisão", "value": "Não iniciada", "note": "Nenhuma intervenção selecionada.", "state": "unavailable"},
+          {"number": "05", "label": "Resultado", "value": "Não existe", "note": "Sem intervenção e avaliação não há impacto atribuível.", "state": "unavailable"}
+        ]
+      },
+      "analysis": {
+        "title": "M-003 — Corredores Vivos",
+        "context": "O plano de gestão e a proposta de colaboração ambiental descrevem linhas de água sazonais, zonas húmidas temporárias, uma nascente declarada, regeneração pós-incêndio e oportunidades de gestão seletiva. A missão testa se estes elementos podem formar uma infraestrutura ecológica coerente e verificável.",
+        "central_question": "Que configuração de água, vegetação, solo e gestão reduz vulnerabilidade climática e aumenta conectividade ecológica sem criar novos riscos de incêndio, erosão ou perturbação?",
+        "available_evidence": "Documentação técnica do plano de gestão; proposta de colaboração ambiental; observações territoriais declaradas sobre linhas de água, charcos e regeneração.",
+        "unknowns": "Cartografia funcional, regime hídrico sazonal, inventário de habitats e espécies, pressão de invasoras, conectividade, usos, titularidade, custos e efeitos das alternativas.",
+        "result": {
+          "headline": "Mapear o sistema antes de desenhar o corredor.",
+          "summary": "A oportunidade é plausível, mas o primeiro produto da missão deve ser uma linha de base espacial e sazonal, não uma intervenção física.",
+          "situation": "Missão candidata com base documental e lacunas empíricas relevantes.",
+          "principal_risk": "Chamar corredor ecológico a um conjunto de elementos próximos sem demonstrar função ou continuidade.",
+          "assumptions": ["A água é um organizador relevante da paisagem.", "Gestão seletiva pode melhorar resiliência, mas o efeito local não está medido."],
+          "alternatives": [
+            {"id": "A", "title": "Diagnóstico sazonal mínimo", "description": "Mapear água, habitat e espécies antes de intervir."},
+            {"id": "B", "title": "Experiências reversíveis", "description": "Testar pequenas intervenções com controlo e critérios de paragem."}
+          ],
+          "next_decision": "Aprovar o protocolo de linha de base e os critérios usados para confirmar ou rejeitar a hipótese de conectividade.",
+          "confidence": "Moderada"
+        }
+      },
+      "evidence": [
+        {"id": "EVD-M003-001", "type": "Evidência documental", "title": "Elementos hídricos e ecológicos descritos", "description": "A documentação técnica descreve linhas de água sazonais, uma nascente declarada, charcos temporários e regeneração pós-incêndio.", "method": "Leitura de documentação de projeto.", "limitation": "Não substitui levantamento de campo independente nem caracteriza função ecológica.", "status": "Documentada", "confidence": "Moderada", "source": "Plano de Gestão Florestal e proposta Quercus"}
+      ],
+      "learning": [
+        {"id": "LRN-M003-001", "title": "Proximidade não é conectividade", "description": "Um mapa de elementos naturais só se torna arquitetura ecológica quando a função, a continuidade e a sazonalidade são verificadas."}
+      ]
+    },
+    "M-004": {
+      "id": "M-004",
+      "title": "Capacidade Humana",
+      "subtitle": "Bem-estar, participação e prontidão como infraestrutura de resiliência.",
+      "meta": "Pessoas, instituições e território · missão não clínica",
+      "status": "Missão candidata",
+      "confidence": "Baixa",
+      "decision": "Âmbito por validar",
+      "mission_kind": "mission",
+      "domain": "human_wellbeing",
+      "priority": "strategic",
+      "parent_id": "P-001",
+      "featured_rank": 4,
+      "method_notice": "Missão de bem-estar e capacidade coletiva, não clínica. Não faz diagnóstico, promessa terapêutica ou alegação de saúde. Qualquer medição exige consentimento, proteção de dados e supervisão competente.",
+      "decision_stage": "open",
+      "analysis_requirements": {
+        "baseline": {"applicability": "required", "reason": "Qualquer mudança em bem-estar ou capacidade requer linha de base, consentimento e instrumentos adequados."},
+        "context_research": {"required": true, "reason": "A missão cruza bem-estar, participação, inclusão, proteção de dados, saúde pública e preparação comunitária."}
+      },
+      "situation": {
+        "summary": "Os documentos do Sanctuary propõem ligar natureza, experiência, aprendizagem e economia local. A missão reformula essa intenção como pergunta de resiliência humana: que capacidades ajudam pessoas e instituições a preparar-se, cooperar e recuperar, sem confundir bem-estar com tratamento clínico?",
+        "attention": [
+          {"title": "Fronteira clínica obrigatória.", "description": "Bem-estar percebido não equivale a diagnóstico, prevenção ou tratamento de doença.", "level": "Ética e segurança"},
+          {"title": "Consentimento e privacidade.", "description": "Instrumentos individuais exigem finalidade, minimização de dados e condições claras de participação.", "level": "Proteção de pessoas"},
+          {"title": "Inclusão deve ser verificável.", "description": "Acesso físico, económico, cultural e digital não pode ser presumido.", "level": "Equidade"}
+        ],
+        "chain": [
+          {"number": "01", "label": "Propósito", "value": "Capacidade coletiva", "note": "Preparar, cooperar, aprender e recuperar.", "state": "completed"},
+          {"number": "02", "label": "Fronteiras", "value": "Não clínica", "note": "Sem diagnóstico ou promessa terapêutica.", "state": "attention"},
+          {"number": "03", "label": "Indicadores", "value": "Por validar", "note": "Bem-estar, participação, aprendizagem e prontidão.", "state": "open"},
+          {"number": "04", "label": "Decisão", "value": "Âmbito em aberto", "note": "População, parceiros e protocolo não formalizados.", "state": "open"},
+          {"number": "05", "label": "Resultado", "value": "Não existe", "note": "Sem piloto avaliado não há efeito demonstrado.", "state": "unavailable"}
+        ]
+      },
+      "analysis": {
+        "title": "M-004 — Capacidade Humana",
+        "context": "Missão candidata inspirada em propostas de bem-estar territorial e parceria académica. Procura estudar capacidade de participação, aprendizagem, cooperação e recuperação em contacto com o território, dentro de limites éticos e não clínicos.",
+        "central_question": "Que experiências e condições aumentam de forma segura, inclusiva e mensurável a capacidade de pessoas e instituições para antecipar adversidades, cooperar e recuperar?",
+        "available_evidence": "Propostas de parceria e desenho de experiência; referência a instrumentos de bem-estar percebido como possibilidades metodológicas, ainda sem protocolo aprovado ou dados recolhidos.",
+        "unknowns": "Populações, necessidades, parceiros competentes, acessibilidade, protocolo ético, consentimento, indicadores, efeitos adversos, proteção de dados, custos e sustentabilidade.",
+        "result": {
+          "headline": "Definir capacidade antes de prometer bem-estar.",
+          "summary": "A missão precisa de um âmbito não clínico explícito, teoria de mudança, proteção de participantes e indicadores que não confundam satisfação momentânea com resiliência duradoura.",
+          "situation": "Missão candidata sem protocolo, parceria formal ou resultados.",
+          "principal_risk": "Produzir alegações de saúde ou inclusão que a evidência e a governação não suportam.",
+          "assumptions": ["Natureza e participação podem contribuir para bem-estar percebido.", "Capacidade coletiva exige mais do que experiências individuais."],
+          "alternatives": [
+            {"id": "A", "title": "Piloto de aprendizagem e participação", "description": "Focar competências, cooperação e experiência, sem objetivos clínicos."},
+            {"id": "B", "title": "Observatório de capacidade", "description": "Começar por escuta, acessibilidade e linha de base institucional."}
+          ],
+          "next_decision": "Validar com parceiros competentes o âmbito, as salvaguardas e a pergunta de avaliação antes de recrutar participantes.",
+          "confidence": "Baixa"
+        }
+      },
+      "evidence": [
+        {"id": "EVD-M004-001", "type": "Evidência documental", "title": "Proposta de bem-estar territorial", "description": "Os documentos apresentam uma experiência que articula natureza, aprendizagem, bem-estar e economia local.", "method": "Leitura de proposta de projeto e parceria.", "limitation": "É intenção de desenho; não demonstra resultado em saúde, bem-estar ou resiliência.", "status": "Documentada", "confidence": "Moderada", "source": "Documentos Sanctuary e proposta UC"}
+      ],
+      "learning": [
+        {"id": "LRN-M004-001", "title": "Servir pessoas começa por proteger pessoas", "description": "Uma missão de bem-estar só é credível quando consentimento, inclusão, privacidade, efeitos adversos e limites clínicos fazem parte da arquitetura desde o início."}
+      ]
+    },
     "CA-AWARD-APPLICATION": {
       "id": "CA-AWARD-APPLICATION",
       "title": "Prémio Empreendedorismo e Inovação Crédito Agrícola",
-      "subtitle": "Candidatura 2026 · demonstração operacional do SRIS.",
+      "subtitle": "Candidatura 2026 · submetida em 9 de agosto de 2026.",
       "meta": "Candidatura · Empreendedorismo · Inovação",
-      "status": "Em preparação final",
+      "mission_kind": "mission",
+      "domain": "organizational_innovation",
+      "priority": "standard",
+      "featured_rank": 99,
+      "status": "Submetida · avaliação pendente",
       "confidence": "Elevada",
-      "decision": "Percurso de demonstração definido",
+      "decision": "DEC-CA-001 · Candidatura submetida",
+      "method_notice": "Missão organizacional real. A candidatura foi submetida; não existe ainda decisão do júri. A submissão e o reconhecimento externo não constituem validação científica nem prova de impacto.",
+      "decision_stage": "selected",
+      "analysis_requirements": {
+        "baseline": {
+          "applicability": "not_applicable",
+          "reason": "A missão documenta uma candidatura e não uma intervenção empírica."
+        },
+        "context_research": {
+          "required": true,
+          "reason": "Mesmo após a submissão, a missão depende da envolvente externa do prémio: continuidade do URL entregue, regras, calendário, comunicações e decisão do júri."
+        }
+      },
       "situation": {
-        "summary": "A candidatura deve provar o princípio nuclear do SRIS através de uma missão real, sem transformar visão futura em resultado já demonstrado.",
+        "summary": "A candidatura foi submetida usando a M-001 como demonstração principal, sem transformar visão futura em resultado já demonstrado.",
         "attention": [
           {
-            "title": "Coerência com o estado real.",
-            "description": "TRL, utilização externa, resultados e impacto têm de ser declarados sem exagero.",
+            "title": "Preservar a versão submetida.",
+            "description": "O conteúdo público associado à candidatura deve permanecer coerente com o formulário e os anexos entregues.",
             "level": "Rigor"
           },
           {
-            "title": "M-001 como demonstração principal.",
-            "description": "O caso real deve mostrar observação, incerteza, alternativas, restrições, decisão em aberto e aprendizagem.",
-            "level": "Prioridade"
+            "title": "Manter ativo o URL entregue na candidatura.",
+            "description": "https://sris-production.up.railway.app é o endereço submetido ao júri; staging é independente e nunca o pode substituir ou desativar.",
+            "level": "Continuidade crítica"
           },
           {
-            "title": "Impacto como hipótese de piloto.",
-            "description": "Benefícios devem ser apresentados com indicadores a medir, não como ganhos já comprovados.",
+            "title": "Associação dos anexos por confirmar.",
+            "description": "Os documentos complementares foram enviados por email após falha técnica de upload; a associação formal depende da organização.",
+            "level": "Acompanhamento"
+          },
+          {
+            "title": "Impacto permanece por medir.",
+            "description": "A submissão não altera o estado da validação: benefícios continuam a ser hipóteses do piloto.",
             "level": "Disciplina"
           }
         ],
@@ -461,23 +897,23 @@
           },
           {
             "number": "06",
-            "label": "Prémio",
-            "value": "Aplicação definida",
-            "note": "Instrumentação + utilização por terceiros.",
+            "label": "Submissão",
+            "value": "Concluída",
+            "note": "Formulário recebido em 9 de agosto de 2026 às 23:59.",
             "state": "completed"
           }
         ]
       },
       "analysis": {
-        "title": "Preparação final — Prémio Empreendedorismo e Inovação Crédito Agrícola",
-        "context": "O SRIS deve ser apresentado através de um problema concreto e uma missão real, deixando claros o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio.",
-        "central_question": "Qual é a demonstração mais curta e rigorosa que permite ao júri compreender problema, inovação, estado real, potencial e próximos passos sem confundir hipótese com resultado?",
+        "title": "Candidatura submetida — Prémio Empreendedorismo e Inovação Crédito Agrícola",
+        "context": "O SRIS foi apresentado através de um problema concreto e da M-001, declarando o estado tecnológico, o que ainda não foi demonstrado, os indicadores do piloto e a utilização prevista do apoio. O URL público entregue ao júri foi https://sris-production.up.railway.app; o ambiente https://sris-staging.up.railway.app é uma cópia de validação independente e não substitui produção.",
+        "central_question": "A candidatura submetida permanece acessível no URL entregue e preserva a distinção entre demonstração funcional, hipótese de impacto e validação ainda inexistente?",
         "available_evidence": "M-001 documentada; plataforma operacional; arquitetura conceptual; motor epistemológico; backend em produção; reconhecimento externo documentado; roadmap e indicadores de piloto definidos.",
-        "unknowns": "Resposta do júri, primeira organização externa, custo real de documentação, métricas de eficiência e resultados do piloto.",
+        "unknowns": "Resposta e calendário do júri; continuidade operacional do URL durante a avaliação; primeira organização externa; custo real de documentação; métricas de eficiência e resultados do piloto.",
         "result": {
-          "headline": "Demonstrar o SRIS através da M-001 e do seu estado real.",
-          "summary": "A candidatura deve mostrar que a inovação não está em prever um resultado, mas em preservar a estrutura que permitirá avaliar qualquer resultado futuro.",
-          "situation": "O produto tem protótipo funcional e uma missão real, mas ainda não tem utilização externa ou benefícios quantitativos medidos.",
+          "headline": "A candidatura foi submetida através da M-001 e do seu estado real.",
+          "summary": "A versão entregue apresenta a inovação como preservação da estrutura necessária para avaliar resultados futuros, sem declarar esses resultados como existentes.",
+          "situation": "A candidatura está submetida. O produto mantém protótipo funcional e uma missão real, mas continua sem utilização externa ou benefícios quantitativos medidos.",
           "principal_risk": "Sobreprometer impacto ou escala e enfraquecer a credibilidade de uma proposta que assenta precisamente em rigor e rastreabilidade.",
           "assumptions": [
             "O júri valorizará uma demonstração funcional e verificável.",
@@ -501,7 +937,7 @@
               "description": "Foco em mercados e potencial de escala."
             }
           ],
-          "next_decision": "Usar M-001 como percurso principal; Estado Real e Impacto como prova de disciplina; reconhecimento apenas como contexto externo.",
+          "next_decision": "Manter o URL de produção ativo e monitorizado, preservar a versão submetida, confirmar a associação dos anexos e aguardar a avaliação sem acrescentar novas alegações.",
           "confidence": "Elevada"
         }
       },
@@ -538,6 +974,61 @@
           "status": "Documentada",
           "confidence": "Elevada",
           "source": "Entidades externas"
+        },
+        {
+          "id": "ALT-CA-001",
+          "type": "Alternativa",
+          "title": "Apresentação centrada na tecnologia",
+          "description": "Apresentar arquitetura, componentes e capacidade técnica como percurso principal.",
+          "method": "Alternativa avaliada durante a preparação da candidatura.",
+          "limitation": "Rejeitada por tornar o problema menos concreto para o júri.",
+          "status": "Rejeitada",
+          "confidence": "Moderada",
+          "source": "Preparação da candidatura"
+        },
+        {
+          "id": "ALT-CA-002",
+          "type": "Alternativa",
+          "title": "Percurso demonstrativo pela M-001",
+          "description": "Apresentar problema, registos, incerteza, alternativas, decisão em aberto e aprendizagem através da M-001.",
+          "method": "Alternativa comparada com os percursos tecnológico e comercial.",
+          "limitation": "Demonstra arquitetura e disciplina; não demonstra adoção externa ou impacto medido.",
+          "status": "Selecionada",
+          "confidence": "Elevada",
+          "source": "Preparação da candidatura"
+        },
+        {
+          "id": "ALT-CA-003",
+          "type": "Alternativa",
+          "title": "Apresentação centrada no potencial comercial",
+          "description": "Apresentar mercados, preços e escala como percurso principal.",
+          "method": "Alternativa avaliada durante a preparação da candidatura.",
+          "limitation": "Rejeitada porque a validação comercial ainda não existe.",
+          "status": "Rejeitada",
+          "confidence": "Moderada",
+          "source": "Preparação da candidatura"
+        },
+        {
+          "id": "DEC-CA-001",
+          "type": "Decisão",
+          "title": "Usar a M-001 como percurso principal",
+          "description": "A candidatura foi estruturada pela M-001, com estado real e impacto apresentados como hipótese de piloto.",
+          "method": "Decisão tomada após comparação de três percursos de apresentação.",
+          "limitation": "A decisão melhora a clareza da candidatura; não prova o mérito que o júri lhe atribuirá.",
+          "status": "Selecionada",
+          "confidence": "Elevada",
+          "source": "Candidatura submetida em 9 de agosto de 2026"
+        },
+        {
+          "id": "ACT-CA-001",
+          "type": "Execução",
+          "title": "Candidatura submetida",
+          "description": "O formulário foi submetido em 9 de agosto de 2026 às 23:59; os documentos complementares seguiram por email após falha técnica de upload.",
+          "method": "Comprovativo do formulário e cadeia cronológica de envio preservados.",
+          "limitation": "A associação formal dos anexos enviados por email depende de confirmação da organização.",
+          "status": "Concluída",
+          "confidence": "Elevada",
+          "source": "Comprovativos de submissão e envio"
         }
       ],
       "learning": [

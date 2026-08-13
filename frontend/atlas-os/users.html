@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Utilizadores · SRIS</title>
+  <style>
+    :root{--forest:#173f2f;--deep:#0d281e;--gold:#af8739;--paper:#f5f3ec;--white:#fff;--ink:#18241e;--muted:#67736d;--line:#d9ddd8;--red:#943d37;--amber:#9d671e;--serif:Georgia,"Times New Roman",serif;--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+    .topbar{min-height:68px;padding:12px clamp(18px,4vw,60px);display:flex;align-items:center;gap:18px;background:var(--deep);color:#fff}.brand{font:700 21px var(--serif);letter-spacing:.08em}.brand span{margin-left:8px;color:#d5ba7e;font:800 9px var(--sans);letter-spacing:.14em}.grow{flex:1}.identity{text-align:right}.identity strong,.identity small{display:block}.identity small{color:#aebeb5;font-size:10px}.topbar a,.topbar button{padding:8px 11px;border:1px solid #ffffff33;background:transparent;color:#fff;text-decoration:none;font:700 11px var(--sans);cursor:pointer}
+    main{max-width:1240px;margin:auto;padding:48px clamp(18px,4vw,56px) 80px}.eyebrow{color:var(--gold);font-size:10px;font-weight:850;letter-spacing:.15em;text-transform:uppercase}.hero{display:flex;align-items:end;gap:30px;margin-bottom:34px}.hero h1{margin:10px 0 7px;font:400 clamp(38px,5vw,64px)/1.03 var(--serif)}.hero p{max-width:730px;margin:0;color:var(--muted);font-size:16px}.hero .grow{flex:1}
+    .notice{margin:0 0 24px;padding:15px 17px;border-left:4px solid var(--amber);background:#fff7e9;color:#70501f}.notice.ok{border-color:var(--forest);background:#edf5ef;color:#285a42}.hidden{display:none!important}
+    .grid{display:grid;grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr);gap:22px;align-items:start}.panel{background:var(--white);border:1px solid var(--line);box-shadow:0 14px 40px rgba(18,42,31,.06)}.panel-head{padding:22px 24px;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font:400 26px var(--serif)}.panel-head p{margin:5px 0 0;color:var(--muted);font-size:12px}.panel-body{padding:22px 24px}
+    .field{margin-bottom:15px}.field label{display:block;margin-bottom:5px;font-size:11px;font-weight:800}.field input,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit}.field input:focus,.field select:focus{outline:3px solid #af873926;border-color:var(--gold)}
+    button{cursor:pointer}.primary{width:100%;padding:12px 15px;border:1px solid var(--forest);background:var(--forest);color:#fff;font-weight:800}.primary:disabled{opacity:.55;cursor:not-allowed}.message{min-height:20px;margin-top:13px;color:var(--muted);font-size:12px}.message.error{color:var(--red)}.message.success{color:#2b6748}
+    .section{margin-top:24px}.section:first-child{margin-top:0}.section-title{display:flex;align-items:center;gap:12px;margin-bottom:10px}.section-title h3{margin:0;font:400 22px var(--serif)}.count{padding:2px 7px;border-radius:99px;background:#edf0ed;color:var(--muted);font-size:10px}
+    .rows{border:1px solid var(--line);background:#fff}.row{display:grid;grid-template-columns:minmax(180px,1fr) 150px auto;gap:15px;align-items:center;padding:14px 16px;border-top:1px solid var(--line)}.row:first-child{border-top:0}.person strong,.person small{display:block}.person small{color:var(--muted);font-size:11px}.role{font-size:11px;font-weight:800;color:var(--forest)}.actions{display:flex;gap:6px;justify-content:flex-end}.small-btn{padding:7px 9px;border:1px solid var(--line);background:#fff;color:var(--ink);font:750 10px var(--sans)}.small-btn.danger{color:var(--red)}.small-btn:disabled{opacity:.5}.role-select{padding:7px;border:1px solid var(--line);background:#fff;font:700 10px var(--sans)}.status{display:inline-block;margin-top:4px;padding:2px 6px;border-radius:99px;background:#edf0ed;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}.status.failed{background:#f8e9e7;color:var(--red)}.status.sent{background:#e9f3ec;color:#2b6748}.status.expired,.status.revoked{background:#f3ede4;color:#795e32}
+    .empty{padding:22px;color:var(--muted);text-align:center}.footnote{margin-top:16px;color:var(--muted);font-size:11px}
+    @media(max-width:880px){.grid{grid-template-columns:1fr}.hero{display:block}.identity{display:none}.row{grid-template-columns:1fr}.actions{justify-content:flex-start}.role-select{width:100%}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SRIS <span>ADMINISTRAÇÃO</span></div>
+    <div class="grow"></div>
+    <div class="identity"><strong id="identityName">A validar sessão…</strong><small id="identityOrg"></small></div>
+    <a href="/">Voltar à plataforma</a>
+    <button id="logoutButton" type="button">Sair</button>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div class="grow">
+        <div class="eyebrow">Identidade e autorização</div>
+        <h1>Utilizadores da organização</h1>
+        <p>Crie contas por convite, atribua apenas o perfil necessário e revogue acessos que deixaram de ser legítimos.</p>
+      </div>
+    </div>
+
+    <div id="accessDenied" class="notice hidden">Esta área exige perfil de proprietário ou administrador.</div>
+    <div id="deliveryNotice" class="notice hidden"></div>
+
+    <div id="management" class="grid hidden">
+      <aside class="panel">
+        <div class="panel-head"><h2>Convidar utilizador</h2><p>O destinatário define a própria palavra-passe através de um link pessoal e temporário.</p></div>
+        <div class="panel-body">
+          <form id="inviteForm">
+            <div class="field"><label for="fullName">Nome completo</label><input id="fullName" type="text" minlength="2" maxlength="200" autocomplete="name" required /></div>
+            <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required /></div>
+            <div class="field">
+              <label for="role">Perfil</label>
+              <select id="role" required>
+                <option value="contributor">Colaborador — cria e estrutura registos</option>
+                <option value="reviewer">Revisor — revê relatórios e registos</option>
+                <option value="observer">Observador — consulta informação</option>
+                <option id="adminRole" value="admin">Administrador — gere utilizadores</option>
+              </select>
+            </div>
+            <button id="inviteSubmit" class="primary" type="submit">Enviar convite</button>
+          </form>
+          <div id="inviteMessage" class="message" aria-live="polite"></div>
+          <div class="footnote">O perfil <strong>owner</strong> não pode ser atribuído por convite. A transferência de propriedade exige um fluxo próprio.</div>
+        </div>
+      </aside>
+
+      <section>
+        <div class="section">
+          <div class="section-title"><h3>Membros ativos</h3><span id="memberCount" class="count">0</span></div>
+          <div id="memberRows" class="rows"><div class="empty">A carregar…</div></div>
+        </div>
+        <div class="section">
+          <div class="section-title"><h3>Convites</h3><span id="inviteCount" class="count">0</span></div>
+          <div id="invitationRows" class="rows"><div class="empty">A carregar…</div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+  (()=>{
+    "use strict";
+    const $=selector=>document.querySelector(selector);
+    const token=sessionStorage.getItem("sris_token")||"";
+    const roleLabels={owner:"Proprietário",admin:"Administrador",reviewer:"Revisor",contributor:"Colaborador",observer:"Observador",system_agent:"Agente de sistema"};
+    const statusLabels={pending:"Pendente",sent:"Enviado",failed:"Falhou",accepted:"Aceite",expired:"Expirado",revoked:"Revogado"};
+    let organization=null,user=null,currentMembership=null,members=[],invitations=[];
+    const esc=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+
+    function setMessage(text,type=""){$("#inviteMessage").textContent=text;$("#inviteMessage").className=`message ${type}`.trim()}
+    async function api(path,options={}){
+      const response=await fetch(`/api${path}`,{...options,headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`,...(options.headers||{})},cache:"no-store"});
+      if(response.status===401){sessionStorage.removeItem("sris_token");location.replace("/");throw new Error("Sessão expirada.")}
+      const data=response.status===204?null:await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data?.detail||"Não foi possível concluir o pedido.");
+      return data;
+    }
+    function invitationState(item){return item.status==="pending"?item.delivery_status:item.status}
+    function renderMembers(){
+      $("#memberCount").textContent=String(members.length);
+      $("#memberRows").innerHTML=members.length?members.map(member=>{
+        const canManage=currentMembership?.role==="owner"&&member.role!=="owner";
+        const controls=canManage?`<select class="role-select" data-role-id="${esc(member.id)}">
+          ${["admin","reviewer","contributor","observer"].map(role=>`<option value="${role}" ${role===member.role?"selected":""}>${roleLabels[role]}</option>`).join("")}
+        </select><button class="small-btn danger" type="button" data-remove-id="${esc(member.id)}">Remover</button>`:`<span class="role">${esc(roleLabels[member.role]||member.role)}</span>`;
+        return `<div class="row"><div class="person"><strong>${esc(member.full_name)}</strong><small>${esc(member.email)}</small></div><div>${controls}</div><div class="actions"></div></div>`;
+      }).join(""):'<div class="empty">Não existem membros.</div>';
+    }
+    function renderInvitations(){
+      $("#inviteCount").textContent=String(invitations.length);
+      $("#invitationRows").innerHTML=invitations.length?invitations.map(item=>{
+        const state=invitationState(item);const actionable=item.status==="pending"&&(currentMembership?.role==="owner"||item.role!=="admin");
+        return `<div class="row"><div class="person"><strong>${esc(item.full_name)}</strong><small>${esc(item.email)} · ${esc(roleLabels[item.role]||item.role)}</small><span class="status ${esc(state)}">${esc(statusLabels[state]||state)}</span></div><div><small>Expira: ${esc(new Date(item.expires_at).toLocaleString("pt-PT"))}</small></div><div class="actions">${actionable?`<button class="small-btn" type="button" data-resend-id="${esc(item.id)}">Reenviar</button><button class="small-btn danger" type="button" data-revoke-id="${esc(item.id)}">Revogar</button>`:""}</div></div>`;
+      }).join(""):'<div class="empty">Não existem convites.</div>';
+    }
+    async function loadLists(){
+      [members,invitations]=await Promise.all([
+        api(`/organizations/${encodeURIComponent(organization.id)}/memberships`),
+        api(`/organizations/${encodeURIComponent(organization.id)}/invitations`)
+      ]);renderMembers();renderInvitations();
+    }
+    async function initialize(){
+      if(!token){location.replace("/");return}
+      try{
+        const [me,organizations,capabilities]=await Promise.all([api("/auth/me"),api("/organizations"),fetch("/api/auth/capabilities",{cache:"no-store"}).then(r=>r.json())]);
+        user=me;const preferredOrganizationId=sessionStorage.getItem("sris_active_organization");organization=organizations?.find(item=>item.id===preferredOrganizationId)||organizations?.find(item=>item.slug==="sris")||organizations?.[0];
+        if(!organization)throw new Error("A conta não possui uma organização ativa.");
+        const membershipList=await api(`/organizations/${encodeURIComponent(organization.id)}/memberships`);
+        currentMembership=membershipList.find(item=>item.user_id===user.id)||null;members=membershipList;
+        if(!currentMembership||!["owner","admin"].includes(currentMembership.role))throw new Error("Acesso administrativo necessário.");
+        $("#identityName").textContent=user.full_name;$("#identityOrg").textContent=`${organization.name} · ${roleLabels[currentMembership.role]}`;
+        if(currentMembership.role!=="owner")$("#adminRole").remove();
+        if(!capabilities.invitations_enabled){
+          $("#deliveryNotice").textContent="O envio de emails de autenticação ainda não está configurado. A consulta continua disponível, mas novos convites estão bloqueados.";
+          $("#deliveryNotice").classList.remove("hidden");$("#inviteSubmit").disabled=true;
+        }else{
+          $("#deliveryNotice").textContent="Convites e recuperação de palavra-passe estão operacionais por email.";
+          $("#deliveryNotice").classList.add("ok");$("#deliveryNotice").classList.remove("hidden");
+        }
+        $("#management").classList.remove("hidden");
+        invitations=await api(`/organizations/${encodeURIComponent(organization.id)}/invitations`);renderMembers();renderInvitations();
+      }catch(error){$("#accessDenied").textContent=error.message;$("#accessDenied").classList.remove("hidden")}
+    }
+    $("#inviteForm").addEventListener("submit",async event=>{
+      event.preventDefault();const button=event.submitter;button.disabled=true;setMessage("A criar e enviar o convite…");
+      try{
+        await api(`/organizations/${encodeURIComponent(organization.id)}/invitations`,{method:"POST",body:JSON.stringify({full_name:$("#fullName").value.trim(),email:$("#email").value.trim(),role:$("#role").value})});
+        event.target.reset();setMessage("Convite criado. O envio ficou em processamento.","success");await loadLists();setTimeout(()=>loadLists().catch(()=>{}),1500);
+      }catch(error){setMessage(error.message,"error")}finally{button.disabled=false}
+    });
+    document.addEventListener("change",async event=>{
+      const select=event.target.closest("[data-role-id]");if(!select)return;select.disabled=true;
+      try{await api(`/organizations/${encodeURIComponent(organization.id)}/memberships/${encodeURIComponent(select.dataset.roleId)}`,{method:"PATCH",body:JSON.stringify({role:select.value})});await loadLists()}
+      catch(error){alert(error.message);await loadLists()}finally{select.disabled=false}
+    });
+    document.addEventListener("click",async event=>{
+      const resend=event.target.closest("[data-resend-id]");const revoke=event.target.closest("[data-revoke-id]");const remove=event.target.closest("[data-remove-id]");
+      try{
+        if(resend){resend.disabled=true;await api(`/organizations/${encodeURIComponent(organization.id)}/invitations/${encodeURIComponent(resend.dataset.resendId)}/resend`,{method:"POST"});await loadLists();return}
+        if(revoke){if(!confirm("Revogar este convite?"))return;revoke.disabled=true;await api(`/organizations/${encodeURIComponent(organization.id)}/invitations/${encodeURIComponent(revoke.dataset.revokeId)}`,{method:"DELETE"});await loadLists();return}
+        if(remove){if(!confirm("Remover o acesso deste utilizador à organização?"))return;remove.disabled=true;await api(`/organizations/${encodeURIComponent(organization.id)}/memberships/${encodeURIComponent(remove.dataset.removeId)}`,{method:"DELETE"});await loadLists()}
+      }catch(error){alert(error.message);await loadLists().catch(()=>{})}
+    });
+    $("#logoutButton").addEventListener("click",()=>{sessionStorage.clear();location.replace("/")});
+    initialize();
+  })();
+  </script>
+</body>
+</html>

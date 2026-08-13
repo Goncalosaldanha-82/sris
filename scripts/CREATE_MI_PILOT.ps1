@@ -127,7 +127,7 @@ $policyJson = @{
     monthly_output_token_limit = 50000
     monthly_budget_usd = "5.00"
     per_request_input_token_limit = 60000
-    per_request_output_token_limit = 3000
+    per_request_output_token_limit = 6000
     max_concurrent_requests = 1
 } | ConvertTo-Json -Compress
 $policyBody = [System.Text.Encoding]::UTF8.GetBytes($policyJson)

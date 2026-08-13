@@ -17,6 +17,7 @@ from .audit import record_audit
 from .auth import current_user, require_org_role
 from .config import environment_flag
 from .database import get_db
+from .identity import router as identity_router
 from .models import (
     KnowledgeObject,
     Membership,
@@ -24,11 +25,15 @@ from .models import (
     PasswordRecoveryUse,
     Role,
     User,
+    utcnow,
 )
 from .schemas import (
+    InstitutionalAccessActivationRequest,
+    InstitutionalAccessActivationResponse,
     KnowledgeObjectCreate,
     KnowledgeObjectRead,
     LoginRequest,
+    MembershipDetailRead,
     MembershipRead,
     OrganizationCreate,
     OrganizationRead,
@@ -43,7 +48,7 @@ from .workflow_api import router as workflow_router
 
 app = FastAPI(
     title="SRIS Mission Intelligence API",
-    version="1.4.0",
+    version="1.6.0",
     description=(
         "Canonical mission intelligence, authentication, organizations, RBAC and "
         "the unified knowledge workflow."
@@ -53,6 +58,18 @@ app = FastAPI(
 app.include_router(workflow_router)
 app.include_router(public_router)
 app.include_router(organization_router)
+app.include_router(identity_router)
+
+
+def _managed_runtime() -> bool:
+    return any(
+        os.getenv(name)
+        for name in (
+            "RAILWAY_ENVIRONMENT_ID",
+            "RAILWAY_PROJECT_ID",
+            "RAILWAY_SERVICE_ID",
+        )
+    )
 
 
 @app.get("/health")
@@ -66,7 +83,10 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 
 @app.post("/api/auth/register", response_model=UserRead, status_code=201)
 def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
-    if not environment_flag("ATLAS_SELF_REGISTRATION_ENABLED", default=True):
+    if not environment_flag(
+        "ATLAS_SELF_REGISTRATION_ENABLED",
+        default=not _managed_runtime(),
+    ):
         raise HTTPException(status_code=403, detail="Self-registration is disabled")
     if db.query(User).filter(User.email == payload.email.lower()).first():
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -92,9 +112,20 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.email == payload.email.lower()).one_or_none()
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if (
+        user is None
+        or not user.is_active
+        or not verify_password(payload.password, user.password_hash)
+    ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    return TokenResponse(access_token=create_access_token(user_id=user.id))
+    user.last_login_at = utcnow()
+    db.commit()
+    return TokenResponse(
+        access_token=create_access_token(
+            user_id=user.id,
+            auth_version=user.auth_version,
+        )
+    )
 
 
 def _recovery_not_available() -> HTTPException:
@@ -214,6 +245,7 @@ def emergency_password_recovery(
         )
         db.flush()
         user.password_hash = hash_password(payload.new_password)
+        user.auth_version += 1
         record_audit(
             db,
             action="user.password_recovered",
@@ -237,6 +269,152 @@ def emergency_password_recovery(
     return PasswordRecoveryResponse(status="password_updated")
 
 
+@app.post(
+    "/api/auth/emergency-access-activation",
+    response_model=InstitutionalAccessActivationResponse,
+    include_in_schema=False,
+)
+def emergency_access_activation(
+    payload: InstitutionalAccessActivationRequest,
+    db: Session = Depends(get_db),
+) -> InstitutionalAccessActivationResponse:
+    """Create or repair the one institutional owner behind a one-time gate.
+
+    This route exists because password recovery cannot repair an installation in
+    which the intended user was never created. It is deliberately undiscoverable,
+    exact-email scoped and single-use. No password or activation secret is stored
+    outside the normal password hash and the one-way token-use ledger.
+    """
+
+    configured_email = os.getenv(
+        "SRIS_ACCESS_ACTIVATION_EMAIL",
+        "",
+    ).strip().lower()
+    configured_token = os.getenv(
+        "SRIS_ACCESS_ACTIVATION_TOKEN",
+        "",
+    ).strip()
+
+    if not configured_email or len(configured_token) < 32:
+        raise _recovery_not_available()
+
+    requested_email = str(payload.email).strip().lower()
+    email_matches = secrets.compare_digest(
+        requested_email.encode("utf-8"),
+        configured_email.encode("utf-8"),
+    )
+    token_matches = secrets.compare_digest(
+        payload.activation_token.encode("utf-8"),
+        configured_token.encode("utf-8"),
+    )
+    if not email_matches or not token_matches:
+        raise _recovery_not_available()
+
+    token_hash = hashlib.sha256(
+        (
+            "institutional_access_activation\0"
+            f"{configured_email}\0{configured_token}"
+        ).encode("utf-8")
+    ).hexdigest()
+    if db.get(PasswordRecoveryUse, token_hash) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Access activation token already used",
+        )
+
+    try:
+        user = (
+            db.query(User)
+            .filter(User.email == configured_email)
+            .one_or_none()
+        )
+        user_created = user is None
+        if user is None:
+            user = User(
+                email=configured_email,
+                full_name=payload.full_name.strip(),
+                password_hash=hash_password(payload.new_password),
+                is_active=True,
+            )
+            db.add(user)
+        else:
+            user.full_name = payload.full_name.strip()
+            user.password_hash = hash_password(payload.new_password)
+            user.is_active = True
+            user.auth_version += 1
+        db.flush()
+
+        organization = (
+            db.query(Organization)
+            .filter(Organization.slug == payload.organization_slug)
+            .one_or_none()
+        )
+        organization_created = organization is None
+        if organization is None:
+            organization = Organization(
+                name=payload.organization_name.strip(),
+                slug=payload.organization_slug,
+            )
+            db.add(organization)
+            db.flush()
+
+        membership = (
+            db.query(Membership)
+            .filter(
+                Membership.user_id == user.id,
+                Membership.organization_id == organization.id,
+            )
+            .one_or_none()
+        )
+        membership_created = membership is None
+        if membership is None:
+            membership = Membership(
+                user_id=user.id,
+                organization_id=organization.id,
+                role=Role.OWNER.value,
+            )
+            db.add(membership)
+        else:
+            membership.role = Role.OWNER.value
+
+        # The primary-key insert reserves the activation secret atomically.
+        # Any concurrent replay rolls back all account and password changes.
+        db.add(
+            PasswordRecoveryUse(
+                token_hash=token_hash,
+                user_id=user.id,
+                organization_id=organization.id,
+            )
+        )
+        db.flush()
+        record_audit(
+            db,
+            action="user.institutional_access_activated",
+            resource_type="user",
+            resource_id=user.id,
+            organization_id=organization.id,
+            user_id=user.id,
+            payload={
+                "method": "one_time_environment_token",
+                "user_created": user_created,
+                "organization_created": organization_created,
+                "membership_created": membership_created,
+                "role": Role.OWNER.value,
+            },
+        )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Institutional access activation already completed",
+        ) from exc
+
+    return InstitutionalAccessActivationResponse(
+        status="institutional_access_activated"
+    )
+
+
 @app.get("/api/auth/me", response_model=UserRead)
 def me(user: User = Depends(current_user)) -> User:
     return user
@@ -248,7 +426,10 @@ def create_organization(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ) -> Organization:
-    if not environment_flag("ATLAS_ORGANIZATION_CREATION_ENABLED", default=True):
+    if not environment_flag(
+        "ATLAS_ORGANIZATION_CREATION_ENABLED",
+        default=not _managed_runtime(),
+    ):
         raise HTTPException(status_code=403, detail="Organization creation is disabled")
     if db.query(Organization).filter(Organization.slug == payload.slug).first():
         raise HTTPException(status_code=409, detail="Organization slug already exists")
@@ -290,17 +471,55 @@ def list_organizations(
 
 
 @app.get(
+    "/api/organizations/{organization_id}/membership",
+    response_model=MembershipRead,
+)
+def get_current_membership(
+    membership: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+            Role.SYSTEM_AGENT.value,
+        )
+    ),
+) -> Membership:
+    return membership
+
+
+@app.get(
     "/api/organizations/{organization_id}/memberships",
-    response_model=list[MembershipRead],
+    response_model=list[MembershipDetailRead],
 )
 def list_memberships(
     organization_id: str,
     _: Membership = Depends(
-        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+        require_org_role(Role.OWNER.value, Role.ADMIN.value)
     ),
     db: Session = Depends(get_db),
-) -> list[Membership]:
-    return db.query(Membership).filter(Membership.organization_id == organization_id).all()
+) -> list[dict]:
+    rows = (
+        db.query(Membership, User)
+        .join(User, User.id == Membership.user_id)
+        .filter(Membership.organization_id == organization_id)
+        .order_by(Membership.created_at.asc())
+        .all()
+    )
+    return [
+        {
+            "id": membership.id,
+            "user_id": membership.user_id,
+            "organization_id": membership.organization_id,
+            "role": membership.role,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+            "created_at": membership.created_at,
+        }
+        for membership, user in rows
+    ]
 
 
 @app.post(

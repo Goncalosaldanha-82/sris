@@ -13,7 +13,8 @@ from .contracts import AIGovernancePolicyUpdate
 from .models import AIOrganizationPolicy, AIUsageEvent, AIUsagePeriod
 
 PRICING_SOURCE = "https://developers.openai.com/api/docs/pricing"
-PRICING_EFFECTIVE_DATE = "2026-07-30"
+PRICING_EFFECTIVE_DATE = "2026-08-10"
+DEFAULT_WEB_SEARCH_RATE_MICROUSD_PER_CALL = 10_000
 DEFAULT_RESERVATION_TTL_MINUTES = 10
 MICROUSD_PER_USD = 1_000_000
 TOKENS_PER_MILLION = 1_000_000
@@ -45,6 +46,7 @@ class AIUsageReservation:
     model: str
     input_tokens: int
     output_tokens: int
+    web_search_calls: int
     estimated_cost_microusd: int
 
 
@@ -149,6 +151,8 @@ def estimate_cost_microusd(
     cached_input_tokens: int,
     output_tokens: int,
     pricing: ModelPricing,
+    web_search_calls: int = 0,
+    web_search_rate_microusd_per_call: int = 0,
 ) -> int:
     input_tokens = max(0, input_tokens)
     cached_input_tokens = min(max(0, cached_input_tokens), input_tokens)
@@ -160,7 +164,18 @@ def estimate_cost_microusd(
         + output_tokens * pricing.output_rate_microusd_per_million
     )
     base_cost = (numerator + TOKENS_PER_MILLION - 1) // TOKENS_PER_MILLION
-    return (base_cost * pricing.multiplier_bps + BASIS_POINTS - 1) // BASIS_POINTS
+    token_cost = (base_cost * pricing.multiplier_bps + BASIS_POINTS - 1) // BASIS_POINTS
+    tool_cost = max(0, web_search_calls) * max(
+        0, web_search_rate_microusd_per_call
+    )
+    return token_cost + tool_cost
+
+
+def web_search_rate_microusd_per_call() -> int:
+    return _positive_int_env(
+        "SRIS_WEB_SEARCH_RATE_MICROUSD_PER_CALL",
+        DEFAULT_WEB_SEARCH_RATE_MICROUSD_PER_CALL,
+    )
 
 
 def usd_to_microusd(value: Decimal) -> int:
@@ -237,6 +252,10 @@ def _expire_stale_reservations(
         period.reserved_output_tokens = max(
             0, period.reserved_output_tokens - event.reserved_output_tokens
         )
+        period.reserved_web_search_calls = max(
+            0,
+            period.reserved_web_search_calls - event.reserved_web_search_calls,
+        )
         period.reserved_cost_microusd = max(
             0, period.reserved_cost_microusd - event.reserved_cost_microusd
         )
@@ -305,6 +324,7 @@ def reserve_ai_usage(
     model: str,
     input_tokens: int,
     output_tokens: int,
+    web_search_calls: int = 0,
 ) -> AIUsageReservation:
     now = utcnow()
     policy = _locked_policy(db, organization_id)
@@ -334,6 +354,8 @@ def reserve_ai_usage(
         cached_input_tokens=0,
         output_tokens=output_tokens,
         pricing=pricing,
+        web_search_calls=web_search_calls,
+        web_search_rate_microusd_per_call=web_search_rate_microusd_per_call(),
     )
     _quota_check(
         policy=policy,
@@ -352,6 +374,7 @@ def reserve_ai_usage(
         model=model,
         reserved_input_tokens=input_tokens,
         reserved_output_tokens=output_tokens,
+        reserved_web_search_calls=web_search_calls,
         reserved_cost_microusd=estimated_cost,
         input_rate_microusd_per_million=pricing.input_rate_microusd_per_million,
         cached_input_rate_microusd_per_million=(
@@ -361,12 +384,14 @@ def reserve_ai_usage(
         price_multiplier_bps=pricing.multiplier_bps,
         pricing_source=pricing.source,
         pricing_effective_date=pricing.effective_date,
+        web_search_rate_microusd_per_call=web_search_rate_microusd_per_call(),
     )
     db.add(event)
     period.request_count += 1
     period.active_reservations += 1
     period.reserved_input_tokens += input_tokens
     period.reserved_output_tokens += output_tokens
+    period.reserved_web_search_calls += web_search_calls
     period.reserved_cost_microusd += estimated_cost
     db.flush()
     record_audit(
@@ -380,6 +405,7 @@ def reserve_ai_usage(
             "model": model,
             "reserved_input_tokens": input_tokens,
             "reserved_output_tokens": output_tokens,
+            "reserved_web_search_calls": web_search_calls,
             "reserved_cost_usd": microusd_to_usd(estimated_cost),
         },
     )
@@ -390,6 +416,7 @@ def reserve_ai_usage(
         model=model,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        web_search_calls=web_search_calls,
         estimated_cost_microusd=estimated_cost,
     )
 
@@ -435,6 +462,10 @@ def apply_exact_input_count(
         cached_input_tokens=0,
         output_tokens=event.reserved_output_tokens,
         pricing=pricing,
+        web_search_calls=event.reserved_web_search_calls,
+        web_search_rate_microusd_per_call=(
+            event.web_search_rate_microusd_per_call
+        ),
     )
     period.reserved_input_tokens -= event.reserved_input_tokens - exact_input_tokens
     period.reserved_cost_microusd -= event.reserved_cost_microusd - exact_cost
@@ -448,6 +479,7 @@ def apply_exact_input_count(
         model=event.model,
         input_tokens=exact_input_tokens,
         output_tokens=event.reserved_output_tokens,
+        web_search_calls=event.reserved_web_search_calls,
         estimated_cost_microusd=exact_cost,
     )
 
@@ -461,6 +493,7 @@ def settle_ai_usage(
     cached_input_tokens: int | None,
     output_tokens: int | None,
     total_tokens: int | None,
+    web_search_calls: int | None = 0,
     failure_code: str | None = None,
 ) -> AIUsageEvent:
     policy = _locked_policy(db, reservation.organization_id)
@@ -489,6 +522,7 @@ def settle_ai_usage(
             charged_input + charged_output,
             int(total_tokens or 0),
         )
+        charged_web_search_calls = max(0, int(web_search_calls or 0))
         status = "provider_output_rejected" if failure_code else "completed"
         cost_basis = "provider_reported_usage"
     else:
@@ -499,6 +533,7 @@ def settle_ai_usage(
         charged_cached = 0
         charged_output = event.reserved_output_tokens
         charged_total = charged_input + charged_output
+        charged_web_search_calls = event.reserved_web_search_calls
         status = "provider_error" if failure_code else "usage_unavailable"
         cost_basis = (
             "conservative_failure_reservation"
@@ -522,11 +557,16 @@ def settle_ai_usage(
         cached_input_tokens=charged_cached,
         output_tokens=charged_output,
         pricing=pricing,
+        web_search_calls=charged_web_search_calls,
+        web_search_rate_microusd_per_call=(
+            event.web_search_rate_microusd_per_call
+        ),
     )
     if (
         charged_input > event.reserved_input_tokens
         or charged_output > event.reserved_output_tokens
         or charged_cost > event.reserved_cost_microusd
+        or charged_web_search_calls > event.reserved_web_search_calls
     ):
         status = "completed_with_overage" if usage_known else status
         failure_code = failure_code or "provider_usage_exceeded_reservation"
@@ -538,12 +578,17 @@ def settle_ai_usage(
     period.reserved_output_tokens = max(
         0, period.reserved_output_tokens - event.reserved_output_tokens
     )
+    period.reserved_web_search_calls = max(
+        0,
+        period.reserved_web_search_calls - event.reserved_web_search_calls,
+    )
     period.reserved_cost_microusd = max(
         0, period.reserved_cost_microusd - event.reserved_cost_microusd
     )
     period.input_tokens += charged_input
     period.cached_input_tokens += charged_cached
     period.output_tokens += charged_output
+    period.web_search_calls += charged_web_search_calls
     period.estimated_cost_microusd += charged_cost
 
     event.status = status
@@ -551,8 +596,12 @@ def settle_ai_usage(
     event.input_tokens = charged_input
     event.cached_input_tokens = charged_cached
     event.output_tokens = charged_output
+    event.web_search_calls = charged_web_search_calls
     event.total_tokens = charged_total
     event.estimated_cost_microusd = charged_cost
+    event.web_search_cost_microusd = (
+        charged_web_search_calls * event.web_search_rate_microusd_per_call
+    )
     event.cost_basis = cost_basis
     event.failure_code = failure_code
     event.finalized_at = utcnow()
@@ -568,6 +617,7 @@ def settle_ai_usage(
             "input_tokens": charged_input,
             "cached_input_tokens": charged_cached,
             "output_tokens": charged_output,
+            "web_search_calls": charged_web_search_calls,
             "estimated_cost_usd": microusd_to_usd(charged_cost),
             "cost_basis": cost_basis,
             "failure_code": failure_code,
@@ -651,12 +701,17 @@ def usage_event_view(event: AIUsageEvent) -> dict:
         "input_count_method": event.input_count_method,
         "reserved_input_tokens": event.reserved_input_tokens,
         "reserved_output_tokens": event.reserved_output_tokens,
+        "reserved_web_search_calls": event.reserved_web_search_calls,
         "reserved_cost_usd": microusd_to_usd(event.reserved_cost_microusd),
         "input_tokens": event.input_tokens,
         "cached_input_tokens": event.cached_input_tokens,
         "output_tokens": event.output_tokens,
+        "web_search_calls": event.web_search_calls,
         "total_tokens": event.total_tokens,
         "estimated_cost_usd": microusd_to_usd(event.estimated_cost_microusd),
+        "web_search_cost_usd": microusd_to_usd(
+            event.web_search_cost_microusd
+        ),
         "cost_basis": event.cost_basis,
         "pricing": {
             "input_usd_per_million_tokens": microusd_to_usd(
@@ -671,6 +726,9 @@ def usage_event_view(event: AIUsageEvent) -> dict:
             "multiplier_bps": event.price_multiplier_bps,
             "source": event.pricing_source,
             "effective_date": event.pricing_effective_date,
+            "web_search_usd_per_call": microusd_to_usd(
+                event.web_search_rate_microusd_per_call
+            ),
         },
         "failure_code": event.failure_code,
         "created_at": event.created_at,
@@ -706,12 +764,16 @@ def governance_view(
         "input_tokens": period.input_tokens if period else 0,
         "cached_input_tokens": period.cached_input_tokens if period else 0,
         "output_tokens": period.output_tokens if period else 0,
+        "web_search_calls": period.web_search_calls if period else 0,
         "estimated_cost_usd": microusd_to_usd(
             period.estimated_cost_microusd if period else 0
         ),
         "active_reservations": period.active_reservations if period else 0,
         "reserved_input_tokens": period.reserved_input_tokens if period else 0,
         "reserved_output_tokens": period.reserved_output_tokens if period else 0,
+        "reserved_web_search_calls": (
+            period.reserved_web_search_calls if period else 0
+        ),
         "reserved_cost_usd": microusd_to_usd(
             period.reserved_cost_microusd if period else 0
         ),
