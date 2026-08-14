@@ -1,6 +1,8 @@
 # Security architecture
 
-- Authentication: short-lived JWT access tokens and rotating-session revocation through `token_version`.
+- Authentication: short-lived JWT access tokens, renewable session tokens and
+  immediate session revocation through `auth_version`. The browser replaces
+  both tokens after every renewal and keeps them scoped to the current tab.
 - Authorization: organization membership plus role-based access control.
 - Tenant isolation: mandatory `X-Organization-ID`, organization filters on every tenant query, and optional PostgreSQL RLS.
 - Encryption in transit: terminate TLS at the platform/load balancer; HSTS is enabled in production.

@@ -49,6 +49,9 @@ class Settings:
     access_token_minutes: int = field(
         default_factory=lambda: int(os.getenv("ATLAS_ACCESS_TOKEN_MINUTES", "60"))
     )
+    refresh_token_days: int = field(
+        default_factory=lambda: int(os.getenv("ATLAS_REFRESH_TOKEN_DAYS", "14"))
+    )
 
 
 def validate_security_settings(value: Settings) -> None:

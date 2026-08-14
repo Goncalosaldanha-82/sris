@@ -117,6 +117,7 @@ def test_owner_invites_new_user_and_invitation_is_single_use(monkeypatch) -> Non
     )
     assert accepted.status_code == 200, accepted.text
     assert accepted.json()["organization_id"] == organization_id
+    assert accepted.json()["refresh_token"]
     invited_headers = {
         "Authorization": f"Bearer {accepted.json()['access_token']}"
     }
@@ -282,6 +283,12 @@ def test_password_reset_is_generic_single_use_and_revokes_sessions(
 ) -> None:
     captured = _capture_auth_links(monkeypatch)
     headers, _, email = _owner()
+    active_session = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": "owner-password-123"},
+    )
+    assert active_session.status_code == 200, active_session.text
+    refresh_token = active_session.json()["refresh_token"]
 
     unknown = client.post(
         "/api/auth/password-reset/request",
@@ -322,6 +329,10 @@ def test_password_reset_is_generic_single_use_and_revokes_sessions(
 
     # Changing the password increments auth_version, invalidating earlier JWTs.
     assert client.get("/api/auth/me", headers=headers).status_code == 401
+    assert client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+    ).status_code == 401
     assert client.post(
         "/api/auth/login",
         json={"email": email, "password": "owner-password-123"},

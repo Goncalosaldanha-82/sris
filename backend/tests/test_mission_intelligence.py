@@ -2573,7 +2573,7 @@ def test_institutional_activation_script_verifies_full_session_contract() -> Non
     frontend = (repo_root / "frontend" / "atlas-os" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'fetch("/api/auth/me"' in frontend
+    assert 'authenticatedFetch("/api/auth/me"' in frontend
     assert '"Demonstração pública"' in frontend
     assert '"Sem sessão institucional"' in frontend
     assert 'openApp({mode:"institutional",...session})' in frontend

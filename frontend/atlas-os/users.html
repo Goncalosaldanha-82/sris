@@ -81,16 +81,40 @@
   (()=>{
     "use strict";
     const $=selector=>document.querySelector(selector);
-    const token=sessionStorage.getItem("sris_token")||"";
+    let accessToken=sessionStorage.getItem("sris_token")||"";
+    let refreshInFlight=null;
     const roleLabels={owner:"Proprietário",admin:"Administrador",reviewer:"Revisor",contributor:"Colaborador",observer:"Observador",system_agent:"Agente de sistema"};
     const statusLabels={pending:"Pendente",sent:"Enviado",failed:"Falhou",accepted:"Aceite",expired:"Expirado",revoked:"Revogado"};
     let organization=null,user=null,currentMembership=null,members=[],invitations=[];
     const esc=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
     function setMessage(text,type=""){$("#inviteMessage").textContent=text;$("#inviteMessage").className=`message ${type}`.trim()}
+    function clearSessionTokens(){sessionStorage.removeItem("sris_token");sessionStorage.removeItem("sris_refresh_token")}
+    async function renewSessionToken(){
+      const refreshToken=sessionStorage.getItem("sris_refresh_token");if(!refreshToken)return null;
+      if(!refreshInFlight){
+        refreshInFlight=(async()=>{
+          try{
+            const response=await fetch("/api/auth/refresh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({refresh_token:refreshToken}),cache:"no-store"});
+            if(!response.ok)return null;
+            const data=await response.json();accessToken=String(data.access_token||"");
+            if(!accessToken)return null;
+            sessionStorage.setItem("sris_token",accessToken);
+            if(data.refresh_token)sessionStorage.setItem("sris_refresh_token",data.refresh_token);
+            return accessToken;
+          }catch{return null}
+        })();
+      }
+      try{return await refreshInFlight}finally{refreshInFlight=null}
+    }
     async function api(path,options={}){
-      const response=await fetch(`/api${path}`,{...options,headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`,...(options.headers||{})},cache:"no-store"});
-      if(response.status===401){sessionStorage.removeItem("sris_token");location.replace("/");throw new Error("Sessão expirada.")}
+      const request=token=>({...options,headers:{"Content-Type":"application/json",...(options.headers||{}),Authorization:`Bearer ${token}`},cache:"no-store"});
+      let response=await fetch(`/api${path}`,request(accessToken));
+      if(response.status===401){
+        const renewed=await renewSessionToken();
+        if(renewed)response=await fetch(`/api${path}`,request(renewed));
+      }
+      if(response.status===401){clearSessionTokens();location.replace("/");throw new Error("Sessão expirada.")}
       const data=response.status===204?null:await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data?.detail||"Não foi possível concluir o pedido.");
       return data;
@@ -120,7 +144,7 @@
       ]);renderMembers();renderInvitations();
     }
     async function initialize(){
-      if(!token){location.replace("/");return}
+      if(!accessToken){location.replace("/");return}
       try{
         const [me,organizations,capabilities]=await Promise.all([api("/auth/me"),api("/organizations"),fetch("/api/auth/capabilities",{cache:"no-store"}).then(r=>r.json())]);
         user=me;const preferredOrganizationId=sessionStorage.getItem("sris_active_organization");organization=organizations?.find(item=>item.id===preferredOrganizationId)||organizations?.find(item=>item.slug==="sris")||organizations?.[0];

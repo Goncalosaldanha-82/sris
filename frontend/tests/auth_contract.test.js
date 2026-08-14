@@ -85,3 +85,24 @@ test('Mission portfolio UI creates canonical missions and renders hierarchy', ()
   assert.match(html, /children\.get\(item\.id\)/);
   assert.match(html, /\|\| "M-002"/);
 });
+
+test('institutional sessions renew automatically before retrying protected requests', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '../atlas-os/index.html'), 'utf8');
+  assert.match(html, /\/api\/auth\/refresh/);
+  assert.match(html, /async function authenticatedFetch/);
+  assert.match(html, /if\(response\.status!==401\)return response/);
+  assert.match(html, /Authorization:`Bearer \$\{renewedToken\}`/);
+  assert.match(html, /async function recoverLatestDialogueSession[\s\S]*?authenticatedFetch\([\s\S]*?dialogues\?mission_code/);
+  assert.match(html, /async function refreshAIGovernanceStatus[\s\S]*?authenticatedFetch\([\s\S]*?ai-governance/);
+});
+
+test('choice questions accept a predefined option, free text, or both', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '../atlas-os/index.html'), 'utf8');
+  assert.match(html, /data-mi-choice-custom/);
+  assert.match(html, /Outra resposta ou complemento \(opcional\)/);
+  assert.match(html, /selected&&custom\?`\$\{selected\} — \$\{custom\}`:custom\|\|selected/);
+});

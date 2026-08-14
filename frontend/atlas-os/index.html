@@ -496,6 +496,9 @@
     .mi-question small{display:block;margin:5px 0 8px;color:var(--ink-muted);font-size:9.5px;line-height:1.5}
     .mi-question input,.mi-question select,.mi-question textarea{width:100%;padding:10px;border:1px solid var(--border-strong);border-radius:9px;background:#fff;font-size:11px}
     .mi-question textarea{min-height:76px;resize:vertical}
+    .mi-choice-group{display:grid;gap:8px}
+    .mi-choice-group textarea{min-height:64px}
+    .mi-choice-note{color:var(--ink-muted);font-size:9px;line-height:1.45}
     .mi-list{margin:0;padding-left:20px}
     .mi-list li{margin:6px 0;color:var(--ink-soft);font-size:11px;line-height:1.55}
     .mi-next{padding:14px;border-radius:10px;background:var(--sage-soft);color:var(--forest);font-size:11.5px;line-height:1.55}
@@ -2001,6 +2004,7 @@
     let latestDialogueTurn = null;
     let dialogueRecoveryMissionId = null;
     let dialogueRecoveryPromise = null;
+    let refreshInFlight = null;
     const DIALOGUE_SESSION_KEY_PREFIX = "sris_mi_dialogue_";
     let intelligenceStatus = {
       deterministic_analysis:"unavailable",
@@ -2030,6 +2034,59 @@
       const el=qs("#toast"); if(!el)return;
       el.textContent=message;el.classList.remove("hidden");
       setTimeout(()=>el.classList.add("hidden"),4200);
+    }
+
+    function storeSessionTokens(data){
+      const accessToken=String(data?.access_token||"");
+      const refreshToken=String(data?.refresh_token||"");
+      if(accessToken)sessionStorage.setItem("sris_token",accessToken);
+      if(refreshToken)sessionStorage.setItem("sris_refresh_token",refreshToken);
+      return accessToken;
+    }
+
+    function clearSessionTokens(){
+      sessionStorage.removeItem("sris_token");
+      sessionStorage.removeItem("sris_refresh_token");
+    }
+
+    async function renewSessionToken(){
+      const refreshToken=sessionStorage.getItem("sris_refresh_token");
+      if(!refreshToken)return null;
+      if(!refreshInFlight){
+        refreshInFlight=(async()=>{
+          try{
+            const response=await fetch("/api/auth/refresh",{
+              method:"POST",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({refresh_token:refreshToken}),
+              cache:"no-store"
+            });
+            if(!response.ok)return null;
+            return storeSessionTokens(await response.json())||null;
+          }catch{return null}
+        })();
+      }
+      try{return await refreshInFlight}
+      finally{refreshInFlight=null}
+    }
+
+    async function authenticatedFetch(url,options={}){
+      const token=sessionStorage.getItem("sris_token");
+      const headers={...(options.headers||{})};
+      if(token)headers.Authorization=`Bearer ${token}`;
+      const response=await fetch(url,{...options,headers});
+      if(response.status!==401)return response;
+      const renewedToken=await renewSessionToken();
+      if(!renewedToken){
+        clearSessionTokens();
+        throw new Error("A sessão expirou. Volte a entrar no SRIS; as respostas que escreveu continuam neste ecrã.");
+      }
+      const retried=await fetch(url,{...options,headers:{...headers,Authorization:`Bearer ${renewedToken}`}});
+      if(retried.status===401){
+        clearSessionTokens();
+        throw new Error("A sessão expirou. Volte a entrar no SRIS; as respostas que escreveu continuam neste ecrã.");
+      }
+      return retried;
     }
 
     function recordOrigin(record, missionId){
@@ -2612,9 +2669,9 @@
 
     function miQuestionControl(question){
       const id=esc(question.question_id),label=esc(question.question),options=question.options||[];
-      if(question.answer_type==="single_choice")return `<select data-mi-question-id="${id}" aria-label="${label}"><option value="">Selecione…</option>${options.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")}</select>`;
+      if(question.answer_type==="single_choice")return `<div class="mi-choice-group" data-mi-choice-group="${id}"><select data-mi-choice aria-label="${label} — opção predefinida"><option value="">Selecione…</option>${options.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")}</select><textarea data-mi-choice-custom aria-label="${label} — outra resposta ou complemento" placeholder="Outra resposta ou complemento (opcional)"></textarea><span class="mi-choice-note">Se escrever aqui, a Mission Intelligence recebe este texto juntamente com a opção selecionada.</span></div>`;
       if(question.answer_type==="multi_choice")return `<textarea data-mi-question-id="${id}" aria-label="${label}" placeholder="Indique uma ou mais opções: ${esc(options.join(" · "))}"></textarea>`;
-      if(question.answer_type==="yes_no")return `<select data-mi-question-id="${id}" aria-label="${label}"><option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Ainda não sei">Ainda não sei</option></select>`;
+      if(question.answer_type==="yes_no")return `<div class="mi-choice-group" data-mi-choice-group="${id}"><select data-mi-choice aria-label="${label} — opção predefinida"><option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Ainda não sei">Ainda não sei</option></select><textarea data-mi-choice-custom aria-label="${label} — outra resposta ou complemento" placeholder="Outra resposta ou complemento (opcional)"></textarea><span class="mi-choice-note">Pode responder por palavras suas ou acrescentar contexto à opção selecionada.</span></div>`;
       if(question.answer_type==="number")return `<input data-mi-question-id="${id}" aria-label="${label}" type="number" />`;
       if(question.answer_type==="date")return `<input data-mi-question-id="${id}" aria-label="${label}" type="date" />`;
       return `<textarea data-mi-question-id="${id}" aria-label="${label}" placeholder="A sua resposta"></textarea>`;
@@ -2689,7 +2746,7 @@
       if(!sessionId||!token||!activeOrganizationId)return;
       const organizationId=activeOrganizationId;
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues/${encodeURIComponent(sessionId)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+        const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues/${encodeURIComponent(sessionId)}`,{cache:"no-store"});
         if(activeMissionId!==missionId||activeOrganizationId!==organizationId)return;
         if(res.status===404){sessionStorage.removeItem(dialogueSessionKey(missionId));activeDialogueSessionId=null;return}
         const data=await res.json();
@@ -2710,7 +2767,7 @@
       dialogueRecoveryMissionId=missionId;
       dialogueRecoveryPromise=(async()=>{
         try{
-          const res=await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues?mission_code=${encodeURIComponent(missionId)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+          const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues?mission_code=${encodeURIComponent(missionId)}`,{cache:"no-store"});
           const sessions=await res.json();
           if(!res.ok)throw new Error(sessions.detail?.message||sessions.detail||"Não foi possível procurar o histórico da missão.");
           if(activeMissionId!==missionId||activeOrganizationId!==organizationId||activeDialogueSessionId)return null;
@@ -2744,7 +2801,17 @@
     function collectMIAnswers(){
       const last=qs("#miConversation .mi-turn:last-child");
       if(!last)return [];
-      return qsa("[data-mi-question-id]",last).map(field=>({question_id:field.dataset.miQuestionId,answer:String(field.value||"").trim()})).filter(item=>item.answer);
+      return qsa(".mi-question",last).map(container=>{
+        const choice=qs("[data-mi-choice-group]",container);
+        if(choice){
+          const selected=String(qs("[data-mi-choice]",choice)?.value||"").trim();
+          const custom=String(qs("[data-mi-choice-custom]",choice)?.value||"").trim();
+          const answer=selected&&custom?`${selected} — ${custom}`:custom||selected;
+          return {question_id:choice.dataset.miChoiceGroup,answer};
+        }
+        const field=qs("[data-mi-question-id]",container);
+        return field?{question_id:field.dataset.miQuestionId,answer:String(field.value||"").trim()}:null;
+      }).filter(item=>item?.answer);
     }
 
     function updateAIControl(){
@@ -2821,7 +2888,7 @@
       if(!token||!activeOrganizationId){updateAIControl();return null}
       const organizationId=activeOrganizationId;
       try{
-        const response=await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/ai-governance`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+        const response=await authenticatedFetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/ai-governance`,{cache:"no-store"});
         if(response.ok&&activeOrganizationId===organizationId)aiGovernanceStatus=await response.json();
       }catch(err){console.warn("Estado de governação de IA indisponível:",err)}
       updateAIControl();
@@ -2838,8 +2905,8 @@
       try{
         const request={headers:{Authorization:`Bearer ${token}`},cache:"no-store"};
         const [meResponse,organizationsResponse]=await Promise.all([
-          fetch("/api/auth/me",request),
-          fetch("/api/organizations",request)
+          authenticatedFetch("/api/auth/me",request),
+          authenticatedFetch("/api/organizations",request)
         ]);
         if(!meResponse.ok)throw new Error("A sessão não é válida ou expirou.");
         if(!organizationsResponse.ok)throw new Error("Não foi possível obter a organização ativa.");
@@ -2855,15 +2922,15 @@
         sessionStorage.setItem("sris_active_organization",activeOrganizationId);
         if(activeOrganizationId){
           const [governance,memberships,portfolioResponse]=await Promise.all([
-            fetch(
+            authenticatedFetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
               request
             ),
-            fetch(
+            authenticatedFetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/membership`,
               request
             ),
-            fetch(
+            authenticatedFetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`,
               request
             )
@@ -3016,7 +3083,7 @@
         const endpoint=editing
           ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(editing.canonical_id)}`
           : `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`;
-        const res=await fetch(endpoint,{
+        const res=await authenticatedFetch(endpoint,{
           method:editing?"PATCH":"POST",
           headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
           body:JSON.stringify(payload)
@@ -3102,7 +3169,7 @@
       const buttons=qsa("[data-review-decision]",panel);
       buttons.forEach(item=>item.disabled=true);
       try{
-        const res=await fetch(
+        const res=await authenticatedFetch(
           `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/runs/${encodeURIComponent(runId)}/review`,
           {
             method:"POST",
@@ -3134,7 +3201,7 @@
       if(comment.length<3){toast("Registe um comentário antes de rever a proposta.");return}
       const buttons=qsa("[data-mi-review]",reviewRoot);buttons.forEach(item=>item.disabled=true);
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(activeDialogueSessionId)}/turns/${encodeURIComponent(turnId)}/proposals/${encodeURIComponent(proposalId)}/review`,{
+        const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(activeDialogueSessionId)}/turns/${encodeURIComponent(turnId)}/proposals/${encodeURIComponent(proposalId)}/review`,{
           method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({decision,comment})
         });
         const data=await res.json();
@@ -3171,7 +3238,7 @@
       };
       button.disabled=true;button.textContent=payload.research_context?"A investigar e raciocinar…":"A raciocinar com a missão…";
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/interact`,{
+        const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/interact`,{
           method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(payload)
         });
         const data=await res.json();
@@ -3345,7 +3412,7 @@
       try{
         const headers={"Content-Type":"application/json"};
         if(institutional)headers.Authorization=`Bearer ${token}`;
-        const res=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload)});
+        const res=await (institutional?authenticatedFetch:fetch)(endpoint,{method:"POST",headers,body:JSON.stringify(payload)});
         const data=await res.json();
         if(!res.ok)throw new Error(data.detail||"Não foi possível executar Mission Intelligence.");
         renderResult(data);
@@ -3393,7 +3460,7 @@
       currentSession=null;
       activeDialogueSessionId=null;
       latestDialogueTurn=null;
-      sessionStorage.removeItem("sris_token");
+      clearSessionTokens();
       activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
       renderAll();
       sessionStorage.setItem("sris_demo","true");openApp({mode:"demo"});
@@ -3401,7 +3468,7 @@
 
     qs("#logoutButton").addEventListener("click",()=>{
       sessionStorage.removeItem("sris_demo");
-      sessionStorage.removeItem("sris_token");
+      clearSessionTokens();
       activeOrganizationId=null;
       aiGovernanceStatus=null;
       currentSession=null;
@@ -3436,14 +3503,13 @@
             ?"Email ou palavra-passe incorretos."
             :detail||"Não foi possível autenticar.");
         }
-        const token=data.access_token||"";
-        sessionStorage.setItem("sris_token",token);
+        const token=storeSessionTokens(data);
         sessionStorage.removeItem("sris_demo");
         const session=await loadSessionContext(token);
         qs("#loginMessage").textContent="";
         openApp({mode:"institutional",...session});
       }catch(err){
-        sessionStorage.removeItem("sris_token");
+        clearSessionTokens();
         qs("#loginMessage").textContent=err.message||"Erro de autenticação.";
       }
     });
@@ -3457,7 +3523,7 @@
           const session=await loadSessionContext(storedToken);
           openApp({mode:"institutional",...session});
         }catch(err){
-          sessionStorage.removeItem("sris_token");
+          clearSessionTokens();
           qs("#loginMessage").textContent=err.message||"A sessão guardada deixou de ser válida.";
         }
       }
