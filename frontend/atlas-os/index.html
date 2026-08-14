@@ -1999,6 +1999,8 @@
     let activeDialogueSessionId = null;
     let activeDialogueIntent = "diagnose";
     let latestDialogueTurn = null;
+    let dialogueRecoveryMissionId = null;
+    let dialogueRecoveryPromise = null;
     const DIALOGUE_SESSION_KEY_PREFIX = "sris_mi_dialogue_";
     let intelligenceStatus = {
       deterministic_analysis:"unavailable",
@@ -2621,9 +2623,23 @@
     function renderInteractiveTurn(result,{append=true}={}){
       const root=qs("#miConversation");
       if(!append)root.innerHTML="";
+      if(root.querySelector(".mi-empty"))root.innerHTML="";
       if(result.ai_status!=="completed"||!result.intelligence){
-        const code=result.ai_governance?.code||result.ai_status||"indisponível";
-        root.insertAdjacentHTML("beforeend",`<article class="mi-turn"><div class="mi-answer"><div class="mi-answer-head"><small>Mission Intelligence não executada</small><h3>${esc(code)}</h3><p>${esc(result.ai_governance?.message||result.ai_error||"A governação não permitiu este turno.")}</p></div></div></article>`);
+        const code=result.ai_usage?.failure_code||result.ai_governance?.code||result.ai_status||"indisponível";
+        const reference=result.ai_usage?.id||result.ai_governance?.usage_event_id||result.run_id||"";
+        const message=result.ai_error||result.ai_governance?.message||"A execução não produziu uma resposta utilizável.";
+        root.insertAdjacentHTML("beforeend",`
+          <article class="mi-turn" data-mi-turn-id="${esc(result.turn_id||"")}">
+            <div class="mi-user-message"><strong>Pedido ${esc(result.turn_sequence||"")}:</strong> ${esc(result.user_message||"Pedido registado.")}</div>
+            <div class="mi-answer">
+              <div class="mi-answer-head">
+                <small>Mission Intelligence não executada · turno preservado</small>
+                <h3>${esc(code)}</h3>
+                <p>${esc(message)}</p>
+              </div>
+              <div class="mi-turn-meta">O pedido e a falha ficaram registados para diagnóstico e nova tentativa.${reference?` · referência ${esc(reference)}`:""}</div>
+            </div>
+          </article>`);
         return;
       }
       const i=result.intelligence,reading=i.mission_reading||{},reviews=result.proposal_reviews||[];
@@ -2663,18 +2679,19 @@
             <div class="mi-turn-meta">${esc(i.boundary?.statement||"Revisão humana obrigatória; nenhuma alteração canónica.")}${result.ai_usage?` · custo estimado USD ${esc(result.ai_usage.estimated_cost_usd||"0.000000")}`:""}</div>
           </div>
         </article>`;
-      if(root.querySelector(".mi-empty"))root.innerHTML="";
       root.insertAdjacentHTML("beforeend",html);
       latestDialogueTurn={session_id:result.session_id,turn_id:turnId,sequence:result.turn_sequence,intelligence:i};
       root.lastElementChild?.scrollIntoView({behavior:"smooth",block:"start"});
     }
 
-    async function loadDialogueSession(sessionId){
+    async function loadDialogueSession(sessionId,missionId=activeMissionId){
       const token=sessionStorage.getItem("sris_token");
       if(!sessionId||!token||!activeOrganizationId)return;
+      const organizationId=activeOrganizationId;
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(sessionId)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
-        if(res.status===404){sessionStorage.removeItem(dialogueSessionKey(activeMissionId));activeDialogueSessionId=null;return}
+        const res=await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues/${encodeURIComponent(sessionId)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+        if(activeMissionId!==missionId||activeOrganizationId!==organizationId)return;
+        if(res.status===404){sessionStorage.removeItem(dialogueSessionKey(missionId));activeDialogueSessionId=null;return}
         const data=await res.json();
         if(!res.ok)throw new Error(data.detail?.message||data.detail||"Não foi possível recuperar o diálogo.");
         const root=qs("#miConversation");root.innerHTML="";
@@ -2686,6 +2703,31 @@
       }catch(err){console.warn("Histórico Mission Intelligence indisponível:",err)}
     }
 
+    async function recoverLatestDialogueSession(missionId){
+      const token=sessionStorage.getItem("sris_token"),organizationId=activeOrganizationId;
+      if(!missionId||!token||!organizationId||activeDialogueSessionId)return null;
+      if(dialogueRecoveryPromise&&dialogueRecoveryMissionId===missionId)return dialogueRecoveryPromise;
+      dialogueRecoveryMissionId=missionId;
+      dialogueRecoveryPromise=(async()=>{
+        try{
+          const res=await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues?mission_code=${encodeURIComponent(missionId)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+          const sessions=await res.json();
+          if(!res.ok)throw new Error(sessions.detail?.message||sessions.detail||"Não foi possível procurar o histórico da missão.");
+          if(activeMissionId!==missionId||activeOrganizationId!==organizationId||activeDialogueSessionId)return null;
+          const latest=(sessions||[]).find(item=>item.status==="active"&&Number(item.turn_count)>0);
+          if(!latest)return null;
+          activeDialogueSessionId=latest.id;
+          sessionStorage.setItem(dialogueSessionKey(missionId),latest.id);
+          await loadDialogueSession(latest.id,missionId);
+          return latest.id;
+        }catch(err){console.warn("Recuperação do último diálogo indisponível:",err);return null}
+        finally{
+          if(dialogueRecoveryMissionId===missionId){dialogueRecoveryMissionId=null;dialogueRecoveryPromise=null}
+        }
+      })();
+      return dialogueRecoveryPromise;
+    }
+
     function resetDialogueView(){
       qs("#miConversation").innerHTML=`<div class="mi-empty"><strong>A missão ainda não respondeu.</strong>Inicie um diagnóstico para obter perguntas, hipóteses, uma alternativa nova e um desenho de teste — não apenas um resumo.</div>`;
       latestDialogueTurn=null;
@@ -2695,7 +2737,8 @@
       activeDialogueSessionId=sessionStorage.getItem(dialogueSessionKey(missionId));
       resetDialogueView();
       qs("#miNewSession").classList.toggle("hidden",!activeDialogueSessionId);
-      if(activeDialogueSessionId&&sessionStorage.getItem("sris_token")&&activeOrganizationId)loadDialogueSession(activeDialogueSessionId);
+      if(activeDialogueSessionId&&sessionStorage.getItem("sris_token")&&activeOrganizationId)loadDialogueSession(activeDialogueSessionId,missionId);
+      else if(sessionStorage.getItem("sris_token")&&activeOrganizationId)recoverLatestDialogueSession(missionId);
     }
 
     function collectMIAnswers(){
@@ -2772,6 +2815,17 @@
             ? "Opcional neste turno; usa pesquisa web governada e acrescenta custo."
             : "O motor de pesquisa contextual está instalado, mas permanece desativado.";
       }
+    }
+
+    async function refreshAIGovernanceStatus(token){
+      if(!token||!activeOrganizationId){updateAIControl();return null}
+      const organizationId=activeOrganizationId;
+      try{
+        const response=await fetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/ai-governance`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+        if(response.ok&&activeOrganizationId===organizationId)aiGovernanceStatus=await response.json();
+      }catch(err){console.warn("Estado de governação de IA indisponível:",err)}
+      updateAIControl();
+      return aiGovernanceStatus;
     }
 
     async function loadSessionContext(token){
@@ -3133,17 +3187,19 @@
         }
         data.user_message=message;
         renderInteractiveTurn(data,{append:true});
-        if(data.ai_status==="completed"){
+        if(data.session_id&&data.turn_id){
           activeDialogueSessionId=data.session_id;
           sessionStorage.setItem(dialogueSessionKey(m.id),data.session_id);
           qs("#miNewSession").classList.remove("hidden");
+        }
+        if(data.ai_status==="completed"){
           qs("#miMessage").value=(data.intelligence?.questions||[]).length
             ? "Analisa as minhas respostas, atualiza o diagnóstico e diz concretamente o que mudou na decisão."
             : "Aprofunda o próximo movimento e transforma-o numa sequência operacional verificável.";
           if(activeDialogueIntent==="diagnose")activeDialogueIntent="answer";
           qsa(".mi-intent").forEach(item=>item.classList.toggle("is-active",item.dataset.miIntent===activeDialogueIntent));
         }
-        await loadSessionContext(token);
+        await refreshAIGovernanceStatus(token);
       }catch(err){toast(err.message||"Não foi possível executar o diálogo inteligente.")}
       finally{updateAIControl();button.textContent=activeDialogueSessionId?"Continuar Mission Intelligence":"Iniciar Mission Intelligence"}
     }

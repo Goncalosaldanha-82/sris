@@ -1492,6 +1492,88 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     ] == "none"
 
 
+def test_failed_interactive_turn_remains_visible_in_session_history(monkeypatch) -> None:
+    suffix = f"interactive-failure-{uuid4().hex[:8]}"
+    headers, organization_id = _owner_named(suffix)
+    endpoint = (
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/interact"
+    )
+    monkeypatch.setattr(dialogue_service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(mission_api, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(
+        dialogue_service,
+        "count_openai_input_tokens",
+        lambda _request: 1_200,
+    )
+
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 500_000,
+            "monthly_output_token_limit": 50_000,
+            "monthly_budget_usd": "2.00",
+            "per_request_input_token_limit": 100_000,
+            "per_request_output_token_limit": 6_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+
+    def reject_provider(*_args, **_kwargs):
+        raise AIUnavailableError(
+            "The provider response failed the interactive quality contract",
+            failure_code="provider_output_invalid",
+            provider_response_id="resp_interactive_rejected",
+            usage=AIProviderUsage(
+                input_tokens=1_200,
+                cached_input_tokens=0,
+                output_tokens=700,
+                total_tokens=1_900,
+            ),
+        )
+
+    monkeypatch.setattr(dialogue_service, "analyze_interactively", reject_provider)
+    response = client.post(
+        endpoint,
+        headers=headers,
+        json={
+            "intent": "diagnose",
+            "message": "Diagnostica a missão sem ocultar falhas do fornecedor.",
+            "answers": [],
+            "mission_input": _analysis_payload(
+                use_ai=False,
+                research_context=False,
+            ),
+            "research_context": False,
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["ai_status"] == "failed"
+    assert data["session_id"]
+    assert data["turn_id"]
+    assert data["ai_error"] == (
+        "The provider response failed the interactive quality contract"
+    )
+    assert data["ai_usage"]["failure_code"] == "provider_output_invalid"
+
+    historical = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/dialogues/{data['session_id']}",
+        headers=headers,
+    )
+    assert historical.status_code == 200, historical.text
+    turn = historical.json()["turns"][0]
+    assert turn["ai_status"] == "failed"
+    assert turn["ai_error"] == data["ai_error"]
+    assert turn["ai_usage"]["failure_code"] == "provider_output_invalid"
+    assert turn["user_message"] == (
+        "Diagnostica a missão sem ocultar falhas do fornecedor."
+    )
+
+
 def test_frontend_and_openapi_expose_the_new_capability() -> None:
     frontend = client.get("/")
     assert frontend.status_code == 200
@@ -1516,6 +1598,15 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     assert "demonstração pública do" in frontend.text
     assert "demonstração preparada para o" not in frontend.text
     assert "Importar visualização" in frontend.text
+    assert "async function refreshAIGovernanceStatus(token)" in frontend.text
+    assert "async function recoverLatestDialogueSession(missionId)" in frontend.text
+    assert "result.ai_usage?.failure_code" in frontend.text
+    submit_dialogue = frontend.text.split(
+        "async function submitMIDialogue()", 1
+    )[1].split("function renderAll()", 1)[0]
+    assert "await refreshAIGovernanceStatus(token);" in submit_dialogue
+    assert "await loadSessionContext(token);" not in submit_dialogue
+    assert "if(data.session_id&&data.turn_id)" in submit_dialogue
 
     spec = client.get("/openapi.json")
     assert spec.status_code == 200

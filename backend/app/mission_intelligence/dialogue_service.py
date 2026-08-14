@@ -590,6 +590,7 @@ def _turn_view(turn: MissionDialogueTurn) -> dict[str, Any]:
         "user_message": turn.user_message,
         "answers": json.loads(turn.answers_json),
         "ai_status": "completed" if ai.get("intelligence") else "failed",
+        "ai_error": run.error,
         "intelligence": ai.get("intelligence"),
         "provenance": ai.get("provenance"),
         "context_dossier": ai.get("context_dossier"),
