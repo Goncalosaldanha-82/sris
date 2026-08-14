@@ -1021,12 +1021,17 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
         proposal_reviews=[],
     )
 
-    assert request.response_model is MIInteractiveOutput
+    assert issubclass(request.response_model, MIInteractiveOutput)
     assert request.reasoning_effort == "medium"
     assert "Não és um redator de" in request.instructions
     assert "Podes criar hipóteses, alternativas, critérios e experiências" in (
         request.instructions
     )
+    assert "minimum_output_counts" in request.input_text
+    schema = request.response_model.model_json_schema()
+    assert schema["properties"]["questions"]["minItems"] == 3
+    assert schema["properties"]["hypotheses"]["minItems"] == 2
+    assert schema["properties"]["decision_criteria"]["minItems"] == 3
     assert interactive_ai._quality_failures(
         output,
         MIInteractionIntent.DIAGNOSE,
@@ -1038,6 +1043,72 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert len(output.experiment_proposals) == 1
     assert output.boundary.facts_added is False
     assert output.boundary.human_review_required is True
+
+
+def test_interactive_provider_schema_enforces_each_intent_quality_minimum() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+
+    for intent, minimums in interactive_ai.INTERACTION_MINIMUMS.items():
+        request = interactive_ai.prepare_interactive_request(
+            document,
+            deterministic,
+            intent=intent,
+            message="Executa o trabalho cognitivo pedido.",
+            answers=[],
+            history=[],
+            proposal_reviews=[],
+        )
+        schema = request.response_model.model_json_schema()
+        payload = json.loads(request.input_text)
+
+        assert payload["requested_turn"]["minimum_output_counts"] == minimums
+        for field_name, minimum in minimums.items():
+            assert schema["properties"][field_name]["minItems"] == minimum
+
+
+def test_interactive_research_schema_enforces_nested_quality_minimums() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Diagnostica a missão com investigação contextual.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+        research_context=True,
+    )
+    schema = request.response_model.model_json_schema()
+    intelligence_ref = schema["properties"]["intelligence"]["$ref"]
+    intelligence_schema = schema["$defs"][intelligence_ref.rsplit("/", 1)[-1]]
+
+    assert issubclass(request.response_model, MIInteractiveResearchBundle)
+    assert intelligence_schema["properties"]["questions"]["minItems"] == 3
+    assert intelligence_schema["properties"]["hypotheses"]["minItems"] == 2
+    assert intelligence_schema["properties"]["decision_criteria"]["minItems"] == 3
+
+
+def test_interactive_provider_schema_rejects_shallow_diagnosis_before_quality_gate(
+) -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Diagnostica a missão.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+    )
+    shallow = _interactive_output(document).model_dump(mode="json")
+    shallow["questions"] = shallow["questions"][:2]
+    shallow["decision_criteria"] = shallow["decision_criteria"][:2]
+
+    with pytest.raises(ValidationError) as blocked:
+        request.response_model.model_validate(shallow)
+
+    errors = {item["loc"][0] for item in blocked.value.errors()}
+    assert {"questions", "decision_criteria"}.issubset(errors)
 
 
 def test_interactive_m001_domain_eval_preserves_epistemic_and_decision_boundaries(

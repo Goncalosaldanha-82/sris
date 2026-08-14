@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
+
+from pydantic import BaseModel, Field, create_model
 
 from .ai import (
     MAX_CONTEXT_WEB_SEARCH_CALLS,
@@ -29,14 +32,49 @@ from .contracts import (
 )
 
 
-INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.0"
-INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.0"
+INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.1"
+INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.1"
 DEFAULT_INTERACTIVE_OUTPUT_TOKENS = 6_000
 DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS = 6_000
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_BYTES = 13_000
 MAX_REVIEW_ITEMS = 32
 MAX_REVIEW_BYTES = 4_000
+
+
+INTERACTION_MINIMUMS: dict[MIInteractionIntent, dict[str, int]] = {
+    MIInteractionIntent.DIAGNOSE: {
+        "questions": 3,
+        "hypotheses": 2,
+        "alternative_proposals": 1,
+        "decision_criteria": 3,
+        "experiment_proposals": 1,
+        "challenges": 1,
+        "recommended_actions": 2,
+    },
+    MIInteractionIntent.ANSWER: {"recommended_actions": 1},
+    MIInteractionIntent.CHALLENGE: {"challenges": 2, "hypotheses": 1},
+    MIInteractionIntent.EXPLORE_ALTERNATIVES: {
+        "alternative_proposals": 2,
+        "decision_criteria": 3,
+    },
+    MIInteractionIntent.DESIGN_EXPERIMENT: {
+        "experiment_proposals": 1,
+        "decision_criteria": 2,
+    },
+    MIInteractionIntent.COMPARE_OPTIONS: {"decision_criteria": 3},
+    MIInteractionIntent.SYNTHESIZE: {"recommended_actions": 1},
+}
+
+INTERACTION_MAXIMUMS = {
+    "questions": 8,
+    "hypotheses": 8,
+    "alternative_proposals": 8,
+    "decision_criteria": 12,
+    "experiment_proposals": 6,
+    "challenges": 8,
+    "recommended_actions": 10,
+}
 
 
 INTERACTIVE_SYSTEM_PROMPT = """
@@ -73,6 +111,10 @@ COMPORTAMENTO DE INTELIGÊNCIA
   decisão, horizonte temporal, limitações e condições de paragem.
 - Não uses prudência como desculpa para repetir os dados. Se não puderes
   concluir, propõe a forma mais curta de reduzir a incerteza relevante.
+- Cumpre integralmente requested_turn.minimum_output_counts. Esses mínimos são
+  parte do contrato técnico da resposta, não sugestões. Antes de concluir,
+  confirma que cada coleção indicada contém pelo menos o número exigido de
+  elementos substanciais, distintos e ancorados em based_on_ids.
 - Escreve em português europeu, com clareza executiva e conteúdo operacional.
 
 SEGURANÇA DE CONTEXTO
@@ -287,6 +329,45 @@ def _reviews_for_prompt(reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(reversed(newest_first))
 
 
+@lru_cache(maxsize=None)
+def _response_model_for(
+    intent: MIInteractionIntent,
+    research_context: bool,
+) -> type[BaseModel]:
+    """Build the provider schema with the requested turn's minimum counts.
+
+    The post-provider quality gate remains the final defence, but minItems in
+    the schema prevents a paid provider response from being accepted by the
+    SDK when it is already known to be too short for the requested intent.
+    """
+
+    overrides: dict[str, Any] = {}
+    for field_name, minimum in INTERACTION_MINIMUMS[intent].items():
+        annotation = MIInteractiveOutput.model_fields[field_name].annotation
+        overrides[field_name] = (
+            annotation,
+            Field(
+                default_factory=list,
+                min_length=minimum,
+                max_length=INTERACTION_MAXIMUMS[field_name],
+            ),
+        )
+
+    intent_name = "".join(part.title() for part in intent.value.split("_"))
+    output_model = create_model(
+        f"MIInteractive{intent_name}Output",
+        __base__=MIInteractiveOutput,
+        **overrides,
+    )
+    if not research_context:
+        return output_model
+    return create_model(
+        f"MIInteractive{intent_name}ResearchBundle",
+        __base__=MIInteractiveResearchBundle,
+        intelligence=(output_model, ...),
+    )
+
+
 def prepare_interactive_request(
     document: MissionDocumentV13,
     deterministic: DeterministicReport,
@@ -299,9 +380,7 @@ def prepare_interactive_request(
     max_output_tokens: int | None = None,
     research_context: bool = False,
 ) -> PreparedAIRequest:
-    response_model: type[MIInteractiveOutput] | type[MIInteractiveResearchBundle] = (
-        MIInteractiveResearchBundle if research_context else MIInteractiveOutput
-    )
+    response_model = _response_model_for(intent, research_context)
     instructions = INTERACTIVE_SYSTEM_PROMPT
     tools: tuple[dict[str, Any], ...] = ()
     include: tuple[str, ...] = ()
@@ -321,6 +400,7 @@ def prepare_interactive_request(
             "intent": intent.value,
             "message": message,
             "answers": [item.model_dump(mode="json") for item in answers],
+            "minimum_output_counts": INTERACTION_MINIMUMS[intent],
         },
         "recent_dialogue": _history_for_prompt(history),
         "human_proposal_reviews": _reviews_for_prompt(proposal_reviews),
@@ -362,30 +442,7 @@ def _quality_failures(
     if output.intent != intent:
         failures.append("response intent does not match the requested intent")
 
-    minimums: dict[MIInteractionIntent, dict[str, int]] = {
-        MIInteractionIntent.DIAGNOSE: {
-            "questions": 3,
-            "hypotheses": 2,
-            "alternative_proposals": 1,
-            "decision_criteria": 3,
-            "experiment_proposals": 1,
-            "challenges": 1,
-            "recommended_actions": 2,
-        },
-        MIInteractionIntent.ANSWER: {"recommended_actions": 1},
-        MIInteractionIntent.CHALLENGE: {"challenges": 2, "hypotheses": 1},
-        MIInteractionIntent.EXPLORE_ALTERNATIVES: {
-            "alternative_proposals": 2,
-            "decision_criteria": 3,
-        },
-        MIInteractionIntent.DESIGN_EXPERIMENT: {
-            "experiment_proposals": 1,
-            "decision_criteria": 2,
-        },
-        MIInteractionIntent.COMPARE_OPTIONS: {"decision_criteria": 3},
-        MIInteractionIntent.SYNTHESIZE: {"recommended_actions": 1},
-    }
-    for field, minimum in minimums[intent].items():
+    for field, minimum in INTERACTION_MINIMUMS[intent].items():
         if len(getattr(output, field)) < minimum:
             failures.append(f"{field} requires at least {minimum} item(s)")
 
