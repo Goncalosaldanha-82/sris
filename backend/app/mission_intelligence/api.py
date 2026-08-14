@@ -63,7 +63,7 @@ def capability_status() -> dict:
         "engine_version": ENGINE_VERSION,
         "deterministic_analysis": "available",
         "interactive_mission_intelligence": "available",
-        "interactive_contract_version": "2.0",
+        "interactive_contract_version": "2.1",
         "interactive_prompt_version": INTERACTIVE_PROMPT_VERSION,
         "interactive_state": "locally_persisted",
         "proposal_review": "granular_human_review",

@@ -445,7 +445,7 @@ def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     assert status.json()["foundation_version"] == "1.3"
     assert status.json()["engine_version"] == "mission-intelligence-deterministic-1.2"
     assert status.json()["interactive_mission_intelligence"] == "available"
-    assert status.json()["interactive_contract_version"] == "2.0"
+    assert status.json()["interactive_contract_version"] == "2.1"
     assert status.json()["interactive_state"] == "locally_persisted"
     assert status.json()["proposal_review"] == "granular_human_review"
     assert status.json()["canonical_auto_mutation"] is False
@@ -1271,6 +1271,7 @@ def test_interactive_context_is_compacted_below_the_default_pilot_limit() -> Non
 
 def test_interactive_provider_rejects_unknown_canonical_references(monkeypatch) -> None:
     document, deterministic = _canonical_analysis("M-001")
+    client_settings: dict = {}
     invalid_payload = _interactive_output(document).model_dump(mode="json")
     invalid_payload["mission_reading"]["based_on_ids"] = ["OBS-INVENTED"]
     invalid = MIInteractiveOutput.model_validate(invalid_payload)
@@ -1293,8 +1294,8 @@ def test_interactive_provider_rejects_unknown_canonical_references(monkeypatch) 
     class FakeOpenAI:
         responses = FakeResponses()
 
-        def __init__(self, **_kwargs):
-            pass
+        def __init__(self, **kwargs):
+            client_settings.update(kwargs)
 
     monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
     monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
@@ -1310,6 +1311,7 @@ def test_interactive_provider_rejects_unknown_canonical_references(monkeypatch) 
         )
     assert blocked.value.failure_code == "provider_output_invalid"
     assert blocked.value.provider_response_id == "resp_interactive_invalid"
+    assert client_settings == {"timeout": 120.0, "max_retries": 2}
 
 
 def test_interactive_research_validates_and_returns_a_retrieved_context_dossier(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from functools import lru_cache
@@ -30,6 +31,9 @@ from .contracts import (
     MissionDocumentV13,
     RecordKind,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.1"
@@ -540,8 +544,8 @@ def analyze_interactively(
     )
     try:
         client = OpenAI(
-            timeout=150.0 if request.research_context else 75.0,
-            max_retries=1,
+            timeout=150.0 if request.research_context else 120.0,
+            max_retries=2,
         )
         provider_args: dict[str, Any] = {
             "model": request.model,
@@ -561,6 +565,10 @@ def analyze_interactively(
             )
         response = client.responses.parse(**provider_args)
     except Exception as exc:
+        logger.warning(
+            "Mission Intelligence provider request failed (%s)",
+            type(exc).__name__,
+        )
         raise AIUnavailableError("AI provider request failed") from exc
 
     provider_response_id = getattr(response, "id", None)
