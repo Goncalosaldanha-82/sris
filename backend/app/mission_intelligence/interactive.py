@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from copy import deepcopy
 import json
 import logging
 import os
@@ -39,14 +40,36 @@ from .contracts import (
 logger = logging.getLogger(__name__)
 
 
-INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.2"
-INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.2"
+INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.3"
+INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.3"
 DEFAULT_INTERACTIVE_OUTPUT_TOKENS = 4_500
-DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS = 5_500
+DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS = 6_000
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_BYTES = 13_000
 MAX_REVIEW_ITEMS = 32
 MAX_REVIEW_BYTES = 4_000
+PROVIDER_SCHEMA_MAX_TEXT_LENGTH = 280
+PROVIDER_SCHEMA_MAX_LONG_TEXT_LENGTH = 700
+PROVIDER_SCHEMA_MAX_LIST_TEXT_LENGTH = 160
+PROVIDER_SCHEMA_MAX_ARRAY_ITEMS = 3
+PROVIDER_SCHEMA_MAX_URL_LENGTH = 2_000
+
+LONG_PROVIDER_TEXT_FIELDS = {
+    "answer",
+    "design",
+    "recommended_next_move",
+    "scope",
+    "synthesis",
+    "what_changed",
+}
+
+RESEARCH_COLLECTION_LIMITS: dict[str, tuple[int, int]] = {
+    "domains": (3, 3),
+    "sources": (2, 3),
+    "claims": (3, 3),
+    "gaps": (3, 3),
+    "limits": (1, 3),
+}
 
 
 INTERACTION_MINIMUMS: dict[MIInteractionIntent, dict[str, int]] = {
@@ -143,6 +166,12 @@ COMPORTAMENTO DE INTELIGÊNCIA
   parte do contrato técnico da resposta, não sugestões. Antes de concluir,
   confirma que cada coleção indicada contém pelo menos o número exigido de
   elementos substanciais, distintos e ancorados em based_on_ids.
+- Usa o orçamento executivo do contrato: devolve exatamente o mínimo pedido em
+  cada coleção obrigatória; nas restantes coleções inclui no máximo uma
+  proposta, apenas quando for material. Não repitas a mesma ideia em campos
+  diferentes. A resposta direta pode ter até 120 palavras; cada outro campo
+  narrativo deve ser uma frase curta, até 45 palavras; cada lista deve conter
+  no máximo três itens breves.
 - Escreve em português europeu, com clareza executiva e conteúdo operacional.
 
 SEGURANÇA DE CONTEXTO
@@ -165,10 +194,11 @@ efetivamente recuperada nesta execução. Alegações sustentadas ou contestadas
 têm de citar source_ids existentes. Proximidade, tradição local e plausibilidade
 podem originar hipóteses, nunca factos. O dossier fica sempre in_review.
 
-Cobre pelo menos três domínios materiais, duas fontes rastreáveis, três
+Cobre exatamente três domínios materiais, duas ou três fontes rastreáveis, três
 alegações ou hipóteses e três lacunas. Inclui pelo menos uma fonte académica,
-oficial, legal, cartográfica ou técnica. Se não encontrares suporte suficiente,
-declara a insuficiência; não preenchas o contrato com conteúdo inventado.
+oficial, legal, cartográfica ou técnica. Mantém cada registo numa frase curta.
+Se não encontrares suporte suficiente, declara a insuficiência; não preenchas o
+contrato com conteúdo inventado.
 """.rstrip()
 
 
@@ -186,8 +216,8 @@ class MIInteractiveExecution:
 
 
 def configured_reasoning_effort() -> str:
-    value = os.getenv("SRIS_MI_REASONING_EFFORT", "medium").strip().lower()
-    return value if value in {"low", "medium", "high"} else "medium"
+    value = os.getenv("SRIS_MI_REASONING_EFFORT", "low").strip().lower()
+    return value if value in {"low", "medium", "high"} else "low"
 
 
 def _compact_text(value: Any, limit: int) -> str:
@@ -417,6 +447,82 @@ def _response_model_for(
     )
 
 
+def _compact_provider_schema(
+    schema: dict[str, Any],
+    *,
+    research_context: bool,
+) -> dict[str, Any]:
+    """Bound strict provider output without weakening the application contract.
+
+    The response model remains the final validator. These tighter generation
+    limits keep reasoning plus the visible structured report inside the
+    governed per-request output budget. Collection minima already encoded by
+    the intent are preserved; optional intelligence collections are capped at
+    one item and research depth is expressed directly in the provider schema.
+    """
+
+    compact = deepcopy(schema)
+
+    def walk(node: Any, *, property_name: str | None = None) -> None:
+        if isinstance(node, list):
+            for item in node:
+                walk(item, property_name=property_name)
+            return
+        if not isinstance(node, dict):
+            return
+
+        node_type = node.get("type")
+        if node_type == "string" and "enum" not in node and "const" not in node:
+            if property_name == "url":
+                limit = PROVIDER_SCHEMA_MAX_URL_LENGTH
+            elif property_name in LONG_PROVIDER_TEXT_FIELDS:
+                limit = PROVIDER_SCHEMA_MAX_LONG_TEXT_LENGTH
+            else:
+                limit = PROVIDER_SCHEMA_MAX_TEXT_LENGTH
+            current = node.get("maxLength")
+            node["maxLength"] = (
+                min(current, limit) if isinstance(current, int) else limit
+            )
+
+        if node_type == "array":
+            minimum = node.get("minItems")
+            minimum = minimum if isinstance(minimum, int) else 0
+            if property_name in INTERACTION_MAXIMUMS:
+                maximum = max(minimum, 1)
+            elif research_context and property_name in RESEARCH_COLLECTION_LIMITS:
+                required, maximum = RESEARCH_COLLECTION_LIMITS[property_name]
+                minimum = max(minimum, required)
+                node["minItems"] = minimum
+            else:
+                maximum = max(minimum, PROVIDER_SCHEMA_MAX_ARRAY_ITEMS)
+            current = node.get("maxItems")
+            if isinstance(current, int):
+                maximum = min(current, maximum)
+            node["maxItems"] = max(minimum, maximum)
+
+            items = node.get("items")
+            if isinstance(items, dict) and items.get("type") == "string":
+                current_item_limit = items.get("maxLength")
+                items["maxLength"] = (
+                    min(current_item_limit, PROVIDER_SCHEMA_MAX_LIST_TEXT_LENGTH)
+                    if isinstance(current_item_limit, int)
+                    else PROVIDER_SCHEMA_MAX_LIST_TEXT_LENGTH
+                )
+
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            for name, child in properties.items():
+                walk(child, property_name=name)
+        for key, child in node.items():
+            if key == "properties":
+                continue
+            if isinstance(child, (dict, list)):
+                walk(child, property_name=property_name)
+
+    walk(compact)
+    return compact
+
+
 def _attachment_prompt_payload(
     attachments: list[PreparedAttachment],
 ) -> list[dict[str, Any]]:
@@ -531,6 +637,10 @@ def prepare_interactive_request(
         if research_context
         else DEFAULT_INTERACTIVE_OUTPUT_TOKENS
     )
+    provider_schema = _compact_provider_schema(
+        response_model.model_json_schema(),
+        research_context=research_context,
+    )
     return PreparedAIRequest(
         model=configured_model(),
         instructions=instructions,
@@ -540,7 +650,7 @@ def prepare_interactive_request(
                 "type": "json_schema",
                 "name": response_model.__name__,
                 "strict": True,
-                "schema": response_model.model_json_schema(),
+                "schema": provider_schema,
             }
         },
         max_output_tokens=effective_limit,
@@ -666,7 +776,11 @@ def _invoke_provider(client: Any, request: PreparedAIRequest) -> tuple[Any, bool
             from openai.lib._parsing._responses import type_to_text_format_param
 
             text_format = type_to_text_format_param(request.response_model)
-        except (ImportError, TypeError, ValueError):
+            text_format["schema"] = _compact_provider_schema(
+                text_format["schema"],
+                research_context=request.research_context,
+            )
+        except (ImportError, KeyError, TypeError, ValueError):
             text_format = request.text_config["format"]
         return create(**args, text={"format": text_format}), False
     return (
@@ -678,13 +792,60 @@ def _invoke_provider(client: Any, request: PreparedAIRequest) -> tuple[Any, bool
     )
 
 
+def _response_dump(response: Any) -> dict[str, Any]:
+    """Return provider metadata without depending on one SDK response version."""
+
+    if isinstance(response, dict):
+        return response
+    dump = getattr(response, "model_dump", None)
+    if not callable(dump):
+        return {}
+    try:
+        value = dump(mode="json")
+    except (TypeError, ValueError):
+        value = dump()
+    return value if isinstance(value, dict) else {}
+
+
+def _provider_response_state(response: Any) -> tuple[str | None, str | None]:
+    """Expose terminal status and any provider-declared incomplete reason."""
+
+    dump = _response_dump(response)
+    status = getattr(response, "status", None)
+    if not isinstance(status, str):
+        status = dump.get("status")
+    status = status if isinstance(status, str) else None
+
+    details = getattr(response, "incomplete_details", None)
+    reason = getattr(details, "reason", None)
+    if not isinstance(reason, str) and isinstance(details, dict):
+        reason = details.get("reason")
+    if not isinstance(reason, str):
+        dumped_details = dump.get("incomplete_details")
+        if isinstance(dumped_details, dict):
+            reason = dumped_details.get("reason")
+    return status, reason if isinstance(reason, str) else None
+
+
+def _response_contains_refusal(response: Any) -> bool:
+    """Detect a structured provider refusal without storing its text."""
+
+    for item in _response_dump(response).get("output", []):
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if isinstance(content, dict) and content.get("type") == "refusal":
+                return True
+    return False
+
+
 def _response_output_text(response: Any) -> str | None:
     """Read output text without assuming a particular OpenAI SDK response type."""
 
     output_text = getattr(response, "output_text", None)
     if isinstance(output_text, str) and output_text.strip():
         return output_text
-    dump = response.model_dump(mode="json")
+    dump = _response_dump(response)
     for item in dump.get("output", []):
         if not isinstance(item, dict) or item.get("type") != "message":
             continue
@@ -992,6 +1153,51 @@ def analyze_interactively(
         if request.research_context
         else (set(), 0, ())
     )
+    response_status, incomplete_reason = _provider_response_state(response)
+    if response_status == "incomplete":
+        logger.warning(
+            "Mission Intelligence provider response was incomplete "
+            "(response_id=%s, reason=%s)",
+            provider_response_id,
+            incomplete_reason,
+        )
+        message = (
+            "A resposta da IA atingiu o limite de saída antes de concluir o "
+            "relatório estruturado."
+            if incomplete_reason in {"max_output_tokens", "max_tokens"}
+            else "A resposta da IA terminou antes de concluir o relatório estruturado."
+        )
+        raise AIUnavailableError(
+            message,
+            failure_code="provider_output_incomplete",
+            provider_response_id=provider_response_id,
+            usage=usage,
+            web_search_calls=observed_search_calls,
+        )
+    if response_status == "failed":
+        logger.warning(
+            "Mission Intelligence provider response failed (response_id=%s)",
+            provider_response_id,
+        )
+        raise AIUnavailableError(
+            "O fornecedor da IA não conseguiu concluir a resposta.",
+            failure_code="provider_response_failed",
+            provider_response_id=provider_response_id,
+            usage=usage,
+            web_search_calls=observed_search_calls,
+        )
+    if _response_contains_refusal(response):
+        logger.warning(
+            "Mission Intelligence provider refused the response (response_id=%s)",
+            provider_response_id,
+        )
+        raise AIUnavailableError(
+            "A IA recusou este pedido e não produziu um relatório estruturado.",
+            failure_code="provider_refused",
+            provider_response_id=provider_response_id,
+            usage=usage,
+            web_search_calls=observed_search_calls,
+        )
     try:
         parsed = (
             getattr(response, "output_parsed", None)

@@ -1058,7 +1058,7 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     )
 
     assert issubclass(request.response_model, MIInteractiveOutput)
-    assert request.reasoning_effort == "medium"
+    assert request.reasoning_effort == "low"
     assert "Não és um redator de" in request.instructions
     assert "Podes criar hipóteses, alternativas, critérios e experiências" in (
         request.instructions
@@ -1069,6 +1069,11 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert schema["properties"]["hypotheses"]["minItems"] == 2
     assert schema["properties"]["decision_criteria"]["minItems"] == 2
     assert schema["properties"]["confidence_changes"]["minItems"] == 2
+    provider_schema = request.text_config["format"]["schema"]
+    assert provider_schema["properties"]["questions"]["maxItems"] == 3
+    assert provider_schema["properties"]["hypotheses"]["maxItems"] == 2
+    assert provider_schema["properties"]["decision_criteria"]["maxItems"] == 2
+    assert provider_schema["properties"]["confidence_changes"]["maxItems"] == 2
     assert interactive_ai._quality_failures(
         output,
         MIInteractionIntent.DIAGNOSE,
@@ -1304,7 +1309,29 @@ def test_interactive_context_is_compacted_below_the_default_pilot_limit() -> Non
         )
         <= interactive_ai.MAX_REVIEW_BYTES
     )
-    assert request.max_output_tokens == 5_500
+    assert request.max_output_tokens == 6_000
+    provider_defs = request.text_config["format"]["schema"]["$defs"]
+    dossier_schema = provider_defs["ContextDossier"]["properties"]
+    assert (
+        dossier_schema["domains"]["minItems"],
+        dossier_schema["domains"]["maxItems"],
+    ) == (3, 3)
+    assert (
+        dossier_schema["sources"]["minItems"],
+        dossier_schema["sources"]["maxItems"],
+    ) == (2, 3)
+    assert (
+        dossier_schema["claims"]["minItems"],
+        dossier_schema["claims"]["maxItems"],
+    ) == (3, 3)
+    assert (
+        dossier_schema["gaps"]["minItems"],
+        dossier_schema["gaps"]["maxItems"],
+    ) == (3, 3)
+    assert (
+        provider_defs["MIDirectAnswer"]["properties"]["answer"]["maxLength"]
+        == 700
+    )
     assert mission_ai.conservative_input_token_reservation(request) <= 60_000
 
 
@@ -1550,6 +1577,116 @@ def test_interactive_raw_json_validation_failure_keeps_usage_and_response_id(
     assert blocked.value.failure_code == "provider_output_invalid"
     assert blocked.value.provider_response_id == "resp_interactive_bad_json_contract"
     assert blocked.value.usage.total_tokens == 1_850
+
+
+def test_interactive_incomplete_response_reports_output_limit_before_json_parsing(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-001")
+
+    class IncompleteDetails:
+        reason = "max_output_tokens"
+
+    class FakeResponse:
+        id = "resp_interactive_truncated"
+        model = "gpt-5.6"
+        status = "incomplete"
+        incomplete_details = IncompleteDetails()
+        output_text = '{"response_version":"2.2"'
+        usage = {
+            "input_tokens": 1_400,
+            "output_tokens": 6_000,
+            "total_tokens": 7_400,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+
+        def model_dump(self, **_kwargs):
+            return {
+                "status": "incomplete",
+                "incomplete_details": {"reason": "max_output_tokens"},
+                "output": [],
+            }
+
+    class FakeResponses:
+        def create(self, **_kwargs):
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    with pytest.raises(AIUnavailableError, match="limite de saída") as blocked:
+        interactive_ai.analyze_interactively(
+            document,
+            deterministic,
+            intent=MIInteractionIntent.DIAGNOSE,
+            message="Diagnostica de forma executiva.",
+            answers=[],
+            history=[],
+            proposal_reviews=[],
+        )
+
+    assert blocked.value.failure_code == "provider_output_incomplete"
+    assert blocked.value.provider_response_id == "resp_interactive_truncated"
+    assert blocked.value.usage.output_tokens == 6_000
+
+
+def test_interactive_structured_refusal_has_a_distinct_failure_code(monkeypatch) -> None:
+    document, deterministic = _canonical_analysis("M-001")
+
+    class FakeResponse:
+        id = "resp_interactive_refusal"
+        model = "gpt-5.6"
+        status = "completed"
+        usage = {
+            "input_tokens": 900,
+            "output_tokens": 20,
+            "total_tokens": 920,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+
+        def model_dump(self, **_kwargs):
+            return {
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {"type": "refusal", "refusal": "Request refused."}
+                        ],
+                    }
+                ],
+            }
+
+    class FakeResponses:
+        def create(self, **_kwargs):
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    with pytest.raises(AIUnavailableError, match="recusou") as blocked:
+        interactive_ai.analyze_interactively(
+            document,
+            deterministic,
+            intent=MIInteractionIntent.DIAGNOSE,
+            message="Diagnostica.",
+            answers=[],
+            history=[],
+            proposal_reviews=[],
+        )
+
+    assert blocked.value.failure_code == "provider_refused"
+    assert blocked.value.provider_response_id == "resp_interactive_refusal"
 
 
 def test_interactive_experiment_must_target_an_actual_hypothesis() -> None:
