@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
 
-from .attachments import PreparedAttachment, prepare_turn_attachments
+from .attachments import (
+    backfill_mission_archive_index,
+    prepare_turn_attachment_rows,
+    prepare_turn_attachments,
+)
 from .ai import (
     MAX_CONTEXT_WEB_SEARCH_CALLS,
     AIUnavailableError,
@@ -44,6 +48,11 @@ from .models import (
     MissionDialogueSession,
     MissionDialogueTurn,
     MissionProposalReview,
+)
+from .mission_archive import (
+    backfill_mission_run_archive,
+    index_intelligence_run,
+    retrieve_mission_archive,
 )
 from .service import _hash, _json, apply_analysis_input, persist_mission
 
@@ -286,6 +295,8 @@ def _apply_execution(
                 "experiências são propostas; não constituem factos nem alteram a missão."
             ),
         },
+        context_manifest=execution.context_manifest or result.get("context_manifest"),
+        context_retry_count=execution.context_retry_count,
     )
     if execution.context_dossier:
         result["context_dossier"] = execution.context_dossier.model_dump(mode="json")
@@ -302,11 +313,16 @@ def _apply_execution(
     return result
 
 
-def _attachment_summary(attachment: PreparedAttachment) -> dict[str, Any]:
+def _attachment_summary(attachment: Any) -> dict[str, Any]:
+    filename = getattr(
+        attachment,
+        "filename",
+        getattr(attachment, "original_filename", "anexo"),
+    )
     return {
         "id": attachment.id,
         "evidence_id": f"ATT-{attachment.id[:8].upper()}",
-        "filename": attachment.filename,
+        "filename": filename,
         "media_type": attachment.media_type,
         "byte_size": attachment.byte_size,
         "sha256": attachment.sha256,
@@ -320,7 +336,7 @@ def _epistemic_ledger(
     document: MissionDocumentV13,
     payload: MIInteractionInput,
     execution: MIInteractiveExecution,
-    attachments: list[PreparedAttachment],
+    attachments: list[Any],
 ) -> dict[str, Any]:
     verified_facts = [
         {
@@ -342,7 +358,16 @@ def _epistemic_ledger(
     user_statements.extend(
         {
             "id": attachment.id,
-            "statement": f"Documento fornecido: {attachment.filename}",
+            "statement": (
+                "Documento fornecido: "
+                + str(
+                    getattr(
+                        attachment,
+                        "filename",
+                        getattr(attachment, "original_filename", "anexo"),
+                    )
+                )
+            ),
             "source": "Anexo do utilizador; conteúdo sujeito a verificação",
         }
         for attachment in attachments
@@ -433,7 +458,7 @@ def run_interactive_turn(
     db.refresh(mission)
     db.refresh(session)
 
-    attachments = prepare_turn_attachments(
+    turn_attachment_rows = prepare_turn_attachment_rows(
         db,
         organization_id=organization_id,
         mission_id=mission.id,
@@ -448,7 +473,9 @@ def run_interactive_turn(
     )
     result["intent"] = payload.intent.value
     result["user_message"] = payload.message
-    result["attachments"] = [_attachment_summary(item) for item in attachments]
+    result["attachments"] = [
+        _attachment_summary(item) for item in turn_attachment_rows
+    ]
 
     if user_role not in {"owner", "admin", "reviewer"}:
         return _governance_block(
@@ -490,6 +517,43 @@ def run_interactive_turn(
         .filter(AIOrganizationPolicy.organization_id == organization_id)
         .one_or_none()
     )
+    backfilled = backfill_mission_archive_index(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        priority_attachment_ids=payload.attachment_ids,
+    )
+    backfilled_runs = backfill_mission_run_archive(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+    )
+    if backfilled or backfilled_runs:
+        db.commit()
+    retrieval_query = "\n".join(
+        filter(
+            None,
+            (
+                document.title,
+                document.central_question,
+                payload.message,
+                *(item.answer for item in payload.answers),
+            ),
+        )
+    )
+    archive_context = retrieve_mission_archive(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        query_text=retrieval_query,
+        priority_attachment_ids=payload.attachment_ids,
+    )
+    direct_attachments = prepare_turn_attachments(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        attachment_ids=list(archive_context.direct_binary_attachment_ids),
+    )
     requested_output = (
         DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS
         if payload.research_context
@@ -499,6 +563,11 @@ def run_interactive_turn(
         requested_output,
         policy.per_request_output_token_limit if policy else requested_output,
     )
+    input_limit = (
+        policy.per_request_input_token_limit
+        if policy
+        else 60_000
+    )
     prepared = prepare_interactive_request(
         document,
         deterministic,
@@ -507,10 +576,24 @@ def run_interactive_turn(
         answers=payload.answers,
         history=history,
         proposal_reviews=proposal_reviews,
-        attachments=attachments,
+        attachments=direct_attachments,
+        archive_context=archive_context,
         max_output_tokens=output_limit,
+        max_input_tokens=input_limit,
         research_context=payload.research_context,
     )
+    working_attachments = prepare_turn_attachments(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        attachment_ids=list(
+            (prepared.context_manifest or {}).get(
+                "selected_attachment_ids",
+                [],
+            )
+        ),
+    )
+    result["context_manifest"] = prepared.context_manifest
     conservative_input = conservative_input_token_reservation(prepared)
     usage_event: AIUsageEvent | None = None
     execution: MIInteractiveExecution | None = None
@@ -557,8 +640,10 @@ def run_interactive_turn(
                 answers=payload.answers,
                 history=history,
                 proposal_reviews=proposal_reviews,
-                attachments=attachments,
+                attachments=working_attachments,
+                archive_context=archive_context,
                 prepared_request=prepared,
+                max_input_tokens=input_limit,
                 research_context=payload.research_context,
             )
             _apply_execution(result, execution)
@@ -566,7 +651,7 @@ def run_interactive_turn(
                 document=document,
                 payload=payload,
                 execution=execution,
-                attachments=attachments,
+                attachments=turn_attachment_rows,
             )
             usage_event = settle_ai_usage(
                 db,
@@ -622,6 +707,8 @@ def run_interactive_turn(
             "provenance": provenance,
             "attachments": result.get("attachments", []),
             "epistemic_ledger": result.get("epistemic_ledger"),
+            "context_manifest": result.get("context_manifest"),
+            "context_retry_count": result.get("context_retry_count", 0),
         }
         if result.get("context_dossier"):
             ai_payload["context_dossier"] = result["context_dossier"]
@@ -649,6 +736,7 @@ def run_interactive_turn(
     )
     db.add(run)
     db.flush()
+    index_intelligence_run(db, run=run)
     turn = MissionDialogueTurn(
         session_id=session.id,
         intelligence_run_id=run.id,
@@ -680,6 +768,10 @@ def run_interactive_turn(
             "snapshot_hash": mission.content_hash,
             "canonical_mutation": "none",
             "attachment_ids": payload.attachment_ids,
+            "context_profile": (result.get("context_manifest") or {}).get(
+                "context_profile"
+            ),
+            "context_retry_count": result.get("context_retry_count", 0),
         },
     )
     db.commit()
@@ -715,6 +807,8 @@ def _turn_view(turn: MissionDialogueTurn) -> dict[str, Any]:
         "context_dossier_provenance": ai.get("context_dossier_provenance"),
         "attachments": ai.get("attachments") or [],
         "epistemic_ledger": ai.get("epistemic_ledger"),
+        "context_manifest": ai.get("context_manifest"),
+        "context_retry_count": ai.get("context_retry_count", 0),
         "deterministic": json.loads(run.deterministic_json),
         "ai_usage": usage_event_view(run.ai_usage_event) if run.ai_usage_event else None,
         "review_status": run.review_status,

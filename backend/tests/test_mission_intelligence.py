@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -38,6 +39,11 @@ from app.mission_intelligence.contracts import (
     MIInteractionIntent,
     MIInteractiveOutput,
     MIInteractiveResearchBundle,
+    MissionDocumentV13,
+    MissionRecord,
+    MissionRelation,
+    Provenance,
+    RecordKind,
 )
 from app.mission_intelligence.engine import analyze_mission
 from app.mission_intelligence.governance import (
@@ -46,7 +52,18 @@ from app.mission_intelligence.governance import (
     settle_ai_usage,
 )
 from app.mission_intelligence.interactive import MIInteractiveExecution
-from app.mission_intelligence.models import MissionAttachment
+from app.mission_intelligence.mission_archive import (
+    ARCHIVE_INDEX_VERSION,
+    ArchiveExcerpt,
+    MissionArchiveContext,
+    retrieve_mission_archive,
+)
+from app.mission_intelligence.models import (
+    IntelligenceRun,
+    MissionArchiveChunk,
+    MissionArchiveChunkTerm,
+    MissionAttachment,
+)
 from fastapi.testclient import TestClient
 from openai import BadRequestError, OpenAI
 from pydantic import ValidationError
@@ -1335,6 +1352,184 @@ def test_interactive_context_is_compacted_below_the_default_pilot_limit() -> Non
     assert mission_ai.conservative_input_token_reservation(request) <= 60_000
 
 
+def test_large_mission_archive_is_retrieved_without_entering_one_provider_call() -> None:
+    records = [
+        MissionRecord(
+            canonical_id=f"EVD-{index:07d}",
+            kind=(RecordKind.EVIDENCE if index % 3 else RecordKind.OBSERVATION),
+            title=(
+                "Medição crítica de caudal e orçamento hídrico"
+                if index == 2_499
+                else f"Registo territorial {index}"
+            ),
+            description=(
+                "Série decisiva para responder ao risco de escassez hídrica. "
+                if index == 2_499
+                else "Registo histórico preservado no arquivo integral. "
+            )
+            * 8,
+            provenance=Provenance(
+                origin_type="human",
+                source=f"Arquivo {index}",
+                verification_status="declared",
+            ),
+        )
+        for index in range(2_500)
+    ]
+    relations = [
+        MissionRelation(
+            relation_id=f"REL-{index:07d}",
+            source_id=f"EVD-{index % 2_500:07d}",
+            target_id=f"EVD-{(index + 1) % 2_500:07d}",
+            relation_type="precedes",
+        )
+        for index in range(3_500)
+    ]
+    document = MissionDocumentV13(
+        mission_id="M-LARGE-001",
+        title="Missão territorial de grande volume",
+        context="Arquivo acumulado ao longo de vários anos.",
+        central_question="Qual é a decisão hídrica prioritária?",
+        records=records,
+        relations=relations,
+    )
+    deterministic = analyze_mission(document)
+    archive_context = MissionArchiveContext(
+        excerpts=tuple(
+            ArchiveExcerpt(
+                chunk_id=f"chunk-{index}",
+                attachment_id=f"attachment-{index}",
+                filename=f"relatorio-{index}.md",
+                question_id=None,
+                ordinal=1,
+                char_start=0,
+                char_end=4_000,
+                content_sha256=f"{index:064x}",
+                text=(
+                    "Caudal orçamento hídrico medição crítica "
+                    if index == 49
+                    else "Conteúdo histórico de domínio distinto "
+                )
+                * 120,
+                relevance_score=100 if index == 49 else 1,
+            )
+            for index in range(50)
+        ),
+        manifest={
+            "archive_version": ARCHIVE_INDEX_VERSION,
+            "archive_total_attachments": 10_000,
+            "archive_total_bytes": 90_000_000_000,
+            "archive_indexed_attachments": 9_998,
+            "archive_total_chunks": 120_000,
+            "selected_chunk_count": 50,
+            "selected_attachment_ids": [f"attachment-{index}" for index in range(50)],
+            "selection_mode": "relevance_with_current_turn_priority",
+            "completeness": "selective_working_set_from_preserved_archive",
+        },
+    )
+
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Analisa a medição crítica de caudal e o orçamento hídrico.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+        archive_context=archive_context,
+        max_input_tokens=60_000,
+    )
+    payload = json.loads(request.input_text)
+    selected_ids = {
+        item["canonical_id"]
+        for item in payload["mission_working_set"]["selected_records"]
+    }
+
+    assert len(document.records) == 2_500
+    assert len(document.relations) == 3_500
+    assert "EVD-0002499" in selected_ids
+    assert payload["context_manifest"]["archive_total_attachments"] == 10_000
+    assert payload["context_manifest"]["canonical_record_total"] == 2_500
+    assert payload["context_manifest"]["canonical_record_selected"] < 2_500
+    assert payload["context_manifest"]["selected_chunk_count"] < 50
+    assert "mission" not in payload
+    assert "mission_working_set" in payload
+    assert mission_ai.conservative_input_token_reservation(request) <= 60_000
+    assert request.fallback_requests
+
+
+def test_provider_context_rejection_retries_with_a_smaller_traced_window(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Continua o diagnóstico sem perder o arquivo.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+    )
+    assert request.fallback_requests
+    calls: list[dict] = []
+    provider_error = BadRequestError(
+        "Input too large: maximum context length exceeded",
+        response=httpx.Response(
+            400,
+            request=httpx.Request("POST", "https://api.openai.com/v1/responses"),
+        ),
+        body={"error": {"code": "context_length_exceeded"}},
+    )
+
+    class FakeResponse:
+        id = "resp_context_retry"
+        model = "gpt-5.6"
+        status = "completed"
+        usage = {
+            "input_tokens": 900,
+            "output_tokens": 500,
+            "total_tokens": 1_400,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+        output_parsed = _interactive_output(document)
+
+    class FakeResponses:
+        def parse(self, **kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                raise provider_error
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    execution = interactive_ai.analyze_interactively(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Continua o diagnóstico sem perder o arquivo.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+        prepared_request=request,
+    )
+
+    assert len(calls) == 2
+    assert calls[0]["truncation"] == "disabled"
+    assert calls[1]["truncation"] == "disabled"
+    assert execution.context_retry_count == 1
+    assert execution.context_manifest == request.fallback_requests[0].context_manifest
+    assert execution.context_manifest["context_profile"] != request.context_manifest[
+        "context_profile"
+    ]
+
+
 def test_interactive_provider_rejects_unknown_canonical_references(monkeypatch) -> None:
     document, deterministic = _canonical_analysis("M-001")
     client_settings: dict = {}
@@ -1941,11 +2136,38 @@ def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch
     attachment = uploaded.json()
     assert attachment["question_id"] == "Q-AI-001"
     assert attachment["verification_status"] == "in_review"
+    second_content = (
+        "# Segunda fonte\n"
+        + "A segunda parcela contém uma série hídrica independente.\n" * 500
+    ).encode("utf-8")
+    second_upload = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/M-001/attachments",
+        headers=headers,
+        data={"dialogue_session_id": session_id, "question_id": "Q-AI-001"},
+        files={"file": ("serie-hidrica.md", second_content, "text/markdown")},
+    )
+    assert second_upload.status_code == 201, second_upload.text
+    second_attachment = second_upload.json()
 
     with SessionLocal() as db:
         stored = db.query(MissionAttachment).filter(MissionAttachment.id == attachment["id"]).one()
         assert content not in stored.encrypted_content
         assert "fotografia" not in stored.extracted_text
+        chunks = (
+            db.query(MissionArchiveChunk)
+            .filter(MissionArchiveChunk.attachment_id == attachment["id"])
+            .all()
+        )
+        assert len(chunks) == 1
+        assert b"fotografia" not in chunks[0].encrypted_text
+        terms = (
+            db.query(MissionArchiveChunkTerm)
+            .filter(MissionArchiveChunkTerm.chunk_id == chunks[0].id)
+            .all()
+        )
+        assert terms
+        assert all(len(item.term_hash) == 32 for item in terms)
+        assert all("fotografia" not in item.term_hash for item in terms)
 
     downloaded = client.get(
         f"/api/organizations/{organization_id}/mission-intelligence/missions/M-001/attachments/{attachment['id']}/download",
@@ -1962,24 +2184,44 @@ def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch
             "intent": "answer",
             "message": "Usa a resposta e o documento para atualizar a decisão.",
             "answers": [{"question_id": "Q-AI-001", "answer": "Foi fotografado à distância."}],
-            "attachment_ids": [attachment["id"]],
+            "attachment_ids": [attachment["id"], second_attachment["id"]],
             "mission_input": mission_input,
             "research_context": False,
         },
     )
     assert second.status_code == 200, second.text
     assert len(received_attachments) == 2
-    assert received_attachments[1][0].filename == "nota-terreno.md"
-    assert "fotografia" in received_attachments[1][0].extracted_text
+    assert {item.filename for item in received_attachments[1]} == {
+        "nota-terreno.md",
+        "serie-hidrica.md",
+    }
+    assert "fotografia" in next(
+        item.extracted_text
+        for item in received_attachments[1]
+        if item.filename == "nota-terreno.md"
+    )
     assert second.json()["attachments"][0]["id"] == attachment["id"]
-    assert second.json()["epistemic_ledger"]["user_statements"][-1]["id"] == attachment["id"]
+    assert second.json()["epistemic_ledger"]["user_statements"][-1]["id"] == second_attachment["id"]
+    assert second.json()["context_manifest"]["archive_total_attachments"] == 2
+    assert set(second.json()["context_manifest"]["selected_attachment_ids"]) == {
+        attachment["id"],
+        second_attachment["id"],
+    }
+    assert second.json()["context_manifest"]["archive_total_sources"] >= 3
+    assert any(
+        source_id.startswith("intelligence_run:")
+        for source_id in second.json()["context_manifest"]["selected_source_ids"]
+    )
 
     dialogue = client.get(
         f"/api/organizations/{organization_id}/mission-intelligence/dialogues/{session_id}",
         headers=headers,
     )
     assert dialogue.status_code == 200, dialogue.text
-    assert dialogue.json()["turns"][1]["attachment_ids"] == [attachment["id"]]
+    assert dialogue.json()["turns"][1]["attachment_ids"] == [
+        attachment["id"],
+        second_attachment["id"],
+    ]
 
     protected_delete = client.delete(
         f"/api/organizations/{organization_id}/mission-intelligence/missions/M-001/attachments/{attachment['id']}",
@@ -2108,7 +2350,7 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
     assert spec.json()["info"]["title"] == "SRIS Mission Intelligence API"
-    assert spec.json()["info"]["version"] == "1.6.0"
+    assert spec.json()["info"]["version"] == "1.7.0"
     assert "/api/mission-intelligence/demo/missions/{mission_code}/analyze" in spec.json()["paths"]
     governance_path = (
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance"
@@ -2325,6 +2567,34 @@ def test_governed_context_research_accounts_for_search_and_persists_the_dossier(
     )
     assert historical.status_code == 200, historical.text
     assert historical.json()["context_dossier"] == data["context_dossier"]
+
+    with SessionLocal() as db:
+        run = db.query(IntelligenceRun).filter(IntelligenceRun.id == data["run_id"]).one()
+        archived_chunks = (
+            db.query(MissionArchiveChunk)
+            .filter(
+                MissionArchiveChunk.source_type == "intelligence_run",
+                MissionArchiveChunk.source_id == run.id,
+            )
+            .count()
+        )
+        assert archived_chunks > 0
+        archive_context = retrieve_mission_archive(
+            db,
+            organization_id=organization_id,
+            mission_id=run.mission_id,
+            query_text="topónimo romano nascente pesquisa arqueológica",
+            priority_attachment_ids=[],
+        )
+        assert any(
+            excerpt.source_type == "intelligence_run"
+            and excerpt.source_id == run.id
+            and "topónimo" in excerpt.text
+            for excerpt in archive_context.excerpts
+        )
+        assert archive_context.manifest["archive_source_counts"][
+            "intelligence_run"
+        ] >= 1
 
     usage = client.get(
         f"/api/organizations/{organization_id}/mission-intelligence/ai-governance",

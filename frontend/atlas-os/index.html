@@ -2787,6 +2787,7 @@
       provider_permission_denied:"O fornecedor da IA recusou esta operação",
       provider_rate_limited:"O fornecedor da IA está temporariamente ocupado",
       provider_request_invalid:"O fornecedor rejeitou a configuração do pedido",
+      provider_context_limit:"O fornecedor recusou até a janela mínima; o arquivo integral permanece preservado",
       provider_request_failed:"A comunicação com o fornecedor da IA falhou",
       sdk_unavailable:"O componente de ligação à IA não está disponível"
     };
@@ -2842,6 +2843,10 @@
       const i=result.intelligence,reading=i.mission_reading||{},reviews=result.proposal_reviews||[];
       const update=miDecisionUpdate(i),confidenceChanges=i.confidence_changes||[],ledger=miLedger(result,i,update);
       const sourceCount=result.context_dossier?.sources?.length||0;
+      const contextManifest=result.context_manifest||{};
+      const archiveStatus=Number.isFinite(Number(contextManifest.archive_total_attachments))
+        ?`Arquivo integral: ${esc(contextManifest.archive_total_sources||contextManifest.archive_total_attachments||0)} fontes pesquisáveis (${esc(contextManifest.archive_total_attachments||0)} anexos; ${esc(contextManifest.archive_total_bytes||0)} bytes) · janela deste turno: ${esc(contextManifest.selected_chunk_count||0)} blocos de ${esc((contextManifest.selected_source_ids||contextManifest.selected_attachment_ids||[]).length)} fontes e ${esc(contextManifest.canonical_record_selected||0)} de ${esc(contextManifest.canonical_record_total||0)} registos canónicos · perfil ${esc(contextManifest.context_profile||"governado")}${result.context_retry_count?` · ${esc(result.context_retry_count)} redução automática de contexto` : ""}.`
+        :"";
       const userMessage=result.user_message||"Pedido registado neste turno.";
       const proposalSections=[
         ["Hipóteses novas","Propostas explicativas. Não são factos.",i.hypotheses||[],"hypothesis"],
@@ -2869,6 +2874,7 @@
               <div class="mi-source-status mi-source-status--${sourceCount?"researched":"absent"}">${sourceCount
                 ?`Pesquisa externa efetuada neste turno: <strong>${esc(sourceCount)} fontes rastreáveis</strong>, sujeitas a revisão humana.`
                 :"Sem pesquisa externa neste turno. A Mission Intelligence não confirma nem nega alegações históricas ou científicas externas."}</div>
+              ${archiveStatus?`<div class="mi-source-status mi-source-status--researched">${archiveStatus} O restante conteúdo não foi apagado nem enviado silenciosamente: permanece pesquisável no arquivo da Missão.</div>`:""}
             </div>
             <div class="mi-decision-update">
               <article class="mi-decision-card"><span>Decisão agora</span><h4>${esc(update.decision_now||"")}</h4><p><strong>Antes:</strong> ${esc(update.decision_before||"")}</p><p><strong>Incerteza restante:</strong> ${esc(update.remaining_uncertainty||"")}</p></article>

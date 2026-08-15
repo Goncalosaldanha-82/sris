@@ -270,6 +270,83 @@ class MissionAttachment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     mission: Mapped[CanonicalMission] = relationship(back_populates="attachments")
+    archive_chunks: Mapped[list["MissionArchiveChunk"]] = relationship(
+        back_populates="attachment",
+        cascade="all, delete-orphan",
+        order_by="MissionArchiveChunk.ordinal",
+    )
+
+
+class MissionArchiveChunk(Base):
+    """Encrypted, searchable working copy of one preserved mission source.
+
+    The original attachment remains authoritative. Chunks exist only to make a
+    growing mission archive retrievable without sending the full archive to a
+    model on every turn.
+    """
+
+    __tablename__ = "mi_archive_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_type",
+            "source_id",
+            "ordinal",
+            name="uq_mi_archive_chunk_source_ordinal",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    mission_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_missions.id", ondelete="CASCADE"), index=True
+    )
+    source_type: Mapped[str] = mapped_column(String(40), index=True)
+    source_id: Mapped[str] = mapped_column(String(160), index=True)
+    source_label: Mapped[str] = mapped_column(String(500))
+    attachment_id: Mapped[str | None] = mapped_column(
+        ForeignKey("mi_mission_attachments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer)
+    char_start: Mapped[int] = mapped_column(Integer)
+    char_end: Mapped[int] = mapped_column(Integer)
+    char_count: Mapped[int] = mapped_column(Integer)
+    content_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    encrypted_text: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+
+    attachment: Mapped[MissionAttachment | None] = relationship(
+        back_populates="archive_chunks"
+    )
+    terms: Mapped[list["MissionArchiveChunkTerm"]] = relationship(
+        back_populates="chunk",
+        cascade="all, delete-orphan",
+    )
+
+
+class MissionArchiveChunkTerm(Base):
+    """Organization-keyed search token; never stores source words in clear."""
+
+    __tablename__ = "mi_archive_chunk_terms"
+
+    chunk_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_archive_chunks.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    term_hash: Mapped[str] = mapped_column(
+        String(32),
+        primary_key=True,
+        index=True,
+    )
+
+    chunk: Mapped[MissionArchiveChunk] = relationship(back_populates="terms")
 
 
 class MissionProposalReview(Base):

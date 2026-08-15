@@ -134,6 +134,9 @@ test('Mission Intelligence exposes concise epistemic confidence and export views
   assert.match(html, /detalhes técnicos recolhidos/);
   assert.match(html, /provider_output_invalid:"A resposta da IA não cumpriu o contrato estruturado"/);
   assert.match(html, /provider_output_incomplete:"A resposta da IA terminou antes de concluir"/);
+  assert.match(html, /provider_context_limit:"O fornecedor recusou até a janela mínima/);
+  assert.match(html, /Arquivo integral:/);
+  assert.match(html, /result\.context_manifest\|\|\{\}/);
   assert.match(html, /provider_refused:"A IA recusou este pedido"/);
   assert.match(html, /Código técnico:/);
 });

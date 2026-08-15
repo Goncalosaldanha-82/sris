@@ -17,7 +17,6 @@ from uuid import uuid4
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
@@ -25,18 +24,18 @@ from app.atlas_platform.config import settings
 
 from .models import (
     CanonicalMission,
+    MissionArchiveChunk,
     MissionAttachment,
     MissionDialogueSession,
     MissionDialogueTurn,
 )
+from .mission_archive import index_attachment_text
 
 
 MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
-MAX_MISSION_ATTACHMENT_BYTES = 100 * 1024 * 1024
-MAX_EXTRACTED_CHARACTERS = 120_000
-MAX_ATTACHMENTS_PER_TURN = 12
 MAX_ARCHIVE_ENTRIES = 5_000
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = 150 * 1024 * 1024
+ATTACHMENT_QUERY_BATCH_SIZE = 400
 
 ALLOWED_EXTENSIONS = {
     ".pdf",
@@ -190,7 +189,7 @@ def _normalise_text(value: str) -> str:
     value = value.replace("\x00", " ")
     value = re.sub(r"[\t\r ]+", " ", value)
     value = re.sub(r"\n{3,}", "\n\n", value)
-    return value.strip()[:MAX_EXTRACTED_CHARACTERS]
+    return value.strip()
 
 
 def _extract_zip_xml(content: bytes, extension: str) -> str:
@@ -247,8 +246,6 @@ def _extract_xlsx(content: bytes) -> str:
             values = [str(value) for value in row if value is not None]
             if values:
                 parts.append(" | ".join(values))
-            if sum(len(item) for item in parts) >= MAX_EXTRACTED_CHARACTERS:
-                return "\n".join(parts)
     return "\n".join(parts)
 
 
@@ -265,8 +262,6 @@ def _extract_xls(content: bytes) -> str:
             values = [str(value) for value in sheet.row_values(row_index) if value not in (None, "")]
             if values:
                 parts.append(" | ".join(values))
-            if sum(len(item) for item in parts) >= MAX_EXTRACTED_CHARACTERS:
-                return "\n".join(parts)
     return "\n".join(parts)
 
 
@@ -488,18 +483,6 @@ def create_attachment(
     if existing is not None:
         return existing
 
-    total = (
-        db.query(func.coalesce(func.sum(MissionAttachment.byte_size), 0))
-        .filter(
-            MissionAttachment.organization_id == organization_id,
-            MissionAttachment.mission_id == mission.id,
-        )
-        .scalar()
-        or 0
-    )
-    if int(total) + len(content) > MAX_MISSION_ATTACHMENT_BYTES:
-        raise AttachmentError("mission_storage_limit", "Os anexos desta missão atingiram o limite de 100 MB.")
-
     extracted_text, extraction_status, extraction_error = _extract_text(content, extension)
     attachment_id = str(uuid4())
     clean_question_id = (question_id or "").strip()
@@ -551,6 +534,12 @@ def create_attachment(
         created_by_user_id=user_id,
     )
     db.add(row)
+    if extracted_text:
+        index_attachment_text(
+            db,
+            attachment=row,
+            extracted_text=extracted_text,
+        )
     record_audit(
         db,
         action="mission_intelligence.attachment_uploaded",
@@ -564,6 +553,7 @@ def create_attachment(
             "byte_size": len(content),
             "sha256": digest,
             "question_id": row.question_id,
+            "archive_indexed": bool(extracted_text),
         },
     )
     db.commit()
@@ -612,26 +602,12 @@ def prepare_turn_attachments(
     mission_id: str,
     attachment_ids: list[str],
 ) -> list[PreparedAttachment]:
-    if len(attachment_ids) > MAX_ATTACHMENTS_PER_TURN:
-        raise AttachmentError("too_many_attachments", "Cada turno pode usar no máximo 12 anexos.")
-    if not attachment_ids:
-        return []
-    rows = (
-        db.query(MissionAttachment)
-        .filter(
-            MissionAttachment.organization_id == organization_id,
-            MissionAttachment.mission_id == mission_id,
-            MissionAttachment.id.in_(attachment_ids),
-        )
-        .all()
+    rows = prepare_turn_attachment_rows(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
+        attachment_ids=attachment_ids,
     )
-    by_id = {row.id: row for row in rows}
-    missing = [item for item in attachment_ids if item not in by_id]
-    if missing:
-        raise AttachmentError(
-            "attachment_not_found",
-            "Um ou mais anexos não pertencem a esta missão.",
-        )
     return [
         PreparedAttachment(
             id=row.id,
@@ -644,8 +620,98 @@ def prepare_turn_attachments(
             extracted_text=_decrypt_extracted_text(row),
             content=_decrypt(row),
         )
-        for row in (by_id[item] for item in attachment_ids)
+        for row in rows
     ]
+
+
+def prepare_turn_attachment_rows(
+    db: Session,
+    *,
+    organization_id: str,
+    mission_id: str,
+    attachment_ids: list[str],
+) -> list[MissionAttachment]:
+    """Resolve an arbitrarily large ID set in database-safe batches."""
+
+    if not attachment_ids:
+        return []
+    by_id: dict[str, MissionAttachment] = {}
+    for offset in range(0, len(attachment_ids), ATTACHMENT_QUERY_BATCH_SIZE):
+        batch = attachment_ids[offset : offset + ATTACHMENT_QUERY_BATCH_SIZE]
+        rows = (
+            db.query(MissionAttachment)
+            .filter(
+                MissionAttachment.organization_id == organization_id,
+                MissionAttachment.mission_id == mission_id,
+                MissionAttachment.id.in_(batch),
+            )
+            .all()
+        )
+        by_id.update((row.id, row) for row in rows)
+    missing = [item for item in attachment_ids if item not in by_id]
+    if missing:
+        raise AttachmentError(
+            "attachment_not_found",
+            "Um ou mais anexos não pertencem a esta missão.",
+        )
+    return [by_id[item] for item in attachment_ids]
+
+
+def backfill_mission_archive_index(
+    db: Session,
+    *,
+    organization_id: str,
+    mission_id: str,
+    priority_attachment_ids: list[str] | None = None,
+    batch_size: int = 64,
+) -> int:
+    """Lazily index legacy encrypted attachments without blocking the archive.
+
+    New uploads are indexed synchronously. This bounded backfill only exists
+    for sources created before the scalable archive migration.
+    """
+
+    priority = list(dict.fromkeys(priority_attachment_ids or []))
+    rows: list[MissionAttachment] = []
+    if priority:
+        for offset in range(0, len(priority), ATTACHMENT_QUERY_BATCH_SIZE):
+            batch = priority[offset : offset + ATTACHMENT_QUERY_BATCH_SIZE]
+            rows.extend(
+                db.query(MissionAttachment)
+                .filter(
+                    MissionAttachment.organization_id == organization_id,
+                    MissionAttachment.mission_id == mission_id,
+                    MissionAttachment.id.in_(batch),
+                    MissionAttachment.extracted_text != "",
+                    ~MissionAttachment.archive_chunks.any(),
+                )
+                .limit(max(0, batch_size - len(rows)))
+                .all()
+            )
+            if len(rows) >= batch_size:
+                break
+    remaining = max(0, batch_size - len(rows))
+    if remaining:
+        priority_set = {row.id for row in rows}
+        query = db.query(MissionAttachment).filter(
+            MissionAttachment.organization_id == organization_id,
+            MissionAttachment.mission_id == mission_id,
+            MissionAttachment.extracted_text != "",
+            ~MissionAttachment.archive_chunks.any(),
+        )
+        if priority_set:
+            query = query.filter(~MissionAttachment.id.in_(priority_set))
+        rows.extend(query.order_by(MissionAttachment.created_at.asc()).limit(remaining).all())
+
+    indexed = 0
+    for row in rows:
+        text = _decrypt_extracted_text(row)
+        if text:
+            index_attachment_text(db, attachment=row, extracted_text=text)
+            indexed += 1
+    if indexed:
+        db.flush()
+    return indexed
 
 
 def delete_attachment(

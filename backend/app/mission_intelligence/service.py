@@ -42,6 +42,7 @@ from .models import (
     IntelligenceRun,
     MissionRevision,
 )
+from .mission_archive import index_intelligence_run
 
 
 def _json(value: Any) -> str:
@@ -484,6 +485,7 @@ def run_organizational_analysis(
     )
     db.add(run)
     db.flush()
+    index_intelligence_run(db, run=run)
     if usage_event is not None:
         usage_event.intelligence_run_id = run.id
         db.add(usage_event)

@@ -98,8 +98,10 @@ class MissionDocumentV13(StrictModel):
     title: str = Field(min_length=1, max_length=500)
     context: str = Field(default="", max_length=30000)
     central_question: str = Field(default="", max_length=10000)
-    records: list[MissionRecord] = Field(default_factory=list, max_length=1000)
-    relations: list[MissionRelation] = Field(default_factory=list, max_length=3000)
+    # Mission scale is a storage/retrieval concern, not a provider-context
+    # limit. A mission may therefore grow beyond one model call's window.
+    records: list[MissionRecord] = Field(default_factory=list)
+    relations: list[MissionRelation] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -405,7 +407,10 @@ class MIInteractionInput(StrictModel):
     intent: MIInteractionIntent = MIInteractionIntent.DIAGNOSE
     message: str = Field(min_length=1, max_length=12000)
     answers: list[MIQuestionAnswer] = Field(default_factory=list, max_length=30)
-    attachment_ids: list[str] = Field(default_factory=list, max_length=12)
+    # All referenced sources remain attached to the governed turn. The
+    # provider receives only a retrieved working set, so this list must not be
+    # confused with a per-call context limit.
+    attachment_ids: list[str] = Field(default_factory=list)
     mission_input: AnalysisInput = Field(default_factory=AnalysisInput)
     research_context: bool = False
 

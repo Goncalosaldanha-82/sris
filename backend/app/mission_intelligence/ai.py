@@ -94,6 +94,8 @@ class PreparedAIRequest:
     research_context: bool = False
     reasoning_effort: str = "low"
     attachment_input_token_reservation: int = 0
+    context_manifest: dict[str, Any] | None = None
+    fallback_requests: tuple["PreparedAIRequest", ...] = ()
 
 
 @dataclass(frozen=True)
