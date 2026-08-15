@@ -2775,7 +2775,20 @@
     const confidenceLabels={high:"Elevada",moderate:"Moderada",low:"Baixa",not_evaluable:"Não avaliável"};
     const confidenceDirectionLabels={increased:"Aumentou",decreased:"Diminuiu",unchanged:"Sem alteração",not_evaluable:"Não avaliável"};
     const actionClassLabels={documentary_no_touch:"Investigação documental · sem contacto físico",access_non_intrusive:"Acesso ou inspeção não intrusiva",intrusive:"Intervenção física intrusiva"};
+    const miFailureLabels={
+      provider_output_invalid:"A resposta da IA não cumpriu o contrato estruturado",
+      provider_output_too_shallow:"A resposta da IA ficou incompleta",
+      provider_timeout:"A comunicação com a IA excedeu o tempo disponível",
+      provider_connection_failed:"Não foi possível ligar ao fornecedor da IA",
+      provider_authentication_failed:"A autenticação do fornecedor da IA falhou",
+      provider_permission_denied:"O fornecedor da IA recusou esta operação",
+      provider_rate_limited:"O fornecedor da IA está temporariamente ocupado",
+      provider_request_invalid:"O fornecedor rejeitou a configuração do pedido",
+      provider_request_failed:"A comunicação com o fornecedor da IA falhou",
+      sdk_unavailable:"O componente de ligação à IA não está disponível"
+    };
     function miConfidenceLabel(value){return confidenceLabels[value]||indicatorLabel(value)||String(value||"Não avaliável")}
+    function miFailureLabel(value){return miFailureLabels[value]||"A análise não pôde ser concluída"}
     function miDecisionUpdate(i){
       return i.decision_update||{
         decision_before:"Estado anterior não explicitado neste turno histórico.",
@@ -2817,7 +2830,7 @@
               <details class="mi-details">
                 <summary>Análise não concluída · detalhes técnicos recolhidos</summary>
                 <p class="mi-section-note">O pedido foi preservado e pode ser repetido. Esta falha não altera a missão nem domina o diálogo.</p>
-                <div class="mi-turn-meta"><strong>Código:</strong> ${esc(code)}<br><strong>Descrição:</strong> ${esc(message)}${reference?`<br><strong>Referência:</strong> ${esc(reference)}`:""}</div>
+                <div class="mi-turn-meta"><strong>Ocorrência:</strong> ${esc(miFailureLabel(code))}<br><strong>Descrição:</strong> ${esc(message)}<br><strong>Código técnico:</strong> ${esc(code)}${reference?`<br><strong>Referência:</strong> ${esc(reference)}`:""}</div>
               </details>
             </div>
           </article>`);

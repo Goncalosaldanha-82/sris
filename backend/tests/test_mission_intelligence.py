@@ -1421,6 +1421,137 @@ def test_interactive_research_validates_and_returns_a_retrieved_context_dossier(
     )
 
 
+def test_interactive_research_validates_raw_json_and_repairs_transport_details(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-002")
+    research = _research_bundle(document)
+    payload = MIInteractiveResearchBundle(
+        context_dossier=research.context_dossier,
+        intelligence=_interactive_output(document),
+    ).model_dump(mode="json")
+    payload["intelligence"]["questions"][1]["options"] = ["Sim", "Não"]
+    duplicate_source = deepcopy(payload["context_dossier"]["sources"][0])
+    duplicate_source["source_id"] = "SRC-TEST-DUPLICATE"
+    payload["context_dossier"]["sources"].append(duplicate_source)
+    payload["context_dossier"]["claims"][0]["source_ids"] = [
+        "SRC-TEST-DUPLICATE"
+    ]
+    captured: dict = {}
+
+    class FakeResponse:
+        id = "resp_interactive_raw_research"
+        model = "gpt-5.6"
+        output_text = json.dumps(payload, ensure_ascii=False)
+        usage = {
+            "input_tokens": 1_600,
+            "output_tokens": 950,
+            "total_tokens": 2_550,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+
+        def model_dump(self, **_kwargs):
+            return {
+                "output": [
+                    {
+                        "type": "web_search_call",
+                        "action": {
+                            "query": "Dragos fontes oficiais e académicas",
+                            "sources": [
+                                {"url": source.url}
+                                for source in research.context_dossier.sources
+                            ],
+                        },
+                    }
+                ]
+            }
+
+    class FakeResponses:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    execution = interactive_ai.analyze_interactively(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Investiga a envolvente e atualiza as hipóteses.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+        research_context=True,
+    )
+
+    assert captured["text"]["format"]["strict"] is True
+    assert captured["tool_choice"] == "required"
+    assert "text_format" not in captured
+    assert execution.intelligence.questions[1].answer_type == "yes_no"
+    assert execution.intelligence.questions[1].options == []
+    assert len(execution.context_dossier.sources) == 2
+    assert execution.context_dossier.claims[0].source_ids == ["SRC-TEST-001"]
+    assert execution.web_search_calls == 1
+
+
+def test_interactive_raw_json_validation_failure_keeps_usage_and_response_id(
+    monkeypatch,
+) -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    payload = _interactive_output(document).model_dump(mode="json")
+    payload["direct_answer"]["answer"] = ""
+
+    class FakeResponse:
+        id = "resp_interactive_bad_json_contract"
+        model = "gpt-5.6"
+        output_text = json.dumps(payload, ensure_ascii=False)
+        usage = {
+            "input_tokens": 1_200,
+            "output_tokens": 650,
+            "total_tokens": 1_850,
+            "input_tokens_details": {"cached_tokens": 0},
+        }
+
+        def model_dump(self, **_kwargs):
+            return {"output": []}
+
+    class FakeResponses:
+        def create(self, **_kwargs):
+            return FakeResponse()
+
+    class FakeOpenAI:
+        responses = FakeResponses()
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(interactive_ai, "is_ai_configured", lambda: True)
+    monkeypatch.setattr("openai.OpenAI", FakeOpenAI)
+    with pytest.raises(
+        AIUnavailableError,
+        match=r"direct_answer\.answer:string_too_short",
+    ) as blocked:
+        interactive_ai.analyze_interactively(
+            document,
+            deterministic,
+            intent=MIInteractionIntent.DIAGNOSE,
+            message="Diagnostica.",
+            answers=[],
+            history=[],
+            proposal_reviews=[],
+        )
+
+    assert blocked.value.failure_code == "provider_output_invalid"
+    assert blocked.value.provider_response_id == "resp_interactive_bad_json_contract"
+    assert blocked.value.usage.total_tokens == 1_850
+
+
 def test_interactive_experiment_must_target_an_actual_hypothesis() -> None:
     document, _deterministic = _canonical_analysis("M-001")
     payload = _interactive_output(document).model_dump(mode="json")

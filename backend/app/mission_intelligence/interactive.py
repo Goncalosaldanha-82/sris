@@ -7,8 +7,9 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, Field, ValidationError, create_model
 
 from .ai import (
     MAX_CONTEXT_WEB_SEARCH_CALLS,
@@ -104,6 +105,9 @@ REGRAS EPISTÉMICAS
 7. Se não existir um dossier de pesquisa externa neste turno, não confirmes nem
    negues alegações históricas, científicas, jurídicas ou territoriais externas.
    Declara apenas o que o snapshot diz e identifica a pesquisa necessária.
+8. Em questions, usa options apenas para single_choice ou multi_choice. Para
+   yes_no, free_text, number e date devolve sempre options vazio. Uma pergunta
+   de escolha tem de oferecer pelo menos duas opções distintas.
 
 COMPORTAMENTO DE INTELIGÊNCIA
 - Responde diretamente ao pedido do utilizador antes de apresentar estruturas.
@@ -624,6 +628,281 @@ def _validate_references(
             )
 
 
+def _provider_args(request: PreparedAIRequest) -> dict[str, Any]:
+    """Build the common Responses API request without selecting a parser."""
+
+    args: dict[str, Any] = {
+        "model": request.model,
+        "instructions": request.instructions,
+        "input": request.input_text,
+        "reasoning": {"effort": request.reasoning_effort},
+        "max_output_tokens": request.max_output_tokens,
+        "store": False,
+    }
+    if request.tools:
+        args.update(
+            tools=list(request.tools),
+            tool_choice=request.tool_choice,
+            include=list(request.include),
+            max_tool_calls=request.max_tool_calls,
+        )
+    return args
+
+
+def _invoke_provider(client: Any, request: PreparedAIRequest) -> tuple[Any, bool]:
+    """Return an unparsed response when the installed SDK supports it.
+
+    Parsing through ``responses.parse`` raises before the application can keep
+    the response id, usage and web-search provenance. Using ``create`` lets the
+    SRIS validate the JSON itself and report a precise, governed failure. The
+    fallback keeps compatibility with older SDKs and deliberately small test
+    doubles.
+    """
+
+    args = _provider_args(request)
+    create = getattr(client.responses, "create", None)
+    if callable(create):
+        try:
+            from openai.lib._parsing._responses import type_to_text_format_param
+
+            text_format = type_to_text_format_param(request.response_model)
+        except (ImportError, TypeError, ValueError):
+            text_format = request.text_config["format"]
+        return create(**args, text={"format": text_format}), False
+    return (
+        client.responses.parse(
+            **args,
+            text_format=request.response_model,
+        ),
+        True,
+    )
+
+
+def _response_output_text(response: Any) -> str | None:
+    """Read output text without assuming a particular OpenAI SDK response type."""
+
+    output_text = getattr(response, "output_text", None)
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text
+    dump = response.model_dump(mode="json")
+    for item in dump.get("output", []):
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if (
+                isinstance(content, dict)
+                and content.get("type") == "output_text"
+                and isinstance(content.get("text"), str)
+            ):
+                return content["text"]
+    return None
+
+
+def _unique_generated_ids(intelligence: dict[str, Any]) -> int:
+    """Repair duplicate transport identifiers without changing semantics."""
+
+    changed = 0
+    seen: set[str] = set()
+    groups = (
+        ("questions", "question_id"),
+        ("hypotheses", "proposal_id"),
+        ("alternative_proposals", "proposal_id"),
+        ("decision_criteria", "proposal_id"),
+        ("experiment_proposals", "proposal_id"),
+        ("challenges", "challenge_id"),
+        ("recommended_actions", "action_id"),
+    )
+    for group_name, id_field in groups:
+        for index, item in enumerate(intelligence.get(group_name, []), start=1):
+            if not isinstance(item, dict):
+                continue
+            identifier = item.get(id_field)
+            if not isinstance(identifier, str) or identifier not in seen:
+                if isinstance(identifier, str):
+                    seen.add(identifier)
+                continue
+            suffix = f"_{index}"
+            candidate = identifier[: 120 - len(suffix)] + suffix
+            serial = index
+            while candidate in seen:
+                serial += 1
+                suffix = f"_{serial}"
+                candidate = identifier[: 120 - len(suffix)] + suffix
+            item[id_field] = candidate
+            seen.add(candidate)
+            changed += 1
+    return changed
+
+
+def _normalize_context_dossier(dossier: dict[str, Any]) -> dict[str, int]:
+    """Conservatively repair graph-only inconsistencies in provider JSON.
+
+    No claim is promoted. A claim that loses an invalid or missing source is
+    downgraded to ``unverified``. This keeps useful research visible while the
+    dossier remains subject to mandatory human review.
+    """
+
+    stats = {"sources": 0, "claims": 0, "claim_ids": 0}
+    sources = dossier.get("sources")
+    if not isinstance(sources, list):
+        return stats
+
+    kept_sources: list[dict[str, Any]] = []
+    known_ids: set[str] = set()
+    known_urls: dict[str, str] = {}
+    source_aliases: dict[str, str | None] = {}
+    for source in sources:
+        if not isinstance(source, dict):
+            stats["sources"] += 1
+            continue
+        source_id = source.get("source_id")
+        url = source.get("url")
+        if not isinstance(source_id, str) or not isinstance(url, str):
+            stats["sources"] += 1
+            continue
+        parsed = urlsplit(url)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            source_aliases[source_id] = None
+            stats["sources"] += 1
+            continue
+        normalized_url = url.rstrip("/").casefold()
+        if source_id in known_ids:
+            source_aliases[source_id] = source_id
+            stats["sources"] += 1
+            continue
+        if normalized_url in known_urls:
+            source_aliases[source_id] = known_urls[normalized_url]
+            stats["sources"] += 1
+            continue
+        known_ids.add(source_id)
+        known_urls[normalized_url] = source_id
+        source_aliases[source_id] = source_id
+        kept_sources.append(source)
+    dossier["sources"] = kept_sources
+
+    seen_claim_ids: set[str] = set()
+    claims = dossier.get("claims")
+    if not isinstance(claims, list):
+        return stats
+    for index, claim in enumerate(claims, start=1):
+        if not isinstance(claim, dict):
+            continue
+        claim_id = claim.get("claim_id")
+        if isinstance(claim_id, str) and claim_id in seen_claim_ids:
+            suffix = f"_{index}"
+            candidate = claim_id[: 120 - len(suffix)] + suffix
+            serial = index
+            while candidate in seen_claim_ids:
+                serial += 1
+                suffix = f"_{serial}"
+                candidate = claim_id[: 120 - len(suffix)] + suffix
+            claim["claim_id"] = candidate
+            claim_id = candidate
+            stats["claim_ids"] += 1
+        if isinstance(claim_id, str):
+            seen_claim_ids.add(claim_id)
+
+        source_ids = claim.get("source_ids")
+        mapped: list[str] = []
+        if isinstance(source_ids, list):
+            for source_id in source_ids:
+                if not isinstance(source_id, str):
+                    continue
+                target = source_aliases.get(source_id)
+                if target and target in known_ids and target not in mapped:
+                    mapped.append(target)
+        if mapped != source_ids:
+            claim["source_ids"] = mapped
+            stats["claims"] += 1
+        if (
+            claim.get("epistemic_status")
+            in {"supported", "partially_supported", "contested"}
+            and not mapped
+        ):
+            claim["epistemic_status"] = "unverified"
+            stats["claims"] += 1
+    return stats
+
+
+def _normalize_provider_payload(payload: Any) -> tuple[Any, tuple[str, ...]]:
+    """Apply only deterministic, epistemically conservative JSON repairs."""
+
+    if not isinstance(payload, dict):
+        return payload, ()
+    changes: list[str] = []
+    intelligence = payload.get("intelligence", payload)
+    if isinstance(intelligence, dict):
+        question_changes = 0
+        for question in intelligence.get("questions", []):
+            if not isinstance(question, dict):
+                continue
+            answer_type = question.get("answer_type")
+            raw_options = question.get("options")
+            options = []
+            if isinstance(raw_options, list):
+                for option in raw_options:
+                    if isinstance(option, str) and option.strip() and option not in options:
+                        options.append(option)
+            if answer_type in {"single_choice", "multi_choice"}:
+                if len(options) < 2:
+                    question["answer_type"] = "free_text"
+                    options = []
+                    question_changes += 1
+            elif options:
+                options = []
+                question_changes += 1
+            if question.get("options") != options:
+                question["options"] = options
+                question_changes += 1
+        if question_changes:
+            changes.append(f"question_options={question_changes}")
+        duplicate_ids = _unique_generated_ids(intelligence)
+        if duplicate_ids:
+            changes.append(f"duplicate_ids={duplicate_ids}")
+
+    dossier = payload.get("context_dossier")
+    if isinstance(dossier, dict):
+        dossier_stats = _normalize_context_dossier(dossier)
+        for name, count in dossier_stats.items():
+            if count:
+                changes.append(f"dossier_{name}={count}")
+    return payload, tuple(changes)
+
+
+def _validation_summary(exc: ValidationError, *, limit: int = 6) -> str:
+    """Return field paths and error types without logging provider content."""
+
+    items: list[str] = []
+    for error in exc.errors(include_url=False, include_input=False)[:limit]:
+        path = ".".join(str(part) for part in error.get("loc", ())) or "root"
+        items.append(f"{path}:{error.get('type', 'validation_error')}")
+    return ", ".join(items) or "root:validation_error"
+
+
+def _parsed_provider_output(response: Any, request: PreparedAIRequest) -> BaseModel | None:
+    """Parse raw provider JSON after conservative structural normalization."""
+
+    parsed = getattr(response, "output_parsed", None)
+    if parsed is not None:
+        return parsed
+    output_text = _response_output_text(response)
+    if not output_text:
+        return None
+    payload = json.loads(output_text)
+    payload, changes = _normalize_provider_payload(payload)
+    if changes:
+        logger.info(
+            "Mission Intelligence normalized provider structure (%s)",
+            ", ".join(changes),
+        )
+    return request.response_model.model_validate(payload)
+
+
 def analyze_interactively(
     document: MissionDocumentV13,
     deterministic: DeterministicReport,
@@ -668,29 +947,43 @@ def analyze_interactively(
             timeout=150.0 if request.research_context else 120.0,
             max_retries=2,
         )
-        provider_args: dict[str, Any] = {
-            "model": request.model,
-            "instructions": request.instructions,
-            "input": request.input_text,
-            "text_format": request.response_model,
-            "reasoning": {"effort": request.reasoning_effort},
-            "max_output_tokens": request.max_output_tokens,
-            "store": False,
-        }
-        if request.tools:
-            provider_args.update(
-                tools=list(request.tools),
-                tool_choice=request.tool_choice,
-                include=list(request.include),
-                max_tool_calls=request.max_tool_calls,
-            )
-        response = client.responses.parse(**provider_args)
-    except Exception as exc:
+        response, parsed_by_sdk = _invoke_provider(client, request)
+    except ValidationError as exc:
+        summary = _validation_summary(exc)
         logger.warning(
-            "Mission Intelligence provider request failed (%s)",
-            type(exc).__name__,
+            "Mission Intelligence provider output validation failed before "
+            "response capture (%s)",
+            summary,
         )
-        raise AIUnavailableError("AI provider request failed") from exc
+        raise AIUnavailableError(
+            "A resposta da IA não cumpriu o contrato estruturado "
+            f"({summary}).",
+            failure_code="provider_output_invalid",
+        ) from exc
+    except Exception as exc:
+        error_name = type(exc).__name__
+        status_code = getattr(exc, "status_code", None)
+        request_id = getattr(exc, "request_id", None)
+        logger.warning(
+            "Mission Intelligence provider request failed "
+            "(%s, status=%s, request_id=%s)",
+            error_name,
+            status_code,
+            request_id,
+        )
+        failure_code = {
+            "APITimeoutError": "provider_timeout",
+            "TimeoutException": "provider_timeout",
+            "APIConnectionError": "provider_connection_failed",
+            "AuthenticationError": "provider_authentication_failed",
+            "PermissionDeniedError": "provider_permission_denied",
+            "RateLimitError": "provider_rate_limited",
+            "BadRequestError": "provider_request_invalid",
+        }.get(error_name, "provider_request_failed")
+        raise AIUnavailableError(
+            "A chamada à IA não pôde ser concluída.",
+            failure_code=failure_code,
+        ) from exc
 
     provider_response_id = getattr(response, "id", None)
     usage = _provider_usage(response)
@@ -699,10 +992,45 @@ def analyze_interactively(
         if request.research_context
         else (set(), 0, ())
     )
-    parsed = response.output_parsed
+    try:
+        parsed = (
+            getattr(response, "output_parsed", None)
+            if parsed_by_sdk
+            else _parsed_provider_output(response, request)
+        )
+    except ValidationError as exc:
+        summary = _validation_summary(exc)
+        logger.warning(
+            "Mission Intelligence provider output validation failed "
+            "(response_id=%s, %s)",
+            provider_response_id,
+            summary,
+        )
+        raise AIUnavailableError(
+            "A resposta da IA não cumpriu o contrato estruturado "
+            f"({summary}).",
+            failure_code="provider_output_invalid",
+            provider_response_id=provider_response_id,
+            usage=usage,
+            web_search_calls=observed_search_calls,
+        ) from exc
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.warning(
+            "Mission Intelligence provider output was not valid JSON "
+            "(response_id=%s, error=%s)",
+            provider_response_id,
+            type(exc).__name__,
+        )
+        raise AIUnavailableError(
+            "A resposta da IA não continha JSON estruturado válido.",
+            failure_code="provider_output_invalid",
+            provider_response_id=provider_response_id,
+            usage=usage,
+            web_search_calls=observed_search_calls,
+        ) from exc
     if parsed is None:
         raise AIUnavailableError(
-            "OpenAI returned no structured interactive intelligence",
+            "A IA não devolveu inteligência interativa estruturada.",
             failure_code="provider_output_invalid",
             provider_response_id=provider_response_id,
             usage=usage,

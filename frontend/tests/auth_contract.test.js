@@ -132,6 +132,8 @@ test('Mission Intelligence exposes concise epistemic confidence and export views
   assert.match(html, /data-mi-export="session"/);
   assert.match(html, /function exportMissionIntelligence/);
   assert.match(html, /detalhes técnicos recolhidos/);
+  assert.match(html, /provider_output_invalid:"A resposta da IA não cumpriu o contrato estruturado"/);
+  assert.match(html, /Código técnico:/);
 });
 
 test('the situation chain always includes the ninth learning card', () => {
