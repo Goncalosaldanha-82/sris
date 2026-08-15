@@ -122,6 +122,7 @@ if ([string]::IsNullOrWhiteSpace($organizationId)) {
 
 $policyJson = @{
     enabled = $false
+    enforce_monthly_limits = $false
     monthly_request_limit = 20
     monthly_input_token_limit = 250000
     monthly_output_token_limit = 50000

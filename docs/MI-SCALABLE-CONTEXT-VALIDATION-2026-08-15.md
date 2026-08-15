@@ -1,7 +1,7 @@
 # SRIS · Scalable Mission Context validation
 
 Date: 2026-08-15  
-Release candidate: 1.7.0
+Release candidate: 1.7.2
 
 ## Result
 
@@ -9,17 +9,20 @@ The Mission archive is no longer used as the input window of a single model
 request. Original sources, canonical records, reports, governed external
 research and dialogue turns remain preserved. Each AI call receives a traced,
 relevance-selected working set that fits the organization's input policy.
+Monthly usage values are audit thresholds by default, so accumulated monthly
+consumption cannot terminate the Mission dialogue. Per-call context and
+concurrency safeguards remain enforced.
 
 ## Automated evidence
 
-- Backend full suite: **94 passed, 35 skipped**.
-- Mission Intelligence suite: **58 passed**.
+- Backend full suite: **95 passed, 35 skipped**.
+- Mission Intelligence suite: **59 passed**.
 - Frontend Node contract suite: **13 passed**.
 - Python application modules compile successfully.
 - Alembic validation on a fresh SQLite database:
-  - upgrade from an empty database to `20260815_0010`;
-  - downgrade from `20260815_0010` to `20260815_0009`;
-  - re-upgrade to `20260815_0010`.
+  - upgrade from an empty database to `20260815_0011`;
+  - downgrade from `20260815_0011` to `20260815_0010`;
+  - re-upgrade to `20260815_0011`.
 - `git diff --check`: no whitespace errors.
 
 ## Scale scenarios exercised
@@ -35,6 +38,10 @@ relevance-selected working set that fits the organization's input policy.
 - A preserved external-research dossier retrieved in a later archive search.
 - Provider `context_length_exceeded` rejection followed by an automatic retry
   with a smaller traced profile and `truncation="disabled"`.
+- Monthly request, token and cost thresholds exceeded in monitoring mode while
+  the next governed request remains available and auditable.
+- The same monthly thresholds still block when strict enforcement is explicitly
+  selected, while per-request and concurrency limits remain hard in both modes.
 
 ## Boundary of this validation
 

@@ -647,6 +647,7 @@ class ReviewRequest(StrictModel):
 
 class AIGovernancePolicyUpdate(StrictModel):
     enabled: bool = False
+    enforce_monthly_limits: bool = False
     monthly_request_limit: int = Field(default=20, ge=1, le=100_000)
     monthly_input_token_limit: int = Field(default=250_000, ge=1_000, le=1_000_000_000)
     monthly_output_token_limit: int = Field(default=50_000, ge=500, le=1_000_000_000)
@@ -662,11 +663,17 @@ class AIGovernancePolicyUpdate(StrictModel):
 
     @model_validator(mode="after")
     def validate_limits(self) -> "AIGovernancePolicyUpdate":
-        if self.per_request_input_token_limit > self.monthly_input_token_limit:
+        if (
+            self.enforce_monthly_limits
+            and self.per_request_input_token_limit > self.monthly_input_token_limit
+        ):
             raise ValueError(
                 "per_request_input_token_limit cannot exceed the monthly input limit"
             )
-        if self.per_request_output_token_limit > self.monthly_output_token_limit:
+        if (
+            self.enforce_monthly_limits
+            and self.per_request_output_token_limit > self.monthly_output_token_limit
+        ):
             raise ValueError(
                 "per_request_output_token_limit cannot exceed the monthly output limit"
             )

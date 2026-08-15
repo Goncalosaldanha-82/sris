@@ -627,6 +627,9 @@ def run_interactive_turn(
             "reserved_cost_usd": microusd_to_usd(
                 reservation.estimated_cost_microusd
             ),
+            "monthly_limit_warnings": list(
+                reservation.monthly_limit_warnings
+            ),
             "input_count_method": (
                 "provider_exact" if exact_input is not None else "conservative"
             ),

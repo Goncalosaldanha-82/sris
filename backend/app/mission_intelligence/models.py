@@ -387,7 +387,7 @@ class MissionProposalReview(Base):
 
 
 class AIOrganizationPolicy(Base):
-    """Explicit, fail-closed AI spending policy for one organization."""
+    """Explicit AI policy with hard per-call limits and auditable monthly thresholds."""
 
     __tablename__ = "mi_ai_organization_policies"
 
@@ -396,6 +396,7 @@ class AIOrganizationPolicy(Base):
         ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, index=True
     )
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    enforce_monthly_limits: Mapped[bool] = mapped_column(Boolean, default=False)
     monthly_request_limit: Mapped[int] = mapped_column(Integer, default=20)
     monthly_input_token_limit: Mapped[int] = mapped_column(BigInteger, default=250_000)
     monthly_output_token_limit: Mapped[int] = mapped_column(BigInteger, default=50_000)

@@ -95,7 +95,7 @@ def capability_status() -> dict:
         ),
         "institutional_onboarding_closed": institutional_onboarding_closed(),
         "ai_requires_authentication": True,
-        "ai_governance_version": "1.0",
+        "ai_governance_version": "1.1",
         "ai_organization_policy_required": True,
         "human_review_required": True,
     }

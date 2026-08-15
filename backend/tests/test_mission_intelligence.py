@@ -2350,7 +2350,7 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
     assert spec.json()["info"]["title"] == "SRIS Mission Intelligence API"
-    assert spec.json()["info"]["version"] == "1.7.0"
+    assert spec.json()["info"]["version"] == "1.7.2"
     assert "/api/mission-intelligence/demo/missions/{mission_code}/analyze" in spec.json()["paths"]
     governance_path = (
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance"
@@ -2439,6 +2439,7 @@ def test_ai_requires_explicit_org_policy_and_enforces_monthly_quota(monkeypatch)
         headers=headers,
         json={
             "enabled": True,
+            "enforce_monthly_limits": True,
             "monthly_request_limit": 1,
             "monthly_input_token_limit": 100_000,
             "monthly_output_token_limit": 10_000,
@@ -2488,6 +2489,109 @@ def test_ai_requires_explicit_org_policy_and_enforces_monthly_quota(monkeypatch)
     assert events.status_code == 200
     assert len(events.json()) == 1
     assert events.json()[0]["intelligence_run_id"] == completed_data["run_id"]
+
+
+def test_monthly_thresholds_warn_without_interrupting_mission_continuity(
+    monkeypatch,
+) -> None:
+    headers, organization_id = _owner_named("monthly-monitor")
+    monkeypatch.setattr(mission_api, "is_ai_configured", lambda: True)
+
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "enforce_monthly_limits": False,
+            "monthly_request_limit": 1,
+            "monthly_input_token_limit": 1_000,
+            "monthly_output_token_limit": 500,
+            "monthly_budget_usd": "0.01",
+            "per_request_input_token_limit": 1_000,
+            "per_request_output_token_limit": 500,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+    assert policy.json()["ready"] is True
+    assert policy.json()["policy"]["enforce_monthly_limits"] is False
+
+    with SessionLocal() as db:
+        membership = (
+            db.query(Membership)
+            .filter(Membership.organization_id == organization_id)
+            .one()
+        )
+        first = reserve_ai_usage(
+            db,
+            organization_id=organization_id,
+            user_id=membership.user_id,
+            model="gpt-5.6",
+            input_tokens=1_000,
+            output_tokens=500,
+        )
+        settle_ai_usage(
+            db,
+            reservation=first,
+            provider_response_id="resp_monthly_monitor_1",
+            input_tokens=1_000,
+            cached_input_tokens=0,
+            output_tokens=500,
+            total_tokens=1_500,
+        )
+
+        second = reserve_ai_usage(
+            db,
+            organization_id=organization_id,
+            user_id=membership.user_id,
+            model="gpt-5.6",
+            input_tokens=1_000,
+            output_tokens=500,
+        )
+        assert set(second.monthly_limit_warnings) == {
+            "monthly_request_limit",
+            "monthly_input_limit",
+            "monthly_output_limit",
+            "monthly_budget",
+        }
+        settle_ai_usage(
+            db,
+            reservation=second,
+            provider_response_id="resp_monthly_monitor_2",
+            input_tokens=1_000,
+            cached_input_tokens=0,
+            output_tokens=500,
+            total_tokens=1_500,
+        )
+
+        with pytest.raises(AIGovernanceBlocked) as blocked:
+            reserve_ai_usage(
+                db,
+                organization_id=organization_id,
+                user_id=membership.user_id,
+                model="gpt-5.6",
+                input_tokens=1_001,
+                output_tokens=500,
+            )
+        assert blocked.value.code == "per_request_input_limit"
+        db.rollback()
+
+    usage = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance",
+        headers=headers,
+    )
+    assert usage.status_code == 200, usage.text
+    data = usage.json()
+    assert data["ready"] is True
+    assert data["readiness_reason"] == "ready"
+    assert data["monthly_limits_enforced"] is False
+    assert set(data["monthly_limit_warnings"]) == {
+        "monthly_request_limit",
+        "monthly_input_limit",
+        "monthly_output_limit",
+        "monthly_budget",
+    }
+    assert data["current_period"]["request_count"] == 2
 
 
 def test_governed_context_research_accounts_for_search_and_persists_the_dossier(

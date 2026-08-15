@@ -106,6 +106,10 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "priority",
             "sort_order",
         }.issubset(column_names(database_url, "mi_missions"))
+        assert "enforce_monthly_limits" in column_names(
+            database_url,
+            "mi_ai_organization_policies",
+        )
 
         run_alembic(
             repo_root,

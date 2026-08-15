@@ -3146,6 +3146,8 @@
         status.textContent="A política existe, mas a IA está desativada para esta organização.";
       }else if(!aiGovernanceStatus?.ready){
         status.textContent=`A IA está bloqueada pela governação (${aiGovernanceStatus?.readiness_reason||"estado indisponível"}).`;
+      }else if(Array.isArray(aiGovernanceStatus?.monthly_limit_warnings)&&aiGovernanceStatus.monthly_limit_warnings.length){
+        status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. O limiar mensal de monitorização foi ultrapassado, mas a Missão continua disponível e o consumo permanece auditado.`;
       }else{
         status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. A saída é provisória e exige revisão humana.`;
       }

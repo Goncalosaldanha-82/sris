@@ -139,6 +139,7 @@ test('Mission Intelligence exposes concise epistemic confidence and export views
   assert.match(html, /result\.context_manifest\|\|\{\}/);
   assert.match(html, /provider_refused:"A IA recusou este pedido"/);
   assert.match(html, /Código técnico:/);
+  assert.match(html, /O limiar mensal de monitorização foi ultrapassado/);
 });
 
 test('the situation chain always includes the ninth learning card', () => {
