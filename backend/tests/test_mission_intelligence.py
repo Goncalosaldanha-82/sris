@@ -46,6 +46,7 @@ from app.mission_intelligence.governance import (
     settle_ai_usage,
 )
 from app.mission_intelligence.interactive import MIInteractiveExecution
+from app.mission_intelligence.models import MissionAttachment
 from fastapi.testclient import TestClient
 from openai import BadRequestError, OpenAI
 from pydantic import ValidationError
@@ -284,6 +285,37 @@ def _interactive_output(
                 "blind_spot": "A urgência operacional ainda não foi separada da causalidade hídrica.",
                 "based_on_ids": [basis[0], basis[1], basis[2]],
             },
+            "decision_update": {
+                "decision_before": "Escolher uma intervenção territorial completa.",
+                "decision_now": "Preparar um piloto documental e reversível antes de intervir.",
+                "what_changed": "A decisão foi separada entre investigação sem contacto e intervenção física.",
+                "confidence_before": "low",
+                "confidence_now": "moderate",
+                "confidence_direction": "increased",
+                "reason": "As hipóteses e os critérios passaram a ter evidência necessária explícita.",
+                "remaining_uncertainty": "Autorização de acesso e linha de base continuam por confirmar.",
+                "based_on_ids": [basis[0], basis[1], basis[6]],
+            },
+            "confidence_changes": [
+                {
+                    "subject_id": "HYP-AI-001",
+                    "subject": "Sazonalidade da água observada",
+                    "confidence_before": "not_evaluable",
+                    "confidence_now": "low",
+                    "direction": "increased",
+                    "reason": "A observação disponível permite formular, mas não confirmar, a hipótese.",
+                    "based_on_ids": [basis[1]],
+                },
+                {
+                    "subject_id": "HYP-AI-002",
+                    "subject": "Carga arbustiva como risco dominante",
+                    "confidence_before": "not_evaluable",
+                    "confidence_now": "low",
+                    "direction": "increased",
+                    "reason": "O registo do estrato arbustivo cria uma hipótese testável ainda não quantificada.",
+                    "based_on_ids": [basis[2]],
+                },
+            ],
             "questions": [
                 {
                     "question_id": "Q-AI-001",
@@ -417,6 +449,8 @@ def _interactive_output(
                     "owner_role": "Promotor e titular.",
                     "dependencies": [],
                     "urgency": "now",
+                    "action_class": "access_non_intrusive",
+                    "authorization_note": "Confirmar apenas a legitimidade de acesso; não é uma obra.",
                     "decision_effect": "Desbloqueia ou impede toda a linha de base.",
                     "based_on_ids": [basis[6]],
                 },
@@ -427,6 +461,8 @@ def _interactive_output(
                     "owner_role": "Responsável técnico.",
                     "dependencies": ["Autorização."],
                     "urgency": "next",
+                    "action_class": "documentary_no_touch",
+                    "authorization_note": "A preparação documental não exige autorização de obra.",
                     "decision_effect": "Torna a alternativa-piloto avaliável.",
                     "based_on_ids": [basis[0], basis[1], basis[2]],
                 },
@@ -445,7 +481,7 @@ def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     assert status.json()["foundation_version"] == "1.3"
     assert status.json()["engine_version"] == "mission-intelligence-deterministic-1.2"
     assert status.json()["interactive_mission_intelligence"] == "available"
-    assert status.json()["interactive_contract_version"] == "2.1"
+    assert status.json()["interactive_contract_version"] == "2.2"
     assert status.json()["interactive_state"] == "locally_persisted"
     assert status.json()["proposal_review"] == "granular_human_review"
     assert status.json()["canonical_auto_mutation"] is False
@@ -1031,7 +1067,8 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     schema = request.response_model.model_json_schema()
     assert schema["properties"]["questions"]["minItems"] == 3
     assert schema["properties"]["hypotheses"]["minItems"] == 2
-    assert schema["properties"]["decision_criteria"]["minItems"] == 3
+    assert schema["properties"]["decision_criteria"]["minItems"] == 2
+    assert schema["properties"]["confidence_changes"]["minItems"] == 2
     assert interactive_ai._quality_failures(
         output,
         MIInteractionIntent.DIAGNOSE,
@@ -1085,7 +1122,7 @@ def test_interactive_research_schema_enforces_nested_quality_minimums() -> None:
     assert issubclass(request.response_model, MIInteractiveResearchBundle)
     assert intelligence_schema["properties"]["questions"]["minItems"] == 3
     assert intelligence_schema["properties"]["hypotheses"]["minItems"] == 2
-    assert intelligence_schema["properties"]["decision_criteria"]["minItems"] == 3
+    assert intelligence_schema["properties"]["decision_criteria"]["minItems"] == 2
 
 
 def test_interactive_provider_schema_rejects_shallow_diagnosis_before_quality_gate(
@@ -1102,7 +1139,7 @@ def test_interactive_provider_schema_rejects_shallow_diagnosis_before_quality_ga
     )
     shallow = _interactive_output(document).model_dump(mode="json")
     shallow["questions"] = shallow["questions"][:2]
-    shallow["decision_criteria"] = shallow["decision_criteria"][:2]
+    shallow["decision_criteria"] = shallow["decision_criteria"][:1]
 
     with pytest.raises(ValidationError) as blocked:
         request.response_model.model_validate(shallow)
@@ -1168,6 +1205,7 @@ def test_interactive_quality_gate_rejects_a_report_shaped_diagnosis() -> None:
             "experiment_proposals": [],
             "challenges": [],
             "recommended_actions": [],
+            "confidence_changes": [],
         }
     )
 
@@ -1178,7 +1216,8 @@ def test_interactive_quality_gate_rejects_a_report_shaped_diagnosis() -> None:
     assert "questions requires at least 3 item(s)" in failures
     assert "hypotheses requires at least 2 item(s)" in failures
     assert "alternative_proposals requires at least 1 item(s)" in failures
-    assert "experiment_proposals requires at least 1 item(s)" in failures
+    assert "decision_criteria requires at least 2 item(s)" in failures
+    assert "confidence_changes requires at least 2 item(s)" in failures
 
 
 def test_interactive_context_is_compacted_below_the_default_pilot_limit() -> None:
@@ -1265,7 +1304,7 @@ def test_interactive_context_is_compacted_below_the_default_pilot_limit() -> Non
         )
         <= interactive_ai.MAX_REVIEW_BYTES
     )
-    assert request.max_output_tokens == 6_000
+    assert request.max_output_tokens == 5_500
     assert mission_ai.conservative_input_token_reservation(request) <= 60_000
 
 
@@ -1465,10 +1504,10 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     )
     assert first.status_code == 200, first.text
     first_data = first.json()
-    assert first_data["schema_version"] == "2.0"
+    assert first_data["schema_version"] == "2.2"
     assert first_data["ai_status"] == "completed"
     assert first_data["execution_mode"] == "interactive"
-    assert first_data["intelligence"]["response_version"] == "2.0"
+    assert first_data["intelligence"]["response_version"] == "2.2"
     assert first_data["intelligence"]["alternative_proposals"][0][
         "epistemic_status"
     ] == "alternative_proposal"
@@ -1563,6 +1602,123 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     assert dialogue.json()["turns"][0]["proposal_reviews"][0][
         "canonical_effect"
     ] == "none"
+
+
+def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch) -> None:
+    suffix = f"interactive-attachment-{uuid4().hex[:8]}"
+    headers, organization_id = _owner_named(suffix)
+    endpoint = (
+        f"/api/organizations/{organization_id}/mission-intelligence/demo/M-001/interact"
+    )
+    monkeypatch.setattr(dialogue_service, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(mission_api, "is_ai_configured", lambda: True)
+    monkeypatch.setattr(dialogue_service, "count_openai_input_tokens", lambda _request: 1_200)
+    received_attachments = []
+
+    def fake_provider(document, _deterministic, **kwargs):
+        received_attachments.append(kwargs.get("attachments") or [])
+        return MIInteractiveExecution(
+            intelligence=_interactive_output(document, kwargs["intent"]),
+            provider="openai",
+            model="gpt-5.6",
+            provider_response_id=f"resp_attachment_{len(received_attachments)}",
+            usage=AIProviderUsage(
+                input_tokens=1_200,
+                cached_input_tokens=0,
+                output_tokens=900,
+                total_tokens=2_100,
+            ),
+        )
+
+    monkeypatch.setattr(dialogue_service, "analyze_interactively", fake_provider)
+    policy = client.put(
+        f"/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
+        headers=headers,
+        json={
+            "enabled": True,
+            "monthly_request_limit": 5,
+            "monthly_input_token_limit": 500_000,
+            "monthly_output_token_limit": 50_000,
+            "monthly_budget_usd": "2.00",
+            "per_request_input_token_limit": 100_000,
+            "per_request_output_token_limit": 6_000,
+            "max_concurrent_requests": 1,
+        },
+    )
+    assert policy.status_code == 200, policy.text
+    mission_input = _analysis_payload(use_ai=False, research_context=False)
+    first = client.post(
+        endpoint,
+        headers=headers,
+        json={
+            "intent": "diagnose",
+            "message": "Cria as perguntas prioritárias.",
+            "answers": [],
+            "attachment_ids": [],
+            "mission_input": mission_input,
+            "research_context": False,
+        },
+    )
+    assert first.status_code == 200, first.text
+    session_id = first.json()["session_id"]
+
+    content = b"# Declaracao local\nA fotografia foi obtida sem contacto fisico com o local."
+    uploaded = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/M-001/attachments",
+        headers=headers,
+        data={"dialogue_session_id": session_id, "question_id": "Q-AI-001"},
+        files={"file": ("nota-terreno.md", content, "text/markdown")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    attachment = uploaded.json()
+    assert attachment["question_id"] == "Q-AI-001"
+    assert attachment["verification_status"] == "in_review"
+
+    with SessionLocal() as db:
+        stored = db.query(MissionAttachment).filter(MissionAttachment.id == attachment["id"]).one()
+        assert content not in stored.encrypted_content
+        assert "fotografia" not in stored.extracted_text
+
+    downloaded = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/M-001/attachments/{attachment['id']}/download",
+        headers=headers,
+    )
+    assert downloaded.status_code == 200, downloaded.text
+    assert downloaded.content == content
+
+    second = client.post(
+        endpoint,
+        headers=headers,
+        json={
+            "session_id": session_id,
+            "intent": "answer",
+            "message": "Usa a resposta e o documento para atualizar a decisão.",
+            "answers": [{"question_id": "Q-AI-001", "answer": "Foi fotografado à distância."}],
+            "attachment_ids": [attachment["id"]],
+            "mission_input": mission_input,
+            "research_context": False,
+        },
+    )
+    assert second.status_code == 200, second.text
+    assert len(received_attachments) == 2
+    assert received_attachments[1][0].filename == "nota-terreno.md"
+    assert "fotografia" in received_attachments[1][0].extracted_text
+    assert second.json()["attachments"][0]["id"] == attachment["id"]
+    assert second.json()["epistemic_ledger"]["user_statements"][-1]["id"] == attachment["id"]
+
+    dialogue = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/dialogues/{session_id}",
+        headers=headers,
+    )
+    assert dialogue.status_code == 200, dialogue.text
+    assert dialogue.json()["turns"][1]["attachment_ids"] == [attachment["id"]]
+
+    protected_delete = client.delete(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/M-001/attachments/{attachment['id']}",
+        headers=headers,
+    )
+    assert protected_delete.status_code == 422, protected_delete.text
+    assert protected_delete.json()["detail"]["code"] == "attachment_in_use"
 
 
 def test_failed_interactive_turn_remains_visible_in_session_history(monkeypatch) -> None:

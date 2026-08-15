@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     BigInteger,
+    LargeBinary,
     Boolean,
     Date,
     DateTime,
@@ -73,6 +74,9 @@ class CanonicalMission(Base):
         back_populates="mission", cascade="all, delete-orphan"
     )
     dialogue_sessions: Mapped[list["MissionDialogueSession"]] = relationship(
+        back_populates="mission", cascade="all, delete-orphan"
+    )
+    attachments: Mapped[list["MissionAttachment"]] = relationship(
         back_populates="mission", cascade="all, delete-orphan"
     )
 
@@ -208,6 +212,7 @@ class MissionDialogueTurn(Base):
     intent: Mapped[str] = mapped_column(String(40))
     user_message: Mapped[str] = mapped_column(Text)
     answers_json: Mapped[str] = mapped_column(Text, default="[]")
+    attachment_ids_json: Mapped[str] = mapped_column(Text, default="[]")
     created_by_user_id: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -221,6 +226,50 @@ class MissionDialogueTurn(Base):
         back_populates="turn",
         cascade="all, delete-orphan",
     )
+
+
+class MissionAttachment(Base):
+    """Encrypted mission-scoped source available to governed intelligence turns."""
+
+    __tablename__ = "mi_mission_attachments"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "mission_id",
+            "sha256",
+            name="uq_mi_attachment_org_mission_sha256",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    mission_id: Mapped[str] = mapped_column(
+        ForeignKey("mi_missions.id", ondelete="CASCADE"), index=True
+    )
+    mission_code: Mapped[str] = mapped_column(String(80), index=True)
+    dialogue_session_id: Mapped[str | None] = mapped_column(
+        ForeignKey("mi_dialogue_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    question_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    original_filename: Mapped[str] = mapped_column(String(500))
+    media_type: Mapped[str] = mapped_column(String(160))
+    extension: Mapped[str] = mapped_column(String(24))
+    byte_size: Mapped[int] = mapped_column(BigInteger)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    encrypted_content: Mapped[bytes] = mapped_column(LargeBinary)
+    extracted_text: Mapped[str] = mapped_column(Text, default="")
+    extraction_status: Mapped[str] = mapped_column(String(40), default="ready", index=True)
+    extraction_error: Mapped[str] = mapped_column(Text, default="")
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    mission: Mapped[CanonicalMission] = relationship(back_populates="attachments")
 
 
 class MissionProposalReview(Base):

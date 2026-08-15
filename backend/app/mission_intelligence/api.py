@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import require_org_role
@@ -14,6 +16,16 @@ from .ai import (
     is_ai_configured,
     is_ai_organization_authorized,
     is_context_research_configured,
+)
+from .attachments import (
+    MAX_ATTACHMENT_BYTES,
+    AttachmentError,
+    attachment_content,
+    attachment_view,
+    create_attachment,
+    delete_attachment,
+    get_attachment,
+    list_attachments,
 )
 from .catalog import demo_mission, load_demo_catalog
 from .contracts import (
@@ -63,7 +75,9 @@ def capability_status() -> dict:
         "engine_version": ENGINE_VERSION,
         "deterministic_analysis": "available",
         "interactive_mission_intelligence": "available",
-        "interactive_contract_version": "2.1",
+        "interactive_contract_version": "2.2",
+        "mission_attachments": "encrypted_and_model_readable",
+        "mission_exports": "client_side_auditable",
         "interactive_prompt_version": INTERACTIVE_PROMPT_VERSION,
         "interactive_state": "locally_persisted",
         "proposal_review": "granular_human_review",
@@ -197,6 +211,136 @@ def patch_canonical_mission(
     )
 
 
+def _attachment_error(exc: AttachmentError) -> HTTPException:
+    status = 404 if exc.code in {"mission_not_found", "attachment_not_found"} else 422
+    return HTTPException(
+        status_code=status,
+        detail={"code": exc.code, "message": exc.message},
+    )
+
+
+@organization_router.post("/missions/{mission_code}/attachments", status_code=201)
+async def upload_mission_attachment(
+    organization_id: str,
+    mission_code: str,
+    file: UploadFile = File(...),
+    dialogue_session_id: str | None = Form(default=None),
+    question_id: str | None = Form(default=None),
+    membership: Membership = Depends(
+        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    content = await file.read(MAX_ATTACHMENT_BYTES + 1)
+    try:
+        row = create_attachment(
+            db,
+            organization_id=organization_id,
+            mission_code=mission_code,
+            user_id=membership.user_id,
+            filename=file.filename or "anexo",
+            declared_media_type=file.content_type,
+            content=content,
+            dialogue_session_id=dialogue_session_id,
+            question_id=question_id,
+        )
+    except AttachmentError as exc:
+        raise _attachment_error(exc) from exc
+    return attachment_view(row)
+
+
+@organization_router.get("/missions/{mission_code}/attachments")
+def get_mission_attachments(
+    organization_id: str,
+    mission_code: str,
+    _: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    return [
+        attachment_view(row)
+        for row in list_attachments(
+            db,
+            organization_id=organization_id,
+            mission_code=mission_code,
+        )
+    ]
+
+
+@organization_router.get("/missions/{mission_code}/attachments/{attachment_id}/download")
+def download_mission_attachment(
+    organization_id: str,
+    mission_code: str,
+    attachment_id: str,
+    _: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> Response:
+    row = get_attachment(
+        db,
+        organization_id=organization_id,
+        mission_code=mission_code,
+        attachment_id=attachment_id,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    try:
+        content = attachment_content(row)
+    except AttachmentError as exc:
+        raise _attachment_error(exc) from exc
+    return Response(
+        content=content,
+        media_type=row.media_type,
+        headers={
+            "Content-Disposition": (
+                "attachment; filename*=UTF-8''" + quote(row.original_filename, safe="")
+            )
+        },
+    )
+
+
+@organization_router.delete(
+    "/missions/{mission_code}/attachments/{attachment_id}",
+    status_code=204,
+)
+def remove_mission_attachment(
+    organization_id: str,
+    mission_code: str,
+    attachment_id: str,
+    membership: Membership = Depends(
+        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+    ),
+    db: Session = Depends(get_db),
+) -> Response:
+    row = get_attachment(
+        db,
+        organization_id=organization_id,
+        mission_code=mission_code,
+        attachment_id=attachment_id,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    try:
+        delete_attachment(db, row=row, user_id=membership.user_id)
+    except AttachmentError as exc:
+        raise _attachment_error(exc) from exc
+    return Response(status_code=204)
+
+
 @organization_router.post("/demo/{mission_code}/analyze")
 def analyze_organizational_demo(
     organization_id: str,
@@ -283,6 +427,8 @@ def interact_with_organizational_demo(
             status_code=409,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
+    except AttachmentError as exc:
+        raise _attachment_error(exc) from exc
 
 
 @organization_router.post("/missions/{mission_code}/interact")
@@ -315,6 +461,8 @@ def interact_with_organizational_mission(
             status_code=409,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
+    except AttachmentError as exc:
+        raise _attachment_error(exc) from exc
 
 
 @organization_router.get("/dialogues")

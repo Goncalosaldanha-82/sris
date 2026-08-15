@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
 
+from .attachments import PreparedAttachment, prepare_turn_attachments
 from .ai import (
     MAX_CONTEXT_WEB_SEARCH_CALLS,
     AIUnavailableError,
@@ -178,6 +179,7 @@ def _dialogue_history(
                 "intent": turn.intent,
                 "user_message": turn.user_message,
                 "answers": json.loads(turn.answers_json),
+                "attachment_ids": json.loads(turn.attachment_ids_json),
                 "intelligence": intelligence,
             }
         )
@@ -244,7 +246,7 @@ def _base_interaction_result(
 ) -> dict[str, Any]:
     return {
         "schema": "sris_mission_intelligence_interaction",
-        "schema_version": "2.0",
+        "schema_version": "2.2",
         "session_id": session.id,
         "mission_id": document.mission_id,
         "mission_revision": mission.revision,
@@ -300,6 +302,102 @@ def _apply_execution(
     return result
 
 
+def _attachment_summary(attachment: PreparedAttachment) -> dict[str, Any]:
+    return {
+        "id": attachment.id,
+        "evidence_id": f"ATT-{attachment.id[:8].upper()}",
+        "filename": attachment.filename,
+        "media_type": attachment.media_type,
+        "byte_size": attachment.byte_size,
+        "sha256": attachment.sha256,
+        "question_id": attachment.question_id,
+        "verification_status": "in_review",
+    }
+
+
+def _epistemic_ledger(
+    *,
+    document: MissionDocumentV13,
+    payload: MIInteractionInput,
+    execution: MIInteractiveExecution,
+    attachments: list[PreparedAttachment],
+) -> dict[str, Any]:
+    verified_facts = [
+        {
+            "id": record.canonical_id,
+            "statement": record.title,
+            "source": record.provenance.source,
+        }
+        for record in document.records
+        if record.provenance.verification_status == "confirmed"
+    ][:8]
+    user_statements = [
+        {
+            "id": answer.question_id,
+            "statement": answer.answer,
+            "source": "Resposta do utilizador neste turno",
+        }
+        for answer in payload.answers
+    ]
+    user_statements.extend(
+        {
+            "id": attachment.id,
+            "statement": f"Documento fornecido: {attachment.filename}",
+            "source": "Anexo do utilizador; conteúdo sujeito a verificação",
+        }
+        for attachment in attachments
+    )
+    hypotheses = [
+        {
+            "id": item.proposal_id,
+            "statement": item.statement,
+            "confidence": item.confidence.value,
+        }
+        for item in execution.intelligence.hypotheses
+    ]
+    update = execution.intelligence.decision_update
+    decisions = [
+        {
+            "id": "DECISION-UPDATE",
+            "statement": update.decision_now,
+            "confidence": update.confidence_now.value,
+            "status": "provisional",
+        }
+    ]
+    evidence_needed: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for hypothesis in execution.intelligence.hypotheses:
+        for item in hypothesis.evidence_needed:
+            key = item.strip().casefold()
+            if key and key not in seen:
+                seen.add(key)
+                evidence_needed.append(
+                    {
+                        "id": hypothesis.proposal_id,
+                        "statement": item,
+                    }
+                )
+    if execution.context_dossier:
+        for gap in execution.context_dossier.gaps:
+            item = gap.evidence_needed or gap.question
+            key = item.strip().casefold()
+            if key and key not in seen:
+                seen.add(key)
+                evidence_needed.append({"id": gap.gap_id, "statement": item})
+    return {
+        "verified_facts": verified_facts,
+        "user_statements": user_statements,
+        "hypotheses": hypotheses,
+        "decisions": decisions,
+        "evidence_needed": evidence_needed[:12],
+        "external_source_status": (
+            "researched_with_traceable_sources"
+            if execution.context_dossier
+            else "not_researched_in_this_turn"
+        ),
+    }
+
+
 def run_interactive_turn(
     db: Session,
     *,
@@ -335,6 +433,12 @@ def run_interactive_turn(
     db.refresh(mission)
     db.refresh(session)
 
+    attachments = prepare_turn_attachments(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        attachment_ids=payload.attachment_ids,
+    )
     deterministic = analyze_mission(document)
     result = _base_interaction_result(
         session=session,
@@ -344,6 +448,7 @@ def run_interactive_turn(
     )
     result["intent"] = payload.intent.value
     result["user_message"] = payload.message
+    result["attachments"] = [_attachment_summary(item) for item in attachments]
 
     if user_role not in {"owner", "admin", "reviewer"}:
         return _governance_block(
@@ -402,6 +507,7 @@ def run_interactive_turn(
         answers=payload.answers,
         history=history,
         proposal_reviews=proposal_reviews,
+        attachments=attachments,
         max_output_tokens=output_limit,
         research_context=payload.research_context,
     )
@@ -451,10 +557,17 @@ def run_interactive_turn(
                 answers=payload.answers,
                 history=history,
                 proposal_reviews=proposal_reviews,
+                attachments=attachments,
                 prepared_request=prepared,
                 research_context=payload.research_context,
             )
             _apply_execution(result, execution)
+            result["epistemic_ledger"] = _epistemic_ledger(
+                document=document,
+                payload=payload,
+                execution=execution,
+                attachments=attachments,
+            )
             usage_event = settle_ai_usage(
                 db,
                 reservation=reservation,
@@ -507,6 +620,8 @@ def run_interactive_turn(
         ai_payload = {
             "intelligence": result["intelligence"],
             "provenance": provenance,
+            "attachments": result.get("attachments", []),
+            "epistemic_ledger": result.get("epistemic_ledger"),
         }
         if result.get("context_dossier"):
             ai_payload["context_dossier"] = result["context_dossier"]
@@ -541,6 +656,7 @@ def run_interactive_turn(
         intent=payload.intent.value,
         user_message=payload.message,
         answers_json=_json([item.model_dump(mode="json") for item in payload.answers]),
+        attachment_ids_json=_json(payload.attachment_ids),
         created_by_user_id=user_id,
     )
     db.add(turn)
@@ -563,6 +679,7 @@ def run_interactive_turn(
             "ai_status": result["ai_status"],
             "snapshot_hash": mission.content_hash,
             "canonical_mutation": "none",
+            "attachment_ids": payload.attachment_ids,
         },
     )
     db.commit()
@@ -589,12 +706,15 @@ def _turn_view(turn: MissionDialogueTurn) -> dict[str, Any]:
         "intent": turn.intent,
         "user_message": turn.user_message,
         "answers": json.loads(turn.answers_json),
+        "attachment_ids": json.loads(turn.attachment_ids_json),
         "ai_status": "completed" if ai.get("intelligence") else "failed",
         "ai_error": run.error,
         "intelligence": ai.get("intelligence"),
         "provenance": ai.get("provenance"),
         "context_dossier": ai.get("context_dossier"),
         "context_dossier_provenance": ai.get("context_dossier_provenance"),
+        "attachments": ai.get("attachments") or [],
+        "epistemic_ledger": ai.get("epistemic_ledger"),
         "deterministic": json.loads(run.deterministic_json),
         "ai_usage": usage_event_view(run.ai_usage_event) if run.ai_usage_event else None,
         "review_status": run.review_status,

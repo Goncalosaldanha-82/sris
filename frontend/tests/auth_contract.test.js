@@ -106,3 +106,39 @@ test('choice questions accept a predefined option, free text, or both', () => {
   assert.match(html, /Outra resposta ou complemento \(opcional\)/);
   assert.match(html, /selected&&custom\?`\$\{selected\} — \$\{custom\}`:custom\|\|selected/);
 });
+
+test('Mission Intelligence reads governed attachments from each question', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '../atlas-os/index.html'), 'utf8');
+  assert.match(html, /data-mi-upload-trigger/);
+  assert.match(html, /\.pdf,\.html,\.htm,\.md,\.markdown,\.txt,\.csv,\.tsv,\.xlsx,\.xls,\.docx,\.pptx,\.png,\.jpg,\.jpeg,\.webp,\.gif/);
+  assert.match(html, /async function uploadMIAttachments/);
+  assert.match(html, /mission-intelligence\/missions\/\$\{encodeURIComponent\(m\.id\)\}\/attachments/);
+  assert.match(html, /attachment_ids:\[\.\.\.pendingMIAttachmentIds\]/);
+});
+
+test('Mission Intelligence exposes concise epistemic confidence and export views', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '../atlas-os/index.html'), 'utf8');
+  assert.match(html, /Mapa epistemológico deste turno/);
+  assert.match(html, /Facto verificado/);
+  assert.match(html, /Declaração do utilizador/);
+  assert.match(html, /Evidência necessária/);
+  assert.match(html, /Confiança na decisão/);
+  assert.match(html, /Ver raciocínio completo e fontes/);
+  assert.match(html, /data-mi-print="turn"/);
+  assert.match(html, /data-mi-export="session"/);
+  assert.match(html, /function exportMissionIntelligence/);
+  assert.match(html, /detalhes técnicos recolhidos/);
+});
+
+test('the situation chain always includes the ninth learning card', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '../atlas-os/index.html'), 'utf8');
+  assert.match(html, /function missionDecisionChain/);
+  assert.match(html, /label:"Aprendizagem"/);
+  assert.match(html, /missionDecisionChain\(m\)\.map/);
+});
