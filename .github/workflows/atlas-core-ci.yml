@@ -61,6 +61,9 @@ jobs:
           python -c "import app; print('ATLAS package import OK')"
           python -c "import app.main; print('ATLAS API import OK')"
 
+      - name: Run frontend contract tests
+        run: node --test frontend/tests/*.test.js
+
       - name: Run migration test
         run: python -m pytest backend/tests/test_alembic_migrations.py
 
