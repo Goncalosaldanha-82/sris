@@ -1124,7 +1124,21 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert "Podes criar hipóteses, alternativas, critérios e experiências" in (
         request.instructions
     )
+    assert interactive_ai.INTERACTIVE_PROMPT_VERSION == "sris-mi-interactive-2.6"
+    assert "ANÁLISE DOCUMENTAL E RELACIONAL" in request.instructions
+    assert "«Nascente» significa o ponto cardeal Este" in request.instructions
+    assert "não justificam confiança factual moderada ou alta" in request.instructions
     assert "minimum_output_counts" in request.input_text
+    prompt_payload = json.loads(request.input_text)
+    assert prompt_payload["analytical_reasoning_contract"] == {
+        "exhaust_material_fields": True,
+        "cross_source_assessment_required": False,
+        "semantic_disambiguation_required": True,
+        "conditional_relational_hypotheses_required_when_supported": True,
+        "decision_confidence_separate_from_hypothesis_confidence": True,
+        "unverified_hypothesis_confidence_ceiling": "low",
+        "detected_clue_flags": [],
+    }
     schema = request.response_model.model_json_schema()
     assert schema["properties"]["questions"]["minItems"] == 3
     assert schema["properties"]["hypotheses"]["minItems"] == 2
@@ -1146,6 +1160,185 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert len(output.experiment_proposals) == 1
     assert output.boundary.facts_added is False
     assert output.boundary.human_review_required is True
+
+
+def test_documentary_reasoning_contract_flags_property_relations_and_coordinates() -> None:
+    pdf_id = "attachment-caderneta-838"
+    image_id = "attachment-google-earth"
+    contract = interactive_ai._analytical_reasoning_contract(
+        [
+            {
+                "attachment_id": pdf_id,
+                "source_id": pdf_id,
+                "excerpt": (
+                    "CADERNETA PREDIAL URBANA. CONFRONTAÇÕES Norte: Mário; "
+                    "Sul: Estrada; Nascente: Alfredo Luís; Poente: Mário. "
+                    "Coordenada X: 177.341,00 Coordenada Y: 343.857,00. "
+                    "Emitido via internet em 2024-11-14."
+                ),
+            }
+        ],
+        [
+            PreparedAttachment(
+                id=image_id,
+                filename="google-earth.png",
+                media_type="image/png",
+                extension=".png",
+                byte_size=10_000,
+                sha256="c" * 64,
+                question_id=None,
+                extracted_text="",
+                content=b"visual",
+            )
+        ],
+        {
+            "current_turn_selected_attachment_ids": [pdf_id, image_id],
+        },
+    )
+
+    flags = {
+        item["type"]: item for item in contract["detected_clue_flags"]
+    }
+    assert contract["cross_source_assessment_required"] is True
+    assert set(flags) == {
+        "coordinate_reference",
+        "dated_document",
+        "directional_boundary_topology",
+        "urban_property_record",
+        "user_supplied_visual",
+    }
+    assert flags["directional_boundary_topology"]["source_ids"] == [pdf_id]
+    assert "Nascente como Este" in flags["directional_boundary_topology"][
+        "required_treatment"
+    ]
+    assert flags["user_supplied_visual"]["source_ids"] == [image_id]
+
+
+def test_context_reduction_preserves_full_current_turn_text_chunk() -> None:
+    attachment_id = "attachment-current-turn-long-document"
+    document_text = (
+        "CADERNETA PREDIAL URBANA\n"
+        + ("Descrição intermédia sem decisão. " * 45)
+        + "\nCONFRONTAÇÕES Norte: Mário; Sul: Estrada; "
+        + "Nascente: Alfredo Luís; Poente: Mário.\n"
+        + "Coordenada X: 177.341,00 Coordenada Y: 343.857,00."
+    )
+    archive_context = MissionArchiveContext(
+        excerpts=(
+            ArchiveExcerpt(
+                chunk_id="chunk-current-turn-full",
+                attachment_id=attachment_id,
+                filename="caderneta.pdf",
+                question_id=None,
+                ordinal=1,
+                char_start=0,
+                char_end=len(document_text),
+                content_sha256="d" * 64,
+                text=document_text,
+                relevance_score=100,
+            ),
+        ),
+        manifest={"archive_total_attachments": 1},
+        priority_attachment_ids=(attachment_id,),
+    )
+
+    excerpts, manifest = interactive_ai._archive_working_set(
+        archive_context,
+        profile=interactive_ai.CONTEXT_PROFILES[2],
+    )
+
+    assert interactive_ai.CONTEXT_PROFILES[2]["archive_excerpt"] == 800
+    assert excerpts[0]["excerpt"] == document_text
+    assert excerpts[0]["excerpt_truncated"] is False
+    assert excerpts[0]["excerpt_strategy"] == "full_current_turn_chunk"
+    assert "Coordenada X" in excerpts[0]["excerpt"]
+    assert manifest["current_turn_selection_complete"] is True
+
+
+def test_unverified_attachment_cannot_promote_factual_hypothesis_to_moderate() -> None:
+    document, _deterministic = _canonical_analysis("M-001")
+    payload = _interactive_output(document).model_dump(mode="json")
+    attachment_id = "attachment-unverified-document"
+    payload["hypotheses"][0]["confidence"] = "moderate"
+    payload["hypotheses"][0]["based_on_ids"] = [attachment_id]
+    payload["confidence_changes"][0].update(
+        {
+            "confidence_before": "low",
+            "confidence_now": "moderate",
+            "direction": "increased",
+            "based_on_ids": [attachment_id],
+        }
+    )
+    output = MIInteractiveOutput.model_validate(payload)
+
+    calibrated, events = interactive_ai.calibrate_hypothesis_confidence(
+        output,
+        document,
+    )
+
+    assert calibrated.hypotheses[0].confidence == ConfidenceLevel.LOW
+    assert calibrated.confidence_changes[0].confidence_now == ConfidenceLevel.LOW
+    assert calibrated.confidence_changes[0].direction == "unchanged"
+    assert "Gate epistemológico" in calibrated.confidence_changes[0].reason
+    assert calibrated.decision_update.confidence_now == ConfidenceLevel.MODERATE
+    assert events == (
+        {
+            "subject_id": "HYP-AI-001",
+            "provided_confidence": "moderate",
+            "calibrated_confidence": "low",
+            "reason_code": "unverified_hypothesis_confidence_ceiling",
+        },
+    )
+
+
+def test_confirmed_canonical_evidence_can_support_moderate_hypothesis() -> None:
+    document, _deterministic = _canonical_analysis("M-001")
+    evidence_id = "EVD-CONFIRMED-001"
+    evidence = MissionRecord(
+        canonical_id=evidence_id,
+        kind=RecordKind.EVIDENCE,
+        title="Sobreposição georreferenciada confirmada",
+        description="A geometria oficial confirma a correspondência espacial.",
+        state="confirmed",
+        confidence=ConfidenceLevel.HIGH,
+        provenance=Provenance(
+            origin_type="human",
+            source="Levantamento oficial revisto",
+            method="Validação institucional documentada",
+            verification_status="confirmed",
+        ),
+    )
+    document_payload = document.model_dump(mode="json")
+    document = MissionDocumentV13.model_validate(
+        {
+            **document_payload,
+            "records": [
+                *document_payload["records"],
+                evidence.model_dump(mode="json"),
+            ],
+        }
+    )
+    payload = _interactive_output(document).model_dump(mode="json")
+    payload["hypotheses"][0]["confidence"] = "moderate"
+    payload["hypotheses"][0]["based_on_ids"] = [evidence_id]
+    payload["confidence_changes"][0].update(
+        {
+            "confidence_before": "low",
+            "confidence_now": "moderate",
+            "direction": "increased",
+            "based_on_ids": [evidence_id],
+        }
+    )
+
+    calibrated, events = interactive_ai.calibrate_hypothesis_confidence(
+        MIInteractiveOutput.model_validate(payload),
+        document,
+    )
+
+    assert calibrated.hypotheses[0].confidence == ConfidenceLevel.MODERATE
+    assert calibrated.confidence_changes[0].confidence_now == ConfidenceLevel.MODERATE
+    assert calibrated.confidence_changes[0].direction == "increased"
+    assert events == ()
 
 
 def test_interactive_provider_schema_enforces_each_intent_quality_minimum() -> None:

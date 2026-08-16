@@ -6,7 +6,7 @@ Versão da aplicação: `1.7.3`
 
 Versão do contrato: `2.3`
 
-Versão do prompt: `sris-mi-interactive-2.5`
+Versão do prompt: `sris-mi-interactive-2.6`
 
 Migração head: `20260815_0011`
 
@@ -26,6 +26,10 @@ pode:
   de paragem;
 - desafiar uma formulação ou opção existente;
 - converter a análise em próximas ações com dependências e efeito decisório.
+- cruzar campos materiais entre documentos e imagens, transformando relações,
+  confrontações, coordenadas e sequências temporais em hipóteses condicionais;
+- desambiguar termos pelo género documental e impedir aumentos de confiança
+  factual sem evidência canónica confirmada.
 
 O motor acrescenta possibilidades de investigação e decisão. Não acrescenta
 factos, não escolhe uma alternativa e não altera silenciosamente a missão.
@@ -114,6 +118,28 @@ factos demonstrados. A abordagem segue avaliação orientada a critérios e caso
 de fronteira, como recomendado em [evaluation best
 practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices).
 
+### 5.1 Raciocínio documental e relacional
+
+A janela de trabalho inclui agora um contrato analítico e sinais de atenção
+determinísticos. Estes sinais não criam factos: obrigam o motor a não ignorar
+estruturas documentais materiais, incluindo confrontações cardeais,
+coordenadas sem sistema de referência, datas de emissão, classe predial e
+elementos visuais fornecidos pelo utilizador.
+
+Quando duas fontes permitem um cruzamento, a resposta deve formular uma
+hipótese condicional e uma contra-hipótese, citando ambas. Em documentos
+prediais, `Nascente` é desambiguado como Este; o nome de um confrontante é
+tratado como associação histórica ao prédio vizinho, nunca como prova de
+titularidade atual. Marcadores criados pelo utilizador permanecem declarações
+espaciais até existir geometria ou cartografia oficial compatível.
+
+O backend aplica ainda um teto determinístico: uma hipótese nova sustentada
+apenas por anexos ou registos não confirmados não pode exceder confiança
+`low`. Uma promoção para `moderate` ou `high` exige pelo menos um registo
+canónico confirmado de natureza observacional, informacional, representacional
+ou probatória. A confiança na prudência da decisão mantém-se separada da
+confiança factual na hipótese.
+
 ## 6. Persistência e auditabilidade
 
 A migração acrescenta:
@@ -143,6 +169,8 @@ Controlos aplicados a cada turno:
 - arquivo integral separado da janela de cada chamada;
 - extração, cifragem e indexação local de documentos com texto;
 - recuperação seletiva por relevância e prioridade dos anexos do turno;
+- preservação integral dos blocos de texto dos anexos selecionados no turno,
+  mesmo quando o perfil reduz histórico e fontes anteriores;
 - citação obrigatória, em `based_on_ids`, de cada anexo do turno que entrou na
   janela de trabalho; uma resposta sem essas citações é rejeitada;
 - máximo padrão de `6 000` tokens de saída, com ou sem pesquisa;

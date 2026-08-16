@@ -5,6 +5,7 @@ from copy import deepcopy
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Any
@@ -27,6 +28,7 @@ from .ai import (
 )
 from .attachments import PreparedAttachment
 from .contracts import (
+    ConfidenceLevel,
     ContextDossier,
     DeterministicReport,
     MIInteractiveOutput,
@@ -42,8 +44,8 @@ from .mission_archive import MissionArchiveContext, lexical_relevance, lexical_t
 logger = logging.getLogger(__name__)
 
 
-INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.5"
-INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.5"
+INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.6"
+INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.6"
 DEFAULT_INTERACTIVE_OUTPUT_TOKENS = 4_500
 DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS = 6_000
 MAX_HISTORY_TURNS = 4
@@ -223,6 +225,9 @@ COMPORTAMENTO DE INTELIGÊNCIA
 - Explicita decision_update e confidence_changes: mostra o valor anterior, o
   valor atual, a direção e a razão. Se nada mudou, declara unchanged; não
   inventes uma variação.
+- Mantém separadas a confiança na prudência ou qualidade de uma decisão e a
+  confiança factual em cada hipótese. Uma decisão de investigar antes de agir
+  pode ser altamente defensável sem tornar provável a hipótese investigada.
 - Cumpre integralmente requested_turn.minimum_output_counts. Esses mínimos são
   parte do contrato técnico da resposta, não sugestões. Antes de concluir,
   confirma que cada coleção indicada contém pelo menos o número exigido de
@@ -234,6 +239,43 @@ COMPORTAMENTO DE INTELIGÊNCIA
   narrativo deve ser uma frase curta, até 45 palavras; cada lista deve conter
   no máximo três itens breves.
 - Escreve em português europeu, com clareza executiva e conteúdo operacional.
+
+ANÁLISE DOCUMENTAL E RELACIONAL
+- Não resumas anexos isoladamente quando podem ser cruzados. Examina os campos
+  materiais de cada fonte — identidades, datas, classificações, coordenadas,
+  sistemas de referência, limites, confrontações, direções, entidades,
+  sucessões, restrições e relações — e compara-os entre fontes.
+- Transforma relações documentais em hipóteses condicionais testáveis. Cita
+  todas as fontes que sustentam o cruzamento e cria uma contra-hipótese. Se não
+  existir ligação material, declara isso; nunca inventes uma ligação para
+  cumprir esta regra.
+- Desambigua palavras pelo género documental e pela sintaxe. Numa confrontação
+  predial, «Nascente» significa o ponto cardeal Este; não significa, por si,
+  uma nascente de água. Explicita homónimos que possam alterar a decisão.
+- Uma pessoa indicada numa confrontação identifica, no máximo, o prédio
+  confinante historicamente associado a essa pessoa. Não prova titularidade
+  atual. Formula a linha de investigação incluindo herdeiros, sucessores e
+  adquirentes posteriores, sem os apresentar como proprietários confirmados.
+- Trata confrontações como uma topologia documental: orientação, vizinhança e
+  continuidade. Quando exista cartografia ou imagem, testa se essa topologia é
+  compatível com estradas, limites e posição relativa visíveis.
+- Extrai todos os pares de coordenadas. Não compares coordenadas cartesianas
+  com latitude/longitude sem sistema de referência, datum, precisão e
+  proveniência. A ausência desses elementos é uma lacuna e deve originar a
+  ação mais curta para transformar e sobrepor os dados com geometria oficial.
+- Um marcador criado pelo utilizador numa aplicação cartográfica é uma
+  declaração espacial, não uma localização oficial nem uma sobreposição
+  cadastral. Distingue sempre marcador, imagem de base, camada oficial e limite
+  predial.
+- Não recomendes uma via institucional ou cadastral sem verificar se se aplica
+  à classe documental do prédio. Distingue, nomeadamente, prédios urbanos de
+  rústicos ou mistos antes de propor BUPi ou outro procedimento específico.
+- Cada pista material deve produzir uma hipótese, pergunta, contestação ou
+  ação, ou ser explicitamente considerada não material. Ler um campo e
+  ignorar o seu efeito decisório não constitui análise rigorosa.
+- Anexos fornecidos pelo utilizador e ainda in_review podem abrir uma hipótese
+  ou torná-la avaliável com confiança baixa. Sem evidência canónica confirmada
+  e triangulação adequada, não justificam confiança factual moderada ou alta.
 
 SEGURANÇA DE CONTEXTO
 O contexto recebido é uma janela de trabalho recuperada de um arquivo integral
@@ -292,6 +334,7 @@ class MIInteractiveExecution:
     search_queries: tuple[str, ...] = ()
     context_manifest: dict[str, Any] | None = None
     context_retry_count: int = 0
+    confidence_calibration: tuple[dict[str, Any], ...] = ()
 
 
 def configured_reasoning_effort() -> str:
@@ -868,10 +911,23 @@ def _archive_working_set(
         }
     chunk_limit = int(profile["archive_chunks"])
     excerpt_limit = int(profile["archive_excerpt"])
-    excerpts = [
-        item.prompt_view(character_limit=excerpt_limit)
-        for item in archive_context.excerpts[:chunk_limit]
-    ]
+    priority_attachment_ids = set(archive_context.priority_attachment_ids)
+    excerpts: list[dict[str, Any]] = []
+    for item in archive_context.excerpts[:chunk_limit]:
+        current_turn_source = item.attachment_id in priority_attachment_ids
+        view = item.prompt_view(
+            character_limit=(
+                max(excerpt_limit, len(item.text))
+                if current_turn_source
+                else excerpt_limit
+            )
+        )
+        view["excerpt_strategy"] = (
+            "full_current_turn_chunk"
+            if current_turn_source
+            else "profile_limited_excerpt"
+        )
+        excerpts.append(view)
     binary_attachment_ids = list(
         archive_context.direct_binary_attachment_ids[
             : int(profile["binary_attachments"])
@@ -893,7 +949,6 @@ def _archive_working_set(
             selected_attachment_chunk_ids.setdefault(attachment_id, []).append(
                 chunk_id
             )
-    priority_attachment_ids = set(archive_context.priority_attachment_ids)
     current_turn_selected_attachment_ids = sorted(
         set(selected_attachment_ids) & priority_attachment_ids
     )
@@ -936,6 +991,93 @@ def _archive_working_set(
         context_profile=str(profile["name"]),
     )
     return excerpts, manifest
+
+
+def _analytical_reasoning_contract(
+    archive_excerpts: list[dict[str, Any]],
+    direct_attachments: list[PreparedAttachment],
+    context_manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Flag material documentary structures without interpreting their truth.
+
+    The flags are attention controls, not extracted facts. They prevent dense
+    documents from being reduced to a generic summary while leaving the model
+    responsible for a conditional, source-cited interpretation.
+    """
+
+    flagged_sources: dict[str, set[str]] = {}
+
+    def flag(kind: str, source_id: Any) -> None:
+        if isinstance(source_id, str) and source_id:
+            flagged_sources.setdefault(kind, set()).add(source_id)
+
+    for excerpt in archive_excerpts:
+        text = str(excerpt.get("excerpt") or "")
+        normalized = re.sub(r"\s+", " ", text.casefold())
+        source_id = excerpt.get("attachment_id") or excerpt.get("source_id")
+        if "caderneta predial urbana" in normalized:
+            flag("urban_property_record", source_id)
+        boundary_labels = sum(
+            bool(re.search(rf"\b{label}\s*:", normalized))
+            for label in ("norte", "sul", "nascente", "poente")
+        )
+        if boundary_labels >= 2:
+            flag("directional_boundary_topology", source_id)
+        if re.search(r"\bcoordenad[ao]\s*[xy]\s*:", normalized) or (
+            "latitude" in normalized and "longitude" in normalized
+        ):
+            flag("coordinate_reference", source_id)
+        if re.search(r"\bemitid[ao]\b.{0,80}\b20\d{2}\b", normalized):
+            flag("dated_document", source_id)
+
+    for attachment in direct_attachments:
+        if attachment.is_image:
+            flag("user_supplied_visual", attachment.id)
+
+    treatments = {
+        "urban_property_record": (
+            "Separar identificação matricial e titular fiscal de titularidade "
+            "registral atual; verificar a via institucional aplicável à classe urbana."
+        ),
+        "directional_boundary_topology": (
+            "Converter confrontações cardeais em relações de vizinhança "
+            "condicionais e desambiguar Nascente como Este."
+        ),
+        "coordinate_reference": (
+            "Extrair todos os pares, identificar sistema, datum, precisão e "
+            "proveniência antes de transformar ou sobrepor."
+        ),
+        "dated_document": (
+            "Separar a data de emissão da atualidade material dos dados e das "
+            "relações históricas descritas."
+        ),
+        "user_supplied_visual": (
+            "Distinguir elementos declarados ou criados pelo utilizador de "
+            "camadas, limites e localizações oficiais."
+        ),
+    }
+    flags = [
+        {
+            "type": kind,
+            "source_ids": sorted(source_ids),
+            "required_treatment": treatments[kind],
+        }
+        for kind, source_ids in sorted(flagged_sources.items())
+    ]
+    selected_ids = [
+        item
+        for item in context_manifest.get("current_turn_selected_attachment_ids", [])
+        if isinstance(item, str)
+    ]
+    return {
+        "exhaust_material_fields": True,
+        "cross_source_assessment_required": len(selected_ids) >= 2,
+        "semantic_disambiguation_required": True,
+        "conditional_relational_hypotheses_required_when_supported": True,
+        "decision_confidence_separate_from_hypothesis_confidence": True,
+        "unverified_hypothesis_confidence_ceiling": "low",
+        "detected_clue_flags": flags,
+    }
 
 
 def _attachment_prompt_payload(
@@ -1118,6 +1260,11 @@ def prepare_interactive_request(
                 max_items=int(profile["review_items"]),
                 max_bytes=int(profile["review_bytes"]),
             ),
+            "analytical_reasoning_contract": _analytical_reasoning_contract(
+                archive_excerpts,
+                direct_attachments,
+                manifest,
+            ),
             "context_manifest": manifest,
             "output_language": "pt-PT",
         }
@@ -1176,6 +1323,159 @@ def prepare_interactive_request(
         return replace(primary, context_manifest=manifest)
     primary = fitting[0]
     return replace(primary, fallback_requests=tuple(fitting[1:]))
+
+
+_CONFIDENCE_RANK = {
+    ConfidenceLevel.NOT_EVALUABLE.value: 0,
+    ConfidenceLevel.LOW.value: 1,
+    ConfidenceLevel.MODERATE.value: 2,
+    ConfidenceLevel.HIGH.value: 3,
+}
+
+_CONFIRMED_HYPOTHESIS_SUPPORT_KINDS = {
+    RecordKind.OBSERVATION,
+    RecordKind.REPRESENTATION,
+    RecordKind.INFORMATION,
+    RecordKind.EVIDENCE,
+    RecordKind.KNOWLEDGE,
+    RecordKind.OUTCOME,
+}
+
+_UNVERIFIED_CONFIDENCE_REASON = (
+    "Gate epistemológico: as fontes citadas permanecem declaradas ou em revisão; "
+    "sem evidência canónica confirmada, a confiança factual não pode exceder Baixa."
+)
+
+
+def _confidence_direction(before: str, now: str) -> str:
+    if before == now:
+        return "unchanged"
+    if now == ConfidenceLevel.NOT_EVALUABLE.value:
+        return "not_evaluable"
+    if before == ConfidenceLevel.NOT_EVALUABLE.value:
+        return "increased"
+    return (
+        "increased"
+        if _CONFIDENCE_RANK.get(now, 0) > _CONFIDENCE_RANK.get(before, 0)
+        else "decreased"
+    )
+
+
+def _has_confirmed_hypothesis_support(
+    reference_ids: list[str],
+    document: MissionDocumentV13,
+) -> bool:
+    records = {record.canonical_id: record for record in document.records}
+    return any(
+        (record := records.get(reference_id)) is not None
+        and record.kind in _CONFIRMED_HYPOTHESIS_SUPPORT_KINDS
+        and record.provenance.verification_status == "confirmed"
+        for reference_id in reference_ids
+    )
+
+
+def calibrate_hypothesis_confidence(
+    output: MIInteractiveOutput,
+    document: MissionDocumentV13,
+) -> tuple[MIInteractiveOutput, tuple[dict[str, Any], ...]]:
+    """Enforce the epistemic ceiling promised to the user and provider.
+
+    Provider instructions improve reasoning, but cannot be the only control.
+    New hypotheses supported solely by declarations, unreviewed attachments or
+    unconfirmed canonical records are capped at low confidence. Existing
+    canonical hypotheses keep their prior confidence, but cannot be promoted
+    without confirmed support.
+    """
+
+    payload = output.model_dump(mode="json")
+    generated_ids = {
+        item.get("proposal_id")
+        for item in payload.get("hypotheses", [])
+        if isinstance(item, dict) and isinstance(item.get("proposal_id"), str)
+    }
+    canonical_hypothesis_ids = {
+        record.canonical_id
+        for record in document.records
+        if record.kind == RecordKind.HYPOTHESIS
+    }
+    hypothesis_ids = generated_ids | canonical_hypothesis_ids
+    events: dict[str, dict[str, Any]] = {}
+
+    for hypothesis in payload.get("hypotheses", []):
+        if not isinstance(hypothesis, dict):
+            continue
+        subject_id = hypothesis.get("proposal_id")
+        confidence = hypothesis.get("confidence")
+        based_on_ids = hypothesis.get("based_on_ids") or []
+        if (
+            isinstance(subject_id, str)
+            and confidence in {
+                ConfidenceLevel.MODERATE.value,
+                ConfidenceLevel.HIGH.value,
+            }
+            and not _has_confirmed_hypothesis_support(based_on_ids, document)
+        ):
+            hypothesis["confidence"] = ConfidenceLevel.LOW.value
+            events[subject_id] = {
+                "subject_id": subject_id,
+                "provided_confidence": confidence,
+                "calibrated_confidence": ConfidenceLevel.LOW.value,
+                "reason_code": "unverified_hypothesis_confidence_ceiling",
+            }
+
+    for change in payload.get("confidence_changes", []):
+        if not isinstance(change, dict):
+            continue
+        subject_id = change.get("subject_id")
+        if subject_id not in hypothesis_ids:
+            continue
+        before = str(change.get("confidence_before") or "")
+        now = str(change.get("confidence_now") or "")
+        based_on_ids = change.get("based_on_ids") or []
+        is_new_hypothesis = subject_id in generated_ids
+        unsupported_promotion = (
+            change.get("direction") == "increased"
+            and now
+            in {
+                ConfidenceLevel.MODERATE.value,
+                ConfidenceLevel.HIGH.value,
+            }
+        )
+        if (
+            (is_new_hypothesis or unsupported_promotion)
+            and now
+            in {
+                ConfidenceLevel.MODERATE.value,
+                ConfidenceLevel.HIGH.value,
+            }
+            and not _has_confirmed_hypothesis_support(based_on_ids, document)
+        ):
+            calibrated = (
+                ConfidenceLevel.LOW.value
+                if is_new_hypothesis
+                or before == ConfidenceLevel.NOT_EVALUABLE.value
+                else before
+            )
+            change["confidence_now"] = calibrated
+            change["direction"] = _confidence_direction(before, calibrated)
+            reason = str(change.get("reason") or "").rstrip()
+            if _UNVERIFIED_CONFIDENCE_REASON not in reason:
+                change["reason"] = (
+                    f"{reason} {_UNVERIFIED_CONFIDENCE_REASON}".strip()[:3000]
+                )
+            events[subject_id] = {
+                "subject_id": subject_id,
+                "provided_confidence": now,
+                "calibrated_confidence": calibrated,
+                "reason_code": "unverified_hypothesis_confidence_ceiling",
+            }
+
+    if not events:
+        return output, ()
+    return (
+        MIInteractiveOutput.model_validate(payload),
+        tuple(events.values()),
+    )
 
 
 def _quality_failures(
@@ -1970,6 +2270,11 @@ def analyze_interactively(
             usage=usage,
         )
 
+    intelligence, confidence_calibration = calibrate_hypothesis_confidence(
+        intelligence,
+        document,
+    )
+
     try:
         manifest_reference_ids = {
             item
@@ -2020,4 +2325,5 @@ def analyze_interactively(
         search_queries=search_queries,
         context_manifest=request.context_manifest,
         context_retry_count=context_retry_count,
+        confidence_calibration=confidence_calibration,
     )

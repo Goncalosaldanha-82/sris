@@ -134,6 +134,9 @@ test('Mission Intelligence exposes concise epistemic confidence and export views
   assert.match(html, /Declaração do utilizador/);
   assert.match(html, /Evidência necessária/);
   assert.match(html, /Confiança na decisão/);
+  assert.match(html, /function miConfidenceCalibrationHTML/);
+  assert.match(html, /Gate epistemológico aplicado/);
+  assert.match(html, /result\.confidence_calibration/);
   assert.match(html, /Ver raciocínio completo e fontes/);
   assert.match(html, /data-mi-print="turn"/);
   assert.match(html, /data-mi-export="session"/);

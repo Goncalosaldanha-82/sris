@@ -299,6 +299,7 @@ def _apply_execution(
         },
         context_manifest=execution.context_manifest or result.get("context_manifest"),
         context_retry_count=execution.context_retry_count,
+        confidence_calibration=list(execution.confidence_calibration),
     )
     if execution.context_dossier:
         result["context_dossier"] = execution.context_dossier.model_dump(mode="json")
@@ -828,6 +829,7 @@ def run_interactive_turn(
             "attachment_trace": result.get("attachment_trace") or [],
             "context_manifest": result.get("context_manifest"),
             "context_retry_count": result.get("context_retry_count", 0),
+            "confidence_calibration": result.get("confidence_calibration") or [],
         }
         if result.get("context_dossier"):
             ai_payload["context_dossier"] = result["context_dossier"]
@@ -929,6 +931,7 @@ def _turn_view(turn: MissionDialogueTurn) -> dict[str, Any]:
         "attachment_trace": ai.get("attachment_trace") or [],
         "context_manifest": ai.get("context_manifest"),
         "context_retry_count": ai.get("context_retry_count", 0),
+        "confidence_calibration": ai.get("confidence_calibration") or [],
         "deterministic": json.loads(run.deterministic_json),
         "ai_usage": usage_event_view(run.ai_usage_event) if run.ai_usage_event else None,
         "review_status": run.review_status,

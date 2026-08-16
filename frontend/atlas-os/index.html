@@ -2837,6 +2837,12 @@
         ?`<ul>${used.map(item=>`<li><strong>${esc(item.filename||item.evidence_id||item.attachment_id)}</strong> — ${esc(attachmentProcessingLabel(item))}; citado em ${esc((item.citation_locations||[]).join(", ")||"resposta estruturada")}.${(item.selected_chunk_ids||[]).length?` Blocos: ${esc(item.selected_chunk_ids.join(", "))}.`:""}</li>`).join("")}</ul>`
         :"<p>Nenhum anexo entrou numa resposta aceite.</p>"}${preserved.length?`<p><strong>${esc(preserved.length)} anexo${preserved.length===1?"":"s"}</strong> permanece${preserved.length===1?"":"m"} preservado${preserved.length===1?"":"s"}, mas fora da janela deste turno; não é apresentado como lido.</p>`:""}</div>`;
     }
+    function miConfidenceCalibrationHTML(result){
+      const events=Array.isArray(result?.confidence_calibration)?result.confidence_calibration:[];
+      if(!events.length)return "";
+      const subjects=events.map(item=>item.subject_id).filter(Boolean).join(", ");
+      return `<div class="mi-source-status mi-source-status--absent"><strong>Gate epistemológico aplicado</strong><p>A confiança factual foi limitada pela plataforma porque as fontes citadas permanecem declaradas ou em revisão.${subjects?` Hipóteses: ${esc(subjects)}.`:""}</p></div>`;
+    }
     function renderInteractiveTurn(result,{append=true}={}){
       const root=qs("#miConversation");
       if(!append)root.innerHTML="";
@@ -2901,6 +2907,7 @@
               <article class="mi-decision-card"><span>Decisão agora</span><h4>${esc(update.decision_now||"")}</h4><p><strong>Antes:</strong> ${esc(update.decision_before||"")}</p><p><strong>Incerteza restante:</strong> ${esc(update.remaining_uncertainty||"")}</p></article>
               <article class="mi-confidence-card"><span>Confiança na decisão</span><div class="mi-confidence-shift"><strong>${esc(miConfidenceLabel(update.confidence_before))}</strong><b class="mi-confidence-arrow">→</b><strong>${esc(miConfidenceLabel(update.confidence_now))}</strong></div><p><strong>${esc(confidenceDirectionLabels[update.confidence_direction]||update.confidence_direction||"")}.</strong> ${esc(update.reason||"")}</p>
                 <div class="mi-confidence-list">${confidenceChanges.slice(0,5).map(change=>`<div class="mi-confidence-row"><strong>${esc(change.subject||change.subject_id)}</strong><br>${esc(miConfidenceLabel(change.confidence_before))} → ${esc(miConfidenceLabel(change.confidence_now))} · ${esc(confidenceDirectionLabels[change.direction]||change.direction)}<br>${esc(change.reason||"")}</div>`).join("")||'<div class="mi-confidence-row">Este turno histórico não registou variações por hipótese.</div>'}</div>
+                ${miConfidenceCalibrationHTML(result)}
               </article>
             </div>
             <section class="mi-epistemic"><h4>Mapa epistemológico deste turno</h4><div class="mi-epistemic-grid">
@@ -3081,6 +3088,7 @@
       if((result.attachment_trace||[]).length)lines.push("","## Anexos processados e citados","",...(result.attachment_trace||[]).map(x=>x.status==="used_and_cited"
         ?`- **${x.filename||x.evidence_id||x.attachment_id}:** ${attachmentProcessingLabel(x)}; citado em ${(x.citation_locations||[]).join(", ")||"resposta estruturada"}. Blocos: ${(x.selected_chunk_ids||[]).join(", ")||"leitura direta"}.`
         :`- **${x.filename||x.evidence_id||x.attachment_id}:** preservado, mas não selecionado para esta janela; não apresentado como lido.`));
+      if((result.confidence_calibration||[]).length)lines.push("","## Gate epistemológico","",...(result.confidence_calibration||[]).map(x=>`- **${x.subject_id}:** ${miConfidenceLabel(x.provided_confidence)} → ${miConfidenceLabel(x.calibrated_confidence)} — fontes declaradas ou em revisão; falta evidência canónica confirmada.`));
       if((i.questions||[]).length)lines.push("","## Perguntas","",...i.questions.map(x=>`- **${x.question_id}:** ${x.question}`));
       if((i.hypotheses||[]).length)lines.push("","## Hipóteses","",...i.hypotheses.map(x=>`- **${x.proposal_id}:** ${x.statement} (${miConfidenceLabel(x.confidence)})`));
       if((i.recommended_actions||[]).length)lines.push("","## Ações recomendadas","",...i.recommended_actions.map(x=>`- **${x.urgency} · ${actionClassLabels[x.action_class]||x.action_class}:** ${x.action} — ${x.purpose}. ${x.authorization_note||""}`));
