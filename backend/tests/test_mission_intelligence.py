@@ -23,6 +23,7 @@ from app.mission_intelligence.ai import (
     AIUnavailableError,
     PreparedAIRequest,
 )
+from app.mission_intelligence.attachments import PreparedAttachment
 from app.mission_intelligence.canonical import legacy_to_canonical
 from app.mission_intelligence.catalog import demo_mission
 from app.mission_intelligence.contracts import (
@@ -1571,6 +1572,145 @@ def test_provider_context_rejection_retries_with_a_smaller_traced_window(
     assert execution.context_manifest["context_profile"] != request.context_manifest[
         "context_profile"
     ]
+
+
+def test_context_reduction_never_drops_selected_visual_attachment() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    pdf_id = "attachment-pdf-current-turn"
+    image_id = "attachment-image-current-turn"
+    image = PreparedAttachment(
+        id=image_id,
+        filename="captura.png",
+        media_type="image/png",
+        extension=".png",
+        byte_size=2_500_000,
+        sha256="a" * 64,
+        question_id=None,
+        extracted_text="",
+        content=b"visual-test-payload",
+    )
+    archive_context = MissionArchiveContext(
+        excerpts=(
+            ArchiveExcerpt(
+                chunk_id="chunk-pdf-current-turn",
+                attachment_id=pdf_id,
+                filename="caderneta.pdf",
+                question_id=None,
+                ordinal=1,
+                char_start=0,
+                char_end=120,
+                content_sha256="b" * 64,
+                text="Artigo matricial 838, freguesia e descrição predial.",
+                relevance_score=100,
+            ),
+        ),
+        manifest={
+            "archive_version": ARCHIVE_INDEX_VERSION,
+            "archive_total_attachments": 2,
+            "archive_total_bytes": 2_778_000,
+            "archive_indexed_attachments": 1,
+            "archive_total_sources": 2,
+            "archive_source_counts": {"attachment": 2},
+            "archive_total_chunks": 1,
+            "selected_chunk_count": 1,
+            "selected_attachment_ids": [pdf_id, image_id],
+            "selected_source_ids": [
+                f"attachment:{pdf_id}",
+                f"attachment:{image_id}",
+            ],
+            "direct_binary_attachment_ids": [image_id],
+            "priority_attachment_count": 2,
+            "selection_mode": "relevance_with_current_turn_priority",
+            "completeness": "selective_working_set_from_preserved_archive",
+        },
+        direct_binary_attachment_ids=(image_id,),
+        priority_attachment_ids=(pdf_id, image_id),
+    )
+
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Analisa obrigatoriamente os dois anexos selecionados.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+        attachments=[image],
+        archive_context=archive_context,
+        max_input_tokens=60_000,
+    )
+
+    variants = (request, *request.fallback_requests)
+    assert len(variants) >= 2
+    for variant in variants:
+        manifest = variant.context_manifest or {}
+        assert manifest["current_turn_selection_complete"] is True
+        assert manifest["current_turn_missing_attachment_ids"] == []
+        assert set(manifest["current_turn_selected_attachment_ids"]) == {
+            pdf_id,
+            image_id,
+        }
+        assert manifest["direct_binary_attachment_ids"] == [image_id]
+
+
+def test_incomplete_selected_attachment_set_is_not_sent_to_provider() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    image_ids = [f"attachment-image-{index}" for index in range(3)]
+    attachments = [
+        PreparedAttachment(
+            id=attachment_id,
+            filename=f"captura-{index}.png",
+            media_type="image/png",
+            extension=".png",
+            byte_size=500_000,
+            sha256=f"{index + 1:064x}",
+            question_id=None,
+            extracted_text="",
+            content=f"visual-{index}".encode(),
+        )
+        for index, attachment_id in enumerate(image_ids)
+    ]
+    archive_context = MissionArchiveContext(
+        excerpts=(),
+        manifest={
+            "archive_version": ARCHIVE_INDEX_VERSION,
+            "archive_total_attachments": 3,
+            "archive_total_bytes": 1_500_000,
+            "archive_indexed_attachments": 0,
+            "archive_total_sources": 3,
+            "archive_source_counts": {"attachment": 3},
+            "archive_total_chunks": 0,
+            "selected_chunk_count": 0,
+            "selected_attachment_ids": image_ids[:2],
+            "selected_source_ids": [
+                f"attachment:{attachment_id}" for attachment_id in image_ids[:2]
+            ],
+            "direct_binary_attachment_ids": image_ids[:2],
+            "priority_attachment_count": 3,
+            "selection_mode": "relevance_with_current_turn_priority",
+            "completeness": "selective_working_set_from_preserved_archive",
+        },
+        direct_binary_attachment_ids=tuple(image_ids[:2]),
+        priority_attachment_ids=tuple(image_ids),
+    )
+
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.DIAGNOSE,
+        message="Analisa as três imagens.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+        attachments=attachments[:2],
+        archive_context=archive_context,
+        max_input_tokens=60_000,
+    )
+
+    manifest = request.context_manifest or {}
+    assert manifest["selected_attachment_delivery_incomplete"] is True
+    assert manifest["current_turn_missing_attachment_ids"] == [image_ids[2]]
+    assert request.fallback_requests == ()
 
 
 def test_interactive_provider_rejects_unknown_canonical_references(monkeypatch) -> None:

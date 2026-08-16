@@ -664,6 +664,29 @@ def run_interactive_turn(
         max_input_tokens=input_limit,
         research_context=payload.research_context,
     )
+    missing_attachment_ids = [
+        item
+        for item in (prepared.context_manifest or {}).get(
+            "current_turn_missing_attachment_ids",
+            [],
+        )
+        if isinstance(item, str)
+    ]
+    if missing_attachment_ids:
+        attachment_names = {
+            item.id: item.original_filename for item in turn_attachment_rows
+        }
+        missing_names = [
+            attachment_names.get(item, item)
+            for item in missing_attachment_ids
+        ]
+        raise AttachmentError(
+            "attachment_context_incomplete",
+            "Não foi possível incluir todos os anexos selecionados neste turno: "
+            + ", ".join(missing_names)
+            + ". Reduza o número de anexos visuais ou divida a análise em mais "
+            "do que um turno; nenhum anexo foi apresentado como lido.",
+        )
     working_attachments = prepare_turn_attachments(
         db,
         organization_id=organization_id,

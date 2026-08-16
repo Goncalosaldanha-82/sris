@@ -6,7 +6,7 @@ Versão da aplicação: `1.7.3`
 
 Versão do contrato: `2.3`
 
-Versão do prompt: `sris-mi-interactive-2.4`
+Versão do prompt: `sris-mi-interactive-2.5`
 
 Migração head: `20260815_0011`
 

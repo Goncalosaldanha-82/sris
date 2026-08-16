@@ -42,8 +42,8 @@ from .mission_archive import MissionArchiveContext, lexical_relevance, lexical_t
 logger = logging.getLogger(__name__)
 
 
-INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.4"
-INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.4"
+INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.5"
+INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.5"
 DEFAULT_INTERACTIVE_OUTPUT_TOKENS = 4_500
 DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS = 6_000
 MAX_HISTORY_TURNS = 4
@@ -99,7 +99,10 @@ CONTEXT_PROFILES: tuple[dict[str, int | str], ...] = (
         "history_bytes": 8_000,
         "review_items": 20,
         "review_bytes": 2_500,
-        "binary_attachments": 1,
+        # Current-turn attachments are mandatory input. Context reduction may
+        # remove historical material, but it must never silently remove a file
+        # explicitly selected by the user.
+        "binary_attachments": 2,
     },
     {
         "name": "minimal",
@@ -112,7 +115,7 @@ CONTEXT_PROFILES: tuple[dict[str, int | str], ...] = (
         "history_bytes": 4_000,
         "review_items": 8,
         "review_bytes": 1_200,
-        "binary_attachments": 0,
+        "binary_attachments": 2,
     },
     {
         "name": "emergency",
@@ -125,7 +128,7 @@ CONTEXT_PROFILES: tuple[dict[str, int | str], ...] = (
         "history_bytes": 1_500,
         "review_items": 3,
         "review_bytes": 600,
-        "binary_attachments": 0,
+        "binary_attachments": 2,
     },
 )
 
@@ -894,6 +897,9 @@ def _archive_working_set(
     current_turn_selected_attachment_ids = sorted(
         set(selected_attachment_ids) & priority_attachment_ids
     )
+    current_turn_missing_attachment_ids = sorted(
+        priority_attachment_ids - set(current_turn_selected_attachment_ids)
+    )
     manifest = dict(archive_context.manifest)
     manifest.update(
         selected_chunk_count=len(excerpts),
@@ -920,6 +926,12 @@ def _archive_working_set(
             0,
             len(priority_attachment_ids)
             - len(current_turn_selected_attachment_ids),
+        ),
+        current_turn_missing_attachment_ids=(
+            current_turn_missing_attachment_ids
+        ),
+        current_turn_selection_complete=(
+            not current_turn_missing_attachment_ids
         ),
         context_profile=str(profile["name"]),
     )
@@ -1130,13 +1142,35 @@ def prepare_interactive_request(
             )
         )
 
-    fitting = [
+    # A fallback is valid only if it preserves every attachment explicitly
+    # selected for this turn. Provider context retries may reduce the mission
+    # archive, history and canonical working set, never the user's mandatory
+    # files.
+    complete_candidates = [
         candidate
         for candidate in candidates
+        if not (candidate.context_manifest or {}).get(
+            "current_turn_missing_attachment_ids",
+            [],
+        )
+    ]
+    if not complete_candidates:
+        primary = candidates[0]
+        manifest = dict(primary.context_manifest or {})
+        manifest["selected_attachment_delivery_incomplete"] = True
+        return replace(
+            primary,
+            context_manifest=manifest,
+            fallback_requests=(),
+        )
+
+    fitting = [
+        candidate
+        for candidate in complete_candidates
         if conservative_input_token_reservation(candidate) <= max_input_tokens
     ]
     if not fitting:
-        primary = candidates[-1]
+        primary = complete_candidates[-1]
         manifest = dict(primary.context_manifest or {})
         manifest["local_input_budget_exceeded"] = True
         return replace(primary, context_manifest=manifest)
