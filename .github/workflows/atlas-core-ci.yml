@@ -6,6 +6,7 @@ on:
     branches:
       - feature/ske-core
       - main
+      - mission-intelligence-interactive-v2
     paths:
       - "backend/**"
       - "frontend/**"
