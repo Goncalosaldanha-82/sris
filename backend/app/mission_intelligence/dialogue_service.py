@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.atlas_platform.audit import record_audit
 
 from .attachments import (
+    attachment_chunk_counts,
     backfill_mission_archive_index,
     prepare_turn_attachment_rows,
     prepare_turn_attachments,
@@ -39,6 +40,7 @@ from .interactive import (
     MIInteractiveExecution,
     analyze_interactively,
     prepare_interactive_request,
+    validate_attachment_citations,
 )
 from .models import (
     AIOrganizationPolicy,
@@ -255,7 +257,7 @@ def _base_interaction_result(
 ) -> dict[str, Any]:
     return {
         "schema": "sris_mission_intelligence_interaction",
-        "schema_version": "2.2",
+        "schema_version": "2.3",
         "session_id": session.id,
         "mission_id": document.mission_id,
         "mission_revision": mission.revision,
@@ -313,7 +315,12 @@ def _apply_execution(
     return result
 
 
-def _attachment_summary(attachment: Any) -> dict[str, Any]:
+def _attachment_summary(
+    attachment: Any,
+    *,
+    archive_chunk_count: int = 0,
+) -> dict[str, Any]:
+    archive_chunk_count = max(0, int(archive_chunk_count))
     filename = getattr(
         attachment,
         "filename",
@@ -327,8 +334,63 @@ def _attachment_summary(attachment: Any) -> dict[str, Any]:
         "byte_size": attachment.byte_size,
         "sha256": attachment.sha256,
         "question_id": attachment.question_id,
+        "extraction_status": getattr(
+            attachment,
+            "extraction_status",
+            "ready" if getattr(attachment, "extracted_text", "") else "unknown",
+        ),
+        "extraction_error": getattr(attachment, "extraction_error", ""),
+        "archive_indexed": archive_chunk_count > 0,
+        "archive_chunk_count": archive_chunk_count,
         "verification_status": "in_review",
     }
+
+
+def _attachment_trace_details(
+    *,
+    citation_trace: list[dict[str, Any]],
+    requested_attachments: list[Any],
+    archive_chunk_counts: dict[str, int],
+) -> list[dict[str, Any]]:
+    cited_by_id = {
+        item["attachment_id"]: item
+        for item in citation_trace
+        if isinstance(item.get("attachment_id"), str)
+    }
+    trace: list[dict[str, Any]] = []
+    for attachment in requested_attachments:
+        summary = _attachment_summary(
+            attachment,
+            archive_chunk_count=archive_chunk_counts.get(attachment.id, 0),
+        )
+        cited = cited_by_id.get(attachment.id)
+        if cited is None:
+            trace.append(
+                {
+                    **summary,
+                    "status": "preserved_not_selected",
+                    "delivery_mode": "preserved_archive",
+                    "selected_chunk_ids": [],
+                    "citation_locations": [],
+                    "selection_note": (
+                        "O anexo permanece preservado e pesquisável, mas não entrou "
+                        "na janela de trabalho deste turno."
+                    ),
+                }
+            )
+            continue
+        trace.append(
+            {
+                **summary,
+                **cited,
+                "status": "used_and_cited",
+                "selection_note": (
+                    "O conteúdo entrou na janela de trabalho e foi citado na "
+                    "resposta estruturada."
+                ),
+            }
+        )
+    return trace
 
 
 def _epistemic_ledger(
@@ -464,6 +526,10 @@ def run_interactive_turn(
         mission_id=mission.id,
         attachment_ids=payload.attachment_ids,
     )
+    turn_attachment_chunk_counts = attachment_chunk_counts(
+        db,
+        turn_attachment_rows,
+    )
     deterministic = analyze_mission(document)
     result = _base_interaction_result(
         session=session,
@@ -474,7 +540,11 @@ def run_interactive_turn(
     result["intent"] = payload.intent.value
     result["user_message"] = payload.message
     result["attachments"] = [
-        _attachment_summary(item) for item in turn_attachment_rows
+        _attachment_summary(
+            item,
+            archive_chunk_count=turn_attachment_chunk_counts.get(item.id, 0),
+        )
+        for item in turn_attachment_rows
     ]
 
     if user_role not in {"owner", "admin", "reviewer"}:
@@ -530,6 +600,18 @@ def run_interactive_turn(
     )
     if backfilled or backfilled_runs:
         db.commit()
+    if backfilled:
+        turn_attachment_chunk_counts = attachment_chunk_counts(
+            db,
+            turn_attachment_rows,
+        )
+        result["attachments"] = [
+            _attachment_summary(
+                item,
+                archive_chunk_count=turn_attachment_chunk_counts.get(item.id, 0),
+            )
+            for item in turn_attachment_rows
+        ]
     retrieval_query = "\n".join(
         filter(
             None,
@@ -649,7 +731,16 @@ def run_interactive_turn(
                 max_input_tokens=input_limit,
                 research_context=payload.research_context,
             )
+            citation_trace = validate_attachment_citations(
+                execution.intelligence,
+                execution.context_manifest or prepared.context_manifest,
+            )
             _apply_execution(result, execution)
+            result["attachment_trace"] = _attachment_trace_details(
+                citation_trace=citation_trace,
+                requested_attachments=turn_attachment_rows,
+                archive_chunk_counts=turn_attachment_chunk_counts,
+            )
             result["epistemic_ledger"] = _epistemic_ledger(
                 document=document,
                 payload=payload,
@@ -683,6 +774,7 @@ def run_interactive_turn(
                 failure_code=exc.failure_code,
             )
             result.update(ai_status="failed", ai_error=error)
+            execution = None
         result["ai_usage"] = usage_event_view(usage_event)
     except AIGovernanceBlocked as exc:
         db.rollback()
@@ -710,6 +802,7 @@ def run_interactive_turn(
             "provenance": provenance,
             "attachments": result.get("attachments", []),
             "epistemic_ledger": result.get("epistemic_ledger"),
+            "attachment_trace": result.get("attachment_trace") or [],
             "context_manifest": result.get("context_manifest"),
             "context_retry_count": result.get("context_retry_count", 0),
         }
@@ -810,6 +903,7 @@ def _turn_view(turn: MissionDialogueTurn) -> dict[str, Any]:
         "context_dossier_provenance": ai.get("context_dossier_provenance"),
         "attachments": ai.get("attachments") or [],
         "epistemic_ledger": ai.get("epistemic_ledger"),
+        "attachment_trace": ai.get("attachment_trace") or [],
         "context_manifest": ai.get("context_manifest"),
         "context_retry_count": ai.get("context_retry_count", 0),
         "deterministic": json.loads(run.deterministic_json),

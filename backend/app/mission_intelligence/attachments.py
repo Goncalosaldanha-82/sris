@@ -17,6 +17,7 @@ from uuid import uuid4
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
@@ -417,7 +418,40 @@ def _mission_or_error(db: Session, *, organization_id: str, mission_code: str) -
     return row
 
 
-def attachment_view(row: MissionAttachment) -> dict:
+def attachment_chunk_counts(
+    db: Session,
+    rows: list[MissionAttachment],
+) -> dict[str, int]:
+    """Return exact derived-index counts without an N+1 relationship load."""
+
+    attachment_ids = [row.id for row in rows]
+    counts: dict[str, int] = {}
+    for offset in range(0, len(attachment_ids), ATTACHMENT_QUERY_BATCH_SIZE):
+        batch = attachment_ids[offset : offset + ATTACHMENT_QUERY_BATCH_SIZE]
+        counts.update(
+            {
+                str(attachment_id): int(chunk_count)
+                for attachment_id, chunk_count in (
+                    db.query(
+                        MissionArchiveChunk.attachment_id,
+                        func.count(MissionArchiveChunk.id),
+                    )
+                    .filter(MissionArchiveChunk.attachment_id.in_(batch))
+                    .group_by(MissionArchiveChunk.attachment_id)
+                    .all()
+                )
+                if attachment_id is not None
+            }
+        )
+    return counts
+
+
+def attachment_view(
+    row: MissionAttachment,
+    *,
+    archive_chunk_count: int = 0,
+) -> dict:
+    archive_chunk_count = max(0, int(archive_chunk_count))
     return {
         "id": row.id,
         "evidence_id": f"ATT-{row.id[:8].upper()}",
@@ -431,10 +465,26 @@ def attachment_view(row: MissionAttachment) -> dict:
         "sha256": row.sha256,
         "extraction_status": row.extraction_status,
         "extraction_error": row.extraction_error,
+        "archive_indexed": archive_chunk_count > 0,
+        "archive_chunk_count": archive_chunk_count,
         "created_at": row.created_at,
         "epistemic_status": "user_supplied_source",
         "verification_status": "in_review",
     }
+
+
+def attachment_views(
+    db: Session,
+    rows: list[MissionAttachment],
+) -> list[dict]:
+    counts = attachment_chunk_counts(db, rows)
+    return [
+        attachment_view(
+            row,
+            archive_chunk_count=counts.get(row.id, 0),
+        )
+        for row in rows
+    ]
 
 
 def create_attachment(

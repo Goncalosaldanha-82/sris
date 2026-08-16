@@ -129,6 +129,7 @@ class MissionArchiveContext:
     excerpts: tuple[ArchiveExcerpt, ...]
     manifest: dict
     direct_binary_attachment_ids: tuple[str, ...] = ()
+    priority_attachment_ids: tuple[str, ...] = ()
 
     @property
     def reference_ids(self) -> set[str]:
@@ -638,4 +639,5 @@ def retrieve_mission_archive(
         excerpts=excerpts,
         manifest=manifest,
         direct_binary_attachment_ids=direct_binary_ids,
+        priority_attachment_ids=tuple(dict.fromkeys(priority_attachment_ids)),
     )

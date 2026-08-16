@@ -116,6 +116,13 @@ test('Mission Intelligence reads governed attachments from each question', () =>
   assert.match(html, /async function uploadMIAttachments/);
   assert.match(html, /mission-intelligence\/missions\/\$\{encodeURIComponent\(m\.id\)\}\/attachments/);
   assert.match(html, /attachment_ids:\[\.\.\.pendingMIAttachmentIds\]/);
+  assert.match(html, /function attachmentProcessingLabel/);
+  assert.match(html, /archive_chunk_count/);
+  assert.match(html, /function miAttachmentTraceHTML/);
+  assert.match(html, /Anexos efetivamente processados neste turno/);
+  assert.match(html, /citation_locations/);
+  assert.match(html, /provider_attachments_not_cited:"A resposta não demonstrou uso dos anexos selecionados"/);
+  assert.match(html, /## Anexos processados e citados/);
 });
 
 test('Mission Intelligence exposes concise epistemic confidence and export views', () => {

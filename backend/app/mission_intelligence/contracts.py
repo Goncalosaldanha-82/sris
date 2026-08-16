@@ -586,7 +586,7 @@ class MIInteractionBoundary(StrictModel):
 class MIInteractiveOutput(StrictModel):
     """Structured output for an active, mission-scoped reasoning turn."""
 
-    response_version: Literal["2.2"] = "2.2"
+    response_version: Literal["2.3"] = "2.3"
     intent: MIInteractionIntent
     direct_answer: MIDirectAnswer
     mission_reading: MIMissionReading

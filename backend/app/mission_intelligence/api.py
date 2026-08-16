@@ -21,7 +21,7 @@ from .attachments import (
     MAX_ATTACHMENT_BYTES,
     AttachmentError,
     attachment_content,
-    attachment_view,
+    attachment_views,
     create_attachment,
     delete_attachment,
     get_attachment,
@@ -75,8 +75,8 @@ def capability_status() -> dict:
         "engine_version": ENGINE_VERSION,
         "deterministic_analysis": "available",
         "interactive_mission_intelligence": "available",
-        "interactive_contract_version": "2.2",
-        "mission_attachments": "encrypted_and_model_readable",
+        "interactive_contract_version": "2.3",
+        "mission_attachments": "encrypted_extracted_indexed_and_citation_enforced",
         "mission_exports": "client_side_auditable",
         "interactive_prompt_version": INTERACTIVE_PROMPT_VERSION,
         "interactive_state": "locally_persisted",
@@ -246,7 +246,7 @@ async def upload_mission_attachment(
         )
     except AttachmentError as exc:
         raise _attachment_error(exc) from exc
-    return attachment_view(row)
+    return attachment_views(db, [row])[0]
 
 
 @organization_router.get("/missions/{mission_code}/attachments")
@@ -264,14 +264,12 @@ def get_mission_attachments(
     ),
     db: Session = Depends(get_db),
 ) -> list[dict]:
-    return [
-        attachment_view(row)
-        for row in list_attachments(
-            db,
-            organization_id=organization_id,
-            mission_code=mission_code,
-        )
-    ]
+    rows = list_attachments(
+        db,
+        organization_id=organization_id,
+        mission_code=mission_code,
+    )
+    return attachment_views(db, rows)
 
 
 @organization_router.get("/missions/{mission_code}/attachments/{attachment_id}/download")

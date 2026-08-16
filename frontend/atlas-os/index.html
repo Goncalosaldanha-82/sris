@@ -473,6 +473,8 @@
     .mi-source-status{margin-top:12px;padding:10px 12px;border-radius:10px;background:#f4f7f5;color:var(--ink-soft);font-size:10px;line-height:1.5}
     .mi-source-status--researched{border-left:3px solid var(--green);background:var(--sage-soft)}
     .mi-source-status--absent{border-left:3px solid var(--amber);background:var(--gold-soft)}
+    .mi-source-status ul{margin:7px 0 0;padding-left:18px}
+    .mi-source-status li{margin:4px 0}
     .mi-decision-update{margin:14px 0;display:grid;grid-template-columns:1.1fr .9fr;gap:9px}
     .mi-decision-card,.mi-confidence-card{padding:14px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft)}
     .mi-decision-card span,.mi-confidence-card span{display:block;color:var(--ink-muted);font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
@@ -2788,6 +2790,7 @@
       provider_rate_limited:"O fornecedor da IA está temporariamente ocupado",
       provider_request_invalid:"O fornecedor rejeitou a configuração do pedido",
       provider_context_limit:"O fornecedor recusou até a janela mínima; o arquivo integral permanece preservado",
+      provider_attachments_not_cited:"A resposta não demonstrou uso dos anexos selecionados",
       provider_request_failed:"A comunicação com o fornecedor da IA falhou",
       sdk_unavailable:"O componente de ligação à IA não está disponível"
     };
@@ -2816,6 +2819,23 @@
     }
     function miEpistemicGroup(title,type,items,emptyText){
       return `<section class="mi-epistemic-group mi-epistemic-group--${type}"><strong>${esc(title)}</strong>${(items||[]).slice(0,4).map(item=>`<p><b>${esc(item.id||"")}</b>${item.id?" · ":""}${esc(item.statement||item.title||"")}</p>`).join("")||`<p>${esc(emptyText)}</p>`}</section>`;
+    }
+    function attachmentProcessingLabel(item){
+      const chunks=Number(item?.archive_chunk_count)||0;
+      if(item?.extraction_status==="ready"&&chunks>0)return `texto extraído · ${chunks} bloco${chunks===1?"":"s"} indexado${chunks===1?"":"s"}`;
+      if(item?.extraction_status==="visual_ready")return "imagem pronta para leitura visual";
+      if(item?.extraction_status==="provider_ready")return "leitura direta do ficheiro preparada";
+      if(item?.extraction_status==="partial")return "sem texto extraível · verificação necessária";
+      return item?.archive_indexed?"conteúdo indexado":"processamento por confirmar";
+    }
+    function miAttachmentTraceHTML(result){
+      const trace=Array.isArray(result?.attachment_trace)?result.attachment_trace:[];
+      if(!trace.length)return "";
+      const used=trace.filter(item=>item.status==="used_and_cited");
+      const preserved=trace.filter(item=>item.status!=="used_and_cited");
+      return `<div class="mi-source-status mi-source-status--${used.length?"researched":"absent"}"><strong>Anexos efetivamente processados neste turno</strong>${used.length
+        ?`<ul>${used.map(item=>`<li><strong>${esc(item.filename||item.evidence_id||item.attachment_id)}</strong> — ${esc(attachmentProcessingLabel(item))}; citado em ${esc((item.citation_locations||[]).join(", ")||"resposta estruturada")}.${(item.selected_chunk_ids||[]).length?` Blocos: ${esc(item.selected_chunk_ids.join(", "))}.`:""}</li>`).join("")}</ul>`
+        :"<p>Nenhum anexo entrou numa resposta aceite.</p>"}${preserved.length?`<p><strong>${esc(preserved.length)} anexo${preserved.length===1?"":"s"}</strong> permanece${preserved.length===1?"":"m"} preservado${preserved.length===1?"":"s"}, mas fora da janela deste turno; não é apresentado como lido.</p>`:""}</div>`;
     }
     function renderInteractiveTurn(result,{append=true}={}){
       const root=qs("#miConversation");
@@ -2875,6 +2895,7 @@
                 ?`Pesquisa externa efetuada neste turno: <strong>${esc(sourceCount)} fontes rastreáveis</strong>, sujeitas a revisão humana.`
                 :"Sem pesquisa externa neste turno. A Mission Intelligence não confirma nem nega alegações históricas ou científicas externas."}</div>
               ${archiveStatus?`<div class="mi-source-status mi-source-status--researched">${archiveStatus} O restante conteúdo não foi apagado nem enviado silenciosamente: permanece pesquisável no arquivo da Missão.</div>`:""}
+              ${miAttachmentTraceHTML(result)}
             </div>
             <div class="mi-decision-update">
               <article class="mi-decision-card"><span>Decisão agora</span><h4>${esc(update.decision_now||"")}</h4><p><strong>Antes:</strong> ${esc(update.decision_before||"")}</p><p><strong>Incerteza restante:</strong> ${esc(update.remaining_uncertainty||"")}</p></article>
@@ -3000,7 +3021,7 @@
     }
 
     function renderMIAttachmentRepository(){
-      const chip=item=>`<div class="mi-attachment-chip"><span><strong>${esc(item.filename)}</strong><br>${esc(formatFileSize(item.byte_size))} · ${esc(item.evidence_id||`ATT-${String(item.id).slice(0,8).toUpperCase()}`)} · por verificar</span><button type="button" data-mi-toggle-attachment="${esc(item.id)}">${pendingMIAttachmentIds.has(item.id)?"Retirar deste turno":"Usar no próximo turno"}</button></div>`;
+      const chip=item=>`<div class="mi-attachment-chip"><span><strong>${esc(item.filename)}</strong><br>${esc(formatFileSize(item.byte_size))} · ${esc(item.evidence_id||`ATT-${String(item.id).slice(0,8).toUpperCase()}`)} · ${esc(attachmentProcessingLabel(item))} · por verificar</span><button type="button" data-mi-toggle-attachment="${esc(item.id)}">${pendingMIAttachmentIds.has(item.id)?"Retirar deste turno":"Usar no próximo turno"}</button></div>`;
       const general=qs("#miGeneralAttachmentList");
       if(general)general.innerHTML=missionAttachments.map(chip).join("");
       qsa("[data-mi-attachment-list]").forEach(root=>{
@@ -3041,7 +3062,7 @@
           if(!missionAttachments.some(item=>item.id===data.id))missionAttachments.push(data);
           pendingMIAttachmentIds.add(data.id);
           renderMIAttachmentRepository();
-          toast(`${file.name} foi anexado e será lido no próximo turno.`);
+          toast(`${file.name}: ${attachmentProcessingLabel(data)}. Será selecionado para o próximo turno.`);
         }catch(err){toast(err.message||`Não foi possível anexar ${file.name}.`)}
       }
     }
@@ -3057,6 +3078,9 @@
       ];
       if(result.context_dossier?.sources?.length)lines.push("","## Fontes externas","",...result.context_dossier.sources.map(x=>`- [${x.title}](${x.url}) — ${x.publisher||""}`));
       else lines.push("","## Fontes externas","","Sem pesquisa externa neste turno; nenhuma alegação histórica ou científica externa foi confirmada ou negada.");
+      if((result.attachment_trace||[]).length)lines.push("","## Anexos processados e citados","",...(result.attachment_trace||[]).map(x=>x.status==="used_and_cited"
+        ?`- **${x.filename||x.evidence_id||x.attachment_id}:** ${attachmentProcessingLabel(x)}; citado em ${(x.citation_locations||[]).join(", ")||"resposta estruturada"}. Blocos: ${(x.selected_chunk_ids||[]).join(", ")||"leitura direta"}.`
+        :`- **${x.filename||x.evidence_id||x.attachment_id}:** preservado, mas não selecionado para esta janela; não apresentado como lido.`));
       if((i.questions||[]).length)lines.push("","## Perguntas","",...i.questions.map(x=>`- **${x.question_id}:** ${x.question}`));
       if((i.hypotheses||[]).length)lines.push("","## Hipóteses","",...i.hypotheses.map(x=>`- **${x.proposal_id}:** ${x.statement} (${miConfidenceLabel(x.confidence)})`));
       if((i.recommended_actions||[]).length)lines.push("","## Ações recomendadas","",...i.recommended_actions.map(x=>`- **${x.urgency} · ${actionClassLabels[x.action_class]||x.action_class}:** ${x.action} — ${x.purpose}. ${x.authorization_note||""}`));
@@ -3074,7 +3098,7 @@
       const results=scope==="turn"?[dialogueTurnResults.get(turnKey)].filter(Boolean):[...dialogueTurnResults.values()];
       return {
         package_type:scope==="turn"?"sris_mission_intelligence_turn":"sris_mission_intelligence_process",
-        version:"2.2",exported_at:new Date().toISOString(),mission:mission(activeMissionId),
+        version:"2.3",exported_at:new Date().toISOString(),mission:mission(activeMissionId),
         session_id:activeDialogueSessionId,attachments:missionAttachments,turns:results
       };
     }

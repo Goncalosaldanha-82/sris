@@ -492,13 +492,56 @@ def _interactive_output(
     )
 
 
+def test_selected_current_turn_attachments_require_auditable_citations() -> None:
+    document, _deterministic = _canonical_analysis("M-001")
+    intelligence = _interactive_output(document)
+    attachment_id = "attachment-current-turn-001"
+    manifest = {
+        "selected_attachment_ids": [attachment_id],
+        "current_turn_selected_attachment_ids": [attachment_id],
+        "selected_attachment_chunk_ids": {
+            attachment_id: ["chunk-current-turn-001"],
+        },
+        "direct_binary_attachment_ids": [],
+    }
+
+    with pytest.raises(
+        AIUnavailableError,
+        match="não demonstrou uso dos anexos selecionados",
+    ) as blocked:
+        interactive_ai.validate_attachment_citations(
+            intelligence,
+            manifest,
+        )
+    assert blocked.value.failure_code == "provider_attachments_not_cited"
+
+    intelligence.decision_update.based_on_ids.append(attachment_id)
+    trace = interactive_ai.validate_attachment_citations(
+        intelligence,
+        manifest,
+    )
+    assert trace == [
+        {
+            "attachment_id": attachment_id,
+            "status": "cited_in_reasoning",
+            "delivery_mode": "extracted_indexed_excerpt",
+            "selected_chunk_ids": ["chunk-current-turn-001"],
+            "citation_locations": ["Atualização da decisão"],
+            "verification_status": "in_review",
+        }
+    ]
+
+
 def test_public_demo_runs_real_deterministic_mission_intelligence() -> None:
     status = client.get("/api/mission-intelligence/status")
     assert status.status_code == 200
     assert status.json()["foundation_version"] == "1.3"
     assert status.json()["engine_version"] == "mission-intelligence-deterministic-1.2"
     assert status.json()["interactive_mission_intelligence"] == "available"
-    assert status.json()["interactive_contract_version"] == "2.2"
+    assert status.json()["interactive_contract_version"] == "2.3"
+    assert status.json()["mission_attachments"] == (
+        "encrypted_extracted_indexed_and_citation_enforced"
+    )
     assert status.json()["interactive_state"] == "locally_persisted"
     assert status.json()["proposal_review"] == "granular_human_review"
     assert status.json()["canonical_auto_mutation"] is False
@@ -1787,7 +1830,7 @@ def test_interactive_incomplete_response_reports_output_limit_before_json_parsin
         model = "gpt-5.6"
         status = "incomplete"
         incomplete_details = IncompleteDetails()
-        output_text = '{"response_version":"2.2"'
+        output_text = '{"response_version":"2.3"'
         usage = {
             "input_tokens": 1_400,
             "output_tokens": 6_000,
@@ -1967,10 +2010,10 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     )
     assert first.status_code == 200, first.text
     first_data = first.json()
-    assert first_data["schema_version"] == "2.2"
+    assert first_data["schema_version"] == "2.3"
     assert first_data["ai_status"] == "completed"
     assert first_data["execution_mode"] == "interactive"
-    assert first_data["intelligence"]["response_version"] == "2.2"
+    assert first_data["intelligence"]["response_version"] == "2.3"
     assert first_data["intelligence"]["alternative_proposals"][0][
         "epistemic_status"
     ] == "alternative_proposal"
@@ -2080,8 +2123,18 @@ def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch
 
     def fake_provider(document, _deterministic, **kwargs):
         received_attachments.append(kwargs.get("attachments") or [])
+        intelligence = _interactive_output(document, kwargs["intent"])
+        selected_attachment_ids = list(
+            (kwargs.get("prepared_request").context_manifest or {}).get(
+                "current_turn_selected_attachment_ids",
+                [],
+            )
+        )
+        intelligence.mission_reading.based_on_ids.extend(
+            selected_attachment_ids
+        )
         return MIInteractiveExecution(
-            intelligence=_interactive_output(document, kwargs["intent"]),
+            intelligence=intelligence,
             provider="openai",
             model="gpt-5.6",
             provider_response_id=f"resp_attachment_{len(received_attachments)}",
@@ -2136,6 +2189,8 @@ def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch
     attachment = uploaded.json()
     assert attachment["question_id"] == "Q-AI-001"
     assert attachment["verification_status"] == "in_review"
+    assert attachment["archive_indexed"] is True
+    assert attachment["archive_chunk_count"] == 1
     second_content = (
         "# Segunda fonte\n"
         + "A segunda parcela contém uma série hídrica independente.\n" * 500
@@ -2207,6 +2262,27 @@ def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch
         attachment["id"],
         second_attachment["id"],
     }
+    assert set(
+        second.json()["context_manifest"][
+            "current_turn_selected_attachment_ids"
+        ]
+    ) == {attachment["id"], second_attachment["id"]}
+    assert {
+        item["id"] for item in second.json()["attachments"]
+    } == {attachment["id"], second_attachment["id"]}
+    assert all(
+        item["archive_indexed"]
+        for item in second.json()["attachments"]
+    )
+    assert {
+        item["attachment_id"]
+        for item in second.json()["attachment_trace"]
+        if item["status"] == "used_and_cited"
+    } == {attachment["id"], second_attachment["id"]}
+    assert all(
+        item["citation_locations"]
+        for item in second.json()["attachment_trace"]
+    )
     assert second.json()["context_manifest"]["archive_total_sources"] >= 3
     assert any(
         source_id.startswith("intelligence_run:")
@@ -2350,7 +2426,7 @@ def test_frontend_and_openapi_expose_the_new_capability() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
     assert spec.json()["info"]["title"] == "SRIS Mission Intelligence API"
-    assert spec.json()["info"]["version"] == "1.7.2"
+    assert spec.json()["info"]["version"] == "1.7.3"
     assert "/api/mission-intelligence/demo/missions/{mission_code}/analyze" in spec.json()["paths"]
     governance_path = (
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance"
