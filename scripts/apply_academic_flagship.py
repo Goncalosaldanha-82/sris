@@ -4,17 +4,24 @@ from pathlib import Path
 INDEX = Path(__file__).resolve().parents[1] / "frontend" / "atlas-os" / "index.html"
 FLAGSHIP = "M-005"
 TITLE = "Resiliência do Solo e da Paisagem Rural — Penela 2035"
+HIDDEN_MISSION = "CA-AWARD-APPLICATION"
 
 
 html = INDEX.read_text(encoding="utf-8")
 
 replacements = {
     'const ACTIVE_KEY = "sris_active_mission_eb1";':
-        'const ACTIVE_KEY = "sris_active_mission_academic_2026";',
+        'const ACTIVE_KEY = "sris_active_mission_academic_2026";\n'
+        f'    const STAGING_HIDDEN_MISSION_IDS = new Set(["{HIDDEN_MISSION}"]);',
     'sessionStorage.getItem(ACTIVE_KEY) || "M-002"':
         f'sessionStorage.getItem(ACTIVE_KEY) || "{FLAGSHIP}"',
     'config.missions["M-002"]?"M-002":Object.keys(config.missions)[0]':
         f'config.missions["{FLAGSHIP}"]?"{FLAGSHIP}":Object.keys(config.missions)[0]',
+    'config=deepMerge(external,BRIEF_ALIGNMENT);':
+        'config=deepMerge(external,BRIEF_ALIGNMENT);\n'
+        '      STAGING_HIDDEN_MISSION_IDS.forEach(id=>delete config.missions?.[id]);',
+    'const all=Object.values(config.missions||{}),byId=new Map(all.map(item=>[item.id,item]));':
+        'const all=Object.values(config.missions||{}).filter(item=>!STAGING_HIDDEN_MISSION_IDS.has(item.id)),byId=new Map(all.map(item=>[item.id,item]));',
     '<strong>Missão-farol — Nascente de Dragos.</strong>\n'
     '          Um caso onde água, património, arqueologia, memória local e governação\n'
     '          se encontram. As fontes justificam investigação, mas não provam a\n'
@@ -55,4 +62,7 @@ for old, new in replacements.items():
     html = html.replace(old, new)
 
 INDEX.write_text(html, encoding="utf-8")
-print(f"Academic flagship applied: {FLAGSHIP} — {TITLE}")
+print(
+    f"Academic flagship applied: {FLAGSHIP} — {TITLE}; "
+    f"hidden from academic staging: {HIDDEN_MISSION}"
+)
