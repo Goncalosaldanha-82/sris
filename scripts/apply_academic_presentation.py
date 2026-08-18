@@ -85,6 +85,12 @@ require_replace(
     'Observações, memória local, fontes académicas e lacunas ficam organizadas; o desenho científico é entregue à equipa investigadora competente.',
 )
 
+# External adoption is a validation condition, not a dated promise.
+require_replace(
+    '<div class="month">4–6 meses</div>\n            <h3>Primeira organização externa</h3>\n            <p>Um programa e respetivas sub-missões geridos por uma equipa que não a do promotor.</p>',
+    '<div class="month">Condição de validação</div>\n            <h3>Utilização por organização externa</h3>\n            <p>Marco futuro sem prazo assumido: só existe quando uma organização externa utilizar o SRIS no seu próprio trabalho. Até lá, permanece explicitamente não demonstrado.</p>',
+)
+
 # Tighten recognition wording to claims directly supported by the documented evidence.
 require_replace(
     '<p>Selecionado para a short list da edição de 2026.</p>',
