@@ -11,6 +11,7 @@ from .contracts import ContextDossier
 ASSETS_ROOT = Path(__file__).resolve().parents[3] / "frontend" / "assets"
 CATALOG_PATH = ASSETS_ROOT / "sris-mission-catalog-v1.3.json"
 ACADEMIC_FLAGSHIP_PATH = ASSETS_ROOT / "sris-mission-override-academic.json"
+ACADEMIC_HIDDEN_MISSIONS = {"CA-AWARD-APPLICATION"}
 
 
 @lru_cache(maxsize=1)
@@ -27,12 +28,16 @@ def load_demo_catalog() -> dict[str, Any]:
 
     # Staging presentation overlay. It adds a dedicated academic flagship mission
     # without rewriting the submitted/legacy demonstration cases in the base catalog.
+    # The Crédito Agrícola application remains preserved in repository/history but is
+    # deliberately excluded from the academic staging catalogue shown to partners.
     if ACADEMIC_FLAGSHIP_PATH.exists():
         override = json.loads(ACADEMIC_FLAGSHIP_PATH.read_text(encoding="utf-8"))
         override_missions = override.get("missions")
         if not isinstance(override_missions, dict) or not override_missions:
             raise RuntimeError("SRIS academic mission override is empty")
         missions.update(override_missions)
+        for mission_code in ACADEMIC_HIDDEN_MISSIONS:
+            missions.pop(mission_code, None)
 
     for code, mission in missions.items():
         dossier = mission.get("context_dossier")
