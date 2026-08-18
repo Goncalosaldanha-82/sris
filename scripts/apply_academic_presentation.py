@@ -13,7 +13,9 @@ hidden_ids_js = ",".join(f'"{mission_id}"' for mission_id in HIDDEN_MISSIONS)
 def require_replace(old: str, new: str) -> None:
     global html
     if old not in html:
-        raise RuntimeError(f"Academic presentation patch no longer matches index.html: {old[:120]!r}")
+        raise RuntimeError(
+            f"Academic presentation patch no longer matches index.html: {old[:120]!r}"
+        )
     html = html.replace(old, new)
 
 
@@ -21,17 +23,21 @@ def remove_between(start_marker: str, end_marker: str) -> None:
     global html
     start = html.find(start_marker)
     if start < 0:
-        raise RuntimeError(f"Academic presentation start marker missing: {start_marker[:120]!r}")
+        raise RuntimeError(
+            f"Academic presentation start marker missing: {start_marker[:120]!r}"
+        )
     end = html.find(end_marker, start)
     if end < 0:
-        raise RuntimeError(f"Academic presentation end marker missing: {end_marker[:120]!r}")
+        raise RuntimeError(
+            f"Academic presentation end marker missing: {end_marker[:120]!r}"
+        )
     html = html[:start] + "\n" + html[end:]
 
 
-# A fresh session key prevents a previous M-005 selection from surviving in the browser.
+# Fresh academic session: Dragos is the flagship and withdrawn/test cases cannot persist.
 require_replace(
     'const ACTIVE_KEY = "sris_active_mission_eb1";',
-    'const ACTIVE_KEY = "sris_active_mission_academic_dragos_2026";\n'
+    'const ACTIVE_KEY = "sris_active_mission_academic_dragos_boundary_2026";\n'
     f'    const STAGING_HIDDEN_MISSION_IDS = new Set([{hidden_ids_js}]);',
 )
 
@@ -46,16 +52,37 @@ require_replace(
     'const all=Object.values(config.missions||{}).filter(item=>!STAGING_HIDDEN_MISSION_IDS.has(item.id)),byId=new Map(all.map(item=>[item.id,item]));',
 )
 
-# Academic presentation: keep the evidence/status lists, but remove TRL scoring language.
+# Academic presentation: no TRL scoring in a scientific first-contact context.
 remove_between(
     '\n        <div class="section-title">\n          <div class="eyebrow">Maturidade tecnológica</div>',
     '\n        <div class="two-col">',
 )
 
-# A professor is being approached for scientific collaboration, not funding.
+# A professor is being approached for scientific collaboration, not financing.
 remove_between(
     '\n        <div class="section-title">\n          <div class="eyebrow">Aplicação do investimento-piloto</div>',
     '\n        <div class="callout">',
+)
+
+# Dragos is presented as a hand-off to competent research, never as a promoter-led study.
+require_replace(
+    'Caso candidato para ligar memória local, património, água e ciência\n'
+    '            num processo verificável. O objetivo imediato não é prometer uma\n'
+    '            recuperação: é determinar que investigação, legitimidade, autorizações\n'
+    '            e salvaguardas seriam necessárias antes de qualquer intervenção.',
+    'Caso científico aberto onde observação física, memória local, fontes académicas,\n'
+    '            hipóteses e desconhecidos permanecem separados. O promotor organiza e\n'
+    '            disponibiliza o caso; não executa nem antecipa a investigação científica.\n'
+    '            Método, amostragem, instrumentação, cronologia e interpretação começam\n'
+    '            apenas com uma equipa de investigação competente e legitimada.',
+)
+require_replace(
+    '<h3>Protocolo da Nascente de Dragos</h3>',
+    '<h3>Fronteira de investigação formalizada</h3>',
+)
+require_replace(
+    'Perguntas, entidades competentes, autorizações e linha de base definidos antes de qualquer intervenção.',
+    'Observações, memória local, fontes académicas e lacunas ficam organizadas; o desenho científico é entregue à equipa investigadora competente.',
 )
 
 # Tighten recognition wording to claims directly supported by the documented evidence.
@@ -71,5 +98,5 @@ require_replace(
 INDEX.write_text(html, encoding="utf-8")
 print(
     f"Academic presentation applied: flagship {FLAGSHIP}; "
-    f"hidden: {', '.join(HIDDEN_MISSIONS)}; TRL and funding blocks removed."
+    f"hidden: {', '.join(HIDDEN_MISSIONS)}; research boundary enforced."
 )
