@@ -4,15 +4,17 @@ from pathlib import Path
 INDEX = Path(__file__).resolve().parents[1] / "frontend" / "atlas-os" / "index.html"
 FLAGSHIP = "M-005"
 TITLE = "Resiliência do Solo e da Paisagem Rural — Penela 2035"
-HIDDEN_MISSION = "CA-AWARD-APPLICATION"
+HIDDEN_MISSIONS = ["CA-AWARD-APPLICATION", "MIS-001"]
 
 
 html = INDEX.read_text(encoding="utf-8")
 
+hidden_ids_js = ",".join(f'"{mission_id}"' for mission_id in HIDDEN_MISSIONS)
+
 replacements = {
     'const ACTIVE_KEY = "sris_active_mission_eb1";':
         'const ACTIVE_KEY = "sris_active_mission_academic_2026";\n'
-        f'    const STAGING_HIDDEN_MISSION_IDS = new Set(["{HIDDEN_MISSION}"]);',
+        f'    const STAGING_HIDDEN_MISSION_IDS = new Set([{hidden_ids_js}]);',
     'sessionStorage.getItem(ACTIVE_KEY) || "M-002"':
         f'sessionStorage.getItem(ACTIVE_KEY) || "{FLAGSHIP}"',
     'config.missions["M-002"]?"M-002":Object.keys(config.missions)[0]':
@@ -64,5 +66,5 @@ for old, new in replacements.items():
 INDEX.write_text(html, encoding="utf-8")
 print(
     f"Academic flagship applied: {FLAGSHIP} — {TITLE}; "
-    f"hidden from academic staging: {HIDDEN_MISSION}"
+    f"hidden from academic staging: {', '.join(HIDDEN_MISSIONS)}"
 )
