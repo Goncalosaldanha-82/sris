@@ -8,6 +8,9 @@
     @health path /health
     respond @health 200
 
+    @home path /
+    rewrite @home /v2.html
+
     root * /app
     encode gzip
     file_server
