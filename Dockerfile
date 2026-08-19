@@ -1,5 +1,6 @@
-FROM python:3.12-alpine
+FROM caddy:2-alpine
 WORKDIR /app
+COPY Caddyfile /etc/caddy/Caddyfile
 COPY site /app
 EXPOSE 8080
-CMD ["sh", "-c", "python -m http.server ${PORT:-8080} --bind 0.0.0.0"]
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
