@@ -1,0 +1,14 @@
+{
+    admin off
+    persist_config off
+    auto_https off
+}
+
+:{$PORT:8080} {
+    @health path /health
+    respond @health 200
+
+    root * /app
+    encode gzip
+    file_server
+}
