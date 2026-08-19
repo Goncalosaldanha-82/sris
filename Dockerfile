@@ -1,8 +1,5 @@
-FROM python:3.11-slim
-WORKDIR /workspace
-COPY . .
-RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && python -m pip install --no-cache-dir -e ".[test]" \
-    && python scripts/apply_academic_presentation.py
-EXPOSE 8000
-CMD ["sh", "-c", "python -m alembic upgrade head && python scripts/purge_staging_test_mission.py && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+FROM python:3.12-alpine
+WORKDIR /app
+COPY site /app
+EXPOSE 8080
+CMD ["sh", "-c", "python -m http.server ${PORT:-8080} --bind 0.0.0.0"]
