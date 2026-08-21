@@ -76,5 +76,14 @@ jobs:
       - name: Run Mission Intelligence foundation tests
         run: python -m pytest backend/tests/test_mission_intelligence.py
 
+      - name: Run Learning Inheritance tests
+        run: python -m pytest backend/tests/test_learning_inheritance.py
+
+      - name: Run Organizational Learning Evolution tests
+        run: python -m pytest backend/tests/test_organizational_learning_evolution.py
+
+      - name: Run Long-Term Memory tests
+        run: python -m pytest backend/tests/test_long_term_memory.py
+
       - name: Check Alembic heads
         run: python -m alembic heads
