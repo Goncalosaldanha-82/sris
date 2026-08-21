@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SRIS Pilot V1 — Mission Intelligence, memória organizacional e aprendizagem entre missões." />
+  <meta name="sris-build" content="pilot-v1-september-2026" />
+  <title>SRIS — Pilot V1</title>
+  <link rel="stylesheet" href="/pilot.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span></span></div>
+        <div><strong>SRIS</strong><small>MISSION INTELLIGENCE</small></div>
+      </div>
+      <div class="build-badge">PILOT V1 · SEPT 2026</div>
+      <nav id="nav">
+        <button class="nav-item active" data-view="command"><span>⌁</span> Command</button>
+        <button class="nav-item" data-view="mission"><span>◎</span> Missão ativa</button>
+        <button class="nav-item" data-view="memory"><span>◫</span> Memória</button>
+        <button class="nav-item" data-view="learning"><span>↗</span> Aprendizagem</button>
+        <button class="nav-item" data-view="evidence"><span>◇</span> Evidência</button>
+        <button class="nav-item" data-view="pilot"><span>◉</span> Pilot Mode</button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="health-dot" id="healthDot"></div>
+        <div><small>Sistema</small><strong id="healthLabel">a verificar</strong></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <small class="eyebrow">SRIS · ORGANIZATIONAL EXPERIENCE SYSTEM</small>
+          <h1 id="pageTitle">Command</h1>
+        </div>
+        <div class="top-actions">
+          <button class="ghost" id="refreshBtn">Atualizar</button>
+          <button class="primary" id="newMissionBtn">+ Nova missão</button>
+        </div>
+      </header>
+
+      <section class="view active" id="view-command">
+        <div class="hero-grid">
+          <div class="hero-card hero-main">
+            <div class="hero-kicker">PRÓXIMA MELHOR AÇÃO</div>
+            <h2>A organização não deve voltar a aprender a mesma coisa do zero.</h2>
+            <p>O SRIS cruza o estado atual, a experiência de missões anteriores, a qualidade da evidência e aquilo que ainda falta saber antes de recomendar onde deve estar a atenção humana.</p>
+            <div class="hero-actions">
+              <button class="primary" data-goto="mission">Abrir missão prioritária</button>
+              <button class="ghost inverse" data-goto="memory">Ver memória acumulada</button>
+            </div>
+          </div>
+          <div class="hero-card signal-card">
+            <small>SINAL PRIORITÁRIO</small>
+            <div class="signal-score">03</div>
+            <strong>itens exigem atenção</strong>
+            <p>1 revalidação · 1 contradição · 1 decisão sem outcome</p>
+          </div>
+        </div>
+
+        <div class="section-heading"><div><small>AGORA</small><h3>O que merece atenção</h3></div><span>ordenado por impacto na decisão</span></div>
+        <div class="attention-grid">
+          <article class="attention-card critical">
+            <div class="card-top"><span class="tag">REVALIDAR</span><span class="confidence">Confiança moderada</span></div>
+            <h4>Nascente de Dragos</h4>
+            <p>Uma aprendizagem anterior pode ser relevante, mas o contexto atual mudou em duas condições materiais.</p>
+            <div class="reason">Porque importa: reutilizar sem rever pode contaminar a decisão atual.</div>
+            <button data-goto="learning">Comparar contexto →</button>
+          </article>
+          <article class="attention-card">
+            <div class="card-top"><span class="tag">EVIDÊNCIA</span><span class="confidence">Impacto elevado</span></div>
+            <h4>Paisagem Resiliente</h4>
+            <p>Existe uma lacuna de informação que pode alterar a escolha entre duas alternativas.</p>
+            <div class="reason">Próximo euro de informação: validar a variável com maior valor decisório.</div>
+            <button data-goto="evidence">Ver o que falta →</button>
+          </article>
+          <article class="attention-card warning">
+            <div class="card-top"><span class="tag">DECISION DEBT</span><span class="confidence">18 dias</span></div>
+            <h4>Penela Vivo 2035</h4>
+            <p>Existe uma decisão aberta sem critério de outcome suficientemente definido.</p>
+            <div class="reason">Risco: a organização pode agir sem conseguir aprender com o resultado.</div>
+            <button data-goto="pilot">Fechar ciclo →</button>
+          </article>
+        </div>
+
+        <div class="metrics-row">
+          <div><small>MISSÕES</small><strong>6</strong><span>1 programa · 5 missões</span></div>
+          <div><small>APRENDIZAGENS</small><strong>29</strong><span>18 validadas · 6 em revisão</span></div>
+          <div><small>DECISÕES</small><strong>74</strong><span>51 com outcome</span></div>
+          <div><small>REUTILIZAÇÃO</small><strong>31%</strong><span>conhecimento aplicado noutra missão</span></div>
+          <div><small>DECISION DEBT</small><strong>7</strong><span>itens por resolver</span></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-mission">
+        <div class="mission-head">
+          <div><small class="eyebrow">MISSÃO ATIVA · M-002</small><h2>Nascente de Dragos</h2><p>Água · património · território · Podentes, Penela</p></div>
+          <div class="mission-status"><span>INVESTIGAÇÃO</span><strong>Confiança baixa</strong><small>3 lacunas críticas</small></div>
+        </div>
+
+        <div class="mission-layout">
+          <div class="mission-stream">
+            <div class="stream-block known"><div class="stream-index">01</div><div><small>O QUE SABEMOS</small><h3>Estado factual e evidência confirmada</h3><p>Uma nascente existe fisicamente no local. A relação histórica, terapêutica ou arqueológica permanece por demonstrar.</p><div class="chips"><span>2 evidências</span><span>1 fonte primária</span></div></div></div>
+            <div class="stream-block hypothesis"><div class="stream-index">02</div><div><small>O QUE PODE ESTAR A ACONTECER</small><h3>Hipóteses ainda abertas</h3><p>Existem hipóteses sobre continuidade histórica e utilização anterior, mas nenhuma deve ser confundida com conclusão.</p><div class="chips"><span>4 hipóteses</span><span>2 contraditórias</span></div></div></div>
+            <div class="stream-block missing"><div class="stream-index">03</div><div><small>O QUE FALTA SABER</small><h3>Informação com maior valor para a decisão</h3><p>Confirmar origem documental e enquadramento hidrogeológico antes de investir em investigação especializada.</p><button class="inline-action" data-goto="evidence">Abrir Evidence Gap →</button></div></div>
+            <div class="stream-block inherited"><div class="stream-index">04</div><div><small>O QUE A ORGANIZAÇÃO JÁ APRENDEU</small><h3>2 precedentes potencialmente úteis</h3><p>Uma aprendizagem pode ser reutilizada. Outra exige revalidação porque o contexto material se alterou.</p><button class="inline-action" data-goto="learning">Rever aprendizagem herdada →</button></div></div>
+          </div>
+          <aside class="next-action-panel">
+            <small>PRÓXIMA MELHOR AÇÃO</small>
+            <h3>Validar a origem antes de ampliar a investigação.</h3>
+            <p>É a informação que mais pode alterar o caminho atual com menor custo de obtenção.</p>
+            <div class="decision-box"><span>Impacto na decisão</span><strong>Alto</strong></div>
+            <div class="decision-box"><span>Custo de obter</span><strong>Baixo–moderado</strong></div>
+            <button class="primary full">Registar ação</button>
+            <button class="ghost full">Porque é esta a prioridade?</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-memory">
+        <div class="section-heading big"><div><small>MEMÓRIA ORGANIZACIONAL</small><h2>Experiência que permanece depois das pessoas e dos projetos.</h2></div></div>
+        <div class="memory-summary">
+          <div class="memory-stat"><strong>1.248</strong><span>Evidências</span></div>
+          <div class="arrow">→</div><div class="memory-stat"><strong>183</strong><span>Hipóteses</span></div>
+          <div class="arrow">→</div><div class="memory-stat"><strong>74</strong><span>Decisões</span></div>
+          <div class="arrow">→</div><div class="memory-stat"><strong>51</strong><span>Outcomes</span></div>
+          <div class="arrow">→</div><div class="memory-stat accent"><strong>29</strong><span>Aprendizagens</span></div>
+        </div>
+        <div class="two-col">
+          <div class="panel"><div class="panel-head"><h3>Conhecimento consolidado</h3><span>18 validadas</span></div><div class="knowledge-item"><span class="k-dot valid"></span><div><strong>Normalizar indicadores pela atividade real antes de inferir ineficiência.</strong><small>Confirmada em 7 missões · última validação há 22 dias</small></div></div><div class="knowledge-item"><span class="k-dot review"></span><div><strong>Reutilizar contexto territorial apenas quando escala e horizonte permanecem comparáveis.</strong><small>Requer revalidação · 2 condições alteradas</small></div></div><div class="knowledge-item"><span class="k-dot invalid"></span><div><strong>Premissa operacional supersedida por nova evidência.</strong><small>Invalidada · histórico preservado</small></div></div></div>
+          <div class="panel"><div class="panel-head"><h3>Saúde da memória</h3><span>Atual</span></div><div class="health-line"><span>Reutilização de aprendizagem</span><strong>31%</strong></div><div class="health-line"><span>Conhecimento em revalidação</span><strong>6</strong></div><div class="health-line"><span>Contradições abertas</span><strong>2</strong></div><div class="health-line"><span>Decision Debt</span><strong>7</strong></div><div class="health-line"><span>Outcomes em falta</span><strong>23</strong></div></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-learning">
+        <div class="section-heading big"><div><small>LEARNING INHERITANCE</small><h2>A missão seguinte começa melhor porque a anterior existiu.</h2></div></div>
+        <div class="learning-flow">
+          <div class="source-mission"><small>MISSÃO DE ORIGEM</small><strong>Paisagem Resiliente</strong><span>LRN-017 · validada em 14/07/2026</span></div>
+          <div class="flow-arrow">→</div>
+          <div class="learning-card"><small>APRENDIZAGEM</small><h3>Antes de interpretar uma variação, normalizar pela unidade operacional relevante.</h3><div class="validity"><span>Validade original</span><strong>Condições A + B + C</strong></div></div>
+          <div class="flow-arrow">→</div>
+          <div class="target-mission"><small>MISSÃO ATUAL</small><strong>Nascente de Dragos</strong><span>2 condições comparáveis · 1 mudou</span></div>
+        </div>
+        <div class="review-panel"><div><small>DECISÃO DE HERANÇA</small><h3>Esta aprendizagem continua válida neste contexto?</h3><p>O SRIS não transporta conclusões automaticamente. Obriga a rever a validade quando o contexto muda.</p></div><div class="review-actions"><button class="valid">Ainda válida</button><button class="review">Requer revalidação</button><button class="invalid">Invalidada</button></div></div>
+      </section>
+
+      <section class="view" id="view-evidence">
+        <div class="section-heading big"><div><small>VALUE OF INFORMATION</small><h2>Nem toda a informação em falta merece o mesmo esforço.</h2></div></div>
+        <div class="evidence-table">
+          <div class="ev-row header"><span>Lacuna</span><span>Impacto na decisão</span><span>Custo</span><span>Prioridade</span></div>
+          <div class="ev-row"><span><strong>Origem documental da referência histórica</strong><small>Pode eliminar ou reforçar duas hipóteses centrais</small></span><span class="high">Alto</span><span>Baixo</span><span><b>1</b></span></div>
+          <div class="ev-row"><span><strong>Caracterização hidrogeológica completa</strong><small>Necessária antes de qualquer inferência material</small></span><span>Moderado</span><span>Alto</span><span><b>2</b></span></div>
+          <div class="ev-row"><span><strong>Memória oral adicional</strong><small>Ajuda a gerar pistas, não confirma factos</small></span><span>Baixo</span><span>Baixo</span><span><b>3</b></span></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-pilot">
+        <div class="pilot-hero"><div><small>PILOT MODE</small><h2>O primeiro piloto deve provar valor, não apenas utilização.</h2><p>Baseline, intervenção e resultado ficam dentro do próprio SRIS para que o piloto produza evidência comercial e operacional reutilizável.</p></div><button class="primary">Iniciar novo piloto</button></div>
+        <div class="pilot-grid">
+          <article><span>01</span><h3>Baseline</h3><p>Tempo, informação disponível, decisões abertas, Decision Debt e estado do conhecimento antes do SRIS.</p></article>
+          <article><span>02</span><h3>Missão real</h3><p>Um problema mensurável, uma unidade, decisão concreta, dados existentes e limites previamente definidos.</p></article>
+          <article><span>03</span><h3>Outcome</h3><p>Resultado observado, aprendizagem produzida, conhecimento reutilizado e contexto que mudou.</p></article>
+          <article><span>04</span><h3>Valor demonstrado</h3><p>Tempo poupado, contexto recuperado, dívida decisória reduzida e qualidade do início da missão seguinte.</p></article>
+        </div>
+        <div class="pilot-scorecard"><div><small>MÉTRICA</small><strong>Time-to-informed-start</strong><span>— baseline por medir</span></div><div><small>MÉTRICA</small><strong>Learning reuse rate</strong><span>— baseline por medir</span></div><div><small>MÉTRICA</small><strong>Decision outcome closure</strong><span>— baseline por medir</span></div><div><small>MÉTRICA</small><strong>Decision Debt reduced</strong><span>— baseline por medir</span></div></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal hidden" id="missionModal">
+    <div class="modal-card"><button class="close" id="closeModal">×</button><small>NOVA MISSÃO</small><h2>Descreve o problema que precisa de ser compreendido.</h2><p>Antes de criar uma missão vazia, o SRIS vai procurar experiência anterior potencialmente relevante.</p><textarea placeholder="Ex.: O consumo de água aumentou 18% nos últimos dois meses e precisamos de perceber porquê antes de intervir."></textarea><div class="modal-preview"><span>Ao continuar, o sistema irá:</span><ul><li>procurar missões relacionadas;</li><li>identificar aprendizagem reutilizável;</li><li>assinalar conhecimento que exige revalidação;</li><li>separar o que sabemos do que ainda precisa de evidência.</li></ul></div><button class="primary full">Executar preflight</button></div>
+  </div>
+
+  <script src="/pilot.js"></script>
+</body>
+</html>
