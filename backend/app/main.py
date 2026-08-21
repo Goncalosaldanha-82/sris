@@ -2,6 +2,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
@@ -9,6 +10,7 @@ from app.mission_intelligence.evolution_api import router as organizational_lear
 from app.mission_intelligence.learning_api import router as learning_inheritance_router
 from app.mission_intelligence.memory_api import router as organizational_memory_router
 from app.mission_intelligence import memory_models  # noqa: F401
+from app.pilot_product import router as pilot_product_router
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -19,6 +21,7 @@ FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
+app.include_router(pilot_product_router)
 
 
 @app.middleware("http")
@@ -49,6 +52,16 @@ if ASSETS_DIR.exists():
         StaticFiles(directory=str(ASSETS_DIR)),
         name="assets",
     )
+
+
+@app.get("/", include_in_schema=False)
+def pilot_home() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "home.html")
+
+
+@app.get("/app", include_in_schema=False)
+def pilot_app() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "index.html")
 
 
 if FRONTEND_DIR.exists():
