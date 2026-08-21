@@ -5,12 +5,20 @@ from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
+from app.mission_intelligence.evolution_api import router as organizational_learning_router
+from app.mission_intelligence.learning_api import router as learning_inheritance_router
+from app.mission_intelligence.memory_api import router as organizational_memory_router
+from app.mission_intelligence import memory_models  # noqa: F401
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "atlas-os"
+
+app.include_router(learning_inheritance_router)
+app.include_router(organizational_learning_router)
+app.include_router(organizational_memory_router)
 
 
 @app.middleware("http")
