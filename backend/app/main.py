@@ -14,7 +14,7 @@ from app.mission_intelligence import memory_models  # noqa: F401
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
-FRONTEND_DIR = PROJECT_ROOT / "frontend" / "atlas-os"
+FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
