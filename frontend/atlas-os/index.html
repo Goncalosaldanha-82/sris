@@ -457,6 +457,12 @@
     .mi-empty{padding:28px;border:1px dashed var(--border-strong);border-radius:14px;background:rgba(247,246,242,.72);text-align:center;color:var(--ink-muted);font-size:12px;line-height:1.65}
     .mi-empty strong{display:block;margin-bottom:6px;color:var(--ink);font-family:Georgia,serif;font-size:21px;font-weight:400}
     .mi-turn{border:1px solid var(--border);border-radius:15px;background:#fff;overflow:hidden}
+    .mi-turn-tools{padding:9px 14px;display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:#fff}
+    .mi-tool-button,.mi-export-menu summary{min-height:31px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--ink-soft);font-size:9.5px;font-weight:760;cursor:pointer;list-style:none}
+    .mi-export-menu{position:relative}
+    .mi-export-menu summary::-webkit-details-marker{display:none}
+    .mi-export-options{position:absolute;right:0;z-index:20;min-width:165px;margin-top:5px;padding:6px;display:grid;gap:4px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:var(--shadow)}
+    .mi-export-options button{padding:8px;border:0;border-radius:7px;background:var(--surface-soft);color:var(--ink-soft);font-size:9.5px;text-align:left}
     .mi-user-message{padding:13px 16px;background:var(--surface-soft);color:var(--ink-soft);font-size:11px;line-height:1.55}
     .mi-user-message strong{color:var(--ink)}
     .mi-answer{padding:20px}
@@ -464,6 +470,34 @@
     .mi-answer-head small{color:var(--gold-ink);font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
     .mi-answer-head h3{margin:9px 0 7px;font-family:Georgia,serif;font-size:24px;font-weight:400;line-height:1.2}
     .mi-answer-head p{margin:0;color:var(--ink-soft);font-size:12px;line-height:1.65}
+    .mi-source-status{margin-top:12px;padding:10px 12px;border-radius:10px;background:#f4f7f5;color:var(--ink-soft);font-size:10px;line-height:1.5}
+    .mi-source-status--researched{border-left:3px solid var(--green);background:var(--sage-soft)}
+    .mi-source-status--absent{border-left:3px solid var(--amber);background:var(--gold-soft)}
+    .mi-source-status ul{margin:7px 0 0;padding-left:18px}
+    .mi-source-status li{margin:4px 0}
+    .mi-decision-update{margin:14px 0;display:grid;grid-template-columns:1.1fr .9fr;gap:9px}
+    .mi-decision-card,.mi-confidence-card{padding:14px;border:1px solid var(--border);border-radius:11px;background:var(--surface-soft)}
+    .mi-decision-card span,.mi-confidence-card span{display:block;color:var(--ink-muted);font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
+    .mi-decision-card h4{margin:7px 0 5px;font-family:Georgia,serif;font-size:19px;font-weight:400;line-height:1.25}
+    .mi-decision-card p,.mi-confidence-card p{margin:5px 0 0;color:var(--ink-soft);font-size:10.5px;line-height:1.5}
+    .mi-confidence-shift{margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .mi-confidence-shift strong{padding:6px 8px;border-radius:999px;background:#fff;font-size:10px}
+    .mi-confidence-arrow{color:var(--forest);font-weight:900}
+    .mi-confidence-list{display:grid;gap:6px;margin-top:10px}
+    .mi-confidence-row{padding:9px;border:1px solid var(--border);border-radius:9px;background:#fff;font-size:9.5px;line-height:1.45}
+    .mi-epistemic{margin:14px 0;padding:14px;border:1px solid var(--border);border-radius:11px;background:#fff}
+    .mi-epistemic>h4{margin:0 0 10px;font-family:Georgia,serif;font-size:19px;font-weight:400}
+    .mi-epistemic-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+    .mi-epistemic-group{min-width:0;padding:10px;border-radius:9px;background:var(--surface-soft);border-top:3px solid var(--ink-muted)}
+    .mi-epistemic-group--fact{border-color:var(--green)}
+    .mi-epistemic-group--declaration{border-color:var(--blue)}
+    .mi-epistemic-group--hypothesis{border-color:var(--gold)}
+    .mi-epistemic-group--decision{border-color:var(--forest)}
+    .mi-epistemic-group--evidence{border-color:var(--amber)}
+    .mi-epistemic-group strong{display:block;margin-bottom:6px;font-size:8px;letter-spacing:.06em;text-transform:uppercase}
+    .mi-epistemic-group p{margin:5px 0;color:var(--ink-soft);font-size:9px;line-height:1.4;overflow-wrap:anywhere}
+    .mi-details{margin-top:12px;border-top:1px solid var(--border)}
+    .mi-details>summary{padding:14px 0;color:var(--forest);font-size:10.5px;font-weight:800;cursor:pointer}
     .mi-reading{margin:14px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
     .mi-reading article{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft)}
     .mi-reading span{display:block;color:var(--ink-muted);font-size:8px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
@@ -496,11 +530,24 @@
     .mi-question small{display:block;margin:5px 0 8px;color:var(--ink-muted);font-size:9.5px;line-height:1.5}
     .mi-question input,.mi-question select,.mi-question textarea{width:100%;padding:10px;border:1px solid var(--border-strong);border-radius:9px;background:#fff;font-size:11px}
     .mi-question textarea{min-height:76px;resize:vertical}
+    .mi-attachment-control{margin-top:9px;padding-top:9px;border-top:1px dashed var(--border-strong)}
+    .mi-attachment-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .mi-attachment-button{padding:7px 10px;border:1px solid rgba(45,93,70,.28);border-radius:8px;background:#fff;color:var(--forest);font-size:9.5px;font-weight:780}
+    .mi-attachment-list{margin-top:7px;display:grid;gap:5px}
+    .mi-attachment-chip{padding:7px 9px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:8px;background:var(--sage-soft);color:var(--forest);font-size:9px;line-height:1.35}
+    .mi-attachment-chip button{border:0;background:transparent;color:var(--red);font-size:9px;font-weight:800}
+    .mi-upload-status{color:var(--ink-muted);font-size:9px}
+    .mi-choice-group{display:grid;gap:8px}
+    .mi-choice-group textarea{min-height:64px}
+    .mi-choice-note{color:var(--ink-muted);font-size:9px;line-height:1.45}
     .mi-list{margin:0;padding-left:20px}
     .mi-list li{margin:6px 0;color:var(--ink-soft);font-size:11px;line-height:1.55}
     .mi-next{padding:14px;border-radius:10px;background:var(--sage-soft);color:var(--forest);font-size:11.5px;line-height:1.55}
     .mi-turn-meta{margin-top:13px;padding-top:11px;border-top:1px solid var(--border);color:var(--ink-muted);font-size:9px;line-height:1.5}
     .mi-composer{padding:16px;border:1px solid var(--border);border-radius:13px;background:var(--surface-soft)}
+    .mi-session-tools{margin-bottom:12px;padding-bottom:11px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+    .mi-session-tools>div{display:flex;gap:7px;flex-wrap:wrap}
+    .mi-pending-count{color:var(--ink-muted);font-size:9.5px}
     .mi-composer textarea{width:100%;min-height:92px;padding:12px;border:1px solid var(--border-strong);border-radius:10px;resize:vertical;background:#fff;line-height:1.55}
     .mi-composer-row{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
     .mi-research-toggle{display:flex;align-items:flex-start;gap:8px;max-width:650px;color:var(--ink-soft);font-size:10px;line-height:1.45}
@@ -646,7 +693,8 @@
       .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
       .workspace,.section-grid{grid-template-columns:1fr}
       .mi-intents{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .mi-grid,.mi-reading{grid-template-columns:1fr}
+      .mi-grid,.mi-reading,.mi-decision-update{grid-template-columns:1fr}
+      .mi-epistemic-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
       .mission-context{grid-template-columns:1fr}
       .context-insight{padding-left:0}
       .timeline{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -698,11 +746,13 @@
       .modal-panel{width:100%;padding:20px}
       .top-actions{justify-content:flex-start}
       .user-chip{display:none}
+      .mi-epistemic-grid{grid-template-columns:1fr}
     }
     @media print{
       .sidebar,.topbar,.modal-actions,.modal-close{display:none!important}
       .modal{position:static;display:block!important;padding:0;background:none}
       .modal-panel{width:100%;max-height:none;box-shadow:none}
+      .mi-turn-tools,.mi-session-tools,.mi-composer,.mi-proposal-review{display:none!important}
     }
   </style>
 </head>
@@ -1022,14 +1072,34 @@
             <div id="miConversation" class="mi-conversation" aria-live="polite">
               <div class="mi-empty">
                 <strong>A missão ainda não respondeu.</strong>
-                Inicie um diagnóstico para obter perguntas, hipóteses, uma
-                alternativa nova e um desenho de teste — não apenas um resumo.
+                Inicie um diagnóstico conciso para ver a decisão atual, o que
+                mudou, a confiança nas hipóteses e o próximo passo.
               </div>
             </div>
             <form id="miDialogueForm" class="mi-composer">
+              <div class="mi-session-tools">
+                <div>
+                  <button id="miGeneralAttachmentButton" class="mi-attachment-button" type="button">Anexar documentos à missão</button>
+                  <input id="miGeneralAttachmentInput" class="hidden" type="file" multiple accept=".pdf,.html,.htm,.md,.markdown,.txt,.csv,.tsv,.xlsx,.xls,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif" />
+                  <span id="miPendingAttachmentCount" class="mi-pending-count">Nenhum anexo selecionado para o próximo turno.</span>
+                  <div id="miGeneralAttachmentList" class="mi-attachment-list"></div>
+                </div>
+                <div>
+                  <button class="mi-tool-button" type="button" data-mi-print="session">Imprimir / PDF</button>
+                  <details class="mi-export-menu">
+                    <summary>Exportar processo</summary>
+                    <div class="mi-export-options">
+                      <button type="button" data-mi-export="session" data-format="html">HTML</button>
+                      <button type="button" data-mi-export="session" data-format="md">Markdown</button>
+                      <button type="button" data-mi-export="session" data-format="json">JSON</button>
+                      <button type="button" data-mi-export="session" data-format="csv">CSV · confiança</button>
+                    </div>
+                  </details>
+                </div>
+              </div>
               <label class="field" for="miMessage">
                 <span>O que quer que a Mission Intelligence faça agora?</span>
-                <textarea id="miMessage">Interage com esta missão: identifica o ponto cego principal, coloca as perguntas que podem mudar a decisão, formula hipóteses testáveis, propõe pelo menos uma alternativa verdadeiramente nova e desenha a forma mais curta de reduzir a incerteza relevante.</textarea>
+                <textarea id="miMessage">Analisa esta missão de forma concisa. Mostra a decisão atual, o que mudou, a confiança em cada hipótese e o próximo passo. Faz apenas perguntas que possam alterar a decisão e distingue investigação documental de intervenção física.</textarea>
               </label>
               <div class="mi-composer-row">
                 <label class="mi-research-toggle" for="miResearch">
@@ -1999,6 +2069,13 @@
     let activeDialogueSessionId = null;
     let activeDialogueIntent = "diagnose";
     let latestDialogueTurn = null;
+    let latestDialogueSessionData = null;
+    let pendingMIAttachmentIds = new Set();
+    let missionAttachments = [];
+    const dialogueTurnResults = new Map();
+    let dialogueRecoveryMissionId = null;
+    let dialogueRecoveryPromise = null;
+    let refreshInFlight = null;
     const DIALOGUE_SESSION_KEY_PREFIX = "sris_mi_dialogue_";
     let intelligenceStatus = {
       deterministic_analysis:"unavailable",
@@ -2028,6 +2105,59 @@
       const el=qs("#toast"); if(!el)return;
       el.textContent=message;el.classList.remove("hidden");
       setTimeout(()=>el.classList.add("hidden"),4200);
+    }
+
+    function storeSessionTokens(data){
+      const accessToken=String(data?.access_token||"");
+      const refreshToken=String(data?.refresh_token||"");
+      if(accessToken)sessionStorage.setItem("sris_token",accessToken);
+      if(refreshToken)sessionStorage.setItem("sris_refresh_token",refreshToken);
+      return accessToken;
+    }
+
+    function clearSessionTokens(){
+      sessionStorage.removeItem("sris_token");
+      sessionStorage.removeItem("sris_refresh_token");
+    }
+
+    async function renewSessionToken(){
+      const refreshToken=sessionStorage.getItem("sris_refresh_token");
+      if(!refreshToken)return null;
+      if(!refreshInFlight){
+        refreshInFlight=(async()=>{
+          try{
+            const response=await fetch("/api/auth/refresh",{
+              method:"POST",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({refresh_token:refreshToken}),
+              cache:"no-store"
+            });
+            if(!response.ok)return null;
+            return storeSessionTokens(await response.json())||null;
+          }catch{return null}
+        })();
+      }
+      try{return await refreshInFlight}
+      finally{refreshInFlight=null}
+    }
+
+    async function authenticatedFetch(url,options={}){
+      const token=sessionStorage.getItem("sris_token");
+      const headers={...(options.headers||{})};
+      if(token)headers.Authorization=`Bearer ${token}`;
+      const response=await fetch(url,{...options,headers});
+      if(response.status!==401)return response;
+      const renewedToken=await renewSessionToken();
+      if(!renewedToken){
+        clearSessionTokens();
+        throw new Error("A sessão expirou. Volte a entrar no SRIS; as respostas que escreveu continuam neste ecrã.");
+      }
+      const retried=await fetch(url,{...options,headers:{...headers,Authorization:`Bearer ${renewedToken}`}});
+      if(retried.status===401){
+        clearSessionTokens();
+        throw new Error("A sessão expirou. Volte a entrar no SRIS; as respostas que escreveu continuam neste ecrã.");
+      }
+      return retried;
     }
 
     function recordOrigin(record, missionId){
@@ -2338,6 +2468,20 @@
       `).join("");
     }
 
+    function missionDecisionChain(m){
+      const chain=structuredClone(m.situation?.chain||[]);
+      if(!chain.some(item=>String(item.label||"").trim().toLocaleLowerCase("pt")==="aprendizagem")){
+        chain.push({
+          number:String(chain.length+1).padStart(2,"0"),
+          label:"Aprendizagem",
+          value:(m.learning||[]).length?"Registada":"Em aberto",
+          note:(m.learning||[])[0]?.title||"O que esta missão permite aprender ficará ligado às evidências, decisões e resultados.",
+          state:(m.learning||[]).length?"learning":"unavailable"
+        });
+      }
+      return chain;
+    }
+
     function renderSituation(){
       const m=mission(); if(!m)return;
       qs("#situationMission").innerHTML=options();
@@ -2348,7 +2492,7 @@
         <small>Classificação operacional declarada pelo responsável; não representa probabilidade, inferência automática ou validação científica.</small>
       `;
 
-      qs("#decisionChain").innerHTML=(m.situation?.chain||[]).map(i=>`
+      qs("#decisionChain").innerHTML=missionDecisionChain(m).map(i=>`
         <article
           class="chain-card ${chainStateClass(i.state)}"
           data-state="${esc(i.state||"unspecified")}"
@@ -2608,76 +2752,201 @@
         </article>`;
     }
 
+    function miAttachmentControl(questionId){
+      const id=esc(questionId);
+      return `<div class="mi-attachment-control" data-mi-attachment-control="${id}">
+        <div class="mi-attachment-row">
+          <button class="mi-attachment-button" type="button" data-mi-upload-trigger="${id}">Anexar documento ou imagem</button>
+          <input class="hidden" type="file" multiple data-mi-file-input="${id}" accept=".pdf,.html,.htm,.md,.markdown,.txt,.csv,.tsv,.xlsx,.xls,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif" />
+          <span class="mi-upload-status">O conteúdo ficará ligado a esta pergunta e será lido no próximo turno.</span>
+        </div>
+        <div class="mi-attachment-list" data-mi-attachment-list="${id}"></div>
+      </div>`;
+    }
+
     function miQuestionControl(question){
       const id=esc(question.question_id),label=esc(question.question),options=question.options||[];
-      if(question.answer_type==="single_choice")return `<select data-mi-question-id="${id}" aria-label="${label}"><option value="">Selecione…</option>${options.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")}</select>`;
+      if(question.answer_type==="single_choice")return `<div class="mi-choice-group" data-mi-choice-group="${id}"><select data-mi-choice aria-label="${label} — opção predefinida"><option value="">Selecione…</option>${options.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")}</select><textarea data-mi-choice-custom aria-label="${label} — outra resposta ou complemento" placeholder="Outra resposta ou complemento (opcional)"></textarea><span class="mi-choice-note">Se escrever aqui, a Mission Intelligence recebe este texto juntamente com a opção selecionada.</span></div>`;
       if(question.answer_type==="multi_choice")return `<textarea data-mi-question-id="${id}" aria-label="${label}" placeholder="Indique uma ou mais opções: ${esc(options.join(" · "))}"></textarea>`;
-      if(question.answer_type==="yes_no")return `<select data-mi-question-id="${id}" aria-label="${label}"><option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Ainda não sei">Ainda não sei</option></select>`;
+      if(question.answer_type==="yes_no")return `<div class="mi-choice-group" data-mi-choice-group="${id}"><select data-mi-choice aria-label="${label} — opção predefinida"><option value="">Selecione…</option><option value="Sim">Sim</option><option value="Não">Não</option><option value="Ainda não sei">Ainda não sei</option></select><textarea data-mi-choice-custom aria-label="${label} — outra resposta ou complemento" placeholder="Outra resposta ou complemento (opcional)"></textarea><span class="mi-choice-note">Pode responder por palavras suas ou acrescentar contexto à opção selecionada.</span></div>`;
       if(question.answer_type==="number")return `<input data-mi-question-id="${id}" aria-label="${label}" type="number" />`;
       if(question.answer_type==="date")return `<input data-mi-question-id="${id}" aria-label="${label}" type="date" />`;
       return `<textarea data-mi-question-id="${id}" aria-label="${label}" placeholder="A sua resposta"></textarea>`;
     }
 
+    const confidenceLabels={high:"Elevada",moderate:"Moderada",low:"Baixa",not_evaluable:"Não avaliável"};
+    const confidenceDirectionLabels={increased:"Aumentou",decreased:"Diminuiu",unchanged:"Sem alteração",not_evaluable:"Não avaliável"};
+    const actionClassLabels={documentary_no_touch:"Investigação documental · sem contacto físico",access_non_intrusive:"Acesso ou inspeção não intrusiva",intrusive:"Intervenção física intrusiva"};
+    const miFailureLabels={
+      provider_output_invalid:"A resposta da IA não cumpriu o contrato estruturado",
+      provider_output_incomplete:"A resposta da IA terminou antes de concluir",
+      provider_output_too_shallow:"A resposta da IA ficou incompleta",
+      provider_refused:"A IA recusou este pedido",
+      provider_response_failed:"O fornecedor da IA não conseguiu concluir a resposta",
+      provider_timeout:"A comunicação com a IA excedeu o tempo disponível",
+      provider_connection_failed:"Não foi possível ligar ao fornecedor da IA",
+      provider_authentication_failed:"A autenticação do fornecedor da IA falhou",
+      provider_permission_denied:"O fornecedor da IA recusou esta operação",
+      provider_rate_limited:"O fornecedor da IA está temporariamente ocupado",
+      provider_request_invalid:"O fornecedor rejeitou a configuração do pedido",
+      provider_context_limit:"O fornecedor recusou até a janela mínima; o arquivo integral permanece preservado",
+      provider_attachments_not_cited:"A resposta não demonstrou uso dos anexos selecionados",
+      provider_request_failed:"A comunicação com o fornecedor da IA falhou",
+      sdk_unavailable:"O componente de ligação à IA não está disponível"
+    };
+    function miConfidenceLabel(value){return confidenceLabels[value]||indicatorLabel(value)||String(value||"Não avaliável")}
+    function miFailureLabel(value){return miFailureLabels[value]||"A análise não pôde ser concluída"}
+    function miDecisionUpdate(i){
+      return i.decision_update||{
+        decision_before:"Estado anterior não explicitado neste turno histórico.",
+        decision_now:i.direct_answer?.answer||"Sem atualização de decisão.",
+        what_changed:i.direct_answer?.what_changed||"Sem alteração explicitada.",
+        confidence_before:"not_evaluable",confidence_now:"not_evaluable",confidence_direction:"not_evaluable",
+        reason:i.mission_reading?.decision_problem||"Histórico anterior ao contrato de variação de confiança.",
+        remaining_uncertainty:i.mission_reading?.current_blocker||"Não explicitada.",based_on_ids:i.mission_reading?.based_on_ids||[]
+      };
+    }
+    function miLedger(result,i,update){
+      if(result.epistemic_ledger)return result.epistemic_ledger;
+      return {
+        verified_facts:[],
+        user_statements:(result.answers||[]).map(x=>({id:x.question_id,statement:x.answer})),
+        hypotheses:(i.hypotheses||[]).map(x=>({id:x.proposal_id,statement:x.statement,confidence:x.confidence})),
+        decisions:[{id:"DECISION-UPDATE",statement:update.decision_now,confidence:update.confidence_now}],
+        evidence_needed:(i.hypotheses||[]).flatMap(x=>(x.evidence_needed||[]).map(statement=>({id:x.proposal_id,statement}))),
+        external_source_status:result.context_dossier?"researched_with_traceable_sources":"not_researched_in_this_turn"
+      };
+    }
+    function miEpistemicGroup(title,type,items,emptyText){
+      return `<section class="mi-epistemic-group mi-epistemic-group--${type}"><strong>${esc(title)}</strong>${(items||[]).slice(0,4).map(item=>`<p><b>${esc(item.id||"")}</b>${item.id?" · ":""}${esc(item.statement||item.title||"")}</p>`).join("")||`<p>${esc(emptyText)}</p>`}</section>`;
+    }
+    function attachmentProcessingLabel(item){
+      const chunks=Number(item?.archive_chunk_count)||0;
+      if(item?.extraction_status==="ready"&&chunks>0)return `texto extraído · ${chunks} bloco${chunks===1?"":"s"} indexado${chunks===1?"":"s"}`;
+      if(item?.extraction_status==="visual_ready")return "imagem pronta para leitura visual";
+      if(item?.extraction_status==="provider_ready")return "leitura direta do ficheiro preparada";
+      if(item?.extraction_status==="partial")return "sem texto extraível · verificação necessária";
+      return item?.archive_indexed?"conteúdo indexado":"processamento por confirmar";
+    }
+    function miAttachmentTraceHTML(result){
+      const trace=Array.isArray(result?.attachment_trace)?result.attachment_trace:[];
+      if(!trace.length)return "";
+      const used=trace.filter(item=>item.status==="used_and_cited");
+      const preserved=trace.filter(item=>item.status!=="used_and_cited");
+      return `<div class="mi-source-status mi-source-status--${used.length?"researched":"absent"}"><strong>Anexos efetivamente processados neste turno</strong>${used.length
+        ?`<ul>${used.map(item=>`<li><strong>${esc(item.filename||item.evidence_id||item.attachment_id)}</strong> — ${esc(attachmentProcessingLabel(item))}; citado em ${esc((item.citation_locations||[]).join(", ")||"resposta estruturada")}.${(item.selected_chunk_ids||[]).length?` Blocos: ${esc(item.selected_chunk_ids.join(", "))}.`:""}</li>`).join("")}</ul>`
+        :"<p>Nenhum anexo entrou numa resposta aceite.</p>"}${preserved.length?`<p><strong>${esc(preserved.length)} anexo${preserved.length===1?"":"s"}</strong> permanece${preserved.length===1?"":"m"} preservado${preserved.length===1?"":"s"}, mas fora da janela deste turno; não é apresentado como lido.</p>`:""}</div>`;
+    }
+    function miConfidenceCalibrationHTML(result){
+      const events=Array.isArray(result?.confidence_calibration)?result.confidence_calibration:[];
+      if(!events.length)return "";
+      const subjects=events.map(item=>item.subject_id).filter(Boolean).join(", ");
+      return `<div class="mi-source-status mi-source-status--absent"><strong>Gate epistemológico aplicado</strong><p>A confiança factual foi limitada pela plataforma porque as fontes citadas permanecem declaradas ou em revisão.${subjects?` Hipóteses: ${esc(subjects)}.`:""}</p></div>`;
+    }
     function renderInteractiveTurn(result,{append=true}={}){
       const root=qs("#miConversation");
       if(!append)root.innerHTML="";
+      if(root.querySelector(".mi-empty"))root.innerHTML="";
+      const turnId=result.turn_id||`sequence-${result.turn_sequence||dialogueTurnResults.size+1}`;
+      dialogueTurnResults.set(turnId,result);
       if(result.ai_status!=="completed"||!result.intelligence){
-        const code=result.ai_governance?.code||result.ai_status||"indisponível";
-        root.insertAdjacentHTML("beforeend",`<article class="mi-turn"><div class="mi-answer"><div class="mi-answer-head"><small>Mission Intelligence não executada</small><h3>${esc(code)}</h3><p>${esc(result.ai_governance?.message||result.ai_error||"A governação não permitiu este turno.")}</p></div></div></article>`);
+        const code=result.ai_usage?.failure_code||result.ai_governance?.code||result.ai_status||"indisponível";
+        const reference=result.ai_usage?.id||result.ai_governance?.usage_event_id||result.run_id||"";
+        const message=result.ai_error||result.ai_governance?.message||"A execução não produziu uma resposta utilizável.";
+        root.insertAdjacentHTML("beforeend",`
+          <article class="mi-turn" data-mi-turn-id="${esc(turnId)}">
+            <div class="mi-user-message"><strong>Pedido ${esc(result.turn_sequence||"")}:</strong> ${esc(result.user_message||"Pedido registado.")}</div>
+            <div class="mi-answer">
+              <details class="mi-details">
+                <summary>Análise não concluída · detalhes técnicos recolhidos</summary>
+                <p class="mi-section-note">O pedido foi preservado e pode ser repetido. Esta falha não altera a missão nem domina o diálogo.</p>
+                <div class="mi-turn-meta"><strong>Ocorrência:</strong> ${esc(miFailureLabel(code))}<br><strong>Descrição:</strong> ${esc(message)}<br><strong>Código técnico:</strong> ${esc(code)}${reference?`<br><strong>Referência:</strong> ${esc(reference)}`:""}</div>
+              </details>
+            </div>
+          </article>`);
         return;
       }
       const i=result.intelligence,reading=i.mission_reading||{},reviews=result.proposal_reviews||[];
+      const update=miDecisionUpdate(i),confidenceChanges=i.confidence_changes||[],ledger=miLedger(result,i,update);
+      const sourceCount=result.context_dossier?.sources?.length||0;
+      const contextManifest=result.context_manifest||{};
+      const archiveStatus=Number.isFinite(Number(contextManifest.archive_total_attachments))
+        ?`Arquivo integral: ${esc(contextManifest.archive_total_sources||contextManifest.archive_total_attachments||0)} fontes pesquisáveis (${esc(contextManifest.archive_total_attachments||0)} anexos; ${esc(contextManifest.archive_total_bytes||0)} bytes) · janela deste turno: ${esc(contextManifest.selected_chunk_count||0)} blocos de ${esc((contextManifest.selected_source_ids||contextManifest.selected_attachment_ids||[]).length)} fontes e ${esc(contextManifest.canonical_record_selected||0)} de ${esc(contextManifest.canonical_record_total||0)} registos canónicos · perfil ${esc(contextManifest.context_profile||"governado")}${result.context_retry_count?` · ${esc(result.context_retry_count)} redução automática de contexto` : ""}.`
+        :"";
       const userMessage=result.user_message||"Pedido registado neste turno.";
-      const turnId=result.turn_id||"";
       const proposalSections=[
         ["Hipóteses novas","Propostas explicativas. Não são factos.",i.hypotheses||[],"hypothesis"],
         ["Alternativas propostas","Opções que não entram automaticamente no conjunto canónico.",i.alternative_proposals||[],"alternative"],
         ["Critérios de decisão","Regras propostas para comparar opções sem esconder trade-offs.",i.decision_criteria||[],"criterion"],
-        ["Experiências propostas","Formas de transformar incerteza em aprendizagem verificável.",i.experiment_proposals||[],"experiment"]
+        ["Experiências propostas","Testes apenas quando necessários para reduzir incerteza.",i.experiment_proposals||[],"experiment"]
       ];
       const html=`
         <article class="mi-turn" data-mi-turn-id="${esc(turnId)}">
+          <div class="mi-turn-tools">
+            <button class="mi-tool-button" type="button" data-mi-print="turn" data-turn-key="${esc(turnId)}">Imprimir / PDF</button>
+            <details class="mi-export-menu"><summary>Exportar esta análise</summary><div class="mi-export-options">
+              <button type="button" data-mi-export="turn" data-turn-key="${esc(turnId)}" data-format="html">HTML</button>
+              <button type="button" data-mi-export="turn" data-turn-key="${esc(turnId)}" data-format="md">Markdown</button>
+              <button type="button" data-mi-export="turn" data-turn-key="${esc(turnId)}" data-format="json">JSON</button>
+              <button type="button" data-mi-export="turn" data-turn-key="${esc(turnId)}" data-format="csv">CSV · confiança</button>
+            </div></details>
+          </div>
           <div class="mi-user-message"><strong>Pedido ${esc(result.turn_sequence||"")}:</strong> ${esc(userMessage)}</div>
           <div class="mi-answer">
             <div class="mi-answer-head">
               <small>${esc(miIntentLabels[i.intent]||i.intent)} · ${esc(i.direct_answer?.status||"provisório")}</small>
               <h3>${esc(i.direct_answer?.answer||"")}</h3>
-              <p><strong>Valor acrescentado neste turno:</strong> ${esc(i.direct_answer?.what_changed||"")}</p>
+              <p><strong>O que mudou:</strong> ${esc(update.what_changed||i.direct_answer?.what_changed||"")}</p>
+              <div class="mi-source-status mi-source-status--${sourceCount?"researched":"absent"}">${sourceCount
+                ?`Pesquisa externa efetuada neste turno: <strong>${esc(sourceCount)} fontes rastreáveis</strong>, sujeitas a revisão humana.`
+                :"Sem pesquisa externa neste turno. A Mission Intelligence não confirma nem nega alegações históricas ou científicas externas."}</div>
+              ${archiveStatus?`<div class="mi-source-status mi-source-status--researched">${archiveStatus} O restante conteúdo não foi apagado nem enviado silenciosamente: permanece pesquisável no arquivo da Missão.</div>`:""}
+              ${miAttachmentTraceHTML(result)}
             </div>
-            <div class="mi-reading">
-              <article><span>Problema decisório</span><p>${esc(reading.decision_problem||"")}</p></article>
-              <article><span>Bloqueio atual</span><p>${esc(reading.current_blocker||"")}</p></article>
-              <article><span>Tensão principal</span><p>${esc(reading.key_tension||"")}</p></article>
-              <article><span>Ponto cego</span><p>${esc(reading.blind_spot||"")}</p></article>
+            <div class="mi-decision-update">
+              <article class="mi-decision-card"><span>Decisão agora</span><h4>${esc(update.decision_now||"")}</h4><p><strong>Antes:</strong> ${esc(update.decision_before||"")}</p><p><strong>Incerteza restante:</strong> ${esc(update.remaining_uncertainty||"")}</p></article>
+              <article class="mi-confidence-card"><span>Confiança na decisão</span><div class="mi-confidence-shift"><strong>${esc(miConfidenceLabel(update.confidence_before))}</strong><b class="mi-confidence-arrow">→</b><strong>${esc(miConfidenceLabel(update.confidence_now))}</strong></div><p><strong>${esc(confidenceDirectionLabels[update.confidence_direction]||update.confidence_direction||"")}.</strong> ${esc(update.reason||"")}</p>
+                <div class="mi-confidence-list">${confidenceChanges.slice(0,5).map(change=>`<div class="mi-confidence-row"><strong>${esc(change.subject||change.subject_id)}</strong><br>${esc(miConfidenceLabel(change.confidence_before))} → ${esc(miConfidenceLabel(change.confidence_now))} · ${esc(confidenceDirectionLabels[change.direction]||change.direction)}<br>${esc(change.reason||"")}</div>`).join("")||'<div class="mi-confidence-row">Este turno histórico não registou variações por hipótese.</div>'}</div>
+                ${miConfidenceCalibrationHTML(result)}
+              </article>
             </div>
-            <div class="mi-basis">Leitura ancorada em: ${esc((reading.based_on_ids||[]).join(", "))}</div>
-            ${result.context_dossier?renderContextDossier(result):""}
-            ${(i.questions||[]).length?`
-              <section class="mi-section"><h4>Perguntas que podem mudar a decisão</h4><p class="mi-section-note">Responda apenas ao que sabe. “Ainda não sei” também é informação útil.</p>
-                <div class="mi-questions">${i.questions.map(q=>`<div class="mi-question"><label>${esc(q.question_id)} · ${esc(q.question)}</label><small>${esc(q.why_it_matters)} · Desbloqueia: ${esc(q.decision_unlocked)} · Base: ${esc((q.based_on_ids||[]).join(", "))}</small>${miQuestionControl(q)}</div>`).join("")}</div>
-              </section>`:""}
-            ${proposalSections.map(([title,note,items,type])=>(items||[]).length?`<section class="mi-section"><h4>${esc(title)}</h4><p class="mi-section-note">${esc(note)}</p><div class="mi-grid">${items.map(item=>miProposalCard(item,type,reviews)).join("")}</div></section>`:"").join("")}
-            ${(i.challenges||[]).length?`<section class="mi-section"><h4>Contestações críticas</h4><ul class="mi-list">${i.challenges.map(x=>`<li><strong>${esc(x.target)}</strong> — ${esc(x.objection)}<br><em>${esc(x.why_it_matters)} Resposta necessária: ${esc(x.response_needed)} · Base: ${esc((x.based_on_ids||[]).join(", "))}</em></li>`).join("")}</ul></section>`:""}
-            ${(i.recommended_actions||[]).length?`<section class="mi-section"><h4>Ações recomendadas</h4><ul class="mi-list">${i.recommended_actions.map(x=>`<li><strong>${esc(x.urgency)} · ${esc(x.action)}</strong><br>${esc(x.purpose)} · Responsável: ${esc(x.owner_role)} · Efeito: ${esc(x.decision_effect)}<br><em>Base: ${esc((x.based_on_ids||[]).join(", "))}</em></li>`).join("")}</ul></section>`:""}
+            <section class="mi-epistemic"><h4>Mapa epistemológico deste turno</h4><div class="mi-epistemic-grid">
+              ${miEpistemicGroup("Facto verificado","fact",ledger.verified_facts,"Nenhum novo facto confirmado neste turno.")}
+              ${miEpistemicGroup("Declaração do utilizador","declaration",ledger.user_statements,"Nenhuma declaração factual nova.")}
+              ${miEpistemicGroup("Hipótese","hypothesis",ledger.hypotheses,"Nenhuma hipótese nova.")}
+              ${miEpistemicGroup("Decisão","decision",ledger.decisions,"Nenhuma decisão alterada.")}
+              ${miEpistemicGroup("Evidência necessária","evidence",ledger.evidence_needed,"Nenhuma evidência adicional indicada.")}
+            </div></section>
+            ${(i.questions||[]).length?`<section class="mi-section"><h4>Perguntas que podem mudar a decisão</h4><p class="mi-section-note">Responda ao que sabe, escreva por palavras suas e anexe documentos diretamente à pergunta.</p><div class="mi-questions">${i.questions.map(q=>`<div class="mi-question"><label>${esc(q.question_id)} · ${esc(q.question)}</label><small>${esc(q.why_it_matters)} · Desbloqueia: ${esc(q.decision_unlocked)}</small>${miQuestionControl(q)}${miAttachmentControl(q.question_id)}</div>`).join("")}</div></section>`:""}
             <section class="mi-section"><h4>Próximo movimento</h4><div class="mi-next">${esc(i.recommended_next_move||"")}</div></section>
+            <details class="mi-details"><summary>Ver raciocínio completo e fontes</summary>
+              <div class="mi-reading"><article><span>Problema decisório</span><p>${esc(reading.decision_problem||"")}</p></article><article><span>Bloqueio atual</span><p>${esc(reading.current_blocker||"")}</p></article><article><span>Tensão principal</span><p>${esc(reading.key_tension||"")}</p></article><article><span>Ponto cego</span><p>${esc(reading.blind_spot||"")}</p></article></div>
+              <div class="mi-basis">Leitura ancorada em: ${esc((reading.based_on_ids||[]).join(", "))}</div>
+              ${result.context_dossier?renderContextDossier(result):""}
+              ${proposalSections.map(([title,note,items,type])=>(items||[]).length?`<section class="mi-section"><h4>${esc(title)}</h4><p class="mi-section-note">${esc(note)}</p><div class="mi-grid">${items.map(item=>miProposalCard(item,type,reviews)).join("")}</div></section>`:"").join("")}
+              ${(i.challenges||[]).length?`<section class="mi-section"><h4>Contestações críticas</h4><ul class="mi-list">${i.challenges.map(x=>`<li><strong>${esc(x.target)}</strong> — ${esc(x.objection)}<br><em>${esc(x.why_it_matters)} Resposta necessária: ${esc(x.response_needed)}</em></li>`).join("")}</ul></section>`:""}
+              ${(i.recommended_actions||[]).length?`<section class="mi-section"><h4>Ações recomendadas</h4><ul class="mi-list">${i.recommended_actions.map(x=>`<li><strong>${esc(x.urgency)} · ${esc(x.action)}</strong><br><b>${esc(actionClassLabels[x.action_class]||x.action_class||"Classe não registada")}</b> · ${esc(x.authorization_note||"")}<br>${esc(x.purpose)} · Responsável: ${esc(x.owner_role)} · Efeito: ${esc(x.decision_effect)}</li>`).join("")}</ul></section>`:""}
+            </details>
             <div class="mi-turn-meta">${esc(i.boundary?.statement||"Revisão humana obrigatória; nenhuma alteração canónica.")}${result.ai_usage?` · custo estimado USD ${esc(result.ai_usage.estimated_cost_usd||"0.000000")}`:""}</div>
           </div>
         </article>`;
-      if(root.querySelector(".mi-empty"))root.innerHTML="";
       root.insertAdjacentHTML("beforeend",html);
       latestDialogueTurn={session_id:result.session_id,turn_id:turnId,sequence:result.turn_sequence,intelligence:i};
       root.lastElementChild?.scrollIntoView({behavior:"smooth",block:"start"});
     }
 
-    async function loadDialogueSession(sessionId){
+    async function loadDialogueSession(sessionId,missionId=activeMissionId){
       const token=sessionStorage.getItem("sris_token");
       if(!sessionId||!token||!activeOrganizationId)return;
+      const organizationId=activeOrganizationId;
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(sessionId)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
-        if(res.status===404){sessionStorage.removeItem(dialogueSessionKey(activeMissionId));activeDialogueSessionId=null;return}
+        const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues/${encodeURIComponent(sessionId)}`,{cache:"no-store"});
+        if(activeMissionId!==missionId||activeOrganizationId!==organizationId)return;
+        if(res.status===404){sessionStorage.removeItem(dialogueSessionKey(missionId));activeDialogueSessionId=null;return}
         const data=await res.json();
         if(!res.ok)throw new Error(data.detail?.message||data.detail||"Não foi possível recuperar o diálogo.");
         const root=qs("#miConversation");root.innerHTML="";
+        dialogueTurnResults.clear();latestDialogueSessionData=data;
         (data.turns||[]).forEach(turn=>renderInteractiveTurn({...turn,session_id:data.id,turn_sequence:turn.sequence},{append:true}));
         if(!(data.turns||[]).length)resetDialogueView();
         activeDialogueSessionId=data.id;
@@ -2686,22 +2955,187 @@
       }catch(err){console.warn("Histórico Mission Intelligence indisponível:",err)}
     }
 
+    async function recoverLatestDialogueSession(missionId){
+      const token=sessionStorage.getItem("sris_token"),organizationId=activeOrganizationId;
+      if(!missionId||!token||!organizationId||activeDialogueSessionId)return null;
+      if(dialogueRecoveryPromise&&dialogueRecoveryMissionId===missionId)return dialogueRecoveryPromise;
+      dialogueRecoveryMissionId=missionId;
+      dialogueRecoveryPromise=(async()=>{
+        try{
+          const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/dialogues?mission_code=${encodeURIComponent(missionId)}`,{cache:"no-store"});
+          const sessions=await res.json();
+          if(!res.ok)throw new Error(sessions.detail?.message||sessions.detail||"Não foi possível procurar o histórico da missão.");
+          if(activeMissionId!==missionId||activeOrganizationId!==organizationId||activeDialogueSessionId)return null;
+          const latest=(sessions||[]).find(item=>item.status==="active"&&Number(item.turn_count)>0);
+          if(!latest)return null;
+          activeDialogueSessionId=latest.id;
+          sessionStorage.setItem(dialogueSessionKey(missionId),latest.id);
+          await loadDialogueSession(latest.id,missionId);
+          return latest.id;
+        }catch(err){console.warn("Recuperação do último diálogo indisponível:",err);return null}
+        finally{
+          if(dialogueRecoveryMissionId===missionId){dialogueRecoveryMissionId=null;dialogueRecoveryPromise=null}
+        }
+      })();
+      return dialogueRecoveryPromise;
+    }
+
     function resetDialogueView(){
-      qs("#miConversation").innerHTML=`<div class="mi-empty"><strong>A missão ainda não respondeu.</strong>Inicie um diagnóstico para obter perguntas, hipóteses, uma alternativa nova e um desenho de teste — não apenas um resumo.</div>`;
+      qs("#miConversation").innerHTML=`<div class="mi-empty"><strong>A missão ainda não respondeu.</strong>Inicie um diagnóstico conciso para ver a decisão atual, o que mudou, a confiança nas hipóteses e o próximo passo.</div>`;
       latestDialogueTurn=null;
+      latestDialogueSessionData=null;
+      dialogueTurnResults.clear();
     }
 
     function prepareDialogueForMission(missionId){
       activeDialogueSessionId=sessionStorage.getItem(dialogueSessionKey(missionId));
       resetDialogueView();
+      delete qs("#miResearch").dataset.userChoice;
+      loadMissionAttachments();
       qs("#miNewSession").classList.toggle("hidden",!activeDialogueSessionId);
-      if(activeDialogueSessionId&&sessionStorage.getItem("sris_token")&&activeOrganizationId)loadDialogueSession(activeDialogueSessionId);
+      if(activeDialogueSessionId&&sessionStorage.getItem("sris_token")&&activeOrganizationId)loadDialogueSession(activeDialogueSessionId,missionId);
+      else if(sessionStorage.getItem("sris_token")&&activeOrganizationId)recoverLatestDialogueSession(missionId);
     }
 
     function collectMIAnswers(){
       const last=qs("#miConversation .mi-turn:last-child");
       if(!last)return [];
-      return qsa("[data-mi-question-id]",last).map(field=>({question_id:field.dataset.miQuestionId,answer:String(field.value||"").trim()})).filter(item=>item.answer);
+      return qsa(".mi-question",last).map(container=>{
+        const choice=qs("[data-mi-choice-group]",container);
+        if(choice){
+          const selected=String(qs("[data-mi-choice]",choice)?.value||"").trim();
+          const custom=String(qs("[data-mi-choice-custom]",choice)?.value||"").trim();
+          const answer=selected&&custom?`${selected} — ${custom}`:custom||selected;
+          return {question_id:choice.dataset.miChoiceGroup,answer};
+        }
+        const field=qs("[data-mi-question-id]",container);
+        return field?{question_id:field.dataset.miQuestionId,answer:String(field.value||"").trim()}:null;
+      }).filter(item=>item?.answer);
+    }
+
+    function formatFileSize(bytes){
+      const value=Number(bytes)||0;
+      if(value<1024)return `${value} B`;
+      if(value<1024*1024)return `${(value/1024).toFixed(1)} KB`;
+      return `${(value/1024/1024).toFixed(1)} MB`;
+    }
+
+    function updatePendingAttachmentCount(){
+      const count=pendingMIAttachmentIds.size;
+      qs("#miPendingAttachmentCount").textContent=count
+        ?`${count} anexo${count===1?"":"s"} será${count===1?"":"ão"} lido${count===1?"":"s"} no próximo turno.`
+        :"Nenhum anexo selecionado para o próximo turno.";
+    }
+
+    function renderMIAttachmentRepository(){
+      const chip=item=>`<div class="mi-attachment-chip"><span><strong>${esc(item.filename)}</strong><br>${esc(formatFileSize(item.byte_size))} · ${esc(item.evidence_id||`ATT-${String(item.id).slice(0,8).toUpperCase()}`)} · ${esc(attachmentProcessingLabel(item))} · por verificar</span><button type="button" data-mi-toggle-attachment="${esc(item.id)}">${pendingMIAttachmentIds.has(item.id)?"Retirar deste turno":"Usar no próximo turno"}</button></div>`;
+      const general=qs("#miGeneralAttachmentList");
+      if(general)general.innerHTML=missionAttachments.map(chip).join("");
+      qsa("[data-mi-attachment-list]").forEach(root=>{
+        const questionId=root.dataset.miAttachmentList;
+        root.innerHTML=missionAttachments
+          .filter(item=>item.question_id===questionId)
+          .map(chip).join("");
+      });
+      updatePendingAttachmentCount();
+    }
+
+    async function loadMissionAttachments(){
+      missionAttachments=[];
+      pendingMIAttachmentIds=new Set();
+      renderMIAttachmentRepository();
+      if(!sessionStorage.getItem("sris_token")||!activeOrganizationId||mission()?.local_only)return;
+      try{
+        const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(activeMissionId)}/attachments`,{cache:"no-store"});
+        if(res.status===404)return;
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.detail?.message||data.detail||"Não foi possível carregar os anexos.");
+        missionAttachments=Array.isArray(data)?data:[];
+        renderMIAttachmentRepository();
+      }catch(err){console.warn("Anexos da missão indisponíveis:",err)}
+    }
+
+    async function uploadMIAttachments(files,questionId=""){
+      const m=mission(activeMissionId),token=sessionStorage.getItem("sris_token");
+      if(!m||m.local_only||!token||!activeOrganizationId){toast("O upload exige uma missão institucional ativa.");return}
+      for(const file of [...files]){
+        const form=new FormData();form.append("file",file,file.name);
+        if(activeDialogueSessionId)form.append("dialogue_session_id",activeDialogueSessionId);
+        if(questionId)form.append("question_id",questionId);
+        try{
+          const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/attachments`,{method:"POST",body:form});
+          const data=await res.json();
+          if(!res.ok)throw new Error(data.detail?.message||data.detail||"Não foi possível anexar o ficheiro.");
+          if(!missionAttachments.some(item=>item.id===data.id))missionAttachments.push(data);
+          pendingMIAttachmentIds.add(data.id);
+          renderMIAttachmentRepository();
+          toast(`${file.name}: ${attachmentProcessingLabel(data)}. Será selecionado para o próximo turno.`);
+        }catch(err){toast(err.message||`Não foi possível anexar ${file.name}.`)}
+      }
+    }
+
+    function miTurnMarkdown(result){
+      if(!result?.intelligence)return `# Turno técnico recolhido\n\nPedido: ${result?.user_message||""}\n\nEstado: ${result?.ai_status||"indisponível"}\n\nDetalhes: ${result?.ai_error||result?.ai_usage?.failure_code||"Sem resposta utilizável."}`;
+      const i=result.intelligence,update=miDecisionUpdate(i),lines=[
+        `# Mission Intelligence · Turno ${result.turn_sequence||""}`,
+        "",`**Pedido:** ${result.user_message||""}`,"",`## Resposta direta`,"",i.direct_answer?.answer||"",
+        "",`## Decisão agora`,"",update.decision_now||"",`- Antes: ${update.decision_before||""}`,`- O que mudou: ${update.what_changed||""}`,`- Confiança: ${miConfidenceLabel(update.confidence_before)} → ${miConfidenceLabel(update.confidence_now)} (${confidenceDirectionLabels[update.confidence_direction]||update.confidence_direction})`,`- Incerteza restante: ${update.remaining_uncertainty||""}`,
+        "",`## Variação de confiança por hipótese`,"",...(i.confidence_changes||[]).map(x=>`- **${x.subject||x.subject_id}:** ${miConfidenceLabel(x.confidence_before)} → ${miConfidenceLabel(x.confidence_now)} — ${x.reason||""}`),
+        "",`## Próximo movimento`,"",i.recommended_next_move||""
+      ];
+      if(result.context_dossier?.sources?.length)lines.push("","## Fontes externas","",...result.context_dossier.sources.map(x=>`- [${x.title}](${x.url}) — ${x.publisher||""}`));
+      else lines.push("","## Fontes externas","","Sem pesquisa externa neste turno; nenhuma alegação histórica ou científica externa foi confirmada ou negada.");
+      if((result.attachment_trace||[]).length)lines.push("","## Anexos processados e citados","",...(result.attachment_trace||[]).map(x=>x.status==="used_and_cited"
+        ?`- **${x.filename||x.evidence_id||x.attachment_id}:** ${attachmentProcessingLabel(x)}; citado em ${(x.citation_locations||[]).join(", ")||"resposta estruturada"}. Blocos: ${(x.selected_chunk_ids||[]).join(", ")||"leitura direta"}.`
+        :`- **${x.filename||x.evidence_id||x.attachment_id}:** preservado, mas não selecionado para esta janela; não apresentado como lido.`));
+      if((result.confidence_calibration||[]).length)lines.push("","## Gate epistemológico","",...(result.confidence_calibration||[]).map(x=>`- **${x.subject_id}:** ${miConfidenceLabel(x.provided_confidence)} → ${miConfidenceLabel(x.calibrated_confidence)} — fontes declaradas ou em revisão; falta evidência canónica confirmada.`));
+      if((i.questions||[]).length)lines.push("","## Perguntas","",...i.questions.map(x=>`- **${x.question_id}:** ${x.question}`));
+      if((i.hypotheses||[]).length)lines.push("","## Hipóteses","",...i.hypotheses.map(x=>`- **${x.proposal_id}:** ${x.statement} (${miConfidenceLabel(x.confidence)})`));
+      if((i.recommended_actions||[]).length)lines.push("","## Ações recomendadas","",...i.recommended_actions.map(x=>`- **${x.urgency} · ${actionClassLabels[x.action_class]||x.action_class}:** ${x.action} — ${x.purpose}. ${x.authorization_note||""}`));
+      lines.push("",`---`,`Revisão humana obrigatória. ${i.boundary?.statement||"Nenhuma alteração canónica automática."}`);
+      return lines.join("\n");
+    }
+
+    function confidenceCSV(results){
+      const rows=[["turno","hipotese_id","hipotese","confianca_antes","confianca_agora","direcao","razao"]];
+      results.forEach(result=>(result?.intelligence?.confidence_changes||[]).forEach(item=>rows.push([result.turn_sequence||"",item.subject_id||"",item.subject||"",item.confidence_before||"",item.confidence_now||"",item.direction||"",item.reason||""])));
+      return rows.map(row=>row.map(value=>`"${String(value??"").replaceAll('"','""')}"`).join(",")).join("\r\n");
+    }
+
+    function miExportDocument(scope,turnKey=""){
+      const results=scope==="turn"?[dialogueTurnResults.get(turnKey)].filter(Boolean):[...dialogueTurnResults.values()];
+      return {
+        package_type:scope==="turn"?"sris_mission_intelligence_turn":"sris_mission_intelligence_process",
+        version:"2.3",exported_at:new Date().toISOString(),mission:mission(activeMissionId),
+        session_id:activeDialogueSessionId,attachments:missionAttachments,turns:results
+      };
+    }
+
+    function miExportHTML(markdown,title){
+      return `<!doctype html><html lang="pt"><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{max-width:980px;margin:40px auto;padding:0 24px;color:#17231d;font:15px/1.6 system-ui,sans-serif}h1{font-family:Georgia,serif}pre{white-space:pre-wrap;font:14px/1.65 system-ui,sans-serif}a{color:#24543d}@media print{body{margin:0;max-width:none}}</style></head><body><h1>${esc(title)}</h1><pre>${esc(markdown)}</pre></body></html>`;
+    }
+
+    function downloadBlob(content,type,filename){
+      const url=URL.createObjectURL(new Blob([content],{type})),link=document.createElement("a");
+      link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }
+
+    function exportMissionIntelligence(scope,format,turnKey=""){
+      const documentData=miExportDocument(scope,turnKey),results=documentData.turns;
+      const stem=`SRIS_${activeMissionId}_${scope==="turn"?`MI_TURNO_${results[0]?.turn_sequence||""}`:"PROCESSO_COMPLETO"}`.replace(/[^A-Za-z0-9_-]+/g,"_");
+      const markdown=results.map(miTurnMarkdown).join("\n\n---\n\n");
+      if(format==="json")downloadBlob(JSON.stringify(documentData,null,2),"application/json",`${stem}.json`);
+      else if(format==="html")downloadBlob(miExportHTML(markdown,stem),"text/html;charset=utf-8",`${stem}.html`);
+      else if(format==="csv")downloadBlob(confidenceCSV(results),"text/csv;charset=utf-8",`${stem}_CONFIANCA.csv`);
+      else downloadBlob(markdown,"text/markdown;charset=utf-8",`${stem}.md`);
+    }
+
+    function printMissionIntelligence(scope,turnKey=""){
+      const data=miExportDocument(scope,turnKey),markdown=data.turns.map(miTurnMarkdown).join("\n\n---\n\n");
+      const popup=window.open("","_blank");
+      if(!popup){toast("O navegador bloqueou a janela de impressão. Autorize pop-ups e tente novamente.");return}
+      popup.document.open();popup.document.write(miExportHTML(markdown,`SRIS · ${activeMissionId} · Mission Intelligence`));popup.document.close();
+      setTimeout(()=>{popup.focus();popup.print()},250);
     }
 
     function updateAIControl(){
@@ -2744,6 +3178,8 @@
         status.textContent="A política existe, mas a IA está desativada para esta organização.";
       }else if(!aiGovernanceStatus?.ready){
         status.textContent=`A IA está bloqueada pela governação (${aiGovernanceStatus?.readiness_reason||"estado indisponível"}).`;
+      }else if(Array.isArray(aiGovernanceStatus?.monthly_limit_warnings)&&aiGovernanceStatus.monthly_limit_warnings.length){
+        status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. O limiar mensal de monitorização foi ultrapassado, mas a Missão continua disponível e o consumo permanece auditado.`;
       }else{
         status.textContent=`Disponível com ${intelligenceStatus.ai_model||"modelo configurado"}. A saída é provisória e exige revisão humana.`;
       }
@@ -2766,12 +3202,28 @@
         studioStatus.textContent=interactiveAvailable?"Diálogo disponível":institutional?"Bloqueado pela governação":"Sessão institucional necessária";
         miResearch.disabled=!(interactiveAvailable&&intelligenceStatus.context_research_configured);
         if(miResearch.disabled)miResearch.checked=false;
+        const dialogueContextRequired=mission(activeMissionId)?.analysis_requirements?.context_research?.required===true;
+        if(!miResearch.disabled&&dialogueContextRequired&&miResearch.dataset.userChoice!=="true")miResearch.checked=true;
+        miResearch.onchange=()=>{miResearch.dataset.userChoice="true"};
         miResearchStatus.textContent=!interactiveAvailable
           ? "Ative a política institucional de IA para iniciar o diálogo."
           : intelligenceStatus.context_research_configured
-            ? "Opcional neste turno; usa pesquisa web governada e acrescenta custo."
+            ? dialogueContextRequired
+              ? "Esta missão exige contexto externo: a pesquisa governada está selecionada e as fontes serão mostradas."
+              : "Opcional neste turno; usa pesquisa web governada, mostra fontes e acrescenta custo."
             : "O motor de pesquisa contextual está instalado, mas permanece desativado.";
       }
+    }
+
+    async function refreshAIGovernanceStatus(token){
+      if(!token||!activeOrganizationId){updateAIControl();return null}
+      const organizationId=activeOrganizationId;
+      try{
+        const response=await authenticatedFetch(`/api/organizations/${encodeURIComponent(organizationId)}/mission-intelligence/ai-governance`,{cache:"no-store"});
+        if(response.ok&&activeOrganizationId===organizationId)aiGovernanceStatus=await response.json();
+      }catch(err){console.warn("Estado de governação de IA indisponível:",err)}
+      updateAIControl();
+      return aiGovernanceStatus;
     }
 
     async function loadSessionContext(token){
@@ -2784,8 +3236,8 @@
       try{
         const request={headers:{Authorization:`Bearer ${token}`},cache:"no-store"};
         const [meResponse,organizationsResponse]=await Promise.all([
-          fetch("/api/auth/me",request),
-          fetch("/api/organizations",request)
+          authenticatedFetch("/api/auth/me",request),
+          authenticatedFetch("/api/organizations",request)
         ]);
         if(!meResponse.ok)throw new Error("A sessão não é válida ou expirou.");
         if(!organizationsResponse.ok)throw new Error("Não foi possível obter a organização ativa.");
@@ -2801,15 +3253,15 @@
         sessionStorage.setItem("sris_active_organization",activeOrganizationId);
         if(activeOrganizationId){
           const [governance,memberships,portfolioResponse]=await Promise.all([
-            fetch(
+            authenticatedFetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/ai-governance`,
               request
             ),
-            fetch(
+            authenticatedFetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/membership`,
               request
             ),
-            fetch(
+            authenticatedFetch(
               `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`,
               request
             )
@@ -2962,7 +3414,7 @@
         const endpoint=editing
           ? `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(editing.canonical_id)}`
           : `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions`;
-        const res=await fetch(endpoint,{
+        const res=await authenticatedFetch(endpoint,{
           method:editing?"PATCH":"POST",
           headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
           body:JSON.stringify(payload)
@@ -3048,7 +3500,7 @@
       const buttons=qsa("[data-review-decision]",panel);
       buttons.forEach(item=>item.disabled=true);
       try{
-        const res=await fetch(
+        const res=await authenticatedFetch(
           `/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/runs/${encodeURIComponent(runId)}/review`,
           {
             method:"POST",
@@ -3080,7 +3532,7 @@
       if(comment.length<3){toast("Registe um comentário antes de rever a proposta.");return}
       const buttons=qsa("[data-mi-review]",reviewRoot);buttons.forEach(item=>item.disabled=true);
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(activeDialogueSessionId)}/turns/${encodeURIComponent(turnId)}/proposals/${encodeURIComponent(proposalId)}/review`,{
+        const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/dialogues/${encodeURIComponent(activeDialogueSessionId)}/turns/${encodeURIComponent(turnId)}/proposals/${encodeURIComponent(proposalId)}/review`,{
           method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({decision,comment})
         });
         const data=await res.json();
@@ -3104,6 +3556,7 @@
         intent,
         message,
         answers,
+        attachment_ids:[...pendingMIAttachmentIds],
         research_context:qs("#miResearch").checked,
         mission_input:{
           title:qs("#analysisTitle").value.trim(),
@@ -3117,7 +3570,7 @@
       };
       button.disabled=true;button.textContent=payload.research_context?"A investigar e raciocinar…":"A raciocinar com a missão…";
       try{
-        const res=await fetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/interact`,{
+        const res=await authenticatedFetch(`/api/organizations/${encodeURIComponent(activeOrganizationId)}/mission-intelligence/missions/${encodeURIComponent(m.id)}/interact`,{
           method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify(payload)
         });
         const data=await res.json();
@@ -3133,17 +3586,21 @@
         }
         data.user_message=message;
         renderInteractiveTurn(data,{append:true});
-        if(data.ai_status==="completed"){
+        if(data.session_id&&data.turn_id){
           activeDialogueSessionId=data.session_id;
           sessionStorage.setItem(dialogueSessionKey(m.id),data.session_id);
           qs("#miNewSession").classList.remove("hidden");
+        }
+        if(data.ai_status==="completed"){
+          pendingMIAttachmentIds=new Set();
+          renderMIAttachmentRepository();
           qs("#miMessage").value=(data.intelligence?.questions||[]).length
             ? "Analisa as minhas respostas, atualiza o diagnóstico e diz concretamente o que mudou na decisão."
             : "Aprofunda o próximo movimento e transforma-o numa sequência operacional verificável.";
           if(activeDialogueIntent==="diagnose")activeDialogueIntent="answer";
           qsa(".mi-intent").forEach(item=>item.classList.toggle("is-active",item.dataset.miIntent===activeDialogueIntent));
         }
-        await loadSessionContext(token);
+        await refreshAIGovernanceStatus(token);
       }catch(err){toast(err.message||"Não foi possível executar o diálogo inteligente.")}
       finally{updateAIControl();button.textContent=activeDialogueSessionId?"Continuar Mission Intelligence":"Iniciar Mission Intelligence"}
     }
@@ -3190,6 +3647,26 @@
 
     // Navigation
     document.addEventListener("click",(event)=>{
+      const uploadTrigger=event.target.closest("[data-mi-upload-trigger]");
+      if(uploadTrigger){
+        const input=qsa("[data-mi-file-input]").find(item=>item.dataset.miFileInput===uploadTrigger.dataset.miUploadTrigger);
+        if(input){input.value="";input.click()}
+        return;
+      }
+
+      const attachmentToggle=event.target.closest("[data-mi-toggle-attachment]");
+      if(attachmentToggle){
+        const id=attachmentToggle.dataset.miToggleAttachment;
+        if(pendingMIAttachmentIds.has(id))pendingMIAttachmentIds.delete(id);else pendingMIAttachmentIds.add(id);
+        renderMIAttachmentRepository();return;
+      }
+
+      const miExport=event.target.closest("[data-mi-export]");
+      if(miExport){exportMissionIntelligence(miExport.dataset.miExport,miExport.dataset.format,miExport.dataset.turnKey||"");return}
+
+      const miPrint=event.target.closest("[data-mi-print]");
+      if(miPrint){printMissionIntelligence(miPrint.dataset.miPrint,miPrint.dataset.turnKey||"");return}
+
       const miReview=event.target.closest("[data-mi-review]");
       if(miReview){submitMIProposalReview(miReview.dataset.miReview,miReview);return}
 
@@ -3217,6 +3694,11 @@
 
       if(event.target.closest(".modal-close")||event.target.id==="missionModal"){closeMission();return}
       if(event.target.id==="lightbox"||event.target.closest("#lightboxClose")){closeLightbox();return}
+    });
+
+    document.addEventListener("change",async event=>{
+      const input=event.target.closest("[data-mi-file-input]");
+      if(input&&input.files?.length){await uploadMIAttachments(input.files,input.dataset.miFileInput||"");input.value=""}
     });
 
     document.addEventListener("keydown",(event)=>{
@@ -3253,13 +3735,23 @@
       await submitMIDialogue();
     });
 
+    qs("#miGeneralAttachmentButton").addEventListener("click",()=>{
+      const input=qs("#miGeneralAttachmentInput");input.value="";input.click();
+    });
+    qs("#miGeneralAttachmentInput").addEventListener("change",async event=>{
+      if(event.target.files?.length)await uploadMIAttachments(event.target.files,"");
+      event.target.value="";
+    });
+
     qs("#miNewSession").addEventListener("click",()=>{
       sessionStorage.removeItem(dialogueSessionKey(activeMissionId));
       activeDialogueSessionId=null;
       latestDialogueTurn=null;
+      pendingMIAttachmentIds=new Set();
+      renderMIAttachmentRepository();
       activeDialogueIntent="diagnose";
       qsa(".mi-intent").forEach(item=>item.classList.toggle("is-active",item.dataset.miIntent==="diagnose"));
-      qs("#miMessage").value="Interage com esta missão: identifica o ponto cego principal, coloca as perguntas que podem mudar a decisão, formula hipóteses testáveis, propõe pelo menos uma alternativa verdadeiramente nova e desenha a forma mais curta de reduzir a incerteza relevante.";
+      qs("#miMessage").value="Analisa esta missão de forma concisa. Mostra a decisão atual, o que mudou, a confiança em cada hipótese e o próximo passo. Faz apenas perguntas que possam alterar a decisão e distingue investigação documental de intervenção física.";
       qs("#miNewSession").classList.add("hidden");
       resetDialogueView();
       updateAIControl();
@@ -3289,7 +3781,7 @@
       try{
         const headers={"Content-Type":"application/json"};
         if(institutional)headers.Authorization=`Bearer ${token}`;
-        const res=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload)});
+        const res=await (institutional?authenticatedFetch:fetch)(endpoint,{method:"POST",headers,body:JSON.stringify(payload)});
         const data=await res.json();
         if(!res.ok)throw new Error(data.detail||"Não foi possível executar Mission Intelligence.");
         renderResult(data);
@@ -3337,7 +3829,7 @@
       currentSession=null;
       activeDialogueSessionId=null;
       latestDialogueTurn=null;
-      sessionStorage.removeItem("sris_token");
+      clearSessionTokens();
       activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
       renderAll();
       sessionStorage.setItem("sris_demo","true");openApp({mode:"demo"});
@@ -3345,7 +3837,7 @@
 
     qs("#logoutButton").addEventListener("click",()=>{
       sessionStorage.removeItem("sris_demo");
-      sessionStorage.removeItem("sris_token");
+      clearSessionTokens();
       activeOrganizationId=null;
       aiGovernanceStatus=null;
       currentSession=null;
@@ -3380,14 +3872,13 @@
             ?"Email ou palavra-passe incorretos."
             :detail||"Não foi possível autenticar.");
         }
-        const token=data.access_token||"";
-        sessionStorage.setItem("sris_token",token);
+        const token=storeSessionTokens(data);
         sessionStorage.removeItem("sris_demo");
         const session=await loadSessionContext(token);
         qs("#loginMessage").textContent="";
         openApp({mode:"institutional",...session});
       }catch(err){
-        sessionStorage.removeItem("sris_token");
+        clearSessionTokens();
         qs("#loginMessage").textContent=err.message||"Erro de autenticação.";
       }
     });
@@ -3401,7 +3892,7 @@
           const session=await loadSessionContext(storedToken);
           openApp({mode:"institutional",...session});
         }catch(err){
-          sessionStorage.removeItem("sris_token");
+          clearSessionTokens();
           qs("#loginMessage").textContent=err.message||"A sessão guardada deixou de ser válida.";
         }
       }

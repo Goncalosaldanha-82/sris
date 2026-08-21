@@ -85,6 +85,7 @@ if (-not $governance.policy.configured) {
 function New-PolicyBody([bool]$Enabled, $Policy) {
     $policyJson = @{
         enabled = $Enabled
+        enforce_monthly_limits = [bool]$Policy.enforce_monthly_limits
         monthly_request_limit = $Policy.monthly_request_limit
         monthly_input_token_limit = $Policy.monthly_input_token_limit
         monthly_output_token_limit = $Policy.monthly_output_token_limit

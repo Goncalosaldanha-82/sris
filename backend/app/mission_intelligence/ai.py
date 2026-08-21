@@ -83,7 +83,7 @@ hypothesis.
 class PreparedAIRequest:
     model: str
     instructions: str
-    input_text: str
+    input_text: Any
     text_config: dict[str, Any]
     max_output_tokens: int
     response_model: type[BaseModel] = AIAdvisory
@@ -93,6 +93,9 @@ class PreparedAIRequest:
     max_tool_calls: int | None = None
     research_context: bool = False
     reasoning_effort: str = "low"
+    attachment_input_token_reservation: int = 0
+    context_manifest: dict[str, Any] | None = None
+    fallback_requests: tuple["PreparedAIRequest", ...] = ()
 
 
 @dataclass(frozen=True)
@@ -291,11 +294,27 @@ def conservative_input_token_reservation(request: PreparedAIRequest) -> int:
     covered by an organizational budget reservation.
     """
 
+    def reservation_view(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: (
+                    "<binary attachment omitted from byte guard>"
+                    if key in {"file_data", "image_url"}
+                    and isinstance(item, str)
+                    and item.startswith("data:")
+                    else reservation_view(item)
+                )
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [reservation_view(item) for item in value]
+        return value
+
     serialized = json.dumps(
         {
             "model": request.model,
             "instructions": request.instructions,
-            "input": request.input_text,
+            "input": reservation_view(request.input_text),
             "reasoning": {"effort": request.reasoning_effort},
             "text": request.text_config,
             "tools": request.tools,
@@ -306,7 +325,11 @@ def conservative_input_token_reservation(request: PreparedAIRequest) -> int:
         sort_keys=True,
         separators=(",", ":"),
     )
-    return len(serialized.encode("utf-8")) + 1_024
+    return (
+        len(serialized.encode("utf-8"))
+        + 1_024
+        + request.attachment_input_token_reservation
+    )
 
 
 def count_openai_input_tokens(request: PreparedAIRequest) -> int | None:

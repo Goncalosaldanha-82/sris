@@ -48,6 +48,7 @@ class AIUsageReservation:
     output_tokens: int
     web_search_calls: int
     estimated_cost_microusd: int
+    monthly_limit_warnings: tuple[str, ...] = ()
 
 
 _STANDARD_MODEL_PRICES_USD_PER_MTOK: dict[str, tuple[str, str, str]] = {
@@ -265,6 +266,50 @@ def _expire_stale_reservations(
         event.finalized_at = now
 
 
+_MONTHLY_LIMIT_MESSAGES = {
+    "monthly_request_limit": "The organization's monthly AI request threshold would be exceeded",
+    "monthly_input_limit": "The organization's monthly input-token threshold would be exceeded",
+    "monthly_output_limit": "The organization's monthly output-token threshold would be exceeded",
+    "monthly_budget": "The organization's monthly AI cost threshold would be exceeded",
+}
+
+
+def _monthly_limit_warnings(
+    *,
+    policy: AIOrganizationPolicy,
+    period: AIUsagePeriod,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    estimated_cost_microusd: int = 0,
+    request_increment: int = 0,
+) -> tuple[str, ...]:
+    warnings: list[str] = []
+    used_input = period.input_tokens + period.reserved_input_tokens
+    used_output = period.output_tokens + period.reserved_output_tokens
+    used_cost = period.estimated_cost_microusd + period.reserved_cost_microusd
+    if (
+        period.request_count >= policy.monthly_request_limit
+        or period.request_count + request_increment > policy.monthly_request_limit
+    ):
+        warnings.append("monthly_request_limit")
+    if (
+        used_input >= policy.monthly_input_token_limit
+        or used_input + input_tokens > policy.monthly_input_token_limit
+    ):
+        warnings.append("monthly_input_limit")
+    if (
+        used_output >= policy.monthly_output_token_limit
+        or used_output + output_tokens > policy.monthly_output_token_limit
+    ):
+        warnings.append("monthly_output_limit")
+    if (
+        used_cost >= policy.monthly_budget_microusd
+        or used_cost + estimated_cost_microusd > policy.monthly_budget_microusd
+    ):
+        warnings.append("monthly_budget")
+    return tuple(warnings)
+
+
 def _quota_check(
     *,
     policy: AIOrganizationPolicy,
@@ -272,7 +317,7 @@ def _quota_check(
     input_tokens: int,
     output_tokens: int,
     estimated_cost_microusd: int,
-) -> None:
+) -> tuple[str, ...]:
     if input_tokens > policy.per_request_input_token_limit:
         raise AIGovernanceBlocked(
             "per_request_input_limit",
@@ -283,37 +328,22 @@ def _quota_check(
             "per_request_output_limit",
             "The governed output-token limit for one request would be exceeded",
         )
-    if period.request_count + 1 > policy.monthly_request_limit:
-        raise AIGovernanceBlocked(
-            "monthly_request_limit", "The organization's monthly AI request limit is exhausted"
-        )
     if period.active_reservations >= policy.max_concurrent_requests:
         raise AIGovernanceBlocked(
             "concurrency_limit", "The organization's concurrent AI request limit is active"
         )
-    if (
-        period.input_tokens + period.reserved_input_tokens + input_tokens
-        > policy.monthly_input_token_limit
-    ):
-        raise AIGovernanceBlocked(
-            "monthly_input_limit", "The organization's monthly input-token limit would be exceeded"
-        )
-    if (
-        period.output_tokens + period.reserved_output_tokens + output_tokens
-        > policy.monthly_output_token_limit
-    ):
-        raise AIGovernanceBlocked(
-            "monthly_output_limit", "The organization's monthly output-token limit would be exceeded"
-        )
-    if (
-        period.estimated_cost_microusd
-        + period.reserved_cost_microusd
-        + estimated_cost_microusd
-        > policy.monthly_budget_microusd
-    ):
-        raise AIGovernanceBlocked(
-            "monthly_budget", "The organization's monthly AI cost ceiling would be exceeded"
-        )
+    warnings = _monthly_limit_warnings(
+        policy=policy,
+        period=period,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        estimated_cost_microusd=estimated_cost_microusd,
+        request_increment=1,
+    )
+    if policy.enforce_monthly_limits and warnings:
+        code = warnings[0]
+        raise AIGovernanceBlocked(code, _MONTHLY_LIMIT_MESSAGES[code])
+    return warnings
 
 
 def reserve_ai_usage(
@@ -357,7 +387,7 @@ def reserve_ai_usage(
         web_search_calls=web_search_calls,
         web_search_rate_microusd_per_call=web_search_rate_microusd_per_call(),
     )
-    _quota_check(
+    monthly_limit_warnings = _quota_check(
         policy=policy,
         period=period,
         input_tokens=input_tokens,
@@ -407,6 +437,8 @@ def reserve_ai_usage(
             "reserved_output_tokens": output_tokens,
             "reserved_web_search_calls": web_search_calls,
             "reserved_cost_usd": microusd_to_usd(estimated_cost),
+            "monthly_limits_enforced": policy.enforce_monthly_limits,
+            "monthly_limit_warnings": list(monthly_limit_warnings),
         },
     )
     db.commit()
@@ -418,6 +450,7 @@ def reserve_ai_usage(
         output_tokens=output_tokens,
         web_search_calls=web_search_calls,
         estimated_cost_microusd=estimated_cost,
+        monthly_limit_warnings=monthly_limit_warnings,
     )
 
 
@@ -481,6 +514,7 @@ def apply_exact_input_count(
         output_tokens=event.reserved_output_tokens,
         web_search_calls=event.reserved_web_search_calls,
         estimated_cost_microusd=exact_cost,
+        monthly_limit_warnings=reservation.monthly_limit_warnings,
     )
 
 
@@ -640,6 +674,7 @@ def update_policy(
         policy = AIOrganizationPolicy(organization_id=organization_id)
         db.add(policy)
     policy.enabled = payload.enabled
+    policy.enforce_monthly_limits = payload.enforce_monthly_limits
     policy.monthly_request_limit = payload.monthly_request_limit
     policy.monthly_input_token_limit = payload.monthly_input_token_limit
     policy.monthly_output_token_limit = payload.monthly_output_token_limit
@@ -658,6 +693,7 @@ def update_policy(
         user_id=user_id,
         payload={
             "enabled": policy.enabled,
+            "enforce_monthly_limits": policy.enforce_monthly_limits,
             "monthly_request_limit": policy.monthly_request_limit,
             "monthly_input_token_limit": policy.monthly_input_token_limit,
             "monthly_output_token_limit": policy.monthly_output_token_limit,
@@ -678,6 +714,7 @@ def policy_view(policy: AIOrganizationPolicy | None) -> dict:
     return {
         "configured": True,
         "enabled": policy.enabled,
+        "enforce_monthly_limits": policy.enforce_monthly_limits,
         "monthly_request_limit": policy.monthly_request_limit,
         "monthly_input_token_limit": policy.monthly_input_token_limit,
         "monthly_output_token_limit": policy.monthly_output_token_limit,
@@ -803,22 +840,17 @@ def governance_view(
             ),
         }
     quota_reason: str | None = None
+    monthly_limit_warnings: tuple[str, ...] = ()
     if policy:
-        used_input = current["input_tokens"] + current["reserved_input_tokens"]
-        used_output = current["output_tokens"] + current["reserved_output_tokens"]
-        used_cost = (period.estimated_cost_microusd if period else 0) + (
-            period.reserved_cost_microusd if period else 0
-        )
-        if current["request_count"] >= policy.monthly_request_limit:
-            quota_reason = "monthly_request_limit"
-        elif current["active_reservations"] >= policy.max_concurrent_requests:
+        if period:
+            monthly_limit_warnings = _monthly_limit_warnings(
+                policy=policy,
+                period=period,
+            )
+        if current["active_reservations"] >= policy.max_concurrent_requests:
             quota_reason = "concurrency_limit"
-        elif used_input >= policy.monthly_input_token_limit:
-            quota_reason = "monthly_input_limit"
-        elif used_output >= policy.monthly_output_token_limit:
-            quota_reason = "monthly_output_limit"
-        elif used_cost >= policy.monthly_budget_microusd:
-            quota_reason = "monthly_budget"
+        elif policy.enforce_monthly_limits and monthly_limit_warnings:
+            quota_reason = monthly_limit_warnings[0]
 
     ready = bool(
         policy
@@ -841,12 +873,16 @@ def governance_view(
         reason = "ready"
     return {
         "schema": "sris_ai_governance",
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "organization_id": organization_id,
         "ready": ready,
         "readiness_reason": reason,
         "global_provider_configured": ai_globally_configured,
         "organization_authorized": ai_organization_authorized,
+        "monthly_limits_enforced": bool(
+            policy and policy.enforce_monthly_limits
+        ),
+        "monthly_limit_warnings": list(monthly_limit_warnings),
         "policy": policy_view(policy),
         "current_period": current,
         "currency": "USD",

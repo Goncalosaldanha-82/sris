@@ -42,6 +42,7 @@ from .models import (
     IntelligenceRun,
     MissionRevision,
 )
+from .mission_archive import index_intelligence_run
 
 
 def _json(value: Any) -> str:
@@ -401,6 +402,9 @@ def run_organizational_analysis(
                     "reserved_cost_usd": microusd_to_usd(
                         reservation.estimated_cost_microusd
                     ),
+                    "monthly_limit_warnings": list(
+                        reservation.monthly_limit_warnings
+                    ),
                     "input_count_method": (
                         "provider_exact" if exact_input is not None else "conservative"
                     ),
@@ -484,6 +488,7 @@ def run_organizational_analysis(
     )
     db.add(run)
     db.flush()
+    index_intelligence_run(db, run=run)
     if usage_event is not None:
         usage_event.intelligence_run_id = run.id
         db.add(usage_event)

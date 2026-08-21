@@ -201,7 +201,7 @@
           method:"POST",
           body:JSON.stringify({token:invitationToken,password,full_name:invitationDetails?.existing_account?null:$("#inviteName").value.trim()})
         });
-        invitationToken="";sessionStorage.setItem("sris_token",data.access_token);sessionStorage.setItem("sris_active_organization",data.organization_id);sessionStorage.removeItem("sris_demo");
+        invitationToken="";sessionStorage.setItem("sris_token",data.access_token);if(data.refresh_token)sessionStorage.setItem("sris_refresh_token",data.refresh_token);sessionStorage.setItem("sris_active_organization",data.organization_id);sessionStorage.removeItem("sris_demo");
         message("#inviteMessage","Conta ativada. A abrir a sessão institucional…","success");
         setTimeout(()=>location.replace("/"),700);
       }catch(error){message("#inviteMessage",error.message,"error");button.disabled=false}

@@ -2,7 +2,7 @@
 
 Estado: implementado e preparado para implantação com IA globalmente desativada
 
-Migrações Alembic: `20260808_0003` e `20260810_0005`
+Migrações Alembic: até `20260815_0011`
 
 ## Objetivo
 
@@ -10,8 +10,10 @@ A presença de `OPENAI_API_KEY` nunca é autorização suficiente para gastar. E
 produção, apenas o UUID exato definido em `SRIS_AI_PILOT_ORGANIZATION_ID` pode
 atravessar o gate do piloto. Essa organização tem ainda de possuir uma política
 explícita, criada por `owner` ou `admin`, e cada chamada tem de caber
-simultaneamente nos limites mensal, por pedido e de concorrência. Um bloqueio da
-IA não elimina a análise determinística.
+nos limites técnicos por pedido e de concorrência. Os valores mensais são, por
+defeito, limiares auditáveis que não interrompem uma Missão. Uma organização
+pode optar explicitamente por convertê-los em limites rígidos. Um bloqueio da IA
+não elimina a análise determinística.
 
 ## Gate de execução
 
@@ -26,8 +28,12 @@ verdadeiras:
 6. a organização tem uma política configurada com `enabled=true`;
 7. o modelo possui uma tabela de preços governada;
 8. o pedido cabe no limite de entrada e saída por execução;
-9. a quota mensal de pedidos, tokens e custo ainda tem saldo;
-10. existe capacidade no limite de chamadas concorrentes.
+9. existe capacidade no limite de chamadas concorrentes.
+
+Pedidos, tokens e custo mensais continuam integralmente contabilizados. Quando
+um limiar mensal é alcançado, o SRIS emite um aviso operacional e mantém a
+Missão disponível. Só bloqueia por esse motivo quando
+`enforce_monthly_limits=true` tiver sido escolhido pela organização.
 
 A investigação contextual acrescenta um gate independente:
 `SRIS_CONTEXT_RESEARCH_ENABLED=true`. Quando pedida, a execução reserva ainda o
@@ -71,6 +77,7 @@ Criar primeiro com `enabled=false`:
 ```json
 {
   "enabled": false,
+  "enforce_monthly_limits": false,
   "monthly_request_limit": 20,
   "monthly_input_token_limit": 250000,
   "monthly_output_token_limit": 50000,
@@ -90,10 +97,17 @@ PUT /api/organizations/{organization_id}/mission-intelligence/ai-governance/poli
 Só depois do smoke test determinístico, da configuração do segredo e da leitura
 do saldo deve a mesma política ser atualizada para `enabled=true`.
 
-Este teto de USD é o controlo interno do SRIS. O projeto dedicado na plataforma
-OpenAI deve possuir também um **hard spend limit** de USD 5,00. Esse segundo teto
-é independente da aplicação e interrompe pedidos no fornecedor se o limite for
-atingido.
+Com `enforce_monthly_limits=false`, os quatro valores mensais são limiares de
+monitorização: geram avisos, permanecem no ledger e não terminam o diálogo. Os
+limites por pedido e de concorrência continuam rígidos, porque protegem o
+contrato técnico de cada chamada sem limitar o crescimento do arquivo da
+Missão. Use `enforce_monthly_limits=true` apenas quando a organização pretender
+uma interrupção mensal obrigatória.
+
+O eventual limite de utilização ou de despesa configurado diretamente no
+fornecedor é independente da aplicação e pode recusar pedidos quando for
+atingido. Essa recusa externa é preservada e apresentada como falha repetível;
+o SRIS não consegue eliminar limites impostos pelo fornecedor.
 
 ## Contabilidade e preços
 
@@ -145,14 +159,15 @@ tokens/custo reservados, mantendo o pedido contado. O prazo pode ser alterado po
 | `PUT` | `/api/organizations/{org}/mission-intelligence/ai-governance/policy` | owner, admin |
 | `GET` | `/api/organizations/{org}/mission-intelligence/ai-governance/events` | owner, admin, reviewer |
 
-O resumo apresenta consumo, reservas ativas, saldo de pedidos/tokens/orçamento e
-o aviso de que o custo é estimado. O ledger não guarda a chave OpenAI, prompts nem
-o conteúdo canónico; esses dados permanecem separados nos objetos próprios.
+O resumo apresenta consumo, reservas ativas, saldo de pedidos/tokens/orçamento,
+avisos dos limiares mensais e o aviso de que o custo é estimado. O ledger não
+guarda a chave OpenAI, prompts nem o conteúdo canónico; esses dados permanecem
+separados nos objetos próprios.
 
 ## Gate para ativação real
 
 - implantação concluída com `SRIS_AI_ENABLED=false`;
-- migração `20260810_0005` no head;
+- migração `20260815_0011` no head;
 - `/health` e análise pública determinística aprovados;
 - organização e utilizador piloto criados;
 - auto-registo e criação de organizações fechados no Railway;

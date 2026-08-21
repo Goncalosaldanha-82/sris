@@ -39,16 +39,23 @@ from .schemas import (
     OrganizationRead,
     PasswordRecoveryRequest,
     PasswordRecoveryResponse,
+    RefreshRequest,
     TokenResponse,
     UserCreate,
     UserRead,
 )
-from .security import create_access_token, hash_password, verify_password
+from .security import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    hash_password,
+    verify_password,
+)
 from .workflow_api import router as workflow_router
 
 app = FastAPI(
     title="SRIS Mission Intelligence API",
-    version="1.6.0",
+    version="1.7.3",
     description=(
         "Canonical mission intelligence, authentication, organizations, RBAC and "
         "the unified knowledge workflow."
@@ -120,12 +127,48 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     user.last_login_at = utcnow()
     db.commit()
+    return _session_tokens(user)
+
+
+def _session_tokens(user: User) -> TokenResponse:
     return TokenResponse(
         access_token=create_access_token(
             user_id=user.id,
             auth_version=user.auth_version,
-        )
+        ),
+        refresh_token=create_refresh_token(
+            user_id=user.id,
+            auth_version=user.auth_version,
+        ),
     )
+
+
+@app.post("/api/auth/refresh", response_model=TokenResponse)
+def refresh_session(
+    payload: RefreshRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    try:
+        claims = decode_refresh_token(payload.refresh_token)
+        user_id = claims["sub"]
+        auth_version = int(claims["ver"])
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        ) from exc
+
+    user = db.get(User, user_id)
+    if (
+        user is None
+        or not user.is_active
+        or user.auth_version != auth_version
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token revoked",
+        )
+    return _session_tokens(user)
 
 
 def _recovery_not_available() -> HTTPException:
