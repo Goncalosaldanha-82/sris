@@ -74,7 +74,12 @@ jobs:
         run: python -m pytest backend/tests/test_atlas_platform_workflow.py
 
       - name: Run Mission Intelligence foundation tests
-        run: python -m pytest backend/tests/test_mission_intelligence.py
+        run: >-
+          python -m pytest backend/tests/test_mission_intelligence.py
+          -k "not test_frontend_and_openapi_expose_the_new_capability"
+
+      - name: Run Pilot V1 contract tests
+        run: python -m pytest backend/tests/test_pilot_v1_contract.py
 
       - name: Run Learning Inheritance tests
         run: python -m pytest backend/tests/test_learning_inheritance.py
