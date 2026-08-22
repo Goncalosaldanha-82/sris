@@ -45,6 +45,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "Copiloto IA",
         "Memória de decisão",
         "/intelligence-v2.js",
+        "/evidence-graph.js",
     )
     for marker in workspace_markers:
         assert marker in workspace.text
@@ -59,7 +60,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     assert document["info"]["title"] == "SRIS Mission Intelligence API"
     assert document["info"]["version"] == "1.7.3"
 
-    # Pilot V1 exposes the governed MI backbone and a wallet-aware intelligence gateway.
+    # Pilot V1 exposes the governed MI backbone, wallet-aware intelligence and Evidence Graph.
     required_paths = (
         "/api/mission-intelligence/demo/missions/{mission_code}/analyze",
         "/api/organizations/{organization_id}/mission-intelligence/missions",
@@ -72,6 +73,11 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance/events",
         "/api/pilot/intelligence/ask",
         "/api/pilot/intelligence/history",
+        "/api/pilot/evidence-graph/missions/{mission_code}/sync",
+        "/api/pilot/evidence-graph/missions/{mission_code}",
+        "/api/pilot/evidence-graph/missions/{mission_code}/nodes",
+        "/api/pilot/evidence-graph/missions/{mission_code}/nodes/{node_id}",
+        "/api/pilot/evidence-graph/missions/{mission_code}/edges",
     )
     for path in required_paths:
         assert path in document["paths"]

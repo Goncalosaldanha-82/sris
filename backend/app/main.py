@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
+from app.evidence_graph import router as evidence_graph_router
 from app.mission_intelligence.evolution_api import router as organizational_learning_router
 from app.mission_intelligence.learning_api import router as learning_inheritance_router
 from app.mission_intelligence.memory_api import router as organizational_memory_router
@@ -24,6 +25,7 @@ app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
 app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
+app.include_router(evidence_graph_router)
 
 
 @app.middleware("http")
@@ -68,7 +70,9 @@ def pilot_app() -> HTMLResponse:
     if marker in html:
         html = html.replace(
             marker,
-            '<script src="/intelligence-v2.js"></script>' + marker,
+            '<script src="/intelligence-v2.js"></script>'
+            '<script src="/evidence-graph.js"></script>'
+            + marker,
         )
     return HTMLResponse(html)
 
