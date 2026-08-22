@@ -15,28 +15,25 @@ from app.mission_intelligence import memory_models  # noqa: F401
 from app.pilot_bootstrap import router as pilot_bootstrap_router
 from app.pilot_product import router as pilot_product_router
 from app.pilot_intelligence import router as pilot_intelligence_router
+from app.pilot_decision_cycle import router as pilot_decision_cycle_router
 from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_operations_router
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
-PILOT_ASSET_VERSION = "20260822-r10"
+PILOT_ASSET_VERSION = "20260822-r14"
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
-# Bootstrap comes first intentionally. It owns /api/pilot/profile for the
-# isolated Pilot and guarantees the declared Mission/AI schema exists before
-# the product router can access wallet/governance state.
 app.include_router(pilot_bootstrap_router)
 app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
+app.include_router(pilot_decision_cycle_router)
 app.include_router(evidence_graph_router)
 app.include_router(learning_lineage_router)
 app.include_router(pilot_operations_router)
 app.add_middleware(PilotRateLimitMiddleware)
-
 
 @app.middleware("http")
 async def security_and_trace_headers(request: Request, call_next):
@@ -59,48 +56,17 @@ async def security_and_trace_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store, max-age=0"
     return response
 
-
 if ASSETS_DIR.exists():
-    app.mount(
-        "/assets",
-        StaticFiles(directory=str(ASSETS_DIR)),
-        name="assets",
-    )
-
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 @app.get("/", include_in_schema=False)
 def pilot_home() -> FileResponse:
-    return FileResponse(
-        FRONTEND_DIR / "home.html",
-        headers={
-            "Cache-Control": "no-store, max-age=0",
-            "X-SRIS-Pilot-Build": PILOT_ASSET_VERSION,
-        },
-    )
-
+    return FileResponse(FRONTEND_DIR / "home.html", headers={"Cache-Control":"no-store, max-age=0","X-SRIS-Pilot-Build":PILOT_ASSET_VERSION})
 
 @app.get("/app", include_in_schema=False)
 def pilot_app() -> HTMLResponse:
-    """Serve the canonical Pilot V1 workspace exactly as committed.
-
-    All Pilot capability scripts and styles are declared explicitly in
-    frontend/pilot-v1/index.html. Avoid runtime string injection here: that
-    mechanism previously allowed a valid backend deployment to serve an
-    incomplete browser experience whenever the markup changed slightly.
-    """
     html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(
-        html,
-        headers={
-            "Cache-Control": "no-store, max-age=0",
-            "X-SRIS-Pilot-Build": PILOT_ASSET_VERSION,
-        },
-    )
-
+    return HTMLResponse(html, headers={"Cache-Control":"no-store, max-age=0","X-SRIS-Pilot-Build":PILOT_ASSET_VERSION})
 
 if FRONTEND_DIR.exists():
-    app.mount(
-        "/",
-        StaticFiles(directory=str(FRONTEND_DIR), html=True),
-        name="frontend",
-    )
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
