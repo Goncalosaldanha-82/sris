@@ -21,14 +21,14 @@ from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_opera
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
-PILOT_ASSET_VERSION = "20260822-integrated-v4"
+PILOT_ASSET_VERSION = "20260822-integrated-r6"
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
-# Bootstrap comes first intentionally.  It owns /api/pilot/profile for the
+# Bootstrap comes first intentionally. It owns /api/pilot/profile for the
 # isolated Pilot and guarantees the declared Mission/AI schema exists before
-# the legacy product router can access wallet/governance state.
+# the product router can access wallet/governance state.
 app.include_router(pilot_bootstrap_router)
 app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
@@ -72,7 +72,10 @@ if ASSETS_DIR.exists():
 def pilot_home() -> FileResponse:
     return FileResponse(
         FRONTEND_DIR / "home.html",
-        headers={"Cache-Control": "no-store, max-age=0"},
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "X-SRIS-Pilot-Build": PILOT_ASSET_VERSION,
+        },
     )
 
 
@@ -80,6 +83,18 @@ def pilot_home() -> FileResponse:
 def pilot_app() -> HTMLResponse:
     """Serve the Pilot V1 shell with every built capability wired explicitly."""
     html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
+
+    # Cache-bust every core stylesheet. Mobile browsers were retaining older
+    # Pilot CSS while the HTML/API had already advanced to a newer build.
+    html = html.replace('href="/styles.css"', f'href="/styles.css?v={PILOT_ASSET_VERSION}"')
+    html = html.replace('href="/brand-v2.css"', f'href="/brand-v2.css?v={PILOT_ASSET_VERSION}"')
+    html = html.replace('href="/pilot.css"', f'href="/pilot.css?v={PILOT_ASSET_VERSION}"')
+    if "/runtime-fixes.css" not in html:
+        html = html.replace(
+            "</head>",
+            f'<link rel="stylesheet" href="/runtime-fixes.css?v={PILOT_ASSET_VERSION}">\n</head>',
+        )
+
     marker = '<script src="/app.js" defer></script>'
     scripts = (
         f'<script src="/app.js?v={PILOT_ASSET_VERSION}" defer></script>'
