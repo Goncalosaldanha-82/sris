@@ -9,7 +9,6 @@ client = TestClient(app)
 
 
 def test_pilot_v1_frontend_and_openapi_contract() -> None:
-    # Public entry point: authentication and account onboarding.
     frontend = client.get("/")
     assert frontend.status_code == 200
     public_markers = (
@@ -27,7 +26,6 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     for marker in public_markers:
         assert marker in frontend.text
 
-    # Authenticated workspace: persistent Mission Intelligence experience.
     workspace = client.get("/app")
     assert workspace.status_code == 200
     workspace_markers = (
@@ -44,13 +42,13 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "Créditos e planos",
         "Copiloto IA",
         "Memória de decisão",
+        "/learning-lineage.js",
         "/intelligence-v2.js",
         "/evidence-graph.js",
     )
     for marker in workspace_markers:
         assert marker in workspace.text
 
-    # Guard against accidental fallback to the legacy staging shell.
     assert "UI-R2 · MI-1" not in frontend.text
     assert "UI-R2 · MI-1" not in workspace.text
 
@@ -60,7 +58,6 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     assert document["info"]["title"] == "SRIS Mission Intelligence API"
     assert document["info"]["version"] == "1.7.3"
 
-    # Pilot V1 exposes the governed MI backbone, wallet-aware intelligence and Evidence Graph.
     required_paths = (
         "/api/mission-intelligence/demo/missions/{mission_code}/analyze",
         "/api/organizations/{organization_id}/mission-intelligence/missions",
@@ -78,6 +75,10 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/api/pilot/evidence-graph/missions/{mission_code}/nodes",
         "/api/pilot/evidence-graph/missions/{mission_code}/nodes/{node_id}",
         "/api/pilot/evidence-graph/missions/{mission_code}/edges",
+        "/api/pilot/learning/missions/{mission_code}/publish/{learning_node_id}",
+        "/api/pilot/learning/missions/{mission_code}/candidates",
+        "/api/pilot/learning/missions/{mission_code}/candidates/{packet_id}/review",
+        "/api/pilot/learning/missions/{mission_code}/active-context",
     )
     for path in required_paths:
         assert path in document["paths"]
