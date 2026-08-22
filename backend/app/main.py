@@ -2,7 +2,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
@@ -11,6 +11,7 @@ from app.mission_intelligence.learning_api import router as learning_inheritance
 from app.mission_intelligence.memory_api import router as organizational_memory_router
 from app.mission_intelligence import memory_models  # noqa: F401
 from app.pilot_product import router as pilot_product_router
+from app.pilot_intelligence import router as pilot_intelligence_router
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -22,6 +23,7 @@ app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
 app.include_router(pilot_product_router)
+app.include_router(pilot_intelligence_router)
 
 
 @app.middleware("http")
@@ -60,8 +62,15 @@ def pilot_home() -> FileResponse:
 
 
 @app.get("/app", include_in_schema=False)
-def pilot_app() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html")
+def pilot_app() -> HTMLResponse:
+    html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
+    marker = '<script src="/app.js" defer></script>'
+    if marker in html:
+        html = html.replace(
+            marker,
+            '<script src="/intelligence-v2.js"></script>' + marker,
+        )
+    return HTMLResponse(html)
 
 
 if FRONTEND_DIR.exists():
