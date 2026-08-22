@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b4438">
   <title>SRIS · Workspace</title>
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/brand-v2.css">
-  <link rel="stylesheet" href="/pilot.css">
+  <link rel="stylesheet" href="/styles.css?v=20260822-r8">
+  <link rel="stylesheet" href="/brand-v2.css?v=20260822-r8">
+  <link rel="stylesheet" href="/pilot.css?v=20260822-r8">
 </head>
 <body>
   <div class="app-shell">
@@ -20,36 +20,36 @@
         <button data-section="billing">€ <span>Créditos e planos</span></button>
         <button data-section="account">○ <span>Conta</span></button>
       </nav>
-      <div class="mini-profile"><div class="avatar" id="avatar">S</div><div><strong id="mini-name">A carregar…</strong><small id="mini-org">Workspace</small></div></div>
+      <div class="mini-profile"><div class="avatar" id="avatar">S</div><div><strong id="mini-name">A sincronizar…</strong><small id="mini-org">Workspace</small></div></div>
     </aside>
 
     <main class="app-main">
       <header class="topbar">
         <button class="menu-btn" id="menu-btn" aria-label="Abrir menu">☰</button>
         <h1 id="page-title">Visão geral</h1>
-        <div class="topbar-actions"><span class="status-pill" id="provider-state">A verificar IA</span><button class="ghost-btn" id="logout-btn">Sair</button></div>
+        <div class="topbar-actions"><span class="status-pill" id="provider-state">A sincronizar</span><button class="ghost-btn" id="logout-btn">Sair</button></div>
       </header>
 
       <section class="section active" id="overview">
         <div class="hero-card"><div class="eyebrow">MISSION INTELLIGENCE</div><h2 id="welcome-title">Transforme complexidade em decisão.</h2><p>Reúna contexto, evidência e memória institucional num espaço de decisão persistente e auditável.</p><div class="button-row"><button class="btn btn-light" data-go="mission">Abrir missões</button><button class="btn btn-outline-light" data-go="copilot">Perguntar à IA</button></div></div>
         <div class="overview-grid">
-          <article class="card"><div class="eyebrow">CRÉDITO IA</div><div class="big-number"><span id="balance-eur">—</span> €</div><div class="note">saldo disponível</div><div class="pill" id="plan-name">Pilot</div><button class="btn btn-primary" data-go="billing">Gerir créditos</button></article>
-          <article class="card"><h3>Estado da IA</h3><div class="big-number small" id="ai-status">—</div><div class="note">modelo configurado: <strong id="model-name">—</strong></div></article>
+          <article class="card"><div class="eyebrow">CRÉDITO IA</div><div class="big-number"><span id="balance-eur">0.00</span> €</div><div class="note">saldo disponível</div><div class="pill" id="plan-name">Pilot</div><button class="btn btn-primary" data-go="billing">Gerir créditos</button></article>
+          <article class="card"><h3>Estado da IA</h3><div class="big-number small" id="ai-status">A sincronizar</div><div class="note">modelo: <strong id="model-name">a confirmar</strong></div></article>
           <article class="card"><h3>Utilização mensal</h3><div class="big-number small"><span id="requests-used">0</span><span class="muted"> / </span><span id="requests-limit">0</span></div><div class="note">pedidos de IA</div></article>
-          <article class="card"><h3>Workspace</h3><div class="big-number small" id="workspace-role">—</div><div class="note" id="workspace-name">—</div></article>
+          <article class="card"><h3>Workspace</h3><div class="big-number small" id="workspace-role">A sincronizar</div><div class="note" id="workspace-name">Workspace</div></article>
         </div>
         <div class="two-col">
-          <article class="card"><div class="card-head"><h3>Memória de decisão</h3><span class="pill">Persistente</span></div><p>As missões vivem no backbone canónico do SRIS: podem ser reabertas, hierarquizadas, enriquecidas com documentos e continuadas sem reconstruir o contexto de raiz.</p><button class="btn btn-primary" data-go="mission">Abrir Mission Workspace</button></article>
+          <article class="card"><div class="card-head"><h3>Memória de decisão</h3><span class="pill">Persistente</span></div><p>As missões podem ser reabertas, hierarquizadas, enriquecidas com documentos e continuadas sem reconstruir o contexto de raiz.</p><button class="btn btn-primary" data-go="mission">Abrir Mission Workspace</button></article>
           <article class="card"><h3>Princípios do sistema</h3><ol class="principles"><li>Factos ≠ hipóteses</li><li>Incerteza explícita</li><li>Decisões rastreáveis</li><li>Aprendizagem acumulativa</li></ol></article>
         </div>
       </section>
 
       <section class="section" id="mission">
         <div class="mission-layout">
-          <aside class="mission-rail card"><div class="card-head"><div><h2>Missões</h2><div class="note">Portfolio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div><input id="mission-search" class="input" placeholder="Pesquisar missões…"><div id="mission-list" class="mission-list"><div class="note">A carregar missões…</div></div></aside>
+          <aside class="mission-rail card"><div class="card-head"><div><h2>Missões</h2><div class="note">Portfolio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div><input id="mission-search" class="input" placeholder="Pesquisar missões…"><div id="mission-list" class="mission-list"><div class="note">A sincronizar missões…</div></div></aside>
           <div class="mission-workspace card">
             <div id="mission-empty">
-              <div class="empty-state"><div class="brand-emblem large" aria-hidden="true"></div><div class="eyebrow">MISSION WORKSPACE</div><h2>Uma missão não é uma conversa descartável.</h2><p>Crie ou abra uma missão. O SRIS mantém identidade, contexto, revisões, sub-missões, documentos e continuidade analítica.</p><button class="btn btn-primary" id="empty-new-btn">Criar primeira missão</button><div class="capability-chips"><span>Uploads &amp; Document Intelligence</span><span>Diálogo persistente</span><span>Sub-missões</span><span>Evidence Graph</span><span>Provenance</span><span>Memória entre missões</span><span>Hybrid retrieval</span></div></div>
+              <div class="empty-state"><div class="brand-emblem large" aria-hidden="true"></div><div class="eyebrow">MISSION WORKSPACE</div><h2>O trabalho continua onde ficou.</h2><p>Crie ou abra uma missão. O contexto, documentos, decisões e aprendizagem permanecem ligados ao trabalho.</p><button class="btn btn-primary" id="empty-new-btn">Criar primeira missão</button><div class="capability-chips"><span>Document Intelligence</span><span>Diálogo persistente</span><span>Sub-missões</span><span>Evidence Graph</span><span>Provenance</span><span>Memória entre missões</span><span>Recuperação híbrida</span></div></div>
             </div>
 
             <div id="mission-editor" class="hidden">
@@ -65,11 +65,11 @@
             </div>
 
             <div id="mission-detail" class="hidden">
-              <div class="detail-head"><div><div class="eyebrow" id="detail-code">MISSÃO</div><h2 id="detail-title">—</h2></div><button class="btn btn-primary" id="detail-submission-btn">+ Sub-missão</button></div>
-              <div id="detail-meta" class="meta-row"></div><div class="detail-grid"><article><h3>Objetivo</h3><p id="detail-objective">—</p></article><article><h3>Pergunta central</h3><p id="detail-question">—</p></article></div><article><h3>Contexto</h3><p id="detail-context">—</p></article>
+              <div class="detail-head"><div><div class="eyebrow" id="detail-code">MISSÃO</div><h2 id="detail-title">Missão</h2></div><button class="btn btn-primary" id="detail-submission-btn">+ Sub-missão</button></div>
+              <div id="detail-meta" class="meta-row"></div><div class="detail-grid"><article><h3>Objetivo</h3><p id="detail-objective">Ainda não definido</p></article><article><h3>Pergunta central</h3><p id="detail-question">Ainda não definida</p></article></div><article><h3>Contexto</h3><p id="detail-context">Ainda não existe contexto registado.</p></article>
               <div class="button-row"><button class="btn btn-primary" id="detail-analyze-btn">Analisar com IA</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div><div class="answer-box empty" id="mission-answer">A leitura analítica aparecerá aqui.</div>
               <div class="mission-tabs"><button class="active" data-mission-tab="documents">Documentos</button><button data-mission-tab="history">Histórico</button><button data-mission-tab="evidence">Evidence Graph</button><button data-mission-tab="memory">Memória</button></div>
-              <div class="mission-tab active" id="mission-tab-documents"><div class="card-head"><div><h3>Document Intelligence</h3><div class="note">Uploads com extração, provenance e recuperação híbrida.</div></div></div><div class="upload-row"><input type="file" id="mission-file"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div><div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div></div>
+              <div class="mission-tab active" id="mission-tab-documents"><div class="card-head"><div><h3>Inteligência documental</h3><div class="note">Uploads com extração, provenance e recuperação híbrida.</div></div></div><div class="upload-row"><input type="file" id="mission-file"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div><div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div></div>
               <div class="mission-tab" id="mission-tab-history"><h3>Histórico</h3><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
               <div class="mission-tab" id="mission-tab-evidence"><h3>Evidence Graph</h3><div id="evidence-graph-root" class="note">Factos, hipóteses, fontes e relações aparecerão aqui com provenance.</div></div>
               <div class="mission-tab" id="mission-tab-memory"><h3>Memória entre missões</h3><div id="learning-lineage-root" class="note">Aprendizagens reutilizáveis e respetiva linhagem aparecerão aqui.</div></div>
@@ -79,22 +79,22 @@
       </section>
 
       <section class="section" id="copilot">
-        <div class="two-col"><article class="card"><div class="card-head"><div><h2>Copiloto de decisão</h2><p class="note">Use-o para questionar uma decisão, testar uma hipótese ou preparar uma linha de ação.</p></div><span class="pill" id="copilot-model">IA</span></div><form id="copilot-form"><div class="field"><label for="copilot-message">Pergunta</label><textarea id="copilot-message" rows="6" required placeholder="Ex.: Identifica os três pontos cegos mais importantes nesta decisão…"></textarea></div><div class="field"><label for="copilot-context">Contexto adicional (opcional)</label><textarea id="copilot-context" rows="5" placeholder="Cole aqui notas, dados ou condicionantes relevantes."></textarea></div><button class="btn btn-primary full" type="submit">Analisar</button></form><div class="answer-box empty" id="copilot-answer">A resposta aparecerá aqui.</div></article><article class="card"><h3>Disciplina analítica</h3><p class="note">A IA deve indicar incerteza e não preencher lacunas com confiança artificial.</p><dl class="stats"><div><dt>Saldo</dt><dd><span id="copilot-balance">—</span> €</dd></div><div><dt>Modelo</dt><dd id="copilot-model-2">—</dd></div><div><dt>Último custo</dt><dd id="last-charge">—</dd></div></dl></article></div>
+        <div class="two-col"><article class="card"><div class="card-head"><div><h2>Copiloto de decisão</h2><p class="note">Questione uma decisão, teste uma hipótese, procure contradições ou identifique a evidência que falta.</p></div><span class="pill" id="copilot-model">IA</span></div><form id="copilot-form"><div class="field"><label for="copilot-message">Pergunta</label><textarea id="copilot-message" rows="6" required placeholder="Ex.: Identifica os três pontos cegos mais importantes nesta decisão…"></textarea></div><div class="field"><label for="copilot-context">Contexto adicional (opcional)</label><textarea id="copilot-context" rows="5" placeholder="Cole aqui notas, dados ou condicionantes relevantes."></textarea></div><button class="btn btn-primary full" type="submit">Analisar</button></form><div class="answer-box empty" id="copilot-answer">A resposta aparecerá aqui.</div></article><article class="card"><h3>Disciplina analítica</h3><p class="note">A IA deve indicar incerteza e não preencher lacunas com confiança artificial.</p><dl class="stats"><div><dt>Saldo</dt><dd><span id="copilot-balance">0.00</span> €</dd></div><div><dt>Modelo</dt><dd id="copilot-model-2">a confirmar</dd></div><div><dt>Último custo</dt><dd id="last-charge">sem utilização</dd></div></dl></article></div>
       </section>
 
       <section class="section" id="billing">
-        <article class="card"><div class="card-head"><div><h2>Créditos de IA</h2><p class="note">No piloto, os carregamentos permanecem controlados; billing real só será ativado depois da validação funcional.</p></div><div class="big-number"><span id="billing-balance">—</span> €</div></div><div class="button-row"><button class="btn btn-primary topup" data-amount="10">+ 10 €</button><button class="btn btn-secondary topup" data-amount="25">+ 25 €</button><button class="btn btn-secondary topup" data-amount="50">+ 50 €</button></div><div id="billing-message" class="alert hidden"></div></article>
-        <div class="plan-grid" id="plan-grid"><article class="card"><h3>Pilot</h3><p class="note">Validação inicial</p><div class="price">0 €</div><p>Conta individual, créditos de teste e acesso ao núcleo de IA.</p></article><article class="card featured"><h3>Professional</h3><p class="note">Equipas e missões recorrentes</p><div class="price">49 €<span>/mês</span></div><p>Proposta comercial configurável após validação do piloto.</p></article><article class="card"><h3>Organization</h3><p class="note">Governação e memória</p><div class="price">149 €<span>/mês</span></div><p>Memória organizacional, políticas e controlo de utilização.</p></article></div>
-        <article class="card"><h3>Movimentos recentes</h3><div id="ledger"><div class="note">Sem movimentos.</div></div></article>
+        <article class="card"><div class="card-head"><div><h2>Crédito de teste</h2><p class="note">No Pilot V1 não existem pagamentos reais. Estes carregamentos servem apenas para validar a experiência.</p></div><div class="big-number"><span id="billing-balance">0.00</span> €</div></div><div class="button-row"><button class="btn btn-primary topup" data-amount="10">+ 10 €</button><button class="btn btn-secondary topup" data-amount="25">+ 25 €</button><button class="btn btn-secondary topup" data-amount="50">+ 50 €</button></div><div id="billing-message" class="alert hidden"></div></article>
+        <div class="plan-grid" id="plan-grid"><article class="card"><h3>Pilot</h3><p class="note">Validação inicial</p><div class="price">0 €</div><p>Conta individual, crédito de teste e acesso ao núcleo de IA.</p></article><article class="card featured"><h3>Professional</h3><p class="note">Equipas e missões recorrentes</p><div class="price">49 €<span>/mês</span></div><p>Proposta comercial indicativa; contratação ainda não ativa.</p></article><article class="card"><h3>Organization</h3><p class="note">Governação e memória</p><div class="price">149 €<span>/mês</span></div><p>Memória organizacional, políticas e controlo de utilização.</p></article></div>
+        <article class="card"><h3>Movimentos recentes</h3><div id="ledger"><div class="note">Ainda não existem movimentos.</div></div></article>
       </section>
 
       <section class="section" id="account">
         <div class="two-col"><article class="card"><h2>Perfil</h2><div class="field"><label>Nome</label><input id="account-name" readonly></div><div class="field"><label>Email</label><input id="account-email" readonly></div></article><article class="card"><h2>Organização</h2><div class="field"><label>Workspace</label><input id="account-org" readonly></div><div class="field"><label>Função</label><input id="account-role" readonly></div></article></div>
         <article class="card"><h3>Segurança</h3><p class="note">A sessão é protegida por token e a alteração de palavra-passe invalida as sessões anteriores.</p><button class="btn btn-danger" id="logout-btn-2">Terminar sessão</button></article>
-        <article class="card"><div class="card-head"><div><h3>Administração do workspace</h3><p class="note">Contas, funções e estado de acesso com registo de auditoria.</p></div></div><div id="admin-accounts-root" class="note">A carregar administração…</div></article>
+        <article class="card"><div class="card-head"><div><h3>Administração do workspace</h3><p class="note">Contas, funções e estado de acesso com registo de auditoria.</p></div></div><div id="admin-accounts-root" class="note">A sincronizar administração…</div></article>
       </section>
     </main>
   </div>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=20260822-r8" defer></script>
 </body>
 </html>
