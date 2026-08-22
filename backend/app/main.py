@@ -14,6 +14,7 @@ from app.mission_intelligence.memory_api import router as organizational_memory_
 from app.mission_intelligence import memory_models  # noqa: F401
 from app.pilot_product import router as pilot_product_router
 from app.pilot_intelligence import router as pilot_intelligence_router
+from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_operations_router
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -28,6 +29,8 @@ app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
 app.include_router(evidence_graph_router)
 app.include_router(learning_lineage_router)
+app.include_router(pilot_operations_router)
+app.add_middleware(PilotRateLimitMiddleware)
 
 
 @app.middleware("http")
