@@ -2,23 +2,40 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
+from app.evidence_graph import router as evidence_graph_router
+from app.learning_lineage import router as learning_lineage_router
 from app.mission_intelligence.evolution_api import router as organizational_learning_router
 from app.mission_intelligence.learning_api import router as learning_inheritance_router
 from app.mission_intelligence.memory_api import router as organizational_memory_router
 from app.mission_intelligence import memory_models  # noqa: F401
-
+from app.pilot_bootstrap import router as pilot_bootstrap_router
+from app.pilot_capabilities import router as pilot_capabilities_router
+from app.pilot_product import router as pilot_product_router
+from app.pilot_intelligence import router as pilot_intelligence_router
+from app.pilot_decision_cycle import router as pilot_decision_cycle_router
+from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_operations_router
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
-FRONTEND_DIR = PROJECT_ROOT / "frontend" / "atlas-os"
+FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
+PILOT_ASSET_VERSION = "20260822-r15-product-reset"
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
+app.include_router(pilot_bootstrap_router)
+app.include_router(pilot_capabilities_router)
+app.include_router(pilot_product_router)
+app.include_router(pilot_intelligence_router)
+app.include_router(pilot_decision_cycle_router)
+app.include_router(evidence_graph_router)
+app.include_router(learning_lineage_router)
+app.include_router(pilot_operations_router)
+app.add_middleware(PilotRateLimitMiddleware)
 
 
 @app.middleware("http")
@@ -38,22 +55,54 @@ async def security_and_trace_headers(request: Request, call_next):
     )
     if request.headers.get("x-forwarded-proto", "").lower() == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    if request.url.path.startswith("/api/"):
-        response.headers["Cache-Control"] = "no-store"
+
+    path = request.url.path
+    is_frontend_asset = path.endswith((".js", ".css", ".svg", ".webp", ".png", ".jpg", ".jpeg"))
+    if path.startswith("/api/") or path in {"/", "/app"} or is_frontend_asset:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     return response
 
 
 if ASSETS_DIR.exists():
-    app.mount(
-        "/assets",
-        StaticFiles(directory=str(ASSETS_DIR)),
-        name="assets",
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+
+def _frontend_html(filename: str) -> str:
+    html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
+    # Every deployment receives a unique asset URL. This prevents an older
+    # Pilot shell from surviving in a browser while the backend has moved on.
+    html = html.replace("20260822-recovery1", PILOT_ASSET_VERSION)
+    html = html.replace(
+        "<head>",
+        f'<head>\n  <meta name="sris-pilot-build" content="{PILOT_ASSET_VERSION}">',
+        1,
+    )
+    return html
+
+
+@app.get("/", include_in_schema=False)
+def pilot_home() -> HTMLResponse:
+    return HTMLResponse(
+        _frontend_html("home.html"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-SRIS-Pilot-Build": PILOT_ASSET_VERSION,
+        },
+    )
+
+
+@app.get("/app", include_in_schema=False)
+def pilot_app() -> HTMLResponse:
+    return HTMLResponse(
+        _frontend_html("index.html"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-SRIS-Pilot-Build": PILOT_ASSET_VERSION,
+        },
     )
 
 
 if FRONTEND_DIR.exists():
-    app.mount(
-        "/",
-        StaticFiles(directory=str(FRONTEND_DIR), html=True),
-        name="frontend",
-    )
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
