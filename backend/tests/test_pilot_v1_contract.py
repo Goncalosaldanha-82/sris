@@ -9,31 +9,48 @@ client = TestClient(app)
 
 
 def test_pilot_v1_frontend_and_openapi_contract() -> None:
+    # Public entry point: authentication and account onboarding.
     frontend = client.get("/")
     assert frontend.status_code == 200
-
-    # Pilot V1 is intentionally a new experience. Do not require legacy UI-R2/MI-1
-    # presentation markers here; verify the new product contract instead.
-    expected_markers = (
-        "SRIS — Pilot V1",
+    public_markers = (
+        "SRIS · Mission Intelligence",
         "PILOT V1 · SEPT 2026",
-        "Command",
-        "Missão ativa",
-        "Memória",
-        "Aprendizagem",
-        "Evidência",
-        "Pilot Mode",
-        "A organização não deve voltar a aprender a mesma coisa do zero.",
-        "PRÓXIMA MELHOR AÇÃO",
-        "MEMÓRIA ORGANIZACIONAL",
-        "LEARNING INHERITANCE",
-        "A missão seguinte começa melhor porque a anterior existiu.",
+        "Bem-vindo",
+        "Entrar",
+        "Criar conta",
+        "Recuperar palavra-passe",
+        "Crédito inicial incluído",
+        "Ver melhor.",
+        "Decidir melhor.",
+        "Organizational Memory",
     )
-    for marker in expected_markers:
+    for marker in public_markers:
         assert marker in frontend.text
+
+    # Authenticated workspace: persistent Mission Intelligence experience.
+    workspace = client.get("/app")
+    assert workspace.status_code == 200
+    workspace_markers = (
+        "SRIS · Workspace",
+        "Visão geral",
+        "Mission Intelligence",
+        "Mission Workspace",
+        "Uma missão não é uma conversa descartável.",
+        "Portfolio persistente",
+        "+ Sub-missão",
+        "Document Intelligence",
+        "Documentos",
+        "Histórico",
+        "Créditos e planos",
+        "Copiloto IA",
+        "Memória de decisão",
+    )
+    for marker in workspace_markers:
+        assert marker in workspace.text
 
     # Guard against accidental fallback to the legacy staging shell.
     assert "UI-R2 · MI-1" not in frontend.text
+    assert "UI-R2 · MI-1" not in workspace.text
 
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
@@ -41,14 +58,17 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     assert document["info"]["title"] == "SRIS Mission Intelligence API"
     assert document["info"]["version"] == "1.7.3"
 
-    # The Pilot V1 changes the experience layer, not the governed MI API contract.
+    # Pilot V1 now exposes the governed MI backbone directly through the workspace.
     required_paths = (
         "/api/mission-intelligence/demo/missions/{mission_code}/analyze",
+        "/api/organizations/{organization_id}/mission-intelligence/missions",
+        "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_id}",
+        "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_code}/attachments",
+        "/api/organizations/{organization_id}/mission-intelligence/dialogues",
+        "/api/organizations/{organization_id}/mission-intelligence/dialogues/{session_id}",
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance",
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance/events",
-        "/api/organizations/{organization_id}/mission-intelligence/demo/{mission_code}/interact",
-        "/api/organizations/{organization_id}/mission-intelligence/dialogues/{session_id}",
     )
     for path in required_paths:
         assert path in document["paths"]
