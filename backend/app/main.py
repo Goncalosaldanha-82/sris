@@ -12,6 +12,7 @@ from app.mission_intelligence.evolution_api import router as organizational_lear
 from app.mission_intelligence.learning_api import router as learning_inheritance_router
 from app.mission_intelligence.memory_api import router as organizational_memory_router
 from app.mission_intelligence import memory_models  # noqa: F401
+from app.pilot_bootstrap import router as pilot_bootstrap_router
 from app.pilot_product import router as pilot_product_router
 from app.pilot_intelligence import router as pilot_intelligence_router
 from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_operations_router
@@ -20,11 +21,15 @@ from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_opera
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
-PILOT_ASSET_VERSION = "20260822-integrated-v3"
+PILOT_ASSET_VERSION = "20260822-integrated-v4"
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
+# Bootstrap comes first intentionally.  It owns /api/pilot/profile for the
+# isolated Pilot and guarantees the declared Mission/AI schema exists before
+# the legacy product router can access wallet/governance state.
+app.include_router(pilot_bootstrap_router)
 app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
 app.include_router(evidence_graph_router)
@@ -73,15 +78,7 @@ def pilot_home() -> FileResponse:
 
 @app.get("/app", include_in_schema=False)
 def pilot_app() -> HTMLResponse:
-    """Serve the Pilot V1 shell with every built capability wired explicitly.
-
-    The previous implementation loaded enhancement scripts before the deferred
-    legacy app shell and depended on runtime injection order.  That made a
-    successful Railway deploy capable of looking exactly like the old Pilot.
-    The contract below is deterministic: base app first, then the Mission
-    Workspace, Evidence Graph, learning/memory, intelligence and account
-    administration layers.  A version query prevents stale browser/CDN assets.
-    """
+    """Serve the Pilot V1 shell with every built capability wired explicitly."""
     html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
     marker = '<script src="/app.js" defer></script>'
     scripts = (
