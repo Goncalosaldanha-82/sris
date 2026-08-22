@@ -78,6 +78,7 @@ def pilot_app() -> HTMLResponse:
             '<script src="/learning-lineage.js"></script>'
             '<script src="/intelligence-v2.js"></script>'
             '<script src="/evidence-graph.js"></script>'
+            '<script src="/admin-accounts.js"></script>'
             + marker,
         )
     return HTMLResponse(html)
