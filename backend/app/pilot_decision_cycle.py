@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, User
+from app.evidence_graph import _ensure_schema as _ensure_graph_schema, _mission as _graph_mission, _upsert_edge, _upsert_node
 
 router = APIRouter(prefix="/api/pilot/decision-cycles", tags=["pilot-decision-cycle"])
 
@@ -75,16 +76,11 @@ def _ensure_schema(db: Session) -> None:
 
 def _row(row) -> dict:
     return {
-        "id": row["id"],
-        "mission_code": row["mission_code"],
-        "decision": row["decision"],
-        "action": row["action"],
-        "owner": row["owner"],
+        "id": row["id"], "mission_code": row["mission_code"], "decision": row["decision"],
+        "action": row["action"], "owner": row["owner"],
         "due_date": row["due_date"].isoformat() if row["due_date"] else None,
-        "status": row["status"],
-        "expected_outcome": row["expected_outcome"],
-        "actual_outcome": row["actual_outcome"],
-        "learning": row["learning"],
+        "status": row["status"], "expected_outcome": row["expected_outcome"],
+        "actual_outcome": row["actual_outcome"], "learning": row["learning"],
         "evidence_node_id": row["evidence_node_id"],
         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
         "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
@@ -93,59 +89,61 @@ def _row(row) -> dict:
 
 @router.get("/missions/{mission_code}")
 def list_cycles(mission_code: str, user: User = Depends(current_user), db: Session = Depends(get_db)) -> list[dict]:
-    membership = _membership(db, user.id)
-    _ensure_schema(db)
-    rows = db.execute(text("""
-        SELECT * FROM pilot_decision_cycles
-        WHERE organization_id=:org AND mission_code=:mission
-        ORDER BY created_at DESC
-    """), {"org": membership.organization_id, "mission": mission_code}).mappings().all()
-    db.commit()
-    return [_row(r) for r in rows]
+    membership = _membership(db, user.id); _ensure_schema(db)
+    rows = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE organization_id=:org AND mission_code=:mission ORDER BY created_at DESC"), {"org": membership.organization_id, "mission": mission_code}).mappings().all()
+    db.commit(); return [_row(r) for r in rows]
 
 
 @router.post("", status_code=201)
 def create_cycle(payload: DecisionCycleCreate, user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
-    membership = _membership(db, user.id)
-    _ensure_schema(db)
-    cycle_id = str(uuid4())
-    db.execute(text("""
-        INSERT INTO pilot_decision_cycles
-        (id, organization_id, mission_code, decision, action, owner, due_date, status,
-         expected_outcome, evidence_node_id, created_by_user_id)
-        VALUES (:id,:org,:mission,:decision,:action,:owner,:due,'proposed',:expected,:node,:user)
-    """), {
+    membership = _membership(db, user.id); _ensure_schema(db); cycle_id = str(uuid4())
+    db.execute(text("""INSERT INTO pilot_decision_cycles
+        (id, organization_id, mission_code, decision, action, owner, due_date, status, expected_outcome, evidence_node_id, created_by_user_id)
+        VALUES (:id,:org,:mission,:decision,:action,:owner,:due,'proposed',:expected,:node,:user)"""), {
         "id": cycle_id, "org": membership.organization_id, "mission": payload.mission_code,
         "decision": payload.decision, "action": payload.action, "owner": payload.owner,
-        "due": payload.due_date, "expected": payload.expected_outcome,
-        "node": payload.evidence_node_id, "user": user.id,
+        "due": payload.due_date, "expected": payload.expected_outcome, "node": payload.evidence_node_id, "user": user.id,
     })
-    db.commit()
-    row = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id"), {"id": cycle_id}).mappings().one()
-    return _row(row)
+    db.commit(); row = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id"), {"id": cycle_id}).mappings().one(); return _row(row)
 
 
 @router.patch("/{cycle_id}")
 def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
-    membership = _membership(db, user.id)
-    _ensure_schema(db)
-    current = db.execute(text("""
-        SELECT * FROM pilot_decision_cycles WHERE id=:id AND organization_id=:org
-    """), {"id": cycle_id, "org": membership.organization_id}).mappings().first()
-    if current is None:
-        raise HTTPException(status_code=404, detail="Ciclo de decisão não encontrado.")
+    membership = _membership(db, user.id); _ensure_schema(db)
+    current = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id AND organization_id=:org"), {"id": cycle_id, "org": membership.organization_id}).mappings().first()
+    if current is None: raise HTTPException(status_code=404, detail="Ciclo de decisão não encontrado.")
     values = payload.model_dump(exclude_unset=True)
-    if not values:
-        return _row(current)
-    allowed = {"action", "owner", "due_date", "status", "expected_outcome", "actual_outcome", "learning"}
-    parts=[];params={"id": cycle_id, "org": membership.organization_id}
+    if not values: return _row(current)
+    allowed = {"action", "owner", "due_date", "status", "expected_outcome", "actual_outcome", "learning"}; parts=[]; params={"id": cycle_id, "org": membership.organization_id}
     for key,value in values.items():
-        if key not in allowed:
-            continue
-        parts.append(f"{key}=:{key}")
-        params[key]=value
+        if key in allowed: parts.append(f"{key}=:{key}"); params[key]=value
     parts.append("updated_at=CURRENT_TIMESTAMP")
     db.execute(text(f"UPDATE pilot_decision_cycles SET {', '.join(parts)} WHERE id=:id AND organization_id=:org"), params)
+    db.commit(); row = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id"), {"id": cycle_id}).mappings().one(); return _row(row)
+
+
+@router.post("/{cycle_id}/materialize-learning", status_code=201)
+def materialize_learning(cycle_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    """Convert an observed completed decision cycle into reviewable graph lineage.
+
+    Outcome is treated as observed human-entered evidence of consequence; the learning remains
+    proposed until a human explicitly accepts/verifies it in the Evidence Graph. Only then can
+    the existing learning-lineage publisher make it reusable across missions.
+    """
+    membership = _membership(db, user.id); _ensure_schema(db); _ensure_graph_schema(db)
+    cycle = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id AND organization_id=:org"), {"id": cycle_id, "org": membership.organization_id}).mappings().first()
+    if cycle is None: raise HTTPException(status_code=404, detail="Ciclo de decisão não encontrado.")
+    if cycle["status"] != "completed": raise HTTPException(status_code=409, detail="Conclua a decisão antes de transformar o resultado em aprendizagem.")
+    if not (cycle["actual_outcome"] or "").strip(): raise HTTPException(status_code=409, detail="Registe o resultado observado antes de materializar a aprendizagem.")
+    if not (cycle["learning"] or "").strip(): raise HTTPException(status_code=409, detail="Registe a aprendizagem antes de a enviar para revisão.")
+    mission = _graph_mission(db, membership.organization_id, cycle["mission_code"])
+    provenance={"source":"decision_cycle","cycle_id":cycle_id,"human_entered":True,"expected_outcome":cycle["expected_outcome"],"owner":cycle["owner"],"due_date":cycle["due_date"].isoformat() if cycle["due_date"] else None}
+    decision_id = cycle["evidence_node_id"]
+    if not decision_id:
+        decision_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="decision", label=(cycle["decision"] or "Decisão")[:300], body=cycle["decision"] or "", status="accepted", confidence=None, source_kind="decision_cycle", source_id=f"decision:{cycle_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"committed_decision"}, user_id=user.id)
+    outcome_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="outcome", label=f"Resultado observado · {(cycle['decision'] or 'Decisão')[:240]}", body=cycle["actual_outcome"] or "", status="verified", confidence=None, source_kind="decision_cycle", source_id=f"outcome:{cycle_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"observed_outcome"}, user_id=user.id)
+    learning_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="learning", label=f"Aprendizagem · {(cycle['decision'] or 'Decisão')[:250]}", body=cycle["learning"] or "", status="proposed", confidence=None, source_kind="decision_cycle", source_id=f"learning:{cycle_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"learning_candidate","human_review_required":True}, user_id=user.id)
+    _upsert_edge(db, organization_id=membership.organization_id, mission=mission, from_node_id=decision_id, to_node_id=outcome_id, edge_type="leads_to", provenance={"cycle_id":cycle_id,"explicit":True}, user_id=user.id)
+    _upsert_edge(db, organization_id=membership.organization_id, mission=mission, from_node_id=learning_id, to_node_id=outcome_id, edge_type="learned_from", provenance={"cycle_id":cycle_id,"explicit":True}, user_id=user.id)
     db.commit()
-    row = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id"), {"id": cycle_id}).mappings().one()
-    return _row(row)
+    return {"cycle_id":cycle_id,"mission_code":mission.code,"decision_node_id":decision_id,"outcome_node_id":outcome_id,"learning_node_id":learning_id,"learning_status":"proposed","publish_ready":False,"next_step":"Rever e aceitar/verificar a aprendizagem no Evidence Graph antes de a publicar na memória organizacional."}
