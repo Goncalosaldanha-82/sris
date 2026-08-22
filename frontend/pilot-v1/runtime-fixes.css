@@ -1,20 +1,22 @@
-:root{--pilot-build:"20260822-r6"}
-/* Final Pilot V1 presentation hardening. Loaded last so mobile/asset fixes win. */
-.auth-visual{position:relative;isolation:isolate;background:#0d241f;overflow:hidden}
-.auth-visual>.sunrise-photo{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center 48%!important;z-index:0!important;display:block!important;color:transparent!important;font-size:0!important}
-.auth-visual:before{z-index:1!important;pointer-events:none}
-.auth-visual:after{z-index:1!important;pointer-events:none}
+:root{--pilot-build:"20260822-r7"}
+/* Pilot V1 presentation hardening. Loaded last so mobile/asset fixes win. */
+.auth-visual{position:relative;isolation:isolate;overflow:hidden;background:#0d241f!important}
+.auth-visual-photo{background-image:linear-gradient(180deg,rgba(7,20,17,.08),rgba(7,20,17,.12) 46%,rgba(7,20,17,.80)),url('https://raw.githubusercontent.com/Goncalosaldanha-82/sris/pilot-v1-september-2026/frontend/pilot-v1/sunrise.svg')!important;background-size:cover!important;background-position:center 48%!important;background-repeat:no-repeat!important}
+.auth-visual:before{content:"";position:absolute;inset:0;z-index:0!important;pointer-events:none;background:linear-gradient(90deg,rgba(5,18,15,.14),rgba(5,18,15,.02) 52%,rgba(5,18,15,.14))}
+.auth-visual:after{content:"";position:absolute;inset:0;z-index:0!important;pointer-events:none;background:radial-gradient(circle at 30% 32%,rgba(255,188,82,.13),transparent 33%),linear-gradient(180deg,transparent 58%,rgba(4,16,13,.26))}
 .auth-visual>.brand-lockup,.auth-visual>.hero-copy,.auth-visual>.hero-foot{position:relative!important;z-index:2!important}
+.auth-visual img{display:none!important}
+.hero-copy h1{font-variant-emoji:text}
 @media(max-width:760px){
   html,body{width:100%;overflow-x:hidden}
   .auth-page{display:block!important;background:var(--paper)}
-  .auth-visual{min-height:52svh!important;height:auto!important;padding:24px 22px 26px!important}
-  .auth-visual>.sunrise-photo{object-position:43% 50%!important}
-  .hero-copy{margin-top:58px!important;padding:0!important}
-  .hero-copy h1{font-size:clamp(48px,13vw,66px)!important;line-height:.94!important;margin:18px 0 16px!important}
-  .hero-copy p{font-size:17px!important;line-height:1.45!important}
-  .hero-foot{font-size:11px!important;line-height:1.6!important;gap:8px!important;margin-top:28px!important}
-  .auth-panel{min-height:auto!important;padding:32px 22px calc(42px + env(safe-area-inset-bottom))!important;display:block!important}
+  .auth-visual{min-height:58svh!important;height:auto!important;padding:28px 22px 30px!important}
+  .auth-visual-photo{background-position:42% 50%!important}
+  .hero-copy{margin-top:54px!important;padding:0!important}
+  .hero-copy h1{font-size:clamp(46px,12.6vw,62px)!important;line-height:.95!important;margin:18px 0 18px!important;letter-spacing:-.045em!important;max-width:100%!important}
+  .hero-copy p{font-size:17px!important;line-height:1.46!important;max-width:100%!important}
+  .hero-foot{font-size:11px!important;line-height:1.55!important;gap:8px!important;margin-top:28px!important}
+  .auth-panel{min-height:auto!important;padding:34px 22px calc(44px + env(safe-area-inset-bottom))!important;display:block!important}
   .auth-card{width:100%!important;max-width:none!important}
   .auth-card h2{font-size:48px!important;line-height:1!important}
   .auth-actions{align-items:center!important}
