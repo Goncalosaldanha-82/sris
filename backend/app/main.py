@@ -75,10 +75,10 @@ def pilot_app() -> HTMLResponse:
     if marker in html:
         html = html.replace(
             marker,
+            '<script src="/mission-workspace-v2.js"></script>'
             '<script src="/learning-lineage.js"></script>'
             '<script src="/intelligence-v2.js"></script>'
             '<script src="/evidence-graph.js"></script>'
-            '<script src="/mission-workspace-v2.js"></script>'
             '<script src="/admin-accounts.js"></script>'
             + marker,
         )
