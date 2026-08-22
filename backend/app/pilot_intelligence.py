@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import urllib.error
 import urllib.request
 from decimal import Decimal, ROUND_HALF_UP
@@ -16,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, User
+from app.hybrid_retrieval import hybrid_retrieve
 from app.mission_intelligence.governance import (
     AIGovernanceBlocked,
     reserve_ai_usage,
@@ -49,16 +49,7 @@ def _model() -> str:
 
 
 def _estimate_tokens(value: str) -> int:
-    # Deliberately conservative approximation used only for the governance reservation.
     return max(1, (len(value) + 2) // 3)
-
-
-def _terms(value: str) -> set[str]:
-    return {
-        token
-        for token in re.findall(r"[a-zA-ZÀ-ÿ0-9_-]{4,}", value.lower())
-        if token not in {"para", "como", "mais", "esta", "este", "isso", "sobre", "entre", "pela", "pelo"}
-    }
 
 
 def _mission_context(
@@ -68,7 +59,11 @@ def _mission_context(
     payload: PilotIntelligenceRequest,
 ) -> tuple[str, dict]:
     if not payload.mission_id and not payload.mission_code:
-        return payload.context or "", {"mission": None, "sources": []}
+        return payload.context or "", {
+            "mission": None,
+            "sources": [],
+            "retrieval": {"mode": "none", "semantic_status": "not_applicable"},
+        }
 
     query = db.query(CanonicalMission).filter(CanonicalMission.organization_id == organization_id)
     if payload.mission_id:
@@ -84,7 +79,6 @@ def _mission_context(
     except Exception:
         document = {}
     mission_text = json.dumps(document, ensure_ascii=False, indent=2)
-    query_terms = _terms(payload.message + "\n" + (payload.context or "") + "\n" + mission.title)
 
     attachments = (
         db.query(MissionAttachment)
@@ -96,41 +90,66 @@ def _mission_context(
         .order_by(MissionAttachment.created_at.desc())
         .all()
     )
-    ranked: list[tuple[int, MissionAttachment]] = []
-    for item in attachments:
-        text_value = item.extracted_text or ""
-        score = len(query_terms.intersection(_terms(text_value[:40000])))
-        ranked.append((score, item))
-    ranked.sort(key=lambda pair: (pair[0], pair[1].created_at), reverse=True)
+    retrieval_query = "\n".join(
+        part for part in [payload.message, payload.context or "", mission.title] if part
+    )
+    selected, retrieval_manifest = hybrid_retrieve(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        query=retrieval_query,
+        attachments=attachments,
+        limit=max(1, min(12, int(os.getenv("SRIS_RETRIEVAL_MAX_CHUNKS", "8")))),
+    )
 
     budget = int(os.getenv("SRIS_PILOT_CONTEXT_CHAR_BUDGET", "24000"))
     parts = [f"MISSÃO {mission.code} — {mission.title}\n{mission_text[:9000]}"]
     used = len(parts[0])
     sources: list[dict] = []
-    for score, item in ranked:
+    for result in selected:
         if used >= budget:
             break
         available = max(0, budget - used)
-        excerpt = (item.extracted_text or "")[: min(available, 7000)]
+        excerpt = result["text"][:available]
         if not excerpt:
             continue
-        parts.append(f"FONTE: {item.original_filename}\n{excerpt}")
+        citation = (
+            f"FONTE: {result['filename']} | attachment={result['attachment_id']} | "
+            f"chars={result['char_start']}-{result['char_end']} | sha256={result['content_sha256']}"
+        )
+        parts.append(citation + "\n" + excerpt)
         used += len(parts[-1])
         sources.append(
             {
-                "attachment_id": item.id,
-                "filename": item.original_filename,
-                "relevance_score": score,
+                "attachment_id": result["attachment_id"],
+                "filename": result["filename"],
+                "ordinal": result["ordinal"],
+                "char_start": result["char_start"],
+                "char_end": result["char_end"],
+                "content_sha256": result["content_sha256"],
+                "lexical_score": result["lexical_score"],
+                "lexical_rank": result["lexical_rank"],
+                "semantic_score": result["semantic_score"],
+                "semantic_rank": result["semantic_rank"],
+                "hybrid_score": result["hybrid_score"],
+                "embedding_model": result["embedding_model"],
                 "characters_used": len(excerpt),
             }
         )
     if payload.context:
         parts.append("CONTEXTO ADICIONAL DO UTILIZADOR:\n" + payload.context[:6000])
+
     return "\n\n---\n\n".join(parts), {
-        "mission": {"id": mission.id, "code": mission.code, "title": mission.title, "revision": mission.revision},
+        "mission": {
+            "id": mission.id,
+            "code": mission.code,
+            "title": mission.title,
+            "revision": mission.revision,
+        },
         "sources": sources,
         "context_characters": min(sum(len(x) for x in parts), budget + 6000),
-        "retrieval_mode": "mission_scoped_selective",
+        "retrieval_mode": retrieval_manifest["mode"],
+        "retrieval": retrieval_manifest,
     }
 
 
@@ -158,6 +177,7 @@ def _call_openai(*, message: str, context: str, model: str) -> tuple[str, dict, 
         "És o motor de Mission Intelligence do SRIS. Responde em português europeu. "
         "Distingue factos confirmados, declarações, inferências, hipóteses, lacunas de evidência, riscos e decisões. "
         "Não inventes factos, fontes ou certezas. Quando usares contexto documental, identifica a fonte pelo nome. "
+        "As fontes recuperadas incluem attachment, intervalos de caracteres e hash; preserva essa proveniência quando material. "
         "Termina com próximos passos ordenados por valor decisório."
     )
     if context:
