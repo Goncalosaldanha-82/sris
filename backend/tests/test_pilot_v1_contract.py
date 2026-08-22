@@ -44,6 +44,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "Créditos e planos",
         "Copiloto IA",
         "Memória de decisão",
+        "/intelligence-v2.js",
     )
     for marker in workspace_markers:
         assert marker in workspace.text
@@ -58,7 +59,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     assert document["info"]["title"] == "SRIS Mission Intelligence API"
     assert document["info"]["version"] == "1.7.3"
 
-    # Pilot V1 now exposes the governed MI backbone directly through the workspace.
+    # Pilot V1 exposes the governed MI backbone and a wallet-aware intelligence gateway.
     required_paths = (
         "/api/mission-intelligence/demo/missions/{mission_code}/analyze",
         "/api/organizations/{organization_id}/mission-intelligence/missions",
@@ -69,6 +70,8 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance",
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance/events",
+        "/api/pilot/intelligence/ask",
+        "/api/pilot/intelligence/history",
     )
     for path in required_paths:
         assert path in document["paths"]
