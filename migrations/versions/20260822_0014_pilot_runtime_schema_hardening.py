@@ -70,5 +70,26 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Compatibility migration is intentionally additive for the isolated Pilot.
-    pass
+    # Undo only the compatibility objects introduced by this revision. The
+    # following 0013 downgrade then removes the underlying wallet tables.
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = set(inspector.get_table_names())
+
+    if "pilot_password_reset_tokens" in tables:
+        indexes = {i["name"] for i in inspector.get_indexes("pilot_password_reset_tokens") if i.get("name")}
+        if "ix_pilot_password_reset_user" in indexes:
+            op.drop_index("ix_pilot_password_reset_user", table_name="pilot_password_reset_tokens")
+        op.drop_table("pilot_password_reset_tokens")
+
+    inspector = sa.inspect(bind)
+    if "pilot_ai_wallet_ledger" in inspector.get_table_names():
+        indexes = {i["name"] for i in inspector.get_indexes("pilot_ai_wallet_ledger") if i.get("name")}
+        if "ix_pilot_wallet_ledger_org_created" in indexes:
+            op.drop_index("ix_pilot_wallet_ledger_org_created", table_name="pilot_ai_wallet_ledger")
+        columns = {c["name"] for c in inspector.get_columns("pilot_ai_wallet_ledger")}
+        if "provider_cost_microusd" in columns:
+            # batch mode keeps the downgrade portable for SQLite CI while also
+            # producing normal ALTER TABLE semantics on PostgreSQL.
+            with op.batch_alter_table("pilot_ai_wallet_ledger") as batch_op:
+                batch_op.drop_column("provider_cost_microusd")
