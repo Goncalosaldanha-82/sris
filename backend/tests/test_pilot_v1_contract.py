@@ -62,7 +62,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     required_paths = (
         "/api/mission-intelligence/demo/missions/{mission_code}/analyze",
         "/api/organizations/{organization_id}/mission-intelligence/missions",
-        "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_ref}",
+        "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_id}",
         "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_code}/attachments",
         "/api/organizations/{organization_id}/mission-intelligence/dialogues",
         "/api/organizations/{organization_id}/mission-intelligence/dialogues/{session_id}",
