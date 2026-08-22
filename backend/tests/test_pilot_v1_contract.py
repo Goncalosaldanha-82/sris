@@ -42,12 +42,26 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "Créditos e planos",
         "Copiloto IA",
         "Memória de decisão",
+        "/app.js",
+        "/mission-workspace-v2.js",
+        "/evidence-graph.js",
         "/learning-lineage.js",
         "/intelligence-v2.js",
-        "/evidence-graph.js",
+        "/admin-accounts.js",
+        "/pilot-integration-v3.js",
+        "/runtime-fixes.css",
     )
     for marker in workspace_markers:
         assert marker in workspace.text
+
+    # The committed HTML is the source of truth. The backend must not rely on
+    # fragile runtime string injection to make product capabilities appear.
+    assert workspace.text.count("/mission-workspace-v2.js") == 1
+    assert workspace.text.count("/evidence-graph.js") == 1
+    assert workspace.text.count("/learning-lineage.js") == 1
+    assert workspace.text.count("/intelligence-v2.js") == 1
+    assert workspace.text.count("/admin-accounts.js") == 1
+    assert workspace.text.count("/pilot-integration-v3.js") == 1
 
     assert "UI-R2 · MI-1" not in frontend.text
     assert "UI-R2 · MI-1" not in workspace.text
