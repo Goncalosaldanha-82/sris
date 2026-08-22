@@ -1,0 +1,44 @@
+:root{--pilot-build:"20260822-r6"}
+/* Final Pilot V1 presentation hardening. Loaded last so mobile/asset fixes win. */
+.auth-visual{position:relative;isolation:isolate;background:#0d241f;overflow:hidden}
+.auth-visual>.sunrise-photo{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center 48%!important;z-index:0!important;display:block!important;color:transparent!important;font-size:0!important}
+.auth-visual:before{z-index:1!important;pointer-events:none}
+.auth-visual:after{z-index:1!important;pointer-events:none}
+.auth-visual>.brand-lockup,.auth-visual>.hero-copy,.auth-visual>.hero-foot{position:relative!important;z-index:2!important}
+@media(max-width:760px){
+  html,body{width:100%;overflow-x:hidden}
+  .auth-page{display:block!important;background:var(--paper)}
+  .auth-visual{min-height:52svh!important;height:auto!important;padding:24px 22px 26px!important}
+  .auth-visual>.sunrise-photo{object-position:43% 50%!important}
+  .hero-copy{margin-top:58px!important;padding:0!important}
+  .hero-copy h1{font-size:clamp(48px,13vw,66px)!important;line-height:.94!important;margin:18px 0 16px!important}
+  .hero-copy p{font-size:17px!important;line-height:1.45!important}
+  .hero-foot{font-size:11px!important;line-height:1.6!important;gap:8px!important;margin-top:28px!important}
+  .auth-panel{min-height:auto!important;padding:32px 22px calc(42px + env(safe-area-inset-bottom))!important;display:block!important}
+  .auth-card{width:100%!important;max-width:none!important}
+  .auth-card h2{font-size:48px!important;line-height:1!important}
+  .auth-actions{align-items:center!important}
+  .shell,.app-shell{width:100%;max-width:100%;overflow-x:hidden}
+  .topbar{min-height:72px;height:auto!important;padding:10px 14px!important;gap:10px}
+  .topbar h1{font-size:clamp(28px,8vw,40px)!important;line-height:1!important;max-width:45vw}
+  .topbar-actions{gap:6px!important}
+  .status-pill{font-size:11px!important;line-height:1.15!important;padding:9px 11px!important;max-width:115px;text-align:center}
+  .ghost-btn{padding:10px 12px!important}
+  .app-main,.workspace,.main{width:100%;min-width:0;overflow-x:hidden}
+  .main{padding:18px 14px 34px!important}
+  .hero-card{padding:26px 22px!important;border-radius:22px!important}
+  .hero-card h2{font-size:clamp(40px,11vw,58px)!important;line-height:.98!important}
+  .overview-grid,.two-col,.plan-grid,.mission-layout{grid-template-columns:1fr!important}
+  .mission-layout{display:grid!important;gap:14px!important}
+  .mission-rail{position:static!important;max-height:none!important;width:100%!important}
+  .mission-workspace{display:block!important;width:100%!important;min-width:0!important}
+  .mission-tabs{overflow-x:auto!important;white-space:nowrap!important;-webkit-overflow-scrolling:touch}
+  .mission-tabs button{flex:0 0 auto!important}
+  .empty-state{padding:30px 12px!important;min-height:360px!important}
+  .empty-state h2{font-size:clamp(36px,10vw,50px)!important;line-height:1.02!important}
+  .button-row{gap:10px!important;flex-wrap:wrap!important}
+  .button-row .btn{min-height:48px}
+  .upload-row{display:grid!important;grid-template-columns:1fr!important}
+  input,textarea,select{font-size:16px!important;max-width:100%}
+  .card{min-width:0!important;overflow-wrap:anywhere}
+}
