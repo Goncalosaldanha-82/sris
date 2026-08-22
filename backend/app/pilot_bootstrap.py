@@ -38,11 +38,11 @@ def _micro_to_eur(value: int | None) -> float:
 
 
 def _pilot_tables(db: Session) -> None:
-    """Make the isolated Pilot self-healing for tables already declared by SRIS.
+    """Make the isolated Pilot self-healing for declared tables and columns.
 
-    Production still uses migrations. The September Pilot is intentionally able to
-    create missing declared tables on first authenticated access so a Railway
-    redeploy cannot leave UI code ahead of its backing schema.
+    Production still uses migrations. The September Pilot is intentionally able
+    to repair additive schema drift on first authenticated access so Railway can
+    never serve a frontend that is newer than its backing pilot schema.
     """
     Base.metadata.create_all(bind=db.get_bind(), checkfirst=True)
     db.execute(text("""
@@ -65,6 +65,13 @@ def _pilot_tables(db: Session) -> None:
             provider_cost_microusd BIGINT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
+    """))
+    # Migration 0013 created the ledger before provider cost accounting was
+    # introduced. CREATE TABLE IF NOT EXISTS does not add later columns, which
+    # caused /api/pilot/profile to fail with HTTP 500 on an already-migrated DB.
+    db.execute(text("""
+        ALTER TABLE pilot_ai_wallet_ledger
+        ADD COLUMN IF NOT EXISTS provider_cost_microusd BIGINT NULL
     """))
 
 
