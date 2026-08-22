@@ -21,7 +21,7 @@ from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_opera
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
-PILOT_ASSET_VERSION = "20260822-integrated-r6"
+PILOT_ASSET_VERSION = "20260822-r10"
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
@@ -81,32 +81,14 @@ def pilot_home() -> FileResponse:
 
 @app.get("/app", include_in_schema=False)
 def pilot_app() -> HTMLResponse:
-    """Serve the Pilot V1 shell with every built capability wired explicitly."""
+    """Serve the canonical Pilot V1 workspace exactly as committed.
+
+    All Pilot capability scripts and styles are declared explicitly in
+    frontend/pilot-v1/index.html. Avoid runtime string injection here: that
+    mechanism previously allowed a valid backend deployment to serve an
+    incomplete browser experience whenever the markup changed slightly.
+    """
     html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
-
-    # Cache-bust every core stylesheet. Mobile browsers were retaining older
-    # Pilot CSS while the HTML/API had already advanced to a newer build.
-    html = html.replace('href="/styles.css"', f'href="/styles.css?v={PILOT_ASSET_VERSION}"')
-    html = html.replace('href="/brand-v2.css"', f'href="/brand-v2.css?v={PILOT_ASSET_VERSION}"')
-    html = html.replace('href="/pilot.css"', f'href="/pilot.css?v={PILOT_ASSET_VERSION}"')
-    if "/runtime-fixes.css" not in html:
-        html = html.replace(
-            "</head>",
-            f'<link rel="stylesheet" href="/runtime-fixes.css?v={PILOT_ASSET_VERSION}">\n</head>',
-        )
-
-    marker = '<script src="/app.js" defer></script>'
-    scripts = (
-        f'<script src="/app.js?v={PILOT_ASSET_VERSION}" defer></script>'
-        f'<script src="/mission-workspace-v2.js?v={PILOT_ASSET_VERSION}" defer></script>'
-        f'<script src="/evidence-graph.js?v={PILOT_ASSET_VERSION}" defer></script>'
-        f'<script src="/learning-lineage.js?v={PILOT_ASSET_VERSION}" defer></script>'
-        f'<script src="/intelligence-v2.js?v={PILOT_ASSET_VERSION}" defer></script>'
-        f'<script src="/admin-accounts.js?v={PILOT_ASSET_VERSION}" defer></script>'
-        f'<script src="/pilot-integration-v3.js?v={PILOT_ASSET_VERSION}" defer></script>'
-    )
-    if marker in html:
-        html = html.replace(marker, scripts)
     return HTMLResponse(
         html,
         headers={
