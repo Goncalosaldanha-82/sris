@@ -1,84 +1,100 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-PT">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#082e27" />
-  <title>SRIS — Mission Intelligence</title>
-  <link rel="stylesheet" href="/pilot-v1/brand-v2.css" />
-  <style>
-    :root{--ink:#082e27;--forest:#0d4a3d;--paper:#f6f3ea;--gold:#d9a94f;--line:#d8dfd8;--muted:#6f7f78}
-    *{box-sizing:border-box}html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{min-height:100vh;overflow-x:hidden}
-    .auth-shell{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(420px,.95fr);background:var(--paper)}
-    .hero{position:relative;min-height:100vh;overflow:hidden;background:#082e27}
-    .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(180deg,rgba(4,34,28,.18),rgba(4,34,28,.42)),url('/pilot-v1/sunrise.svg');background-size:cover;background-position:center center;background-repeat:no-repeat;transform:scale(1.015)}
-    .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(4,34,28,.18),rgba(4,34,28,.08) 58%,rgba(4,34,28,.34))}
-    .hero-inner{position:relative;z-index:1;min-height:100vh;padding:56px 64px 48px;display:flex;flex-direction:column;color:#fff}
-    .brand{display:flex;align-items:center;gap:14px}.brand-mark{width:54px;height:54px;border:3px solid var(--gold);border-radius:50%;display:grid;place-items:center;color:var(--gold);font-size:28px}.brand-copy strong{display:block;font-size:20px;letter-spacing:.08em}.brand-copy span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;opacity:.9}
-    .hero-copy{margin-top:auto;margin-bottom:auto;max-width:760px}.eyebrow{display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.34);border-radius:999px;padding:10px 15px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;backdrop-filter:blur(8px);background:rgba(0,0,0,.08)}.eyebrow-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 6px rgba(217,169,79,.12)}
-    .hero h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(58px,6.4vw,104px);line-height:.9;letter-spacing:-.045em;margin:28px 0 24px;max-width:900px}.hero p{font-size:clamp(19px,1.5vw,26px);line-height:1.45;max-width:790px;margin:0;color:rgba(255,255,255,.9)}
-    .hero-meta{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:rgba(255,255,255,.76);padding-top:24px}.hero-meta span+span::before{content:"•";margin-right:18px;color:var(--gold)}
-    .auth-panel{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:56px 7vw;background:linear-gradient(180deg,#f8f5ee 0%,#f3f0e8 100%)}
-    .auth-card{width:min(100%,620px)}.pilot{font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:800;color:#4f7f6d}.auth-card h2{font-family:Georgia,"Times New Roman",serif;font-size:clamp(48px,5vw,78px);line-height:.94;letter-spacing:-.035em;margin:10px 0 20px}.auth-card>p{font-size:19px;line-height:1.45;color:var(--muted);margin:0 0 30px}
-    .tabs{display:grid;grid-template-columns:1fr 1fr;background:#e8e7e1;border-radius:22px;padding:7px;margin-bottom:28px}.tabs button{border:0;background:transparent;padding:16px 12px;border-radius:17px;font-size:17px;font-weight:700;color:#63706b}.tabs button.active{background:#fff;color:#0e2c25;box-shadow:0 2px 8px rgba(15,45,37,.08)}
-    .field{margin-bottom:18px}.field label{display:block;font-size:14px;font-weight:800;margin-bottom:9px}.field input{width:100%;height:58px;border:1px solid #d3dad4;border-radius:18px;background:#fff;padding:0 18px;font-size:18px;outline:none}.field input:focus{border-color:#5b8c7a;box-shadow:0 0 0 4px rgba(91,140,122,.12)}
-    .auth-actions{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:20px}.link-btn{border:0;background:transparent;color:#2f745d;font-size:16px;font-weight:800;padding:0;cursor:pointer}.primary{border:0;background:#124f40;color:#fff;border-radius:18px;padding:16px 26px;font-size:18px;font-weight:800;cursor:pointer;min-width:150px}.primary:hover{background:#0d4336}
-    .credit-note{display:flex;gap:14px;align-items:flex-start;border:1px solid #dfc88d;background:#fbf2da;border-radius:22px;padding:18px 20px;margin-top:28px}.ai-badge{width:44px;height:44px;flex:0 0 44px;border-radius:14px;background:#114f40;color:#f1d281;display:grid;place-items:center;font-weight:900}.credit-note strong{display:block;font-size:17px;margin-bottom:2px}.credit-note span{display:block;color:#6f7f78;font-size:14px;line-height:1.45}
-    @media (max-width: 980px){.auth-shell{grid-template-columns:1fr}.hero{min-height:56vh}.hero-inner{min-height:56vh;padding:34px 34px 36px}.hero-copy{margin:80px 0 26px}.hero h1{font-size:clamp(54px,12vw,82px)}.hero p{font-size:22px}.auth-panel{min-height:auto;padding:48px 34px 70px;align-items:flex-start}.auth-card{max-width:none}.auth-card h2{font-size:58px}}
-    @media (max-width: 640px){.hero{min-height:500px}.hero::before{background-position:42% center}.hero-inner{min-height:500px;padding:28px 24px 26px}.brand-mark{width:46px;height:46px;font-size:24px}.brand-copy strong{font-size:18px}.hero-copy{margin:64px 0 18px}.eyebrow{font-size:10px;padding:9px 12px}.hero h1{font-size:clamp(58px,15vw,76px);line-height:.91;margin:22px 0 22px}.hero p{font-size:19px;line-height:1.5}.hero-meta{display:block;font-size:13px;line-height:1.9;padding-top:16px}.hero-meta span{display:inline}.hero-meta span+span::before{margin:0 10px}.auth-panel{padding:38px 22px 46px}.pilot{font-size:12px}.auth-card h2{font-size:54px;margin-bottom:18px}.auth-card>p{font-size:18px;margin-bottom:26px}.tabs{border-radius:18px}.tabs button{padding:14px 10px}.field input{height:56px;font-size:17px}.auth-actions{align-items:center}.primary{min-width:130px}.credit-note{padding:16px;border-radius:18px}}
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b4438">
+  <title>SRIS · Workspace</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/brand-v2.css">
+  <link rel="stylesheet" href="/pilot.css">
 </head>
 <body>
-  <main class="auth-shell">
-    <section class="hero" aria-label="Nascer do sol sobre a paisagem de Penela">
-      <div class="hero-inner">
-        <div class="brand">
-          <div class="brand-mark">⌁</div>
-          <div class="brand-copy"><strong>SRIS</strong><span>Mission Intelligence</span></div>
-        </div>
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-dot"></span>Decision Infrastructure</div>
-          <h1>Ver melhor.<br>Decidir melhor.</h1>
-          <p>Transforme informação dispersa em contexto, evidência, hipóteses explícitas, decisões rastreáveis e aprendizagem que permanece.</p>
-        </div>
-        <div class="hero-meta"><span>Mission Intelligence</span><span>Evidence-aware AI</span><span>Organizational Memory</span></div>
-      </div>
-    </section>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-lockup sidebar-brand"><span class="brand-emblem" aria-hidden="true"></span><span class="brand-copy"><strong>SRIS</strong><small>MISSION INTELLIGENCE</small></span></div>
+      <nav class="nav" aria-label="Navegação principal">
+        <button class="active" data-section="overview">⌂ <span>Visão geral</span></button>
+        <button data-section="mission">◉ <span>Mission Intelligence</span></button>
+        <button data-section="copilot">✦ <span>Copiloto IA</span></button>
+        <button data-section="billing">€ <span>Créditos e planos</span></button>
+        <button data-section="account">○ <span>Conta</span></button>
+      </nav>
+      <div class="mini-profile"><div class="avatar" id="avatar">S</div><div><strong id="mini-name">A carregar…</strong><small id="mini-org">Workspace</small></div></div>
+    </aside>
 
-    <section class="auth-panel">
-      <div class="auth-card">
-        <div class="pilot">Pilot V1 · Sept 2026</div>
-        <h2>Bem-vindo</h2>
-        <p>Entre no seu workspace ou crie uma conta para começar.</p>
+    <main class="app-main">
+      <header class="topbar">
+        <button class="menu-btn" id="menu-btn" aria-label="Abrir menu">☰</button>
+        <h1 id="page-title">Visão geral</h1>
+        <div class="topbar-actions"><span class="status-pill" id="provider-state">A verificar IA</span><button class="ghost-btn" id="logout-btn">Sair</button></div>
+      </header>
 
-        <div class="tabs" role="tablist">
-          <button class="active" type="button" id="login-tab">Entrar</button>
-          <button type="button" id="signup-tab">Criar conta</button>
+      <section class="section active" id="overview">
+        <div class="hero-card"><div class="eyebrow">MISSION INTELLIGENCE</div><h2 id="welcome-title">Transforme complexidade em decisão.</h2><p>Reúna contexto, evidência e memória institucional num espaço de decisão persistente e auditável.</p><div class="button-row"><button class="btn btn-light" data-go="mission">Abrir missões</button><button class="btn btn-outline-light" data-go="copilot">Perguntar à IA</button></div></div>
+        <div class="overview-grid">
+          <article class="card"><div class="eyebrow">CRÉDITO IA</div><div class="big-number"><span id="balance-eur">—</span> €</div><div class="note">saldo disponível</div><div class="pill" id="plan-name">Pilot</div><button class="btn btn-primary" data-go="billing">Gerir créditos</button></article>
+          <article class="card"><h3>Estado da IA</h3><div class="big-number small" id="ai-status">—</div><div class="note">modelo configurado: <strong id="model-name">—</strong></div></article>
+          <article class="card"><h3>Utilização mensal</h3><div class="big-number small"><span id="requests-used">0</span><span class="muted"> / </span><span id="requests-limit">0</span></div><div class="note">pedidos de IA</div></article>
+          <article class="card"><h3>Workspace</h3><div class="big-number small" id="workspace-role">—</div><div class="note" id="workspace-name">—</div></article>
         </div>
+        <div class="two-col">
+          <article class="card"><div class="card-head"><h3>Memória de decisão</h3><span class="pill">Persistente</span></div><p>As missões vivem no backbone canónico do SRIS: podem ser reabertas, hierarquizadas, enriquecidas com documentos e continuadas sem reconstruir o contexto de raiz.</p><button class="btn btn-primary" data-go="mission">Abrir Mission Workspace</button></article>
+          <article class="card"><h3>Princípios do sistema</h3><ol class="principles"><li>Factos ≠ hipóteses</li><li>Incerteza explícita</li><li>Decisões rastreáveis</li><li>Aprendizagem acumulativa</li></ol></article>
+        </div>
+      </section>
 
-        <form id="auth-form" novalidate>
-          <div class="field">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email" autocomplete="email" placeholder="nome@empresa.pt" required />
+      <section class="section" id="mission">
+        <div class="mission-layout">
+          <aside class="mission-rail card"><div class="card-head"><div><h2>Missões</h2><div class="note">Portfolio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div><input id="mission-search" class="input" placeholder="Pesquisar missões…"><div id="mission-list" class="mission-list"><div class="note">A carregar missões…</div></div></aside>
+          <div class="mission-workspace card">
+            <div id="mission-empty">
+              <div class="empty-state"><div class="brand-emblem large" aria-hidden="true"></div><div class="eyebrow">MISSION WORKSPACE</div><h2>Uma missão não é uma conversa descartável.</h2><p>Crie ou abra uma missão. O SRIS mantém identidade, contexto, revisões, sub-missões, documentos e continuidade analítica.</p><button class="btn btn-primary" id="empty-new-btn">Criar primeira missão</button><div class="capability-chips"><span>Uploads &amp; Document Intelligence</span><span>Diálogo persistente</span><span>Sub-missões</span><span>Evidence Graph</span><span>Provenance</span><span>Memória entre missões</span><span>Hybrid retrieval</span></div></div>
+            </div>
+
+            <div id="mission-editor" class="hidden">
+              <div class="eyebrow" id="mission-code-label">NOVA MISSÃO</div><h2 id="mission-editor-title">Criar missão</h2><div id="mission-message" class="alert hidden"></div>
+              <form id="mission-form" class="stack-form">
+                <input type="hidden" id="mission-parent-id"><div class="field"><label for="mission-title">Título</label><input id="mission-title" required></div>
+                <div class="field"><label for="mission-objective">Objetivo de decisão</label><textarea id="mission-objective" rows="3" required></textarea></div>
+                <div class="field"><label for="mission-question">Pergunta central</label><textarea id="mission-question" rows="3" required></textarea></div>
+                <div class="field"><label for="mission-context">Contexto disponível</label><textarea id="mission-context" rows="5"></textarea></div>
+                <div class="form-grid"><div class="field"><label>Tipo</label><select id="mission-kind"><option value="mission">Missão</option><option value="program">Programa</option></select></div><div class="field"><label>Domínio</label><input id="mission-domain" value="cross_domain"></div><div class="field"><label>Prioridade</label><select id="mission-priority"><option value="strategic">Estratégica</option><option value="operational">Operacional</option></select></div><div class="field"><label>Horizonte</label><input id="mission-horizon" placeholder="Ex.: 90 dias"></div></div>
+                <div class="button-row"><button class="btn btn-primary" id="save-mission-btn" type="submit">Criar missão</button><button class="btn btn-secondary" id="cancel-mission-btn" type="button">Cancelar</button></div>
+              </form>
+            </div>
+
+            <div id="mission-detail" class="hidden">
+              <div class="detail-head"><div><div class="eyebrow" id="detail-code">MISSÃO</div><h2 id="detail-title">—</h2></div><button class="btn btn-primary" id="detail-submission-btn">+ Sub-missão</button></div>
+              <div id="detail-meta" class="meta-row"></div><div class="detail-grid"><article><h3>Objetivo</h3><p id="detail-objective">—</p></article><article><h3>Pergunta central</h3><p id="detail-question">—</p></article></div><article><h3>Contexto</h3><p id="detail-context">—</p></article>
+              <div class="button-row"><button class="btn btn-primary" id="detail-analyze-btn">Analisar com IA</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div><div class="answer-box empty" id="mission-answer">A leitura analítica aparecerá aqui.</div>
+              <div class="mission-tabs"><button class="active" data-mission-tab="documents">Documentos</button><button data-mission-tab="history">Histórico</button><button data-mission-tab="evidence">Evidence Graph</button><button data-mission-tab="memory">Memória</button></div>
+              <div class="mission-tab active" id="mission-tab-documents"><div class="card-head"><div><h3>Document Intelligence</h3><div class="note">Uploads com extração, provenance e recuperação híbrida.</div></div></div><div class="upload-row"><input type="file" id="mission-file"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div><div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div></div>
+              <div class="mission-tab" id="mission-tab-history"><h3>Histórico</h3><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
+              <div class="mission-tab" id="mission-tab-evidence"><h3>Evidence Graph</h3><div id="evidence-graph-root" class="note">Factos, hipóteses, fontes e relações aparecerão aqui com provenance.</div></div>
+              <div class="mission-tab" id="mission-tab-memory"><h3>Memória entre missões</h3><div id="learning-lineage-root" class="note">Aprendizagens reutilizáveis e respetiva linhagem aparecerão aqui.</div></div>
+            </div>
           </div>
-          <div class="field">
-            <label for="password">Palavra-passe</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" required />
-          </div>
-          <div class="auth-actions">
-            <button class="link-btn" id="recover-btn" type="button">Recuperar palavra-passe</button>
-            <button class="primary" id="submit-btn" type="submit">Entrar</button>
-          </div>
-        </form>
-
-        <div class="credit-note">
-          <div class="ai-badge">AI</div>
-          <div><strong>Crédito inicial incluído</strong><span>5,00 € para experimentar a inteligência do SRIS. O modelo utilizado será apresentado na aplicação quando a integração IA estiver ativa.</span></div>
         </div>
-      </div>
-    </section>
-  </main>
+      </section>
 
-  <script src="/pilot-v1/auth.js"></script>
+      <section class="section" id="copilot">
+        <div class="two-col"><article class="card"><div class="card-head"><div><h2>Copiloto de decisão</h2><p class="note">Use-o para questionar uma decisão, testar uma hipótese ou preparar uma linha de ação.</p></div><span class="pill" id="copilot-model">IA</span></div><form id="copilot-form"><div class="field"><label for="copilot-message">Pergunta</label><textarea id="copilot-message" rows="6" required placeholder="Ex.: Identifica os três pontos cegos mais importantes nesta decisão…"></textarea></div><div class="field"><label for="copilot-context">Contexto adicional (opcional)</label><textarea id="copilot-context" rows="5" placeholder="Cole aqui notas, dados ou condicionantes relevantes."></textarea></div><button class="btn btn-primary full" type="submit">Analisar</button></form><div class="answer-box empty" id="copilot-answer">A resposta aparecerá aqui.</div></article><article class="card"><h3>Disciplina analítica</h3><p class="note">A IA deve indicar incerteza e não preencher lacunas com confiança artificial.</p><dl class="stats"><div><dt>Saldo</dt><dd><span id="copilot-balance">—</span> €</dd></div><div><dt>Modelo</dt><dd id="copilot-model-2">—</dd></div><div><dt>Último custo</dt><dd id="last-charge">—</dd></div></dl></article></div>
+      </section>
+
+      <section class="section" id="billing">
+        <article class="card"><div class="card-head"><div><h2>Créditos de IA</h2><p class="note">No piloto, os carregamentos permanecem controlados; billing real só será ativado depois da validação funcional.</p></div><div class="big-number"><span id="billing-balance">—</span> €</div></div><div class="button-row"><button class="btn btn-primary topup" data-amount="10">+ 10 €</button><button class="btn btn-secondary topup" data-amount="25">+ 25 €</button><button class="btn btn-secondary topup" data-amount="50">+ 50 €</button></div><div id="billing-message" class="alert hidden"></div></article>
+        <div class="plan-grid" id="plan-grid"><article class="card"><h3>Pilot</h3><p class="note">Validação inicial</p><div class="price">0 €</div><p>Conta individual, créditos de teste e acesso ao núcleo de IA.</p></article><article class="card featured"><h3>Professional</h3><p class="note">Equipas e missões recorrentes</p><div class="price">49 €<span>/mês</span></div><p>Proposta comercial configurável após validação do piloto.</p></article><article class="card"><h3>Organization</h3><p class="note">Governação e memória</p><div class="price">149 €<span>/mês</span></div><p>Memória organizacional, políticas e controlo de utilização.</p></article></div>
+        <article class="card"><h3>Movimentos recentes</h3><div id="ledger"><div class="note">Sem movimentos.</div></div></article>
+      </section>
+
+      <section class="section" id="account">
+        <div class="two-col"><article class="card"><h2>Perfil</h2><div class="field"><label>Nome</label><input id="account-name" readonly></div><div class="field"><label>Email</label><input id="account-email" readonly></div></article><article class="card"><h2>Organização</h2><div class="field"><label>Workspace</label><input id="account-org" readonly></div><div class="field"><label>Função</label><input id="account-role" readonly></div></article></div>
+        <article class="card"><h3>Segurança</h3><p class="note">A sessão é protegida por token e a alteração de palavra-passe invalida as sessões anteriores.</p><button class="btn btn-danger" id="logout-btn-2">Terminar sessão</button></article>
+        <article class="card"><div class="card-head"><div><h3>Administração do workspace</h3><p class="note">Contas, funções e estado de acesso com registo de auditoria.</p></div></div><div id="admin-accounts-root" class="note">A carregar administração…</div></article>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js" defer></script>
 </body>
 </html>
