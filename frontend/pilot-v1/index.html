@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b4438">
   <title>SRIS · Workspace</title>
-  <link rel="stylesheet" href="/styles.css?v=20260822-r8">
-  <link rel="stylesheet" href="/brand-v2.css?v=20260822-r8">
-  <link rel="stylesheet" href="/pilot.css?v=20260822-r8">
+  <link rel="stylesheet" href="/styles.css?v=20260822-r9">
+  <link rel="stylesheet" href="/brand-v2.css?v=20260822-r9">
+  <link rel="stylesheet" href="/pilot.css?v=20260822-r9">
 </head>
 <body>
   <div class="app-shell">
@@ -49,7 +49,7 @@
           <aside class="mission-rail card"><div class="card-head"><div><h2>Missões</h2><div class="note">Portfolio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div><input id="mission-search" class="input" placeholder="Pesquisar missões…"><div id="mission-list" class="mission-list"><div class="note">A sincronizar missões…</div></div></aside>
           <div class="mission-workspace card">
             <div id="mission-empty">
-              <div class="empty-state"><div class="brand-emblem large" aria-hidden="true"></div><div class="eyebrow">MISSION WORKSPACE</div><h2>O trabalho continua onde ficou.</h2><p>Crie ou abra uma missão. O contexto, documentos, decisões e aprendizagem permanecem ligados ao trabalho.</p><button class="btn btn-primary" id="empty-new-btn">Criar primeira missão</button><div class="capability-chips"><span>Document Intelligence</span><span>Diálogo persistente</span><span>Sub-missões</span><span>Evidence Graph</span><span>Provenance</span><span>Memória entre missões</span><span>Recuperação híbrida</span></div></div>
+              <div class="empty-state"><div class="brand-emblem large" aria-hidden="true"></div><div class="eyebrow">MISSION WORKSPACE</div><h2>Uma missão não é uma conversa descartável.</h2><p>Crie ou abra uma missão. O contexto, documentos, decisões e aprendizagem permanecem ligados ao trabalho e o trabalho continua onde ficou.</p><button class="btn btn-primary" id="empty-new-btn">Criar primeira missão</button><div class="capability-chips"><span>Document Intelligence</span><span>Diálogo persistente</span><span>Sub-missões</span><span>Evidence Graph</span><span>Provenance</span><span>Memória entre missões</span><span>Recuperação híbrida</span></div></div>
             </div>
 
             <div id="mission-editor" class="hidden">
@@ -69,7 +69,7 @@
               <div id="detail-meta" class="meta-row"></div><div class="detail-grid"><article><h3>Objetivo</h3><p id="detail-objective">Ainda não definido</p></article><article><h3>Pergunta central</h3><p id="detail-question">Ainda não definida</p></article></div><article><h3>Contexto</h3><p id="detail-context">Ainda não existe contexto registado.</p></article>
               <div class="button-row"><button class="btn btn-primary" id="detail-analyze-btn">Analisar com IA</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div><div class="answer-box empty" id="mission-answer">A leitura analítica aparecerá aqui.</div>
               <div class="mission-tabs"><button class="active" data-mission-tab="documents">Documentos</button><button data-mission-tab="history">Histórico</button><button data-mission-tab="evidence">Evidence Graph</button><button data-mission-tab="memory">Memória</button></div>
-              <div class="mission-tab active" id="mission-tab-documents"><div class="card-head"><div><h3>Inteligência documental</h3><div class="note">Uploads com extração, provenance e recuperação híbrida.</div></div></div><div class="upload-row"><input type="file" id="mission-file"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div><div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div></div>
+              <div class="mission-tab active" id="mission-tab-documents"><div class="card-head"><div><h3>Document Intelligence</h3><div class="note">Uploads com extração, provenance e recuperação híbrida.</div></div></div><div class="upload-row"><input type="file" id="mission-file"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div><div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div></div>
               <div class="mission-tab" id="mission-tab-history"><h3>Histórico</h3><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
               <div class="mission-tab" id="mission-tab-evidence"><h3>Evidence Graph</h3><div id="evidence-graph-root" class="note">Factos, hipóteses, fontes e relações aparecerão aqui com provenance.</div></div>
               <div class="mission-tab" id="mission-tab-memory"><h3>Memória entre missões</h3><div id="learning-lineage-root" class="note">Aprendizagens reutilizáveis e respetiva linhagem aparecerão aqui.</div></div>
@@ -95,6 +95,9 @@
       </section>
     </main>
   </div>
-  <script src="/app.js?v=20260822-r8" defer></script>
+  <script src="/app.js?v=20260822-r9" defer></script>
+  <script src="/intelligence-v2.js?v=20260822-r9" defer></script>
+  <script src="/evidence-graph.js?v=20260822-r9" defer></script>
+  <script src="/learning-lineage.js?v=20260822-r9" defer></script>
 </body>
 </html>
