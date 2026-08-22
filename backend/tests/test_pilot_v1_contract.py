@@ -49,6 +49,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/admin-accounts.js",
         "/pilot-integration-v3.js",
         "/pilot-operational-v1.js",
+        "/mission-experience-v1.js",
     )
     for marker in workspace_markers:
         assert marker in workspace.text
@@ -61,6 +62,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/admin-accounts.js",
         "/pilot-integration-v3.js",
         "/pilot-operational-v1.js",
+        "/mission-experience-v1.js",
     ):
         assert workspace.text.count(asset) == 1
 
