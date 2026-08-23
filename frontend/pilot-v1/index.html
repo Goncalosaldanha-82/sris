@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#103d32">
-  <title>SRIS — Mission Workspace</title>
+  <title>SRIS — Espaço de Missão</title>
   <meta name="description" content="SRIS Mission Intelligence — missões persistentes, evidência rastreável, decisões verificáveis e memória organizacional.">
-  <link rel="stylesheet" href="/styles.css?v=20260822-recovery1">
-  <link rel="stylesheet" href="/brand-v2.css?v=20260822-recovery1">
-  <link rel="stylesheet" href="/pilot.css?v=20260822-recovery1">
-  <link rel="stylesheet" href="/runtime-fixes.css?v=20260822-recovery1">
-  <link rel="stylesheet" href="/product-recovery-v1.css?v=20260822-recovery1">
+  <link rel="stylesheet" href="/styles.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/brand-v2.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/pilot.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/runtime-fixes.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/product-recovery-v1.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/product-core-v2.css?v=20260823-decision-first">
 </head>
 <body>
 <div class="app-shell">
@@ -20,13 +21,12 @@
       <div class="nav-group">
         <div class="nav-group-label">Trabalho</div>
         <button class="active" data-section="overview">⌂ <span>Visão geral</span></button>
-        <button data-section="mission">◉ <span>Mission Workspace</span></button>
+        <button data-section="mission">◉ <span>Missões</span></button>
         <button data-section="account">○ <span>Conta</span></button>
       </div>
-      <div class="nav-group">
-        <div class="nav-group-label">Utilitários</div>
+      <div class="nav-group nav-group-optional">
+        <div class="nav-group-label">Apoio opcional</div>
         <button class="secondary-nav" data-section="copilot">✦ <span>Análise assistida</span></button>
-        <button class="secondary-nav" data-section="billing">· <span>Serviço e utilização</span></button>
       </div>
     </nav>
     <div class="mini-profile"><div class="avatar" id="avatar">S</div><div><strong id="mini-name">A sincronizar…</strong><small id="mini-org">Workspace</small></div></div>
@@ -36,24 +36,29 @@
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" aria-label="Abrir menu">☰</button>
       <h1 id="page-title">Visão geral</h1>
-      <div class="topbar-actions"><span class="status-pill" id="provider-state">A sincronizar</span><button class="ghost-btn" id="logout-btn">Sair</button></div>
+      <div class="topbar-actions"><span class="status-pill" id="provider-state">Workspace a sincronizar</span><button class="ghost-btn" id="logout-btn">Sair</button></div>
     </header>
 
     <section class="section active" id="overview">
       <div class="hero-card">
         <div class="eyebrow">INFRAESTRUTURA DE DECISÃO</div>
-        <h2>Da complexidade à decisão verificável.</h2>
-        <p id="welcome-title">O SRIS organiza o caminho entre o que foi observado, a evidência disponível, as hipóteses consideradas, a decisão tomada e aquilo que se aprendeu depois.</p>
-        <div class="button-row"><button class="btn btn-light" data-go="mission">Abrir Mission Workspace</button><button class="btn btn-outline-light" data-go="mission">Continuar uma decisão</button></div>
+        <h2>Comece pela decisão. Preserve a razão.</h2>
+        <p id="welcome-title">O SRIS organiza o caminho entre o que foi observado, a evidência disponível, os pressupostos assumidos, a decisão tomada e aquilo que se aprendeu depois.</p>
+        <div class="button-row"><button class="btn btn-light" id="primary-mission-cta" type="button">Criar missão</button><button class="btn btn-outline-light" id="open-missions-cta" type="button">Abrir missões</button></div>
       </div>
 
-      <div class="decision-chain" aria-label="Cadeia de decisão do SRIS">
+      <div class="decision-chain" aria-label="Cadeia principal de decisão do SRIS">
         <span>Observação</span><span>Evidência</span><span>Hipótese</span><span>Alternativa</span><span>Decisão</span><span>Ação</span><span>Resultado</span><span>Aprendizagem</span>
       </div>
 
+      <article class="epistemic-layer" aria-label="Camada transversal de disciplina">
+        <div><span class="product-index">CAMADA TRANSVERSAL</span><h3>O que condiciona a decisão permanece explícito.</h3><p>A assistência deve indicar incerteza, separar facto de inferência e nunca preencher lacunas com confiança artificial.</p></div>
+        <div class="epistemic-chips"><span>Pressupostos</span><span>Restrições</span><span>Lacunas</span><span>Incerteza</span><span>Proveniência</span><span>Confiança</span></div>
+      </article>
+
       <div class="overview-grid product-grid">
         <article class="card product-card"><div><span class="product-index">01 · Trabalho</span><h3>Missões persistentes</h3><p>Cada problema mantém identidade, contexto, revisões, documentos, diálogo e continuidade.</p></div><button class="inline-link" data-go="mission">Abrir missões →</button></article>
-        <article class="card product-card"><div><span class="product-index">02 · Fundamento</span><h3>Evidência e provenance</h3><p>Fontes, factos, claims, hipóteses e lacunas permanecem ligados à sua origem e ao momento da decisão.</p></div><button class="inline-link" data-go="mission">Trabalhar evidência →</button></article>
+        <article class="card product-card"><div><span class="product-index">02 · Fundamento</span><h3>Evidência e proveniência</h3><p>Fontes, factos, pressupostos, hipóteses e lacunas permanecem ligados à sua origem e ao momento da decisão.</p></div><button class="inline-link" data-go="mission">Trabalhar evidência →</button></article>
         <article class="card product-card"><div><span class="product-index">03 · Execução</span><h3>Decisão → Resultado</h3><p>Registe a ação, o responsável, o resultado esperado, o observado e a aprendizagem produzida.</p></div><button class="inline-link" data-go="mission">Fechar o ciclo →</button></article>
         <article class="card product-card"><div><span class="product-index">04 · Continuidade</span><h3>Memória organizacional</h3><p>Aprendizagens revistas podem ser reutilizadas sem perder contexto, confiança ou linhagem.</p></div><button class="inline-link" data-go="mission">Abrir memória →</button></article>
       </div>
@@ -72,11 +77,11 @@
 
       <details class="technical-details">
         <summary>Estado técnico do piloto</summary>
-        <div class="technical-grid">
+        <div class="technical-grid technical-grid-product">
           <div><small>Workspace</small><strong id="workspace-role">A sincronizar</strong><span class="note" id="workspace-name">Workspace</span></div>
-          <div><small>Assistência analítica</small><strong id="ai-status">A sincronizar</strong><span class="note">modelo: <b id="model-name">a confirmar</b></span></div>
-          <div><small>Utilização mensal</small><strong><span id="requests-used">0</span> / <span id="requests-limit">0</span></strong><span class="note">pedidos assistidos</span></div>
-          <div><small>Crédito de teste</small><strong><span id="balance-eur">0.00</span> €</strong><span class="note" id="plan-name">Pilot</span></div>
+          <div><small>Missões</small><strong id="mission-count">0</strong><span class="note">objetos persistentes</span></div>
+          <div><small>Persistência</small><strong id="persistence-state">Ativa</strong><span class="note">contexto, evidência e histórico</span></div>
+          <div><small>Assistência opcional</small><strong id="ai-status">A confirmar</strong><span class="note">não condiciona o núcleo do produto</span></div>
         </div>
       </details>
     </section>
@@ -84,8 +89,8 @@
     <section class="section" id="mission">
       <div class="mission-layout">
         <aside class="mission-rail card">
-          <div class="card-head"><div><h2>Missões</h2><div class="note">Portfolio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div>
-          <input id="mission-search" class="input" placeholder="Pesquisar missões…">
+          <div class="card-head"><div><h2>Missões</h2><div class="note">Portefólio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div>
+          <input id="mission-search" class="input" placeholder="Pesquisar missões…" autocomplete="off">
           <div id="mission-list" class="mission-list"><div class="note">A sincronizar missões…</div></div>
         </aside>
 
@@ -93,33 +98,48 @@
           <div id="mission-empty">
             <div class="empty-state">
               <div class="brand-emblem large" aria-hidden="true"></div>
-              <div class="eyebrow">MISSION WORKSPACE</div>
+              <div class="eyebrow">ESPAÇO DE MISSÃO</div>
               <h2>Comece pela decisão que precisa de ficar melhor fundamentada.</h2>
-              <p>Uma missão não é uma conversa descartável. O contexto, os documentos, as hipóteses, as decisões, os resultados e a aprendizagem permanecem ligados ao trabalho.</p>
+              <p>Uma missão não é uma conversa descartável. O contexto, os documentos, os pressupostos, as decisões, os resultados e a aprendizagem permanecem ligados ao trabalho.</p>
+
+              <div class="template-heading"><div><span class="product-index">COMEÇAR COM ESTRUTURA</span><h3>Escolha um ponto de partida ou crie livremente.</h3></div><button class="btn btn-primary" id="empty-new-btn">Criar missão livre</button></div>
+              <div class="mission-template-grid">
+                <button class="mission-template" type="button" data-mission-template="resource"><b>01</b><strong>Eficiência de recursos</strong><span>Água, energia, resíduos, atividade real e custo normalizado.</span></button>
+                <button class="mission-template" type="button" data-mission-template="incident"><b>02</b><strong>Problema operacional</strong><span>Ocorrência, causas possíveis, restrições, intervenção e resultado.</span></button>
+                <button class="mission-template" type="button" data-mission-template="investment"><b>03</b><strong>Investimento ou alteração</strong><span>Alternativas, risco, reversibilidade, critério de sucesso e revisão.</span></button>
+              </div>
+
               <div class="mission-start-grid">
                 <div class="mission-start-step"><b>01</b><strong>Definir</strong><span>Objetivo, pergunta central, horizonte e decisão necessária.</span></div>
                 <div class="mission-start-step"><b>02</b><strong>Fundamentar</strong><span>Carregar documentos, observações e evidência disponível.</span></div>
                 <div class="mission-start-step"><b>03</b><strong>Decidir e agir</strong><span>Comparar hipóteses, alternativas, riscos e próxima ação.</span></div>
                 <div class="mission-start-step"><b>04</b><strong>Aprender</strong><span>Registar resultado, rever aprendizagem e preservar memória.</span></div>
               </div>
-              <button class="btn btn-primary" id="empty-new-btn">Criar primeira missão</button>
             </div>
           </div>
 
           <div id="mission-editor" class="hidden">
             <div class="eyebrow" id="mission-code-label">NOVA MISSÃO</div><h2 id="mission-editor-title">Criar missão</h2>
-            <div id="mission-message" class="alert hidden"></div>
+            <div id="mission-message" class="alert hidden" role="status" aria-live="polite"></div>
             <form id="mission-form" class="stack-form">
               <input type="hidden" id="mission-parent-id">
-              <div class="field"><label for="mission-title">Título</label><input id="mission-title" required placeholder="Ex.: Reduzir consumo de água sem degradar a operação"></div>
-              <div class="field"><label for="mission-objective">Objetivo de decisão</label><textarea id="mission-objective" rows="3" required placeholder="Que decisão precisa de ser tomada, por quem e para produzir que mudança?"></textarea></div>
-              <div class="field"><label for="mission-question">Pergunta central</label><textarea id="mission-question" rows="3" required placeholder="Qual é a pergunta que a missão tem de conseguir responder?"></textarea></div>
-              <div class="field"><label for="mission-context">Contexto disponível</label><textarea id="mission-context" rows="5" placeholder="Dados, restrições, intervenientes, histórico e informação já conhecida."></textarea></div>
+              <div class="field"><label for="mission-title">Título</label><input id="mission-title" required minlength="3" placeholder="Ex.: Reduzir consumo de água sem degradar a operação"></div>
+              <div class="field"><label for="mission-objective">Objetivo de decisão</label><textarea id="mission-objective" rows="3" required minlength="10" placeholder="Que decisão precisa de ser tomada, por quem e para produzir que mudança?"></textarea></div>
+              <div class="field"><label for="mission-question">Pergunta central</label><textarea id="mission-question" rows="3" required minlength="10" placeholder="Qual é a pergunta que a missão tem de conseguir responder?"></textarea></div>
+              <div class="field"><label for="mission-context">Contexto disponível</label><textarea id="mission-context" rows="5" required minlength="10" placeholder="Dados, intervenientes, histórico e informação já conhecida."></textarea></div>
+
+              <div class="epistemic-form-grid">
+                <div class="field"><label for="mission-assumptions">Pressupostos declarados</label><textarea id="mission-assumptions" rows="4" placeholder="O que está a ser assumido, mas ainda não está confirmado?"></textarea></div>
+                <div class="field"><label for="mission-constraints">Restrições conhecidas</label><textarea id="mission-constraints" rows="4" placeholder="Que limites legais, financeiros, operacionais, temporais ou humanos condicionam a decisão?"></textarea></div>
+                <div class="field"><label for="mission-success">Critério de sucesso</label><textarea id="mission-success" rows="4" placeholder="Que resultado observável permitirá avaliar se a decisão produziu valor?"></textarea></div>
+              </div>
+              <div class="form-contract-note">Pressupostos, restrições e critério de sucesso serão guardados como objetos distintos, com autoria humana e proveniência explícita.</div>
+
               <div class="form-grid">
-                <div class="field"><label>Tipo</label><select id="mission-kind"><option value="mission">Missão</option><option value="program">Programa</option></select></div>
-                <div class="field"><label>Domínio</label><input id="mission-domain" value="cross_domain"></div>
-                <div class="field"><label>Prioridade</label><select id="mission-priority"><option value="strategic">Estratégica</option><option value="operational">Operacional</option></select></div>
-                <div class="field"><label>Horizonte</label><input id="mission-horizon" placeholder="Ex.: 90 dias"></div>
+                <div class="field"><label for="mission-kind">Tipo</label><select id="mission-kind"><option value="mission">Missão</option><option value="program">Programa</option></select></div>
+                <div class="field"><label for="mission-domain">Domínio</label><input id="mission-domain" value="cross_domain"></div>
+                <div class="field"><label for="mission-priority">Prioridade</label><select id="mission-priority"><option value="critical">Crítica</option><option value="strategic" selected>Estratégica</option><option value="standard">Normal</option><option value="exploratory">Exploratória</option></select></div>
+                <div class="field"><label for="mission-horizon">Horizonte</label><input id="mission-horizon" placeholder="Ex.: 90 dias"></div>
               </div>
               <div class="button-row"><button class="btn btn-primary" id="save-mission-btn" type="submit">Criar missão</button><button class="btn btn-secondary" id="cancel-mission-btn" type="button">Cancelar</button></div>
             </form>
@@ -130,16 +150,22 @@
             <div id="detail-meta" class="meta-row"></div>
             <div class="detail-grid"><article><h3>Objetivo</h3><p id="detail-objective">Ainda não definido</p></article><article><h3>Pergunta central</h3><p id="detail-question">Ainda não definida</p></article></div>
             <article><h3>Contexto</h3><p id="detail-context">Ainda não existe contexto registado.</p></article>
-            <div class="button-row"><button class="btn btn-primary" id="detail-analyze-btn">Produzir leitura analítica</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div>
-            <div class="answer-box empty" id="mission-answer">A leitura analítica aparecerá aqui, distinguindo factos, hipóteses, lacunas, alternativas e próximos passos.</div>
-            <div class="mission-tabs"><button class="active" data-mission-tab="documents">Documentos</button><button data-mission-tab="history">Histórico</button><button data-mission-tab="evidence">Evidence Graph</button><button data-mission-tab="memory">Memória</button></div>
+
+            <article class="epistemic-summary">
+              <div><span class="product-index">DISCIPLINA TRANSVERSAL</span><h3>Condições que moldam a decisão</h3><p>Pressupostos, restrições, lacunas, confiança e proveniência permanecem separados da conclusão.</p></div>
+              <div id="detail-epistemic-counts" class="epistemic-chips compact"><span>Pressupostos · 0</span><span>Restrições · 0</span><span>Lacunas · 0</span><span>Proveniência · ativa</span></div>
+            </article>
+
+            <div class="button-row"><button class="btn btn-secondary" id="detail-analyze-btn">Abrir análise assistida</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div>
+            <div class="answer-box empty" id="mission-answer">A análise assistida é opcional. A missão, a evidência, a decisão e a memória permanecem canónicas independentemente da sua utilização.</div>
+            <div class="mission-tabs"><button class="active" data-mission-tab="documents">Documentos</button><button data-mission-tab="history">Histórico</button><button data-mission-tab="evidence">Evidência</button><button data-mission-tab="memory">Memória</button></div>
             <div class="mission-tab active" id="mission-tab-documents">
-              <div class="card-head"><div><h3>Document Intelligence</h3><div class="note">Uploads com extração, provenance e recuperação híbrida.</div></div></div>
-              <div class="upload-row"><input type="file" id="mission-file"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div>
+              <div class="card-head"><div><h3>Inteligência documental</h3><div class="note">Uploads com extração, proveniência e recuperação híbrida.</div></div></div>
+              <div class="upload-row"><input type="file" id="mission-file" accept=".pdf,.html,.htm,.md,.markdown,.txt,.csv,.tsv,.xlsx,.xls,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div>
               <div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div>
             </div>
             <div class="mission-tab" id="mission-tab-history"><h3>Histórico persistente</h3><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
-            <div class="mission-tab" id="mission-tab-evidence"><h3>Evidence Graph</h3><div id="evidence-graph-root" class="note">Factos, hipóteses, fontes, decisões e relações aparecerão aqui com provenance.</div></div>
+            <div class="mission-tab" id="mission-tab-evidence"><h3>Grafo de evidência</h3><div id="evidence-graph-root" class="note">Observações, evidência, pressupostos, restrições, hipóteses, alternativas, decisões e relações aparecerão aqui com proveniência.</div></div>
             <div class="mission-tab" id="mission-tab-memory"><h3>Memória entre missões</h3><div id="learning-lineage-root" class="note">Aprendizagens reutilizáveis e respetiva linhagem aparecerão aqui.</div></div>
           </div>
         </div>
@@ -147,51 +173,38 @@
     </section>
 
     <section class="section" id="copilot">
-      <div class="utility-intro"><strong>Análise assistida, não centro do produto.</strong> Use esta ferramenta opcional para questionar uma decisão ou procurar lacunas. O trabalho canónico permanece na missão, na evidência, na decisão e na memória.</div>
+      <div class="utility-intro"><strong>Análise assistida, não centro do produto.</strong> A assistência deve indicar incerteza, separar facto de inferência e nunca preencher lacunas com confiança artificial. O trabalho canónico permanece na missão, na evidência, na decisão e na memória.</div>
       <div class="two-col">
         <article class="card">
-          <div class="card-head"><div><h2>Análise assistida</h2><p class="note">Questione uma decisão, teste uma hipótese, procure contradições ou identifique a evidência que falta.</p></div><span class="pill" id="copilot-model">Assistência</span></div>
+          <div class="card-head"><div><h2>Análise assistida</h2><p class="note">Questione uma decisão, teste uma hipótese, procure contradições ou identifique a evidência que falta.</p></div><span class="pill">Opcional</span></div>
+          <div id="copilot-context-note" class="context-note">Abra uma missão para usar o respetivo contexto, documentos recuperados e proveniência.</div>
           <form id="copilot-form"><div class="field"><label for="copilot-message">Pergunta</label><textarea id="copilot-message" rows="6" required placeholder="Ex.: Que pressupostos podem alterar materialmente esta decisão?"></textarea></div><div class="field"><label for="copilot-context">Contexto adicional (opcional)</label><textarea id="copilot-context" rows="5"></textarea></div><button class="btn btn-primary full" type="submit">Analisar</button></form>
           <div class="answer-box empty" id="copilot-answer">A resposta aparecerá aqui.</div>
+          <div id="copilot-provenance" class="provenance-list hidden"></div>
         </article>
-        <article class="card"><h3>Disciplina analítica</h3><p class="note">A assistência deve indicar incerteza, separar facto de inferência e nunca preencher lacunas com confiança artificial.</p><dl class="stats"><div><dt>Estado</dt><dd id="copilot-model-2">a confirmar</dd></div><div><dt>Crédito de teste</dt><dd><span id="copilot-balance">0.00</span> €</dd></div><div><dt>Último custo</dt><dd id="last-charge">sem utilização</dd></div></dl></article>
+        <article class="card"><h3>Disciplina analítica</h3><p class="note">A resposta é um contributo sujeito a revisão humana. Nunca substitui a decisão nem converte automaticamente uma inferência em facto.</p><dl class="stats"><div><dt>Disponibilidade</dt><dd id="copilot-availability">A confirmar</dd></div><div><dt>Contexto</dt><dd id="copilot-context-state">Workspace</dd></div><div><dt>Revisão</dt><dd>Humana obrigatória</dd></div></dl></article>
       </div>
-    </section>
-
-    <section class="section" id="billing">
-      <div class="utility-intro"><strong>Utilização do serviço.</strong> Esta área é administrativa. Durante o piloto não existem pagamentos reais; o objetivo é validar o trabalho de decisão, não vender créditos.</div>
-      <article class="card">
-        <div class="card-head"><div><h2>Crédito de teste</h2><p class="note">Carregamentos simulados para validar a experiência e os controlos de utilização.</p></div><div class="big-number"><span id="billing-balance">0.00</span> €</div></div>
-        <div class="button-row"><button class="btn btn-primary topup" data-amount="10">+ 10 €</button><button class="btn btn-secondary topup" data-amount="25">+ 25 €</button><button class="btn btn-secondary topup" data-amount="50">+ 50 €</button></div><div id="billing-message" class="alert hidden"></div>
-      </article>
-      <details class="commercial-reference">
-        <summary>Referência comercial — contratação ainda não ativa</summary>
-        <div class="plan-grid" id="plan-grid"><article class="card"><h3>Pilot</h3><p class="note">Validação inicial</p><div class="price">0 €</div><p>Conta individual e acesso ao núcleo de validação.</p></article><article class="card featured"><h3>Professional</h3><p class="note">Equipas e missões recorrentes</p><div class="price">49 €<span>/mês</span></div><p>Proposta comercial indicativa; contratação ainda não ativa.</p></article><article class="card"><h3>Organization</h3><p class="note">Governação e memória</p><div class="price">149 €<span>/mês</span></div><p>Memória organizacional, políticas e controlo de utilização.</p></article></div>
-      </details>
-      <article class="card" style="margin-top:16px"><h3>Movimentos recentes</h3><div id="ledger"><div class="note">Ainda não existem movimentos.</div></div></article>
     </section>
 
     <section class="section" id="account">
       <div class="two-col">
-        <article class="card"><h2>Perfil</h2><div class="field"><label>Nome</label><input id="account-name" readonly></div><div class="field"><label>Email</label><input id="account-email" readonly></div></article>
-        <article class="card"><h2>Organização</h2><div class="field"><label>Workspace</label><input id="account-org" readonly></div><div class="field"><label>Função</label><input id="account-role" readonly></div></article>
+        <article class="card"><h2>Perfil</h2><div class="field"><label for="account-name">Nome</label><input id="account-name" readonly></div><div class="field"><label for="account-email">Email</label><input id="account-email" readonly></div></article>
+        <article class="card"><h2>Organização</h2><div class="field"><label for="account-org">Workspace</label><input id="account-org" readonly></div><div class="field"><label for="account-role">Função</label><input id="account-role" readonly></div></article>
       </div>
-      <article class="card account-utilities"><div class="card-head"><div><h3>Ferramentas e serviço</h3><p class="note">Configuração técnica e utilização ficam separadas do trabalho de decisão.</p></div></div><div class="button-row"><button class="btn btn-secondary" data-go="copilot">Abrir análise assistida</button><button class="btn btn-secondary" data-go="billing">Ver utilização do serviço</button></div></article>
+      <article class="card account-utilities"><div class="card-head"><div><h3>Ferramentas opcionais</h3><p class="note">A assistência analítica fica separada do trabalho canónico de decisão.</p></div></div><div class="button-row"><button class="btn btn-secondary" data-go="copilot">Abrir análise assistida</button></div></article>
       <article class="card"><h3>Segurança</h3><p class="note">A sessão é protegida por token e a alteração de palavra-passe invalida as sessões anteriores.</p><button class="btn btn-danger" id="logout-btn-2">Terminar sessão</button></article>
-      <article class="card"><div class="card-head"><div><h3>Administração do workspace</h3><p class="note">Contas, funções e estado de acesso com registo de auditoria.</p></div></div><div id="admin-accounts-root" class="note">A sincronizar administração…</div></article>
     </section>
   </main>
 </div>
 
-<script src="/app.js?v=20260822-recovery1" defer></script>
-<script src="/mission-workspace-v2.js?v=20260822-recovery1" defer></script>
-<script src="/evidence-graph.js?v=20260822-recovery1" defer></script>
-<script src="/learning-lineage.js?v=20260822-recovery1" defer></script>
-<script src="/intelligence-v2.js?v=20260822-recovery1" defer></script>
-<script src="/admin-accounts.js?v=20260822-recovery1" defer></script>
-<script src="/pilot-integration-v3.js?v=20260822-recovery1" defer></script>
-<script src="/pilot-operational-v1.js?v=20260822-recovery1" defer></script>
-<script src="/mission-experience-v1.js?v=20260822-recovery1" defer></script>
+<script src="/app.js?v=20260823-decision-first" defer></script>
+<script src="/mission-workspace-v2.js?v=20260823-decision-first" defer></script>
+<script src="/evidence-graph.js?v=20260823-decision-first" defer></script>
+<script src="/learning-lineage.js?v=20260823-decision-first" defer></script>
+<script src="/intelligence-v2.js?v=20260823-decision-first" defer></script>
+<script src="/admin-accounts.js?v=20260823-decision-first" defer></script>
+<script src="/pilot-integration-v3.js?v=20260823-decision-first" defer></script>
+<script src="/mission-experience-v1.js?v=20260823-decision-first" defer></script>
 <script src="/decision-cycle-v1.js?v=20260822-decision-loop-v2" defer></script>
 <script src="/decision-workbench-v1.js?v=20260822-decision-loop-v2" defer></script>
 </body>

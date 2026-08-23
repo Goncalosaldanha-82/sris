@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
-from app.evidence_graph import router as evidence_graph_router
+from app.pilot_epistemic import router as evidence_graph_router
 from app.learning_lineage import router as learning_lineage_router
 from app.mission_intelligence.evolution_api import router as organizational_learning_router
 from app.mission_intelligence.learning_api import router as learning_inheritance_router
@@ -14,7 +14,7 @@ from app.mission_intelligence.memory_api import router as organizational_memory_
 from app.mission_intelligence import memory_models  # noqa: F401
 from app.pilot_bootstrap import router as pilot_bootstrap_router
 from app.pilot_capabilities import router as pilot_capabilities_router
-from app.pilot_product import router as pilot_product_router
+from app.pilot_product_secure import router as pilot_product_router
 from app.pilot_intelligence import router as pilot_intelligence_router
 from app.pilot_decision_cycle import router as pilot_decision_cycle_router
 from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_operations_router
@@ -22,7 +22,7 @@ from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_opera
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
-PILOT_ASSET_VERSION = "20260822-r15-product-reset"
+PILOT_ASSET_VERSION = "20260823-decision-first"
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
@@ -73,7 +73,8 @@ def _frontend_html(filename: str) -> str:
     html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
     # Every deployment receives a unique asset URL. This prevents an older
     # Pilot shell from surviving in a browser while the backend has moved on.
-    html = html.replace("20260822-recovery1", PILOT_ASSET_VERSION)
+    for marker in ("20260822-recovery1", "20260823-decision-first"):
+        html = html.replace(marker, PILOT_ASSET_VERSION)
     html = html.replace(
         "<head>",
         f'<head>\n  <meta name="sris-pilot-build" content="{PILOT_ASSET_VERSION}">',
