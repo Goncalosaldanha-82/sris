@@ -6,14 +6,16 @@
   <meta name="theme-color" content="#0d241f">
   <title>SRIS — Mission Intelligence</title>
   <meta name="description" content="SRIS Mission Intelligence — da complexidade à decisão verificável.">
-  <link rel="stylesheet" href="/styles.css?v=20260822-recovery1">
-  <link rel="stylesheet" href="/brand-v2.css?v=20260822-recovery1">
-  <link rel="stylesheet" href="/runtime-fixes.css?v=20260822-recovery1">
-  <link rel="stylesheet" href="/product-recovery-v1.css?v=20260822-recovery1">
+  <link rel="stylesheet" href="/styles.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/brand-v2.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/runtime-fixes.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/product-recovery-v1.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/product-core-v2.css?v=20260823-decision-first">
 </head>
 <body>
 <main class="auth-page">
   <section class="auth-visual auth-visual-photo" aria-label="SRIS Mission Intelligence">
+    <img class="sunrise-photo" src="/sunrise.svg?v=20260823-decision-first" alt="" aria-hidden="true">
     <div class="brand-lockup"><span class="brand-emblem" aria-hidden="true"></span><span class="brand-copy"><strong>SRIS</strong><small>MISSION INTELLIGENCE</small></span></div>
     <div class="hero-copy">
       <span class="hero-kicker"><i></i>Infraestrutura de decisão</span>
@@ -22,41 +24,47 @@
     </div>
     <div class="hero-foot"><span>Missões persistentes</span><span>•</span><span>Evidência rastreável</span><span>•</span><span>Memória organizacional</span></div>
   </section>
+
   <section class="auth-panel">
     <div class="auth-card">
-      <div class="eyebrow" style="color:#356655">PILOT V1 · SEPT 2026</div>
+      <div class="eyebrow auth-release">PILOTO V1 · VALIDAÇÃO OPERACIONAL</div>
       <h2 id="auth-title">Bem-vindo</h2>
       <p class="muted" id="auth-subtitle">Entre no seu workspace ou crie uma conta para começar.</p>
       <div class="auth-tabs" id="auth-tabs"><button class="auth-tab active" data-mode="login">Entrar</button><button class="auth-tab" data-mode="register">Criar conta</button></div>
-      <div id="message" class="alert hidden" role="status"></div>
+      <div id="message" class="alert hidden" role="status" aria-live="polite"></div>
+
       <form id="login-form" class="auth-form">
         <div class="field"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="email" required placeholder="nome@empresa.pt"></div>
         <div class="field"><label for="login-password">Palavra-passe</label><input id="login-password" type="password" autocomplete="current-password" required placeholder="••••••••••••"></div>
         <div class="auth-actions"><button type="button" class="link-btn" id="forgot-link">Recuperar palavra-passe</button><button class="btn btn-primary" type="submit">Entrar</button></div>
       </form>
+
       <form id="register-form" class="auth-form hidden">
         <div class="field"><label for="reg-name">Nome</label><input id="reg-name" required minlength="2" autocomplete="name" placeholder="O seu nome"></div>
-        <div class="field"><label for="reg-org">Organização / projeto</label><input id="reg-org" minlength="2" placeholder="Ex.: Município de Penela"></div>
+        <div class="field"><label for="reg-org">Organização / projeto</label><input id="reg-org" minlength="2" placeholder="Ex.: Unidade de alojamento"></div>
         <div class="field"><label for="reg-email">Email</label><input id="reg-email" type="email" autocomplete="email" required placeholder="nome@empresa.pt"></div>
         <div class="field"><label for="reg-password">Palavra-passe</label><input id="reg-password" type="password" minlength="12" autocomplete="new-password" required placeholder="Mínimo 12 caracteres"></div>
         <button class="btn btn-primary" type="submit">Criar conta e entrar</button>
         <div class="note">A conta cria um workspace individual para estruturar missões, evidência, decisões e aprendizagem.</div>
       </form>
+
       <form id="reset-request-form" class="auth-form hidden">
         <div class="field"><label for="reset-email">Email da conta</label><input id="reset-email" type="email" autocomplete="email" required placeholder="nome@empresa.pt"></div>
         <button class="btn btn-primary" type="submit">Recuperar acesso</button><button class="link-btn" type="button" data-back-login>Voltar ao login</button>
-        <div class="note">No Pilot V1, a recuperação pode ser testada diretamente. Em produção será entregue por email.</div>
+        <div class="note">Introduza o email associado à conta. O sistema indicará o canal disponível para recuperar o acesso.</div>
       </form>
+
       <form id="reset-confirm-form" class="auth-form hidden">
         <input id="reset-token" type="hidden">
         <div class="field"><label for="new-password">Nova palavra-passe</label><input id="new-password" type="password" minlength="12" autocomplete="new-password" required placeholder="Mínimo 12 caracteres"></div>
         <div class="field"><label for="new-password-2">Confirmar palavra-passe</label><input id="new-password-2" type="password" minlength="12" autocomplete="new-password" required placeholder="Repita a palavra-passe"></div>
         <button class="btn btn-primary" type="submit">Definir nova palavra-passe</button>
       </form>
-      <div class="trial-box" id="trial-box"><div class="trial-icon">✓</div><div><strong>Workspace de decisão incluído</strong><div class="note" id="trial-copy">Missões persistentes, evidência, histórico e memória organizacional num único espaço de trabalho.</div></div></div>
+
+      <div class="trial-box discipline-box" id="trial-box"><div class="trial-icon">✓</div><div><strong>Disciplina antes da assistência</strong><div class="note" id="trial-copy">A assistência deve indicar incerteza, separar facto de inferência e nunca preencher lacunas com confiança artificial.</div></div></div>
     </div>
   </section>
 </main>
-<script src="/auth.js?v=20260822-recovery1" defer></script>
+<script src="/auth.js?v=20260823-decision-first" defer></script>
 </body>
 </html>
