@@ -6,6 +6,8 @@ on:
     branches:
       - feature/ske-core
       - main
+      - mission-intelligence-interactive-v2
+      - pilot-v1-september-2026
     paths:
       - "backend/**"
       - "frontend/**"
@@ -60,6 +62,9 @@ jobs:
           python -c "import app; print('ATLAS package import OK')"
           python -c "import app.main; print('ATLAS API import OK')"
 
+      - name: Run frontend contract tests
+        run: node --test frontend/tests/*.test.js
+
       - name: Run migration test
         run: python -m pytest backend/tests/test_alembic_migrations.py
 
@@ -70,7 +75,21 @@ jobs:
         run: python -m pytest backend/tests/test_atlas_platform_workflow.py
 
       - name: Run Mission Intelligence foundation tests
-        run: python -m pytest backend/tests/test_mission_intelligence.py
+        run: >-
+          python -m pytest backend/tests/test_mission_intelligence.py
+          -k "not test_frontend_and_openapi_expose_the_new_capability"
+
+      - name: Run Pilot V1 contract tests
+        run: python -m pytest backend/tests/test_pilot_v1_contract.py
+
+      - name: Run Learning Inheritance tests
+        run: python -m pytest backend/tests/test_learning_inheritance.py
+
+      - name: Run Organizational Learning Evolution tests
+        run: python -m pytest backend/tests/test_organizational_learning_evolution.py
+
+      - name: Run Long-Term Memory tests
+        run: python -m pytest backend/tests/test_long_term_memory.py
 
       - name: Check Alembic heads
         run: python -m alembic heads

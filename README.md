@@ -12,6 +12,11 @@ Institutional creation, editing and mission-of-missions architecture:
 Active reasoning, dialogue state and granular proposal review:
 [Mission Intelligence interactive v2](docs/MISSION-INTELLIGENCE-INTERACTIVE-V2.md).
 
+Growing mission archive, relevance retrieval and adaptive context windows:
+[Scalable Mission Context Archive v1](docs/MI-SCALABLE-CONTEXT-ARCHIVE-V1.md).
+Validation record:
+[Scalable Mission Context validation — 2026-08-15](docs/MI-SCALABLE-CONTEXT-VALIDATION-2026-08-15.md).
+
 Deterministic foundation and legacy advisory mode:
 [Mission Intelligence & AI v1](docs/MISSION-INTELLIGENCE-AI-V1.md).
 

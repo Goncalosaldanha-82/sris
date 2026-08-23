@@ -98,8 +98,10 @@ class MissionDocumentV13(StrictModel):
     title: str = Field(min_length=1, max_length=500)
     context: str = Field(default="", max_length=30000)
     central_question: str = Field(default="", max_length=10000)
-    records: list[MissionRecord] = Field(default_factory=list, max_length=1000)
-    relations: list[MissionRelation] = Field(default_factory=list, max_length=3000)
+    # Mission scale is a storage/retrieval concern, not a provider-context
+    # limit. A mission may therefore grow beyond one model call's window.
+    records: list[MissionRecord] = Field(default_factory=list)
+    relations: list[MissionRelation] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -405,8 +407,19 @@ class MIInteractionInput(StrictModel):
     intent: MIInteractionIntent = MIInteractionIntent.DIAGNOSE
     message: str = Field(min_length=1, max_length=12000)
     answers: list[MIQuestionAnswer] = Field(default_factory=list, max_length=30)
+    # All referenced sources remain attached to the governed turn. The
+    # provider receives only a retrieved working set, so this list must not be
+    # confused with a per-call context limit.
+    attachment_ids: list[str] = Field(default_factory=list)
     mission_input: AnalysisInput = Field(default_factory=AnalysisInput)
     research_context: bool = False
+
+    @field_validator("attachment_ids")
+    @classmethod
+    def require_unique_attachment_ids(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("Attachment IDs must be unique within a turn")
+        return value
 
 
 class MIDirectAnswer(StrictModel):
@@ -430,6 +443,28 @@ class MIMissionReading(StrictModel):
     current_blocker: str = Field(min_length=1, max_length=5000)
     key_tension: str = Field(min_length=1, max_length=5000)
     blind_spot: str = Field(min_length=1, max_length=5000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class MIDecisionUpdate(StrictModel):
+    decision_before: str = Field(min_length=1, max_length=3000)
+    decision_now: str = Field(min_length=1, max_length=3000)
+    what_changed: str = Field(min_length=1, max_length=3000)
+    confidence_before: ConfidenceLevel
+    confidence_now: ConfidenceLevel
+    confidence_direction: Literal["increased", "decreased", "unchanged", "not_evaluable"]
+    reason: str = Field(min_length=1, max_length=3000)
+    remaining_uncertainty: str = Field(min_length=1, max_length=3000)
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class MIConfidenceChange(StrictModel):
+    subject_id: str = Field(min_length=1, max_length=120)
+    subject: str = Field(min_length=1, max_length=1000)
+    confidence_before: ConfidenceLevel
+    confidence_now: ConfidenceLevel
+    direction: Literal["increased", "decreased", "unchanged", "not_evaluable"]
+    reason: str = Field(min_length=1, max_length=3000)
     based_on_ids: list[str] = Field(min_length=1, max_length=50)
 
 
@@ -529,6 +564,12 @@ class MIRecommendedAction(StrictModel):
     owner_role: str = Field(min_length=1, max_length=500)
     dependencies: list[str] = Field(default_factory=list, max_length=30)
     urgency: Literal["now", "next", "later"]
+    action_class: Literal[
+        "documentary_no_touch",
+        "access_non_intrusive",
+        "intrusive",
+    ]
+    authorization_note: str = Field(min_length=1, max_length=2000)
     decision_effect: str = Field(min_length=1, max_length=4000)
     based_on_ids: list[str] = Field(min_length=1, max_length=50)
 
@@ -545,10 +586,12 @@ class MIInteractionBoundary(StrictModel):
 class MIInteractiveOutput(StrictModel):
     """Structured output for an active, mission-scoped reasoning turn."""
 
-    response_version: Literal["2.0"] = "2.0"
+    response_version: Literal["2.3"] = "2.3"
     intent: MIInteractionIntent
     direct_answer: MIDirectAnswer
     mission_reading: MIMissionReading
+    decision_update: MIDecisionUpdate
+    confidence_changes: list[MIConfidenceChange] = Field(min_length=1, max_length=8)
     questions: list[MIClarifyingQuestion] = Field(default_factory=list, max_length=8)
     hypotheses: list[MIHypothesisProposal] = Field(default_factory=list, max_length=8)
     alternative_proposals: list[MIAlternativeProposal] = Field(
@@ -604,6 +647,7 @@ class ReviewRequest(StrictModel):
 
 class AIGovernancePolicyUpdate(StrictModel):
     enabled: bool = False
+    enforce_monthly_limits: bool = False
     monthly_request_limit: int = Field(default=20, ge=1, le=100_000)
     monthly_input_token_limit: int = Field(default=250_000, ge=1_000, le=1_000_000_000)
     monthly_output_token_limit: int = Field(default=50_000, ge=500, le=1_000_000_000)
@@ -619,11 +663,17 @@ class AIGovernancePolicyUpdate(StrictModel):
 
     @model_validator(mode="after")
     def validate_limits(self) -> "AIGovernancePolicyUpdate":
-        if self.per_request_input_token_limit > self.monthly_input_token_limit:
+        if (
+            self.enforce_monthly_limits
+            and self.per_request_input_token_limit > self.monthly_input_token_limit
+        ):
             raise ValueError(
                 "per_request_input_token_limit cannot exceed the monthly input limit"
             )
-        if self.per_request_output_token_limit > self.monthly_output_token_limit:
+        if (
+            self.enforce_monthly_limits
+            and self.per_request_output_token_limit > self.monthly_output_token_limit
+        ):
             raise ValueError(
                 "per_request_output_token_limit cannot exceed the monthly output limit"
             )

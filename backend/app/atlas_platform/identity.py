@@ -44,7 +44,12 @@ from .schemas import (
     PasswordResetStartRequest,
     PasswordResetStartResponse,
 )
-from .security import create_access_token, hash_password, verify_password
+from .security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 
 
 router = APIRouter(tags=["identity"])
@@ -585,6 +590,10 @@ def accept_invitation(
     return InvitationAcceptResponse(
         status="account_activated",
         access_token=create_access_token(
+            user_id=user.id,
+            auth_version=user.auth_version,
+        ),
+        refresh_token=create_refresh_token(
             user_id=user.id,
             auth_version=user.auth_version,
         ),

@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 _temp_dir = TemporaryDirectory()
 _db_path = Path(_temp_dir.name) / "atlas-test.db"
@@ -66,3 +67,56 @@ def test_register_login_org_and_knowledge() -> None:
     )
     assert listed.status_code == 200, listed.text
     assert len(listed.json()) == 1
+
+
+def test_session_refresh_renews_tokens_and_enforces_token_types() -> None:
+    suffix = uuid4().hex[:10]
+    email = f"refresh-{suffix}@example.com"
+    password = "strong-password-123"
+    registered = client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "full_name": "Refresh Test Owner",
+            "password": password,
+        },
+    )
+    assert registered.status_code == 201, registered.text
+
+    login = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert login.status_code == 200, login.text
+    tokens = login.json()
+    assert tokens["access_token"]
+    assert tokens["refresh_token"]
+    assert tokens["access_token"] != tokens["refresh_token"]
+
+    refresh_as_access = client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {tokens['refresh_token']}"},
+    )
+    assert refresh_as_access.status_code == 401
+
+    access_as_refresh = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": tokens["access_token"]},
+    )
+    assert access_as_refresh.status_code == 401
+
+    renewed = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": tokens["refresh_token"]},
+    )
+    assert renewed.status_code == 200, renewed.text
+    renewed_tokens = renewed.json()
+    assert renewed_tokens["access_token"] != tokens["access_token"]
+    assert renewed_tokens["refresh_token"] != tokens["refresh_token"]
+
+    me = client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {renewed_tokens['access_token']}"},
+    )
+    assert me.status_code == 200, me.text
+    assert me.json()["email"] == email

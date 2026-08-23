@@ -1,15 +1,14 @@
 # SRIS — Mission Intelligence interativa v2
 
-Estado: implementada no repositório; implantação e smoke test real ao fornecedor
-pendentes
+Estado: implementada no repositório; release `1.7.3` em validação para staging
 
-Versão da aplicação: `1.6.0`
+Versão da aplicação: `1.7.3`
 
-Versão do contrato: `2.0`
+Versão do contrato: `2.3`
 
-Versão do prompt: `sris-mi-interactive-2.0`
+Versão do prompt: `sris-mi-interactive-2.6`
 
-Migração: `20260812_0007`
+Migração head: `20260815_0011`
 
 ## 1. Resultado
 
@@ -27,6 +26,10 @@ pode:
   de paragem;
 - desafiar uma formulação ou opção existente;
 - converter a análise em próximas ações com dependências e efeito decisório.
+- cruzar campos materiais entre documentos e imagens, transformando relações,
+  confrontações, coordenadas e sequências temporais em hipóteses condicionais;
+- desambiguar termos pelo género documental e impedir aumentos de confiança
+  factual sem evidência canónica confirmada.
 
 O motor acrescenta possibilidades de investigação e decisão. Não acrescenta
 factos, não escolhe uma alternativa e não altera silenciosamente a missão.
@@ -115,6 +118,28 @@ factos demonstrados. A abordagem segue avaliação orientada a critérios e caso
 de fronteira, como recomendado em [evaluation best
 practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices).
 
+### 5.1 Raciocínio documental e relacional
+
+A janela de trabalho inclui agora um contrato analítico e sinais de atenção
+determinísticos. Estes sinais não criam factos: obrigam o motor a não ignorar
+estruturas documentais materiais, incluindo confrontações cardeais,
+coordenadas sem sistema de referência, datas de emissão, classe predial e
+elementos visuais fornecidos pelo utilizador.
+
+Quando duas fontes permitem um cruzamento, a resposta deve formular uma
+hipótese condicional e uma contra-hipótese, citando ambas. Em documentos
+prediais, `Nascente` é desambiguado como Este; o nome de um confrontante é
+tratado como associação histórica ao prédio vizinho, nunca como prova de
+titularidade atual. Marcadores criados pelo utilizador permanecem declarações
+espaciais até existir geometria ou cartografia oficial compatível.
+
+O backend aplica ainda um teto determinístico: uma hipótese nova sustentada
+apenas por anexos ou registos não confirmados não pode exceder confiança
+`low`. Uma promoção para `moderate` ou `high` exige pelo menos um registo
+canónico confirmado de natureza observacional, informacional, representacional
+ou probatória. A confiança na prudência da decisão mantém-se separada da
+confiança factual na hipótese.
+
 ## 6. Persistência e auditabilidade
 
 A migração acrescenta:
@@ -141,6 +166,13 @@ Controlos aplicados a cada turno:
 - máximo de `13 000` bytes UTF-8 de histórico compacto;
 - máximo de `4 000` bytes UTF-8 de revisões humanas;
 - preservação prioritária do turno mais recente;
+- arquivo integral separado da janela de cada chamada;
+- extração, cifragem e indexação local de documentos com texto;
+- recuperação seletiva por relevância e prioridade dos anexos do turno;
+- preservação integral dos blocos de texto dos anexos selecionados no turno,
+  mesmo quando o perfil reduz histórico e fontes anteriores;
+- citação obrigatória, em `based_on_ids`, de cada anexo do turno que entrou na
+  janela de trabalho; uma resposta sem essas citações é rejeitada;
 - máximo padrão de `6 000` tokens de saída, com ou sem pesquisa;
 - reserva conservadora antes de qualquer chamada e contagem exata quando o
   endpoint do fornecedor está disponível;
@@ -172,6 +204,9 @@ narrativa. Inclui:
 - seletor de intenção;
 - compositor de perguntas e respostas;
 - pesquisa contextual opcional;
+- estado visível de extração e indexação de cada anexo;
+- rastreio por ficheiro entre excertos selecionados e secções da resposta que o
+  citaram;
 - perguntas respondíveis no próprio turno;
 - cartões distintos para hipóteses, alternativas, critérios e experiências;
 - desafio crítico, ações e próximo movimento;
@@ -185,9 +220,8 @@ compatibilidade. Já não é apresentado como a capacidade principal.
 
 ## 10. Implantação controlada
 
-1. Implantar com `SRIS_AI_ENABLED=false` e
-   `SRIS_CONTEXT_RESEARCH_ENABLED=false`.
-2. Executar `alembic upgrade head` e confirmar a revisão `20260812_0007`.
+1. Implantar mantendo as gates de IA já configuradas no ambiente alvo.
+2. Executar `alembic upgrade head` e confirmar a revisão `20260815_0011`.
 3. Confirmar `/health` e `/api/mission-intelligence/status`.
 4. Manter `max_concurrent_requests=1`,
    `per_request_input_token_limit>=60000` e
@@ -205,12 +239,13 @@ compatibilidade. Já não é apresentado como a capacidade principal.
 
 ## 11. Limites deliberados desta versão
 
-- Não foi efetuada uma chamada paga ao fornecedor durante a implementação.
-- PDFs, apresentações e vídeo do Sanctuary informaram o caso de domínio, mas
-  ainda não existe ingestão canónica direta desses ficheiros para o diálogo.
-- O corpus completo não dispõe ainda de ferramentas de recuperação seletiva;
-  esta versão envia o snapshot governado completo. Ferramentas locais de
-  leitura tornam-se necessárias quando as missões excederem este envelope.
+- O arquivo da missão pode crescer para além de uma chamada, mas cada ficheiro
+  mantém um limite de segurança de 20 MB e cada pedido usa uma janela finita.
+- PDF, Office, texto, HTML e imagens são preservados. Fontes sem texto local
+  extraível usam leitura direta quando selecionadas e quando o orçamento da
+  janela o permite.
+- Um anexo preservado mas não selecionado não é apresentado como lido. Fica
+  disponível para um turno posterior dirigido.
 - `accepted_as_draft` é um estado de revisão, não um endpoint de promoção para
   a missão canónica.
 - O motor não executa ações externas, não solicita autorizações e não comunica
@@ -220,7 +255,7 @@ compatibilidade. Já não é apresentado como a capacidade principal.
 
 ## 12. Verificação local
 
-Checkpoint de 12 de agosto de 2026:
+Checkpoint histórico de 12 de agosto de 2026:
 
 - 46 testes de Mission Intelligence aprovados;
 - 81 testes aprovados e 35 especificações legadas ignoradas na suíte completa;
