@@ -1,0 +1,2 @@
+/* SRIS Pilot V1 release visual hardening */
+.sris-mark-v2{position:relative;display:inline-block;width:44px;height:44px;border:2px solid #d6a746;border-radius:50%}.sris-mark-v2:before{content:"";position:absolute;left:20px;top:8px;width:2px;height:29px;background:#d6a746}.sris-mark-v2:after{content:"";position:absolute;left:16.5px;top:8px;width:9px;height:9px;border-radius:50%;background:#d6a746}
