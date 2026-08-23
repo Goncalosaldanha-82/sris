@@ -19,22 +19,19 @@ from app.atlas_platform.models import User
 from app.pilot_product import (
     PilotPasswordResetRequest,
     PilotTopupRequest,
-    _ai_model,
     _ensure_pilot_schema,
     _flag,
     _hash_token,
     _pilot_runtime,
-    _public_signup_enabled,
     _utcnow,
     pilot_test_topup as legacy_test_topup,
     router as legacy_router,
 )
 
-BUILD = "20260823-decision-first"
-
 
 # Reuse the mature Pilot product routes, replacing only operations whose public
 # behavior must be safer or less commercially prominent during validation.
+# The public capability description is served by pilot_capabilities.py.
 router = APIRouter(tags=["pilot-product"])
 _replaced = {
     ("/api/pilot/capabilities", "GET"),
@@ -77,26 +74,6 @@ def _password_reset_delivery() -> str:
 def _reset_link(raw_token: str) -> str:
     token = urllib.parse.quote(raw_token, safe="")
     return f"{_public_base_url()}/?reset_token={token}"
-
-
-def _reset_email_copy(link: str) -> tuple[str, str]:
-    subject = "Recuperar acesso ao SRIS"
-    text_body = (
-        "Foi pedido um novo acesso ao seu workspace SRIS.\n\n"
-        f"Defina uma nova palavra-passe através deste endereço:\n{link}\n\n"
-        "O endereço é válido durante 30 minutos e só pode ser utilizado uma vez. "
-        "Se não fez este pedido, ignore esta mensagem."
-    )
-    html_body = f"""
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0d201a;max-width:620px;margin:auto">
-      <div style="font-size:13px;letter-spacing:.12em;color:#2f6d59;font-weight:700">SRIS · MISSION INTELLIGENCE</div>
-      <h1 style="font-family:Georgia,serif;font-weight:500;font-size:34px">Recuperar acesso</h1>
-      <p>Foi pedido um novo acesso ao seu workspace SRIS.</p>
-      <p><a href="{link}" style="display:inline-block;background:#103d32;color:#fff;text-decoration:none;padding:13px 18px;border-radius:10px;font-weight:700">Definir nova palavra-passe</a></p>
-      <p style="color:#66756e">Este endereço é válido durante 30 minutos e só pode ser utilizado uma vez. Se não fez este pedido, ignore esta mensagem.</p>
-    </div>
-    """
-    return subject, text_body + "\n\n" + html_body
 
 
 def _send_resend(to_email: str, subject: str, text_body: str, html_body: str) -> None:
@@ -178,25 +155,6 @@ def _send_password_reset_email(to_email: str, raw_token: str) -> None:
         _send_brevo(to_email, subject, text_body, html_body)
 
 
-@router.get("/api/pilot/capabilities")
-def pilot_capabilities(db: Session = Depends(get_db)) -> dict:
-    _ensure_pilot_schema(db)
-    db.commit()
-    return {
-        "build": BUILD,
-        "public_signup": _public_signup_enabled(),
-        "password_reset": True,
-        "password_reset_delivery": _password_reset_delivery(),
-        "assistance_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
-        "assistance_enabled": _flag("SRIS_AI_ENABLED", False),
-        "mission_workspace": True,
-        "document_intelligence": True,
-        "evidence_graph": True,
-        "organizational_memory": True,
-        "billing_mode": "disabled",
-    }
-
-
 @router.post("/api/pilot/password-reset/request")
 def pilot_password_reset_request(
     payload: PilotPasswordResetRequest,
@@ -245,9 +203,8 @@ def pilot_password_reset_request(
         try:
             _send_password_reset_email(user.email, raw_token)
         except (urllib.error.URLError, urllib.error.HTTPError, RuntimeError, KeyError) as exc:
-            # The response remains neutral to avoid account enumeration. The
-            # failure is visible in Railway logs and the one-time token remains
-            # available for a new request after configuration is corrected.
+            # Keep the response neutral to avoid account enumeration. The
+            # failure remains visible in Railway logs for operational action.
             print(f"SRIS transactional email failed: {type(exc).__name__}: {exc}")
     elif delivery == "pilot-link":
         response["reset_token"] = raw_token
