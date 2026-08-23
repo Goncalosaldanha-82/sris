@@ -1,14 +1,37 @@
 (()=>{
-  const $=(s)=>document.querySelector(s);
-  const $$=(s)=>[...document.querySelectorAll(s)];
+  'use strict';
+
+  const BUILD='20260823-decision-first';
+  const $=(selector,root=document)=>root.querySelector(selector);
+  const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
   const token=()=>localStorage.getItem('sris_access_token');
-  const BUILD='20260822-r15-product-reset';
   let workspaceReady=false;
-  let statusLabel='A sincronizar';
+  let statusLabel='Workspace a sincronizar';
   let enforcing=false;
 
   window.__srisPilotBuild=BUILD;
   document.documentElement.dataset.pilotBuild=BUILD;
+
+  const roleLabels={
+    owner:'Proprietário e administrador',
+    admin:'Administrador',
+    reviewer:'Revisor',
+    contributor:'Colaborador',
+    observer:'Observador',
+    member:'Membro',
+  };
+
+  function displayWorkspaceName(value){
+    const clean=String(value||'').trim();
+    if(!clean)return'SRIS Pilot';
+    if(['fundador','founder','workspace','workspace individual'].includes(clean.toLowerCase()))return'SRIS Pilot';
+    return clean;
+  }
+
+  function displayRole(value){
+    const key=String(value||'member').toLowerCase();
+    return roleLabels[key]||String(value||'Membro');
+  }
 
   function authHeaders(){
     const headers={'Content-Type':'application/json'};
@@ -39,33 +62,31 @@
     if(element&&value!==undefined&&value!==null)element.textContent=String(value);
   }
 
-  function money(value){return Number(value||0).toFixed(2)}
+  function setValue(selector,value){
+    const element=$(selector);
+    if(element)element.value=value??'';
+  }
 
   function setStatus(label,state='ready'){
     statusLabel=label;
     const element=$('#provider-state');
     if(!element)return;
-    if(element.textContent!==label)element.textContent=label;
+    element.textContent=label;
     element.dataset.state=state;
   }
 
   function removeLegacyNoise(){
     $('#pilot-integration-alert')?.remove();
     $('#pilot-capability-surface')?.remove();
+    $('#opv1-panel')?.remove();
+    $('#billing')?.remove();
     $$('.capability-chips').forEach(element=>element.remove());
-
-    // AI and commercial information remain accessible from Conta. They do not
-    // compete with the Mission Workspace in the primary navigation.
-    $$('.nav-group').forEach(group=>{
-      const label=group.querySelector('.nav-group-label')?.textContent?.trim().toLowerCase();
-      if(label==='utilitários')group.hidden=true;
-    });
+    $$('[data-section="billing"],[data-go="billing"]').forEach(element=>element.remove());
 
     const labels={
       overview:'Visão geral',
-      mission:'Mission Workspace',
+      mission:'Missões',
       copilot:'Análise assistida',
-      billing:'Serviço e utilização',
       account:'Conta',
     };
     $$('[data-section]').forEach(button=>{
@@ -82,6 +103,21 @@
     const learning=$('[data-mission-tab="learning"]');
     const memoryPlaceholder=$('[data-mission-tab="memory"]');
     if(learning&&memoryPlaceholder){memoryPlaceholder.remove();$('#mission-tab-memory')?.remove();}
+
+    const labels={
+      summary:'Resumo',
+      documents:'Documentos',
+      graph:'Evidência',
+      evidence:'Evidência',
+      cycle:'Decisão',
+      intelligence:'Diálogo',
+      learning:'Memória',
+      memory:'Memória',
+      history:'Auditoria',
+    };
+    $$('[data-mission-tab]').forEach(button=>{
+      if(labels[button.dataset.missionTab])button.textContent=labels[button.dataset.missionTab];
+    });
   }
 
   function syncPageTitle(){
@@ -89,9 +125,8 @@
     if(!active)return;
     const titles={
       overview:'Visão geral',
-      mission:'Mission Workspace',
+      mission:'Espaço de missão',
       copilot:'Análise assistida',
-      billing:'Serviço e utilização',
       account:'Conta',
     };
     setText('#page-title',titles[active.id]||'SRIS');
@@ -102,28 +137,26 @@
     const organization=profile?.organization||{};
     const ai=profile?.ai||{};
     const integration=profile?.integration||{};
+    const workspaceName=displayWorkspaceName(organization.name);
+    const role=displayRole(organization.role);
 
     if(organization.id)localStorage.setItem('sris_org_id',organization.id);
     setText('#mini-name',user.full_name||user.email||'Utilizador');
-    setText('#mini-org',organization.name||'Workspace');
-    setText('#workspace-role',(organization.role||'membro').toUpperCase());
-    setText('#workspace-name',organization.name||'Workspace individual');
+    setText('#mini-org',workspaceName);
+    setText('#workspace-role',role);
+    setText('#workspace-name',workspaceName);
+    setValue('#account-name',user.full_name||'');
+    setValue('#account-email',user.email||'');
+    setValue('#account-org',workspaceName);
+    setValue('#account-role',role);
 
-    // Technical information is hydrated only inside the explicitly secondary
-    // technical/administrative surfaces.
-    setText('#balance-eur',money(ai.credit_eur));
-    setText('#billing-balance',money(ai.credit_eur));
-    setText('#copilot-balance',money(ai.credit_eur));
-    setText('#plan-name',(ai.plan||'pilot').replace(/^./,char=>char.toUpperCase()));
-    setText('#model-name',ai.model||'a confirmar');
-    setText('#copilot-model',ai.model||'Assistência');
-    setText('#copilot-model-2',ai.model||'a confirmar');
-    setText('#requests-used',ai.requests_used||0);
-    setText('#requests-limit',ai.request_limit||0);
-    setText('#ai-status',ai.provider_configured&&ai.runtime_enabled?'Disponível':'Não ativa');
+    const assistanceReady=Boolean(ai.provider_configured&&ai.runtime_enabled&&ai.organization_enabled!==false);
+    setText('#ai-status',assistanceReady?'Disponível':'Não ativa');
+    setText('#copilot-availability',assistanceReady?'Disponível':'Não ativa');
 
     workspaceReady=Boolean(integration.workspace_ready||organization.id);
-    setStatus(workspaceReady?'Workspace sincronizado':'Workspace por concluir',workspaceReady?'ready':'degraded');
+    setText('#persistence-state',workspaceReady?'Ativa':'A recuperar');
+    setStatus(workspaceReady?'Workspace sincronizado':'Workspace a recuperar',workspaceReady?'ready':'degraded');
   }
 
   async function hydrateRuntime(){
@@ -138,7 +171,7 @@
       hydrateProfile(profileResult.value);
     }else{
       workspaceReady=false;
-      setStatus('Ligação a recuperar','degraded');
+      setStatus('Workspace a recuperar','degraded');
       console.warn('SRIS workspace profile unavailable:',profileResult.reason?.message||profileResult.reason);
     }
 
@@ -163,6 +196,8 @@
       evidenceGraph:Boolean($('[data-mission-tab="graph"]')||$('[data-mission-tab="evidence"]')),
       organizationalMemory:Boolean($('[data-mission-tab="learning"]')||$('[data-mission-tab="memory"]')),
       decisionCycle:Boolean($('[data-mission-tab="cycle"]')),
+      optionalAssistance:Boolean($('#copilot')),
+      billingVisible:Boolean($('#billing')||$('[data-section="billing"]')),
     };
   }
 
@@ -193,8 +228,6 @@
     const observer=new MutationObserver(()=>setTimeout(enforceProductHierarchy,0));
     observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
 
-    // A silent second synchronization handles slow Railway/database wake-up
-    // without interrupting the user with a global error banner.
     setTimeout(hydrateRuntime,2500);
   }
 
