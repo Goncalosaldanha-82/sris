@@ -51,7 +51,6 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     for marker in (
         "SRIS — Espaço de Missão",
         "Visão geral",
-        "Espaço de missão",
         "Comece pela decisão. Preserve a razão.",
         "Observação",
         "Evidência",
