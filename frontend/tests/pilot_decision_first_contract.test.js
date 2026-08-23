@@ -65,7 +65,7 @@ test('canonical transverse objects are created with human provenance',()=>{
 
 test('assistance remains optional and does not expose provider or wallet data',()=>{
   assert.match(index,/Análise assistida, não centro do produto\./);
-  assert.match(index,/revisão humana obrigatória/i);
+  assert.match(index,/Humana obrigatória/i);
   assert.doesNotMatch(index,/Crédito IA|Último custo|Saldo/);
   assert.doesNotMatch(app,/billing-balance|last-charge|model-name/);
   assert.doesNotMatch(integration,/billing-balance|last-charge|model-name/);
