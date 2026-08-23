@@ -234,3 +234,22 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
 })();
+
+/* Deterministic loader for release-hardening-v2.js and its visual contract. */
+(()=>{
+  'use strict';
+  if(!document.querySelector('link[data-sris-release-hardening]')){
+    const link=document.createElement('link');
+    link.rel='stylesheet';
+    link.href='/release-hardening-v2.css?v=20260823-release-hardening-v2';
+    link.dataset.srisReleaseHardening='true';
+    document.head.appendChild(link);
+  }
+  if(!document.querySelector('script[data-sris-release-hardening]')){
+    const script=document.createElement('script');
+    script.src='/release-hardening-v2.js?v=20260823-release-hardening-v2';
+    script.async=false;
+    script.dataset.srisReleaseHardening='true';
+    document.head.appendChild(script);
+  }
+})();
