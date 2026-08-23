@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260822-r15-product-reset"
+PILOT_BUILD = "20260823-decision-first"
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -16,22 +16,31 @@ def _flag(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _model() -> str:
-    return os.getenv("SRIS_OPENAI_MODEL", "gpt-5.6-terra").strip() or "gpt-5.6-terra"
+def _password_reset_delivery() -> str:
+    base = os.getenv("SRIS_PUBLIC_BASE_URL", "").strip()
+    sender = os.getenv("SRIS_EMAIL_FROM", "").strip()
+    provider = bool(os.getenv("RESEND_API_KEY", "").strip() or os.getenv("BREVO_API_KEY", "").strip())
+    if base and sender and provider:
+        return "email"
+    if _flag("SRIS_PILOT_SHOW_RESET_LINK", False):
+        return "pilot-link"
+    return "configuration-required"
 
 
 @router.get("/capabilities")
 def pilot_capabilities() -> dict:
     """Public, non-sensitive description of the Pilot surface.
 
-    The entry page uses this endpoint before authentication. It must therefore
-    expose only product availability flags and never provider credentials,
-    organization identifiers or account state.
+    Provider names, model aliases, balances and organization state are
+    intentionally excluded. They are implementation details, not product
+    capabilities.
     """
 
     return {
         "build": PILOT_BUILD,
         "public_signup": _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True),
+        "password_reset": True,
+        "password_reset_delivery": _password_reset_delivery(),
         "workspace_profile_endpoint": "/api/pilot/profile",
         "mission_intelligence": True,
         "document_intelligence": True,
@@ -41,9 +50,9 @@ def pilot_capabilities() -> dict:
         "provenance": True,
         "organizational_memory": True,
         "hybrid_retrieval": True,
-        "ai_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
-        "ai_enabled": _flag("SRIS_AI_ENABLED", False),
-        "ai_model": _model(),
+        "assistance_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
+        "assistance_enabled": _flag("SRIS_AI_ENABLED", False),
+        "billing_mode": "disabled",
     }
 
 
