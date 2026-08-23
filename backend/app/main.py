@@ -20,7 +20,7 @@ from app.pilot_bootstrap import router as pilot_bootstrap_router
 from app.pilot_epistemic import router as evidence_graph_router
 from app.pilot_intelligence import router as pilot_intelligence_router
 from app.pilot_learning import router as pilot_learning_router
-from app.pilot_product import router as pilot_product_router
+from app.pilot_product_secure import router as pilot_product_router
 from app.repository_engine.api import repository_router
 
 BASE_DIR = Path(__file__).resolve().parents[2]
