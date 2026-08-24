@@ -29,6 +29,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/product-recovery-v1.css",
         "/product-core-v2.css",
         "/sunrise.svg",
+        "/emergency-stability-v1.css",
     ):
         assert marker in frontend.text
     assert "PILOT V1 · SEPT 2026" not in frontend.text
@@ -43,8 +44,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/intelligence-v2.js",
         "/evidence-graph.js",
         "/admin-accounts.js",
-        "/pilot-integration-v3.js",
-        "/mission-experience-v1.js",
+        "/release-hardening-v2.js",
         "/decision-workbench-v1.js",
         "/decision-cycle-v1.js",
     )
@@ -77,11 +77,18 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "Grafo de evidência",
         "Análise assistida",
         "Memória organizacional",
+        "/release-hardening-v2.css",
+        "/emergency-stability-v1.css",
         *assets,
     ):
         assert marker in workspace.text
     for asset in assets:
         assert workspace.text.count(asset) == 1
+
+    # The two overlapping observer layers remain available as source files for
+    # audit, but must not execute in the authenticated browser shell.
+    assert "/pilot-integration-v3.js" not in workspace.text
+    assert "/mission-experience-v1.js" not in workspace.text
 
     for forbidden in (
         "/pilot-operational-v1.js",
@@ -113,6 +120,18 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
     assert "Optional Pilot capabilities unavailable" in integration.text
     assert "billing-balance" not in integration.text
     assert "model-name" not in integration.text
+
+    hardening = client.get("/release-hardening-v2.js")
+    assert hardening.status_code == 200
+    for marker in (
+        "Carregar documentos",
+        "Relatório completo (.pdf)",
+        "Relatório completo (.html)",
+        "Secção atual (.md)",
+        "Análise assistida disponível",
+        "Análise assistida indisponível",
+    ):
+        assert marker in hardening.text
 
     app_script = client.get("/app.js")
     assert app_script.status_code == 200
