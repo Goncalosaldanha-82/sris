@@ -5,55 +5,40 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
-const pilot=path.resolve(here,'../pilot-v1');
-const read=name=>fs.readFileSync(path.join(pilot,name),'utf8');
+const root=path.resolve(here,'../..');
+const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
+const index=read('frontend/pilot-v1/index.html');
+const app=read('frontend/pilot-v1/app.js');
+const server=read('backend/app/main.py');
+const config=read('backend/app/atlas_platform/config.py');
+const migrations=read('migrations/env.py');
 
-const index=read('index.html');
-const integration=read('pilot-integration-v3.js');
-const hardening=read('release-hardening-v2.js');
-const server=fs.readFileSync(path.resolve(here,'../../backend/app/main.py'),'utf8');
-
-test('stable staging shell excludes the observer loop and loads hardening directly',()=>{
-  assert.doesNotThrow(()=>new Function(integration));
-  assert.doesNotThrow(()=>new Function(hardening));
-  assert.match(index,/pilot-integration-v3\.js/); // source remains available for audit
-  assert.match(server,/DISABLED_RUNTIME_ASSETS/);
-  assert.match(server,/pilot-integration-v3\.js/);
-  assert.match(server,/mission-experience-v1\.js/);
-  assert.match(server,/release-hardening-v2\.js/);
-  assert.match(server,/release-hardening-v2\.css/);
-  assert.match(server,/emergency-stability-v1\.css/);
-  assert.match(server,/20260824-staging-stable-v1/);
+test('server serves the declared build without hidden asset injection',()=>{
+  assert.match(server,/html\.replace\("__PILOT_BUILD__", PILOT_BUILD\)/);
+  assert.doesNotMatch(server,/DISABLED_RUNTIME_ASSETS|_inject_stable_runtime|release-hardening-v2/);
+  assert.match(server,/X-SRIS-Pilot-Build/);
+  assert.match(index,/__PILOT_BUILD__/);
 });
 
-test('navigation and institutional brand are operational rather than decorative',()=>{
-  assert.match(hardening,/sris-menu-toggle/);
-  assert.match(hardening,/sris-sidebar-open/);
-  assert.match(hardening,/aria-expanded/);
-  assert.match(hardening,/sris-mark-v2/);
-  assert.match(hardening,/Mission Intelligence/);
+test('Railway database resolution is shared and rejects ephemeral SQLite',()=>{
+  assert.match(config,/os\.getenv\("ATLAS_DATABASE_URL"/);
+  assert.match(config,/os\.getenv\("DATABASE_URL"/);
+  assert.match(config,/managed deployments cannot use SQLite/);
+  assert.match(migrations,/settings\.database_url/);
+  assert.doesNotMatch(migrations,/os\.getenv\("ATLAS_DATABASE_URL"\)/);
 });
 
-test('mission documents and report downloads are first-class actions',()=>{
-  for(const marker of [
-    'Carregar documentos',
-    'sris-upload-zone',
-    'Relatório completo (.pdf)',
-    'Relatório completo (.html)',
-    'Secção atual (.md)',
-    'makePdf',
-  ])assert.match(hardening,new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+test('navigation is direct, accessible and closes deterministically',()=>{
+  assert.match(index,/id="menu-btn"[^>]+aria-expanded="false"/);
+  assert.match(index,/id="sidebar-backdrop"/);
+  assert.match(app,/function setMenu\(open\)/);
+  assert.match(app,/event\.key==='Escape'/);
+  assert.match(app,/setAttribute\('aria-expanded'/);
 });
 
-test('assisted analysis reports runtime truth and remains optional',()=>{
-  assert.match(hardening,/Análise assistida disponível/);
-  assert.match(hardening,/Análise assistida indisponível/);
-  assert.match(hardening,/O Mission Workspace continua operacional sem IA/);
-  assert.match(hardening,/disabled=!ready/);
-});
-
-test('editorial photography is used without replacing the working surface',()=>{
-  assert.match(hardening,/url\('\/sunrise\.svg'\)/);
-  assert.match(hardening,/Compreender antes de intervir/);
-  assert.match(hardening,/nunca preencher lacunas com confiança artificial/);
+test('runtime truth disables unconfigured assistance without blocking missions',()=>{
+  assert.match(app,/function setAssistanceState\(ready\)/);
+  assert.match(app,/submit\.disabled=!ready/);
+  assert.match(app,/A assistência não está configurada neste serviço/);
+  assert.match(index,/A missão, a evidência, a decisão e a memória permanecem canónicas/);
 });

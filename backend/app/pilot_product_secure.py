@@ -177,9 +177,9 @@ def pilot_password_reset_request(
     db.execute(
         text(
             "UPDATE pilot_password_reset_tokens "
-            "SET used_at=now() WHERE user_id=:uid AND used_at IS NULL"
+            "SET used_at=:now WHERE user_id=:uid AND used_at IS NULL"
         ),
-        {"uid": user.id},
+        {"uid": user.id, "now": _utcnow()},
     )
     raw_token = secrets.token_urlsafe(48)
     db.execute(

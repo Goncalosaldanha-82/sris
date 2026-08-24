@@ -62,6 +62,9 @@ jobs:
           python -c "import app; print('ATLAS package import OK')"
           python -c "import app.main; print('ATLAS API import OK')"
 
+      - name: Migrate the CI application database
+        run: python -m alembic upgrade head
+
       - name: Run frontend contract tests
         run: node --test frontend/tests/*.test.js
 

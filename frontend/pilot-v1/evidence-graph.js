@@ -54,6 +54,7 @@
   const orderedTypes=['observation','evidence','assumption','constraint','gap','hypothesis','alternative','decision','action','outcome','learning','claim'];
 
   async function req(url,options={}){
+    if(window.SRISApi?.request)return window.SRISApi.request(url,options);
     const response=await fetch(url,{...options,headers:{...headers(),...(options.headers||{})},cache:'no-store'});
     let data={};
     try{data=await response.json()}catch{}

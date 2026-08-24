@@ -15,51 +15,40 @@ Criar um serviço separado, por exemplo `sris-pilot-v1`, ligado exclusivamente a
 ```text
 SRIS_PILOT_MODE=true
 SRIS_PUBLIC_SIGNUP_ENABLED=true
-SRIS_PILOT_SHOW_RESET_LINK=true
-SRIS_BILLING_TEST_MODE=true
-SRIS_TRIAL_CREDIT_EUR=5.00
+ATLAS_DATABASE_URL=${{Postgres.DATABASE_URL}}
+ATLAS_JWT_SECRET=<segredo aleatório exclusivo, mínimo 32 bytes>
+ATLAS_ENV=production
+SRIS_PILOT_SHOW_RESET_LINK=false
+SRIS_AI_ENABLED=false
+```
+
+O PostgreSQL tem de pertencer exclusivamente ao serviço `sris-pilot-v1`. Nunca reutilizar a base de dados de `sris-production` ou de `SRIS-Mission-Intelligence`. O backend também aceita a referência Railway com o nome `DATABASE_URL`, mas `ATLAS_DATABASE_URL` torna a ligação explícita e tem precedência.
+
+O arranque é interrompido se um deploy Railway tentar usar SQLite. Isto evita contas e missões aparentemente funcionais que desaparecem no redeploy.
+
+Só ativar assistência depois de configurar a chave como secret do Railway e validar o endpoint:
+
+```text
 SRIS_AI_ENABLED=true
-SRIS_OPENAI_MODEL=gpt-5.6-terra
 OPENAI_API_KEY=<secret Railway — nunca colocar no GitHub>
 ```
 
-Manter também as variáveis canónicas já exigidas pelo backend, incluindo `DATABASE_URL`, segredos JWT e qualquer configuração de storage já utilizada pela instalação SRIS.
-
-## Preços e controlo de margem
-
-A carteira do piloto usa micro-euros e regista movimentos num ledger dedicado. O custo do fornecedor e o preço ao cliente ficam separados. Defaults atuais para Terra podem ser alterados sem deploy:
-
-```text
-SRIS_OPENAI_INPUT_USD_PER_M=1.25
-SRIS_OPENAI_OUTPUT_USD_PER_M=7.50
-SRIS_BILLING_EUR_PER_USD=0.92
-SRIS_AI_PRICE_MULTIPLIER=1.50
-SRIS_PLAN_PROFESSIONAL_EUR=49
-SRIS_PLAN_ORGANIZATION_EUR=149
-```
-
-Antes de lançamento comercial, rever câmbio, preços oficiais do fornecedor, IVA, margem, limites de utilização e política de reembolso.
-
 ## Recuperação de palavra-passe
 
-No Pilot V1, `SRIS_PILOT_SHOW_RESET_LINK=true` devolve o token de recuperação ao browser apenas para permitir teste end-to-end sem fornecedor de email. Em produção esta opção deve ser `false` e deve ser ligado um serviço transacional de email.
-
-## Pagamentos
-
-Os carregamentos de 10 €, 25 € e 50 € são simulados enquanto `SRIS_BILLING_TEST_MODE=true`. Não representam cobrança financeira real. Antes de produção deve ser ligado um PSP (por exemplo Stripe ou equivalente), com webhook assinado e reconciliação de ledger.
+`SRIS_PILOT_SHOW_RESET_LINK=true` só é aceitável numa validação técnica controlada: devolve o token ao browser. No staging partilhado deve ser `false` e deve ser ligado email transacional antes de validar a entrega real.
 
 ## Smoke test após deploy
 
 1. `GET /health` deve devolver base de dados OK.
 2. A página `/` deve apresentar o nascer do sol, login, criação de conta e recuperação.
-3. Criar uma conta nova; verificar crédito inicial.
+3. Criar uma conta nova; confirmar que o workspace abre.
 4. Terminar sessão e voltar a entrar.
 5. Testar recuperação de palavra-passe e confirmar que a palavra-passe antiga deixa de funcionar.
-6. Em `/app`, abrir Copiloto IA e executar uma pergunta curta.
-7. Confirmar débito de créditos e movimento no ledger.
-8. Testar um carregamento simulado.
-9. Criar uma nova Mission Intelligence e pedir a primeira leitura analítica.
-10. Repetir em desktop e mobile.
+6. Criar uma missão, sair, voltar a entrar e confirmar persistência.
+7. Carregar vários documentos e confirmar a listagem e proveniência.
+8. Exportar a secção e o relatório da missão.
+9. Se a assistência estiver configurada, executar uma pergunta curta e confirmar que o estado apresentado é verdadeiro.
+10. Repetir em desktop e num iPhone real, incluindo teclado aberto no login.
 
 ## Segurança para produção
 

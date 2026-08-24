@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.atlas_platform.database import Base
+from app.atlas_platform.config import settings
 from app.atlas_platform import models  # noqa: F401
 from app.atlas_platform import workflow_models  # noqa: F401
 from app.mission_intelligence import models as mission_intelligence_models  # noqa: F401
@@ -17,9 +17,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-database_url = os.getenv("ATLAS_DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 

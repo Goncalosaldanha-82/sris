@@ -9,26 +9,27 @@ const pilot=path.resolve(here,'../pilot-v1');
 const source=fs.readFileSync(path.join(pilot,'decision-cycle-v1.js'),'utf8');
 const index=fs.readFileSync(path.join(pilot,'index.html'),'utf8');
 
-test('Decision Loop V2 is syntactically valid and cache-busted',()=>{
+test('Decision Loop is syntactically valid and follows the Pilot build token',()=>{
   assert.doesNotThrow(()=>new Function(source));
-  assert.match(source,/20260822-decision-loop-v2/);
-  assert.match(index,/decision-cycle-v1\.js\?v=20260822-decision-loop-v2/);
-  assert.ok(index.indexOf('decision-cycle-v1.js')<index.indexOf('decision-workbench-v1.js'));
+  assert.match(source,/20260824-stabilization-v1/);
+  assert.match(index,/decision-cycle-v1\.js\?v=__PILOT_BUILD__/);
+  assert.doesNotMatch(index,/decision-workbench-v1\.js/);
+  assert.doesNotMatch(source,/new MutationObserver\s*\(/);
+  assert.match(source,/sris:evidence-graph-updated/);
+  assert.match(source,/sris:mission-opened/);
 });
 
-test('Decision Loop replaces browser prompts with governed forms',()=>{
+test('Decision Loop uses governed forms instead of browser prompts',()=>{
   assert.doesNotMatch(source,/\bprompt\s*\(/);
   assert.doesNotMatch(source,/\balert\s*\(/);
-  for(const id of ['dc1-create-form','dc1-decision','dc1-action','dc1-owner','dc1-due','dc1-expected']){
-    assert.match(source,new RegExp(id));
-  }
+  for(const id of ['dc1-create-form','dc1-decision','dc1-action','dc1-owner','dc1-due','dc1-expected'])assert.match(source,new RegExp(id));
   assert.match(source,/Defina a ação antes de avançar o estado da decisão/);
   assert.match(source,/Registe o resultado observado antes de concluir a decisão/);
 });
 
-test('Decision outcomes remain governed before organizational reuse',()=>{
+test('outcomes remain reviewed before organizational reuse',()=>{
   assert.match(source,/materialize-learning/);
-  assert.match(source,/learning_status|Aprendizagem enviada para revisão humana/);
+  assert.match(source,/Aprendizagem enviada para revisão humana/);
   assert.match(source,/Aceitar aprendizagem/);
   assert.match(source,/Publicar na memória organizacional/);
   assert.match(source,/revisão humana obrigatória/);

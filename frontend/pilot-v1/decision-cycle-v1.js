@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260822-decision-loop-v2';
+  const BUILD='20260824-stabilization-v1';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;
@@ -10,7 +10,6 @@
 
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
-  const token=()=>localStorage.getItem('sris_access_token');
   const esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const missionCode=()=>{
     const raw=(($('#detail-code')?.textContent||'').trim());
@@ -29,7 +28,6 @@
   let installed=false;
   let loading=false;
   let rows=[];
-  let observer=null;
 
   window.__srisDecisionLoopV2={
     installed:true,
@@ -40,9 +38,11 @@
   document.documentElement.dataset.decisionLoop=BUILD;
 
   async function api(path,options={}){
+    if(window.SRISApi?.request)return window.SRISApi.request(path,options);
     const headers={...(options.headers||{})};
     if(!(options.body instanceof FormData))headers['Content-Type']='application/json';
-    if(token())headers.Authorization=`Bearer ${token()}`;
+    const currentToken=localStorage.getItem('sris_access_token');
+    if(currentToken)headers.Authorization=`Bearer ${currentToken}`;
     const res=await fetch(path,{...options,headers,cache:'no-store'});
     let data={};
     try{data=await res.json()}catch{}
@@ -151,14 +151,14 @@
         if(card)openFromWorkbench(card);
       }
       if(event.target.closest?.('[data-mission-tab="cycle"]'))setTimeout(()=>load(false),0);
-      if(event.target.closest?.('[data-mid]'))setTimeout(()=>{rows=[];renderKPIs();load(false)},280);
     },true);
-
-    observer=new MutationObserver(()=>{
-      augmentWorkbench();
-      augmentGraph();
+    document.addEventListener('sris:mission-opened',()=>{
+      rows=[];
+      renderKPIs();
+      if($('[data-mission-tab="cycle"]')?.classList.contains('active'))load(false);
     });
-    observer.observe(detail,{subtree:true,childList:true});
+    document.addEventListener('sris:evidence-graph-updated',augmentGraph);
+    document.addEventListener('sris:workbench-updated',augmentWorkbench);
 
     installed=true;
     augmentWorkbench();

@@ -1,11 +1,13 @@
 const $=(selector,root=document)=>root.querySelector(selector);
 const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
 const token=()=>localStorage.getItem('sris_access_token');
+const refreshToken=()=>localStorage.getItem('sris_refresh_token');
 
 let profile=null;
 let missions=[];
 let selectedMission=null;
 let profileAvailable=false;
+let refreshPromise=null;
 
 const titles={
   overview:'Visão geral',
@@ -78,7 +80,7 @@ const missionTemplates={
 
 function logout(){
   ['sris_access_token','sris_refresh_token','sris_org_id'].forEach(key=>localStorage.removeItem(key));
-  location.href='/';
+  location.assign('/');
 }
 
 function errText(data,status){
@@ -89,17 +91,72 @@ function errText(data,status){
   return data?.message||`Erro ${status}`;
 }
 
-async function api(path,options={}){
-  const headers={...(options.headers||{})};
-  if(!(options.body instanceof FormData))headers['Content-Type']='application/json';
+function storeTokens(data){
+  if(data?.access_token)localStorage.setItem('sris_access_token',data.access_token);
+  if(data?.refresh_token)localStorage.setItem('sris_refresh_token',data.refresh_token);
+}
+
+async function renewSession(){
+  if(refreshPromise)return refreshPromise;
+  const current=refreshToken();
+  if(!current)throw new Error('Sessão expirada.');
+  refreshPromise=(async()=>{
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),20000);
+    try{
+      const response=await fetch('/api/auth/refresh',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:current}),
+        cache:'no-store',
+        signal:controller.signal,
+      });
+      let data={};
+      try{data=await response.json();}catch{}
+      if(!response.ok)throw new Error(errText(data,response.status));
+      storeTokens(data);
+      return data;
+    }finally{
+      clearTimeout(timeout);
+      refreshPromise=null;
+    }
+  })();
+  return refreshPromise;
+}
+
+async function rawApi(path,options={}){
+  const {retryAuth=true,timeoutMs,...fetchOptions}=options;
+  const headers={...(fetchOptions.headers||{})};
+  if(!(fetchOptions.body instanceof FormData))headers['Content-Type']='application/json';
   if(token())headers.Authorization=`Bearer ${token()}`;
-  const response=await fetch(path,{...options,headers,cache:'no-store'});
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),timeoutMs||((fetchOptions.body instanceof FormData)?120000:45000));
+  try{
+    const response=await fetch(path,{...fetchOptions,headers,cache:'no-store',signal:controller.signal});
+    if(response.status===401&&retryAuth&&refreshToken()){
+      await renewSession();
+      return rawApi(path,{...options,retryAuth:false});
+    }
+    if(response.status===401){logout();throw new Error('Sessão expirada.');}
+    return response;
+  }catch(error){
+    if(error.name==='AbortError')throw new Error('O serviço demorou demasiado a responder. Tente novamente.');
+    if(error instanceof TypeError)throw new Error('Não foi possível contactar o serviço. Verifique a ligação.');
+    throw error;
+  }finally{
+    clearTimeout(timeout);
+  }
+}
+
+async function api(path,options={}){
+  const response=await rawApi(path,options);
   let data={};
-  try{data=await response.json()}catch{}
-  if(response.status===401){logout();throw new Error('Sessão expirada.');}
+  try{data=await response.json();}catch{}
   if(!response.ok)throw new Error(errText(data,response.status));
   return data;
 }
+
+window.SRISApi={request:api,raw:rawApi,renew:renewSession,logout,token};
 
 function setText(selector,value){
   const element=$(selector);
@@ -141,11 +198,51 @@ function setWorkspaceState(label,state='ready'){
   element.dataset.state=state;
 }
 
+function showAppMessage(message,{retry=false}={}){
+  const box=$('#app-message');
+  if(!box)return;
+  box.textContent=message;
+  box.className='app-message alert error';
+  if(retry){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='btn btn-secondary compact';
+    button.style.marginLeft='10px';
+    button.textContent='Tentar novamente';
+    button.addEventListener('click',async()=>{
+      button.classList.add('loading');
+      try{
+        await refresh();
+        if(orgId())await loadMissions();
+      }catch(error){
+        box.firstChild.textContent=`${error.message} `;
+      }finally{button.classList.remove('loading');}
+    });
+    box.append(' ',button);
+  }
+}
+
+function clearAppMessage(){
+  const box=$('#app-message');
+  if(box){box.textContent='';box.className='app-message alert hidden';}
+}
+
+function setAssistanceState(ready){
+  document.documentElement.dataset.assistance=ready?'ready':'unavailable';
+  const submit=$('#copilot-form [type="submit"]');
+  if(submit){
+    submit.disabled=!ready;
+    submit.title=ready?'':'A assistência ainda não está configurada neste serviço.';
+    submit.textContent=ready?'Analisar':'Assistência não configurada';
+  }
+  window.SRISRuntime={...(window.SRISRuntime||{}),assistanceReady:ready};
+}
+
 function go(section){
   $$('.section').forEach(node=>node.classList.toggle('active',node.id===section));
   $$('.nav button').forEach(button=>button.classList.toggle('active',button.dataset.section===section));
   setText('#page-title',titles[section]||'SRIS');
-  $('#sidebar')?.classList.remove('open');
+  setMenu(false);
   if(section==='mission'&&orgId())loadMissions({openFirst:true});
   if(section==='copilot')updateCopilotContext();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -153,7 +250,20 @@ function go(section){
 
 $$('.nav button').forEach(button=>button.addEventListener('click',()=>go(button.dataset.section)));
 $$('[data-go]').forEach(button=>button.addEventListener('click',()=>go(button.dataset.go)));
-$('#menu-btn')?.addEventListener('click',()=>$('#sidebar')?.classList.toggle('open'));
+
+function setMenu(open){
+  const sidebar=$('#sidebar');
+  const button=$('#menu-btn');
+  sidebar?.classList.toggle('open',Boolean(open));
+  button?.setAttribute('aria-expanded',open?'true':'false');
+  button?.setAttribute('aria-label',open?'Fechar menu':'Abrir menu');
+  document.body.classList.toggle('menu-open',Boolean(open));
+}
+
+$('#menu-btn')?.addEventListener('click',()=>setMenu(!$('#sidebar')?.classList.contains('open')));
+$('#sidebar-backdrop')?.addEventListener('click',()=>setMenu(false));
+document.addEventListener('keydown',event=>{if(event.key==='Escape')setMenu(false);});
+window.matchMedia('(min-width: 801px)').addEventListener?.('change',event=>{if(event.matches)setMenu(false);});
 $('#logout-btn')?.addEventListener('click',logout);
 $('#logout-btn-2')?.addEventListener('click',logout);
 
@@ -165,6 +275,7 @@ function renderProfile(payload){
   const ai=payload.ai||{};
   const integration=payload.integration||{};
   if(organization.id)localStorage.setItem('sris_org_id',organization.id);
+  else localStorage.removeItem('sris_org_id');
 
   const workspaceName=displayWorkspaceName(organization.name);
   const role=displayRole(organization.role);
@@ -185,6 +296,9 @@ function renderProfile(payload){
   setText('#copilot-availability',assistanceReady?'Disponível':'Não ativa');
   setText('#persistence-state',workspaceReady?'Ativa':'A recuperar');
   setWorkspaceState(workspaceReady?'Workspace sincronizado':'Workspace a recuperar',workspaceReady?'ready':'degraded');
+  setAssistanceState(assistanceReady);
+  clearAppMessage();
+  if(!workspaceReady)showAppMessage('A conta foi autenticada, mas ainda não tem um workspace associado.');
   updateCopilotContext();
 }
 
@@ -196,6 +310,7 @@ function renderDegradedProfile(){
   setText('#persistence-state','A recuperar');
   setText('#ai-status','A confirmar');
   setText('#copilot-availability','A confirmar');
+  setAssistanceState(false);
 }
 
 async function refresh(){
@@ -273,15 +388,33 @@ function renderProvenance(sources=[]){
 }
 
 async function askAssistance(message,context,answerElement,button){
+  const ai=profile?.ai||{};
+  const ready=Boolean(ai.provider_configured&&ai.runtime_enabled&&ai.organization_enabled!==false);
+  if(!ready){
+    answerElement.textContent='A assistência não está configurada neste serviço. A missão, os documentos, a evidência e o ciclo de decisão continuam disponíveis.';
+    answerElement.classList.add('empty');
+    return null;
+  }
   answerElement.classList.remove('empty');
   answerElement.textContent='A analisar contexto, evidência e memória…';
   button?.classList.add('loading');
   try{
+    let governedContext=context||'';
+    if(selectedMission?.code){
+      try{
+        const inherited=await api(`/api/pilot/learning/missions/${encodeURIComponent(selectedMission.code)}/active-context`);
+        if(inherited?.context_text){
+          governedContext=[governedContext,inherited.context_text].filter(Boolean).join('\n\n--- Aprendizagem revista de missões anteriores ---\n\n');
+        }
+      }catch(error){
+        console.warn('Reviewed learning context unavailable; continuing without it:',error.message);
+      }
+    }
     const data=await api('/api/pilot/intelligence/ask',{
       method:'POST',
       body:JSON.stringify({
         message,
-        context:context||null,
+        context:governedContext||null,
         mission_id:selectedMission?.id||null,
         mission_code:selectedMission?.code||null,
       }),
@@ -428,9 +561,10 @@ async function openMission(id){
     if(answer){answer.textContent='A análise assistida é opcional. A missão e a evidência permanecem canónicas independentemente da sua utilização.';answer.classList.add('empty');}
     showMissionMode('detail');
     updateCopilotContext();
+    document.dispatchEvent(new CustomEvent('sris:mission-opened',{detail:{mission}}));
     await Promise.allSettled([loadAttachments(),loadHistory(),loadEpistemicCounts(mission.code)]);
   }catch(error){
-    $('#mission-list')?.insertAdjacentHTML('afterbegin','<div class="alert error">Não foi possível abrir esta missão.</div>');
+    $('#mission-list')?.insertAdjacentHTML('afterbegin',`<div class="alert error">Não foi possível abrir esta missão: ${escapeHtml(error.message)}</div>`);
   }
 }
 
@@ -513,10 +647,37 @@ $$('[data-mission-tab]').forEach(button=>button.addEventListener('click',()=>{
 }));
 
 function showMissionMessage(message,type='error'){
-  const box=$('#mission-message');
+  const detailVisible=!$('#mission-detail')?.classList.contains('hidden');
+  const box=$(detailVisible?'#detail-message':'#mission-message');
   if(!box)return;
   box.textContent=message;
   box.className=`alert ${type==='success'?'success':'error'}`;
+}
+
+function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob);
+  const anchor=document.createElement('a');
+  anchor.href=url;
+  anchor.download=filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+async function downloadAttachment(id,filename,button){
+  if(!selectedMission)return;
+  button?.classList.add('loading');
+  try{
+    const response=await rawApi(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments/${encodeURIComponent(id)}/download`);
+    if(!response.ok){
+      let data={};try{data=await response.json();}catch{}
+      throw new Error(errText(data,response.status));
+    }
+    downloadBlob(await response.blob(),filename||'documento');
+  }catch(error){
+    showMissionMessage(`Não foi possível descarregar o documento: ${error.message}`);
+  }finally{button?.classList.remove('loading');}
 }
 
 async function loadAttachments(){
@@ -525,32 +686,108 @@ async function loadAttachments(){
     const rows=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments`);
     const root=$('#attachment-list');
     if(!root)return;
-    root.innerHTML=rows.length?rows.map(attachment=>`<div class="attachment-row"><span><strong>${escapeHtml(attachment.original_filename||attachment.filename||'Documento')}</strong><small>${escapeHtml(attachment.extraction_status||'registado')}${attachment.byte_size?` · ${Math.ceil(attachment.byte_size/1024)} KB`:''}</small></span><span class="pill">${escapeHtml(attachment.extension||'ficheiro')}</span></div>`).join(''):'<div class="note">Sem documentos carregados.</div>';
-  }catch{
+    root.innerHTML=rows.length?rows.map(attachment=>{
+      const filename=attachment.original_filename||attachment.filename||'Documento';
+      return `<div class="attachment-row"><span><strong>${escapeHtml(filename)}</strong><small>${escapeHtml(attachment.extraction_status||'registado')}${attachment.byte_size?` · ${Math.ceil(attachment.byte_size/1024)} KB`:''}</small></span><span class="attachment-actions"><span class="pill">${escapeHtml(attachment.extension||'ficheiro')}</span>${attachment.id?`<button type="button" data-download-attachment="${escapeHtml(attachment.id)}" data-filename="${escapeHtml(filename)}">Descarregar</button>`:''}</span></div>`;
+    }).join(''):'<div class="note">Sem documentos carregados.</div>';
+    $$('[data-download-attachment]',root).forEach(button=>button.addEventListener('click',()=>downloadAttachment(button.dataset.downloadAttachment,button.dataset.filename,button)));
+    document.dispatchEvent(new CustomEvent('sris:attachments-updated',{detail:{mission:selectedMission,attachments:rows}}));
+  }catch(error){
     const root=$('#attachment-list');
-    if(root)root.innerHTML='<div class="note">Os documentos desta missão não estão disponíveis neste momento.</div>';
+    if(root)root.innerHTML=`<div class="note">Os documentos desta missão não estão disponíveis neste momento: ${escapeHtml(error.message)}</div>`;
   }
 }
 
-$('#upload-file-btn')?.addEventListener('click',async event=>{
+async function uploadFiles(fileList,button=$('#upload-file-btn')){
   if(!selectedMission){showMissionMessage('Abra primeiro uma missão.');return;}
-  const input=$('#mission-file');
-  const file=input?.files?.[0];
-  if(!file){showMissionMessage('Selecione primeiro um documento.');return;}
-  const formData=new FormData();
-  formData.append('file',file);
-  event.currentTarget.classList.add('loading');
-  try{
-    await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments`,{method:'POST',body:formData});
-    input.value='';
-    showMissionMessage('Documento carregado e associado à missão.','success');
-    await loadAttachments();
-  }catch(error){
-    showMissionMessage(`Não foi possível carregar o documento: ${error.message}`);
-  }finally{
-    event.currentTarget.classList.remove('loading');
+  const files=[...(fileList||[])];
+  if(!files.length){showMissionMessage('Selecione primeiro pelo menos um documento.');return;}
+  const progress=$('#upload-progress');
+  const failures=[];
+  button?.classList.add('loading');
+  button?.setAttribute('aria-busy','true');
+  for(let index=0;index<files.length;index++){
+    const file=files[index];
+    if(progress)progress.textContent=`A carregar ${index+1} de ${files.length}: ${file.name}`;
+    const formData=new FormData();
+    formData.append('file',file);
+    try{
+      await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments`,{method:'POST',body:formData,timeoutMs:120000});
+    }catch(error){failures.push(`${file.name}: ${error.message}`);}
   }
+  $('#mission-file').value='';
+  button?.classList.remove('loading');
+  button?.removeAttribute('aria-busy');
+  if(progress)progress.textContent=failures.length?`${files.length-failures.length} de ${files.length} ficheiro(s) carregado(s).`:`${files.length} ficheiro(s) carregado(s) com sucesso.`;
+  if(failures.length)showMissionMessage(`Alguns documentos não foram carregados: ${failures.join(' · ')}`);
+  else showMissionMessage(`${files.length} documento(s) carregado(s) e associado(s) à missão.`,'success');
+  await loadAttachments();
+}
+
+$('#upload-file-btn')?.addEventListener('click',event=>uploadFiles($('#mission-file')?.files,event.currentTarget));
+$('#mission-file')?.addEventListener('change',event=>{
+  const count=event.currentTarget.files?.length||0;
+  const progress=$('#upload-progress');
+  if(progress)progress.textContent=count?`${count} ficheiro(s) selecionado(s).`:'';
 });
+
+const dropZone=$('#upload-drop-zone');
+['dragenter','dragover'].forEach(name=>dropZone?.addEventListener(name,event=>{event.preventDefault();dropZone.classList.add('dragging');}));
+['dragleave','drop'].forEach(name=>dropZone?.addEventListener(name,event=>{event.preventDefault();dropZone.classList.remove('dragging');}));
+dropZone?.addEventListener('drop',event=>uploadFiles(event.dataTransfer?.files));
+
+function reportSnapshot(){
+  if(!selectedMission)return null;
+  const activeButton=$('.mission-tabs [data-mission-tab].active');
+  const activeName=activeButton?.textContent?.trim()||'Estado da missão';
+  const activePanel=activeButton?$('#mission-tab-'+activeButton.dataset.missionTab):null;
+  return {
+    code:selectedMission.code||$('#detail-code')?.textContent?.trim()||'MISSÃO',
+    title:selectedMission.title||$('#detail-title')?.textContent?.trim()||'Missão',
+    objective:selectedMission.objective||$('#detail-objective')?.textContent?.trim()||'',
+    question:selectedMission.central_question||$('#detail-question')?.textContent?.trim()||'',
+    context:selectedMission.context||$('#detail-context')?.textContent?.trim()||'',
+    meta:$('#detail-meta')?.textContent?.trim()||'',
+    conditions:$('#detail-epistemic-counts')?.textContent?.trim()||'',
+    sectionTitle:activeName,
+    sectionText:activePanel?.innerText?.trim()||'Sem conteúdo registado nesta secção.',
+    generatedAt:new Date(),
+  };
+}
+
+function slug(value){
+  return String(value||'relatorio').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,90)||'relatorio';
+}
+
+function completeReportHtml(snapshot){
+  const generated=snapshot.generatedAt.toLocaleString('pt-PT');
+  const section=(heading,text)=>`<section><h2>${escapeHtml(heading)}</h2><div>${escapeHtml(text||'Não registado')}</div></section>`;
+  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(snapshot.code)} — ${escapeHtml(snapshot.title)}</title><style>body{margin:0;background:#f6f3ea;color:#10231d;font:15px/1.65 Arial,sans-serif}main{max-width:920px;margin:auto;padding:54px}header{padding-bottom:28px;border-bottom:2px solid #c99a43}.brand{font-weight:800;letter-spacing:.13em;color:#103d32}h1,h2{font-family:Georgia,serif;font-weight:500}h1{font-size:42px;line-height:1.05;margin:20px 0 8px}h2{font-size:24px;margin:28px 0 9px}section{padding-bottom:18px;border-bottom:1px solid #d8dfda;white-space:pre-wrap}.meta{color:#687971}.stamp{margin-top:34px;color:#687971;font-size:12px}@media print{body{background:#fff}main{padding:16mm}}</style></head><body><main><header><div class="brand">SRIS · MISSION INTELLIGENCE</div><h1>${escapeHtml(snapshot.title)}</h1><div class="meta">${escapeHtml(snapshot.code)}${snapshot.meta?` · ${escapeHtml(snapshot.meta)}`:''}</div></header>${section('Objetivo',snapshot.objective)}${section('Pergunta central',snapshot.question)}${section('Contexto',snapshot.context)}${section('Condições explícitas',snapshot.conditions)}${section(snapshot.sectionTitle,snapshot.sectionText)}<div class="stamp">Relatório gerado em ${escapeHtml(generated)}. Documento de trabalho sujeito a revisão humana.</div></main></body></html>`;
+}
+
+function exportReport(kind){
+  const snapshot=reportSnapshot();
+  if(!snapshot){showMissionMessage('Abra primeiro uma missão.');return;}
+  const base=slug(`${snapshot.code}-${snapshot.title}`);
+  if(kind==='html'){
+    downloadBlob(new Blob([completeReportHtml(snapshot)],{type:'text/html;charset=utf-8'}),`${base}-relatorio.html`);
+    return;
+  }
+  if(kind==='md'){
+    const markdown=`# ${snapshot.title}\n\n**Missão:** ${snapshot.code}\n\n## ${snapshot.sectionTitle}\n\n${snapshot.sectionText}\n\n---\nGerado pelo SRIS Mission Intelligence em ${snapshot.generatedAt.toLocaleString('pt-PT')}.\n`;
+    downloadBlob(new Blob([markdown],{type:'text/markdown;charset=utf-8'}),`${base}-${slug(snapshot.sectionTitle)}.md`);
+    return;
+  }
+  const reportWindow=window.open('','_blank');
+  if(!reportWindow){showMissionMessage('O browser bloqueou a janela de impressão. Autorize pop-ups para guardar o relatório em PDF.');return;}
+  reportWindow.opener=null;
+  reportWindow.document.open();
+  reportWindow.document.write(completeReportHtml(snapshot));
+  reportWindow.document.close();
+  reportWindow.addEventListener('load',()=>{reportWindow.focus();reportWindow.print();},{once:true});
+}
+
+$$('[data-report]').forEach(button=>button.addEventListener('click',()=>exportReport(button.dataset.report)));
 
 async function loadHistory(){
   if(!selectedMission)return;
@@ -571,9 +808,16 @@ function refineStaticCopy(){
 }
 
 (async()=>{
-  if(!token()){location.href='/';return;}
+  if(!token()&&refreshToken()){
+    try{await renewSession();}catch{logout();return;}
+  }
+  if(!token()){location.assign('/');return;}
   refineStaticCopy();
-  try{await refresh();}catch(error){console.warn('Pilot profile unavailable:',error.message);renderDegradedProfile();}
+  try{await refresh();}
+  catch(error){
+    console.warn('Pilot profile unavailable:',error.message);
+    renderDegradedProfile();
+    showAppMessage(`A sessão foi iniciada, mas o workspace não conseguiu sincronizar: ${error.message}`,{retry:true});
+  }
   if(orgId())await loadMissions();
-  setTimeout(()=>{if(!profileAvailable&&orgId())loadMissions();},1500);
 })();
