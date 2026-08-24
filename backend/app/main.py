@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from uuid import uuid4
 
 from fastapi import Request
@@ -22,7 +23,15 @@ from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_opera
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "pilot-v1"
-PILOT_ASSET_VERSION = "20260823-decision-first"
+PILOT_ASSET_VERSION = "20260824-emergency-stability-v1"
+
+# These two presentation layers both attached broad MutationObservers to the
+# authenticated page and rewrote the same DOM nodes. In production that formed
+# a self-sustaining mutation loop and could make the browser unresponsive.
+DISABLED_RUNTIME_ASSETS = (
+    "pilot-integration-v3.js",
+    "mission-experience-v1.js",
+)
 
 app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
@@ -69,12 +78,34 @@ if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 
+def _remove_disabled_runtime_assets(html: str) -> str:
+    for filename in DISABLED_RUNTIME_ASSETS:
+        html = re.sub(
+            rf"\s*<script\b[^>]*\bsrc=[\"']/[^\"']*{re.escape(filename)}[^\"']*[\"'][^>]*>\s*</script>",
+            "",
+            html,
+            flags=re.IGNORECASE,
+        )
+    return html
+
+
 def _frontend_html(filename: str) -> str:
     html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
     # Every deployment receives a unique asset URL. This prevents an older
     # Pilot shell from surviving in a browser while the backend has moved on.
-    for marker in ("20260822-recovery1", "20260823-decision-first"):
+    for marker in (
+        "20260822-recovery1",
+        "20260822-decision-loop-v2",
+        "20260823-decision-first",
+        "20260823-release-hardening-v2",
+    ):
         html = html.replace(marker, PILOT_ASSET_VERSION)
+
+    html = _remove_disabled_runtime_assets(html)
+    emergency_css = (
+        f'  <link rel="stylesheet" href="/emergency-stability-v1.css?v={PILOT_ASSET_VERSION}">\n'
+    )
+    html = html.replace("</head>", emergency_css + "</head>", 1)
     html = html.replace(
         "<head>",
         f'<head>\n  <meta name="sris-pilot-build" content="{PILOT_ASSET_VERSION}">',

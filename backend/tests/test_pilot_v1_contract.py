@@ -28,6 +28,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "Memória organizacional",
         "/product-recovery-v1.css",
         "/product-core-v2.css",
+        "/emergency-stability-v1.css",
         "/sunrise.svg",
     ):
         assert marker in frontend.text
@@ -43,8 +44,6 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/intelligence-v2.js",
         "/evidence-graph.js",
         "/admin-accounts.js",
-        "/pilot-integration-v3.js",
-        "/mission-experience-v1.js",
         "/decision-workbench-v1.js",
         "/decision-cycle-v1.js",
     )
@@ -77,6 +76,7 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "Grafo de evidência",
         "Análise assistida",
         "Memória organizacional",
+        "/emergency-stability-v1.css",
         *assets,
     ):
         assert marker in workspace.text
@@ -85,6 +85,8 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
 
     for forbidden in (
         "/pilot-operational-v1.js",
+        "/pilot-integration-v3.js",
+        "/mission-experience-v1.js",
         "Créditos e planos",
         "Serviço e utilização",
         "+ 10 €",
