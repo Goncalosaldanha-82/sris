@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260824-stabilization-v1"
+PILOT_BUILD = "20260824-mobile-workflow-v2"
 
 
 def _flag(name: str, default: bool = False) -> bool:

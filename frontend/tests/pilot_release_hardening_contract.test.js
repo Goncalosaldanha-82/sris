@@ -9,6 +9,7 @@ const root=path.resolve(here,'../..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 const index=read('frontend/pilot-v1/index.html');
 const app=read('frontend/pilot-v1/app.js');
+const css=read('frontend/pilot-v1/pilot.css');
 const server=read('backend/app/main.py');
 const config=read('backend/app/atlas_platform/config.py');
 const migrations=read('migrations/env.py');
@@ -40,5 +41,19 @@ test('runtime truth disables unconfigured assistance without blocking missions',
   assert.match(app,/function setAssistanceState\(ready\)/);
   assert.match(app,/submit\.disabled=!ready/);
   assert.match(app,/A assistência não está configurada neste serviço/);
+  assert.match(index,/id="assistance-unavailable"/);
+  assert.match(index,/Continuar no espaço de missão/);
   assert.match(index,/A missão, a evidência, a decisão e a memória permanecem canónicas/);
+});
+
+test('mobile mission creation wins the synchronization race and stays actionable',()=>{
+  assert.match(app,/const missionSync=section==='mission'/);
+  assert.match(app,/await go\('mission'\)/);
+  assert.match(app,/dataset\.mode!=='editor'/);
+  assert.match(app,/revealMissionWorkspace\(\$\('#mission-editor'\)\)/);
+  assert.match(index,/data-create-mission/);
+  assert.match(index,/class="mission-path-details"/);
+  assert.match(css,/calc\(126px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(css,/#mission\[data-mode="editor"\] \.mission-rail/);
+  assert.match(css,/scroll-snap-type:x mandatory/);
 });

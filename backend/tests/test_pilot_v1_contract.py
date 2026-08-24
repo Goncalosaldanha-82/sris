@@ -52,9 +52,9 @@ def test_pilot_entry_is_one_versioned_mobile_safe_surface() -> None:
         "Disciplina antes da assistência",
         "Ver melhor.",
         "Decidir melhor.",
-        "/pilot.css?v=20260824-stabilization-v1",
-        "/territory-sunrise.webp?v=20260824-stabilization-v1",
-        "/auth.js?v=20260824-stabilization-v1",
+        "/pilot.css?v=20260824-mobile-workflow-v2",
+        "/territory-sunrise.webp?v=20260824-mobile-workflow-v2",
+        "/auth.js?v=20260824-mobile-workflow-v2",
         'id="login-submit"',
     ):
         assert marker in response.text
