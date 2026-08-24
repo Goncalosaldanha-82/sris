@@ -105,9 +105,22 @@ test('canonical transverse objects retain human provenance',()=>{
 });
 
 test('evidence relations confirm persistence where the user creates them',()=>{
-  for(const marker of ['id="eg-edge-preview"','id="eg-edge-submit"','id="eg-edge-status"','id="eg-relations"','id="eg-relations-count"']){
+  for(const marker of ['id="eg-edge-preview"','id="eg-edge-swap"','id="eg-edge-submit"','id="eg-edge-status"','id="eg-relations"','id="eg-relations-count"']){
     assert.match(loaded.graph,new RegExp(marker));
   }
+  assert.match(loaded.graph,/primeiro objeto \+ relação \+ segundo objeto/);
+  assert.match(loaded.graph,/é condicionado\/a por/);
+  assert.match(loaded.graph,/Exemplo: “Hipótese é condicionada por Restrição”/);
+  assert.match(loaded.graph,/Possível direção invertida/);
+  assert.match(loaded.graph,/data-edge-reverse/);
+  assert.match(loaded.graph,/data-edge-delete/);
+  assert.match(loaded.graph,/data-edge-confirm/);
+  assert.match(loaded.graph,/data-edge-cancel/);
+  assert.match(loaded.graph,/Confirmar inversão/);
+  assert.match(loaded.graph,/Confirmar eliminação/);
+  assert.match(loaded.graph,/method:'DELETE'/);
+  assert.match(loaded.graph,/\/reverse/);
+  assert.match(loaded.graph,/operação ficará registada na auditoria/);
   assert.match(loaded.graph,/A guardar e a confirmar a relação no servidor/);
   assert.match(loaded.graph,/Relação criada e confirmada/);
   assert.match(loaded.graph,/Relação já existente e confirmada/);

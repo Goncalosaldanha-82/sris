@@ -231,6 +231,8 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/decision-cycles",
         "/api/pilot/evidence-graph/missions/{mission_code}",
         "/api/pilot/evidence-graph/missions/{mission_code}/document-evidence",
+        "/api/pilot/evidence-graph/missions/{mission_code}/edges/{edge_id}",
+        "/api/pilot/evidence-graph/missions/{mission_code}/edges/{edge_id}/reverse",
         "/api/pilot/validation/profiles",
         "/api/pilot/validation/missions/{mission_code}",
         "/api/pilot/validation/missions/{mission_code}/protocol",
@@ -473,6 +475,65 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     persisted_graph = client.get(graph_base, headers=headers)
     assert persisted_graph.status_code == 200, persisted_graph.text
     assert any(edge["id"] == linked.json()["id"] for edge in persisted_graph.json()["edges"])
+
+    reversed_link = client.post(
+        f"{graph_base}/edges/{linked.json()['id']}/reverse",
+        headers=headers,
+    )
+    assert reversed_link.status_code == 200, reversed_link.text
+    assert reversed_link.json()["reversed"] is True
+    assert reversed_link.json()["from_node_id"] == hypothesis.json()["id"]
+    assert reversed_link.json()["to_node_id"] == evidence.json()["id"]
+
+    graph_after_reverse = client.get(graph_base, headers=headers)
+    assert graph_after_reverse.status_code == 200, graph_after_reverse.text
+    persisted_reversed = next(
+        edge for edge in graph_after_reverse.json()["edges"] if edge["id"] == linked.json()["id"]
+    )
+    assert persisted_reversed["from_node_id"] == hypothesis.json()["id"]
+    assert persisted_reversed["to_node_id"] == evidence.json()["id"]
+
+    deleted_link = client.delete(
+        f"{graph_base}/edges/{linked.json()['id']}",
+        headers=headers,
+    )
+    assert deleted_link.status_code == 200, deleted_link.text
+    assert deleted_link.json()["deleted"] is True
+    assert deleted_link.json()["edge"]["id"] == linked.json()["id"]
+
+    graph_after_delete = client.get(graph_base, headers=headers)
+    assert graph_after_delete.status_code == 200, graph_after_delete.text
+    assert all(edge["id"] != linked.json()["id"] for edge in graph_after_delete.json()["edges"])
+
+    missing_link = client.delete(
+        f"{graph_base}/edges/{linked.json()['id']}",
+        headers=headers,
+    )
+    assert missing_link.status_code == 404, missing_link.text
+    assert missing_link.json()["detail"] == "A relação indicada não existe nesta missão."
+
+    relation_audit = client.get("/api/pilot/admin/audit?limit=100", headers=headers)
+    assert relation_audit.status_code == 200, relation_audit.text
+    relation_actions = {
+        event["action"]
+        for event in relation_audit.json()["events"]
+        if event["resource_id"] == linked.json()["id"]
+    }
+    assert "pilot.evidence_graph.edge_reversed" in relation_actions
+    assert "pilot.evidence_graph.edge_deleted" in relation_actions
+
+    restored_link = client.post(
+        f"{graph_base}/edges",
+        headers=headers,
+        json={
+            "from_node_id": evidence.json()["id"],
+            "to_node_id": hypothesis.json()["id"],
+            "edge_type": "supports",
+            "provenance": {"human_curated": True, "test_restored": True},
+        },
+    )
+    assert restored_link.status_code == 201, restored_link.text
+    assert restored_link.json()["created"] is True
 
     blocked = client.patch(
         f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",

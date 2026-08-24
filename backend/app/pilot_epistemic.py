@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import current_user
+from app.atlas_platform.audit import record_audit
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Role, User
 from app.evidence_graph import (
@@ -428,3 +429,148 @@ def create_graph_edge(
     result = _edge_view(row)
     result["created"] = existing_edge_id is None
     return result
+
+
+def _scoped_edge_row(
+    db: Session,
+    *,
+    organization_id: str,
+    mission_id: str,
+    edge_id: str,
+):
+    row = db.execute(
+        text(
+            """
+            SELECT * FROM pilot_evidence_graph_edges
+            WHERE id=:edge_id AND organization_id=:org AND mission_id=:mission
+            """
+        ),
+        {"edge_id": edge_id, "org": organization_id, "mission": mission_id},
+    ).mappings().one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="A relação indicada não existe nesta missão.")
+    return row
+
+
+@router.post(
+    "/api/pilot/evidence-graph/missions/{mission_code}/edges/{edge_id}/reverse",
+)
+def reverse_graph_edge(
+    mission_code: str,
+    edge_id: str,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    membership = _membership(db, user.id)
+    if membership is None:
+        raise HTTPException(status_code=403, detail="A conta não tem um workspace associado.")
+    _require_writer(membership)
+    _ensure_schema(db)
+    mission = _mission(db, membership.organization_id, mission_code)
+    row = _scoped_edge_row(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        edge_id=edge_id,
+    )
+    before = _edge_view(row)
+    collision = db.execute(
+        text(
+            """
+            SELECT id FROM pilot_evidence_graph_edges
+            WHERE organization_id=:org AND mission_id=:mission
+              AND from_node_id=:from_id AND to_node_id=:to_id
+              AND edge_type=:edge_type AND id<>:edge_id
+            LIMIT 1
+            """
+        ),
+        {
+            "org": membership.organization_id,
+            "mission": mission.id,
+            "from_id": row["to_node_id"],
+            "to_id": row["from_node_id"],
+            "edge_type": row["edge_type"],
+            "edge_id": edge_id,
+        },
+    ).scalar_one_or_none()
+    if collision is not None:
+        raise HTTPException(status_code=409, detail="A relação com a direção inversa já existe.")
+
+    db.execute(
+        text(
+            """
+            UPDATE pilot_evidence_graph_edges
+            SET from_node_id=:from_id, to_node_id=:to_id
+            WHERE id=:edge_id AND organization_id=:org AND mission_id=:mission
+            """
+        ),
+        {
+            "from_id": row["to_node_id"],
+            "to_id": row["from_node_id"],
+            "edge_id": edge_id,
+            "org": membership.organization_id,
+            "mission": mission.id,
+        },
+    )
+    updated = _scoped_edge_row(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        edge_id=edge_id,
+    )
+    after = _edge_view(updated)
+    record_audit(
+        db,
+        action="pilot.evidence_graph.edge_reversed",
+        resource_type="evidence_graph_edge",
+        resource_id=edge_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={"mission_code": mission.code, "before": before, "after": after},
+    )
+    db.commit()
+    return {**after, "reversed": True}
+
+
+@router.delete(
+    "/api/pilot/evidence-graph/missions/{mission_code}/edges/{edge_id}",
+)
+def delete_graph_edge(
+    mission_code: str,
+    edge_id: str,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    membership = _membership(db, user.id)
+    if membership is None:
+        raise HTTPException(status_code=403, detail="A conta não tem um workspace associado.")
+    _require_writer(membership)
+    _ensure_schema(db)
+    mission = _mission(db, membership.organization_id, mission_code)
+    row = _scoped_edge_row(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        edge_id=edge_id,
+    )
+    before = _edge_view(row)
+    record_audit(
+        db,
+        action="pilot.evidence_graph.edge_deleted",
+        resource_type="evidence_graph_edge",
+        resource_id=edge_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={"mission_code": mission.code, "before": before},
+    )
+    db.execute(
+        text(
+            """
+            DELETE FROM pilot_evidence_graph_edges
+            WHERE id=:edge_id AND organization_id=:org AND mission_id=:mission
+            """
+        ),
+        {"edge_id": edge_id, "org": membership.organization_id, "mission": mission.id},
+    )
+    db.commit()
+    return {"deleted": True, "id": edge_id, "edge": before}

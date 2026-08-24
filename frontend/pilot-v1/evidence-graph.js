@@ -51,8 +51,29 @@
     addresses:'responde a',
   };
 
+  const relationGuidance={
+    informs:'O primeiro objeto fornece contexto ao segundo.',
+    supports:'O primeiro objeto dá suporte ao segundo.',
+    contradicts:'O primeiro objeto contradiz o segundo.',
+    assumes:'O primeiro objeto assume o segundo como pressuposto.',
+    constrained_by:'O primeiro objeto é limitado pelo segundo. Exemplo: “Hipótese é condicionada por Restrição”.',
+    requires:'O primeiro objeto requer o segundo.',
+    addresses:'O primeiro objeto responde ao segundo.',
+    depends_on:'O primeiro objeto depende do segundo.',
+    derived_from:'O primeiro objeto deriva do segundo.',
+    tests:'O primeiro objeto testa o segundo.',
+    leads_to:'O primeiro objeto conduz ao segundo.',
+    validates:'O primeiro objeto valida o segundo.',
+    invalidates:'O primeiro objeto invalida o segundo.',
+    supersedes:'O primeiro objeto substitui o segundo.',
+    learned_from:'O primeiro objeto é uma aprendizagem obtida a partir do segundo.',
+  };
+
+  const feminineNodeTypes=new Set(['observation','evidence','claim','assumption','constraint','gap','hypothesis','alternative','decision','action','learning']);
+
   const orderedTypes=['observation','evidence','assumption','constraint','gap','hypothesis','alternative','decision','action','outcome','learning','claim'];
   let lastConfirmedEdgeId='';
+  let pendingRelationAction=null;
 
   async function req(url,options={}){
     if(window.SRISApi?.request)return window.SRISApi.request(url,options);
@@ -128,13 +149,14 @@
 
           <form id="eg-edge-form" class="card eg-form">
             <div class="card-title"><h3>Criar relação</h3></div>
-            <div class="field"><label for="eg-from">De</label><select id="eg-from"></select></div>
-            <div class="field"><label for="eg-edge-type">Relação</label><select id="eg-edge-type">
+            <p class="eg-direction-intro">A relação é lida como uma frase, de cima para baixo: <strong>primeiro objeto + relação + segundo objeto</strong>.</p>
+            <div class="field"><label for="eg-from">1. Primeiro objeto — sujeito</label><select id="eg-from"></select></div>
+            <div class="field"><label for="eg-edge-type">2. Relação</label><select id="eg-edge-type">
               <option value="informs">informa</option>
               <option value="supports">suporta</option>
               <option value="contradicts">contradiz</option>
               <option value="assumes">assume</option>
-              <option value="constrained_by">é condicionado por</option>
+              <option value="constrained_by">é condicionado/a por</option>
               <option value="requires">requer</option>
               <option value="addresses">responde a</option>
               <option value="depends_on">depende de</option>
@@ -146,8 +168,9 @@
               <option value="supersedes">substitui</option>
               <option value="learned_from">é aprendido de</option>
             </select></div>
-            <div class="field"><label for="eg-to">Para</label><select id="eg-to"></select></div>
+            <div class="field"><label for="eg-to">3. Segundo objeto — complemento</label><select id="eg-to"></select></div>
             <div id="eg-edge-preview" class="eg-edge-preview" aria-live="polite"></div>
+            <button class="eg-swap-button" id="eg-edge-swap" type="button">⇄ Trocar a ordem dos objetos</button>
             <button class="btn btn-secondary" id="eg-edge-submit" type="submit">Criar relação</button>
             <div id="eg-edge-status" class="eg-inline-status" data-state="idle" role="status" aria-live="polite">Selecione dois objetos diferentes para criar uma relação explícita.</div>
           </form>
@@ -163,7 +186,7 @@
     const style=document.createElement('style');
     style.id='eg-v2-style';
     style.textContent=`
-      .eg-toolbar{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.eg-toolbar h3{margin:5px 0}.eg-contract{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}.eg-contract>div{padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:#f7faf8}.eg-contract strong,.eg-contract span{display:block}.eg-contract strong{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#45675b}.eg-contract span{margin-top:5px;font-size:10px;line-height:1.45;color:var(--muted)}#eg-status{min-height:20px;margin:10px 0}.eg-counts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin:12px 0 15px}.eg-count{border:1px solid var(--line);border-radius:12px;padding:10px;background:#f8faf8}.eg-count strong{display:block;font-size:21px;color:var(--forest)}.eg-count span{font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.eg-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}.eg-nodes{display:grid;gap:10px}.eg-node{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}.eg-node-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.eg-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}.eg-source-integrity{background:#e5f1eb;color:#285f4b}.eg-type{font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px;border-radius:999px;background:#edf4f1;color:#41685a}.eg-node[data-type="evidence"] .eg-type{background:#f6efe1;color:#8b652b}.eg-node[data-type="assumption"] .eg-type{background:#fbf0db;color:#8b6429}.eg-node[data-type="constraint"] .eg-type{background:#f8e9e6;color:#8c5047}.eg-node[data-type="gap"] .eg-type{background:#f7efe8;color:#8b6429}.eg-node[data-type="hypothesis"] .eg-type{background:#f3eafa;color:#785185}.eg-node[data-type="alternative"] .eg-type{background:#e8f1f8;color:#3d6580}.eg-node[data-type="decision"] .eg-type{background:#e5f1eb;color:#285f4b}.eg-node[data-type="learning"] .eg-type{background:#123e32;color:#fff}.eg-node p{white-space:pre-wrap;line-height:1.55;margin:9px 0;color:#364842}.eg-prov{font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:8px;line-height:1.45}.eg-confidence{font-weight:800;color:#46675b}.eg-edges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.eg-edge{font-size:9px;border-radius:999px;padding:4px 7px;background:#f0f4f2;color:#4c665e}.eg-edge.is-confirmed{background:#dcefe5;color:#205b45;box-shadow:0 0 0 2px rgba(47,116,88,.12)}.eg-side{display:grid;gap:12px;position:sticky;top:96px}.eg-form{padding:15px}.eg-form .field{margin-bottom:10px}.eg-form textarea{min-height:90px}.eg-edge-preview{min-height:46px;margin:4px 0 10px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:#f7faf8;color:#49615a;font-size:11px;line-height:1.45;overflow-wrap:anywhere}.eg-edge-preview strong{color:var(--forest)}#eg-edge-submit{width:100%}.eg-inline-status{min-height:44px;margin-top:9px;padding:10px 11px;border-radius:11px;background:#f3f5f3;color:#65736f;font-size:11px;line-height:1.45;overflow-wrap:anywhere}.eg-inline-status[data-state="pending"]{background:#f6f1e6;color:#7c642e}.eg-inline-status[data-state="success"]{background:#e8f5ed;color:#236044;font-weight:750}.eg-inline-status[data-state="error"]{background:#fff0f0;color:#8e3535;font-weight:750}.eg-relations-card{padding:15px}.eg-relations{display:grid;gap:8px}.eg-relation-row{padding:10px;border:1px solid var(--line);border-radius:11px;background:#f9fbfa;font-size:10px;line-height:1.45;color:#536660;overflow-wrap:anywhere}.eg-relation-row strong{display:block;color:var(--forest);font-size:11px;margin:2px 0}.eg-relation-row.is-confirmed{border-color:#6e9c8b;background:#edf7f1;box-shadow:0 0 0 3px rgba(47,116,88,.08)}.eg-relations-empty{padding:13px;border:1px dashed var(--line);border-radius:11px;color:var(--muted);font-size:11px;line-height:1.45}.eg-empty{padding:28px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}@media(max-width:1080px){.eg-layout{grid-template-columns:1fr}.eg-side{position:static}.eg-counts{grid-template-columns:repeat(4,1fr)}}@media(max-width:700px){.eg-toolbar{display:grid}.eg-contract{grid-template-columns:1fr}.eg-counts{grid-template-columns:repeat(2,1fr)}}`;
+      .eg-toolbar{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.eg-toolbar h3{margin:5px 0}.eg-contract{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}.eg-contract>div{padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:#f7faf8}.eg-contract strong,.eg-contract span{display:block}.eg-contract strong{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#45675b}.eg-contract span{margin-top:5px;font-size:10px;line-height:1.45;color:var(--muted)}#eg-status{min-height:20px;margin:10px 0}.eg-counts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin:12px 0 15px}.eg-count{border:1px solid var(--line);border-radius:12px;padding:10px;background:#f8faf8}.eg-count strong{display:block;font-size:21px;color:var(--forest)}.eg-count span{font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.eg-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}.eg-nodes{display:grid;gap:10px}.eg-node{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}.eg-node-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.eg-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}.eg-source-integrity{background:#e5f1eb;color:#285f4b}.eg-type{font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px;border-radius:999px;background:#edf4f1;color:#41685a}.eg-node[data-type="evidence"] .eg-type{background:#f6efe1;color:#8b652b}.eg-node[data-type="assumption"] .eg-type{background:#fbf0db;color:#8b6429}.eg-node[data-type="constraint"] .eg-type{background:#f8e9e6;color:#8c5047}.eg-node[data-type="gap"] .eg-type{background:#f7efe8;color:#8b6429}.eg-node[data-type="hypothesis"] .eg-type{background:#f3eafa;color:#785185}.eg-node[data-type="alternative"] .eg-type{background:#e8f1f8;color:#3d6580}.eg-node[data-type="decision"] .eg-type{background:#e5f1eb;color:#285f4b}.eg-node[data-type="learning"] .eg-type{background:#123e32;color:#fff}.eg-node p{white-space:pre-wrap;line-height:1.55;margin:9px 0;color:#364842}.eg-prov{font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:8px;line-height:1.45}.eg-confidence{font-weight:800;color:#46675b}.eg-edges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.eg-edge{font-size:9px;border-radius:999px;padding:4px 7px;background:#f0f4f2;color:#4c665e}.eg-edge.is-confirmed{background:#dcefe5;color:#205b45;box-shadow:0 0 0 2px rgba(47,116,88,.12)}.eg-side{display:grid;gap:12px;position:sticky;top:96px}.eg-form{padding:15px}.eg-form .field{margin-bottom:10px}.eg-form textarea{min-height:90px}.eg-direction-intro{margin:0 0 12px;padding:9px 10px;border-radius:10px;background:#f3f6f4;color:#52675f;font-size:10px;line-height:1.45}.eg-edge-preview{min-height:46px;margin:4px 0 8px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:#f7faf8;color:#49615a;font-size:11px;line-height:1.45;overflow-wrap:anywhere}.eg-preview-caption{display:block;margin-bottom:5px;font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;color:#6b7d76}.eg-edge-preview strong{display:block;color:var(--forest);font-size:11px}.eg-edge-preview .eg-relation-phrase{display:block;margin:3px 0;color:#8a672d;font-weight:850}.eg-direction-help{display:block;margin-top:7px;padding-top:7px;border-top:1px solid var(--line);color:#60736b}.eg-direction-warning{display:block;margin-top:7px;padding:7px 8px;border-radius:8px;background:#fff0e7;color:#8b4b2f;font-weight:800}.eg-swap-button{width:100%;margin:0 0 8px;padding:9px 10px;border:1px solid #9bada6;border-radius:10px;background:#fff;color:var(--forest);font:inherit;font-size:10px;font-weight:800;cursor:pointer}#eg-edge-submit{width:100%}.eg-inline-status{min-height:44px;margin-top:9px;padding:10px 11px;border-radius:11px;background:#f3f5f3;color:#65736f;font-size:11px;line-height:1.45;overflow-wrap:anywhere}.eg-inline-status[data-state="pending"]{background:#f6f1e6;color:#7c642e}.eg-inline-status[data-state="success"]{background:#e8f5ed;color:#236044;font-weight:750}.eg-inline-status[data-state="error"]{background:#fff0f0;color:#8e3535;font-weight:750}.eg-relations-card{padding:15px}.eg-relations{display:grid;gap:8px}.eg-relation-row{padding:10px;border:1px solid var(--line);border-radius:11px;background:#f9fbfa;font-size:10px;line-height:1.45;color:#536660;overflow-wrap:anywhere}.eg-relation-row strong{display:block;color:var(--forest);font-size:11px;margin:2px 0}.eg-relation-row.is-confirmed{border-color:#6e9c8b;background:#edf7f1;box-shadow:0 0 0 3px rgba(47,116,88,.08)}.eg-relation-warning{margin-top:7px;padding:7px 8px;border-radius:8px;background:#fff0e7;color:#8b4b2f;font-weight:750}.eg-relation-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}.eg-relation-action{padding:6px 8px;border:1px solid #9bada6;border-radius:8px;background:#fff;color:var(--forest);font:inherit;font-size:9px;font-weight:800;cursor:pointer}.eg-relation-action[data-edge-delete]{border-color:#d5a29a;color:#8e3535}.eg-relation-confirmation{margin-top:9px;padding:9px;border:1px solid #d8b67d;border-radius:9px;background:#fff8e9;color:#674c24}.eg-relation-confirmation strong{margin:0 0 5px;color:#674c24}.eg-relation-confirmation span{display:block;margin-top:4px}.eg-relation-confirmation .eg-relation-actions{border-top-color:#e5cfaa}.eg-relation-action[data-edge-confirm="delete"]{border-color:#c47e73;background:#fff;color:#8e3535}.eg-relation-action:disabled,.eg-swap-button:disabled{cursor:wait;opacity:.55}.eg-relations-empty{padding:13px;border:1px dashed var(--line);border-radius:11px;color:var(--muted);font-size:11px;line-height:1.45}.eg-empty{padding:28px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}@media(max-width:1080px){.eg-layout{grid-template-columns:1fr}.eg-side{position:static}.eg-counts{grid-template-columns:repeat(4,1fr)}}@media(max-width:700px){.eg-toolbar{display:grid}.eg-contract{grid-template-columns:1fr}.eg-counts{grid-template-columns:repeat(2,1fr)}}`;
     document.head.appendChild(style);
 
     button.addEventListener('click',async()=>{
@@ -177,6 +200,8 @@
     document.querySelector('#eg-from')?.addEventListener('change',()=>updateEdgeFormState(true));
     document.querySelector('#eg-to')?.addEventListener('change',()=>updateEdgeFormState(true));
     document.querySelector('#eg-edge-type')?.addEventListener('change',()=>updateEdgeFormState(true));
+    document.querySelector('#eg-edge-swap')?.addEventListener('click',swapEdgeDirection);
+    document.querySelector('#eg-relations')?.addEventListener('click',handleRelationAction);
     updateEdgeFormState(false);
     return true;
   }
@@ -193,6 +218,20 @@
     return `${typeLabels[node.node_type]||node.node_type} · ${node.label}`;
   }
 
+  function relationPhrase(edgeType,source){
+    if(edgeType==='constrained_by')return feminineNodeTypes.has(source?.node_type)?'é condicionada por':'é condicionado por';
+    return relationLabels[edgeType]||edgeType;
+  }
+
+  function relationSentence(edgeType,source,target){
+    return `${nodeName(source)} — ${relationPhrase(edgeType,source)} → ${nodeName(target)}`;
+  }
+
+  function relationDirectionWarning(edgeType,source){
+    if(edgeType!=='constrained_by'||source?.node_type!=='constraint')return'';
+    return 'A frase atual diz que a própria Restrição é limitada pelo segundo objeto. Se pretende que a Restrição limite esse objeto, troque a ordem.';
+  }
+
   function updateEdgeFormState(resetStatus=false){
     const graph=window.__srisEvidenceGraph||{nodes:[]};
     const nodes=graph.nodes||[];
@@ -207,13 +246,26 @@
     const valid=Boolean(source&&target&&source.id!==target.id);
     submit.disabled=!valid||submit.dataset.saving==='true';
     if(valid){
-      preview.innerHTML=`<span>${esc(nodeName(source))}</span><strong>${esc(relationLabels[edgeType.value]||edgeType.value)} →</strong><span>${esc(nodeName(target))}</span>`;
+      const guidance=relationGuidance[edgeType.value]||'Leia a frase exatamente pela ordem apresentada.';
+      const warning=relationDirectionWarning(edgeType.value,source);
+      preview.innerHTML=`<span class="eg-preview-caption">Frase que será guardada</span><strong>${esc(nodeName(source))}</strong><span class="eg-relation-phrase">${esc(relationPhrase(edgeType.value,source))}</span><strong>${esc(nodeName(target))}</strong><span class="eg-direction-help">${esc(guidance)}</span>${warning?`<span class="eg-direction-warning">${esc(warning)}</span>`:''}`;
       const currentStatus=document.querySelector('#eg-edge-status')?.textContent||'';
       if(resetStatus||currentStatus.startsWith('Selecione dois objetos'))setEdgeStatus('Relação pronta a guardar. A confirmação aparecerá aqui.','idle');
     }else{
       preview.textContent=nodes.length<2?'São necessários pelo menos dois objetos no grafo.':'Escolha dois objetos diferentes.';
       if(resetStatus)setEdgeStatus(preview.textContent,'error');
     }
+  }
+
+  function swapEdgeDirection(){
+    const from=document.querySelector('#eg-from');
+    const to=document.querySelector('#eg-to');
+    if(!from||!to||!from.value||!to.value)return;
+    const previousFrom=from.value;
+    from.value=to.value;
+    to.value=previousFrom;
+    updateEdgeFormState(false);
+    setEdgeStatus('Ordem trocada. Confirme a frase apresentada antes de guardar.','idle');
   }
 
   async function syncAndLoad(){
@@ -283,7 +335,7 @@
       nodeRoot.innerHTML=nodes.length?nodes.map(node=>{
         const outgoing=(edgesByNode[node.id]||[]).map(edge=>{
           const target=nodes.find(candidate=>candidate.id===edge.to_node_id);
-          return `<span class="eg-edge${edge.id===lastConfirmedEdgeId?' is-confirmed':''}">${esc(relationLabels[edge.edge_type]||edge.edge_type)} → ${esc((target?.label||edge.to_node_id).slice(0,60))}</span>`;
+          return `<span class="eg-edge${edge.id===lastConfirmedEdgeId?' is-confirmed':''}">${esc(relationPhrase(edge.edge_type,node))} → ${esc((target?.label||edge.to_node_id).slice(0,60))}</span>`;
         }).join('');
         const confidence=node.confidence===null||node.confidence===undefined?'não avaliada':`${Math.round(Number(node.confidence)*100)}%`;
         const sourceIntegrity=(node.source_kind==='document_chunk'||node.source_kind==='visual_document')&&node.provenance?.source_integrity_verified?'<span class="pill eg-source-integrity">Fonte íntegra</span>':'';
@@ -324,8 +376,90 @@
     root.innerHTML=edges.length?edges.map(edge=>{
       const source=nodesById[edge.from_node_id];
       const target=nodesById[edge.to_node_id];
-      return `<article class="eg-relation-row${edge.id===lastConfirmedEdgeId?' is-confirmed':''}" data-edge-id="${esc(edge.id)}"><span>${esc(nodeName(source))}</span><strong>${esc(relationLabels[edge.edge_type]||edge.edge_type)} →</strong><span>${esc(nodeName(target))}</span></article>`;
+      const warning=relationDirectionWarning(edge.edge_type,source);
+      const pending=pendingRelationAction?.edgeId===edge.id?pendingRelationAction:null;
+      const reversedSentence=relationSentence(edge.edge_type,target,source);
+      const actions=pending
+        ?`<div class="eg-relation-confirmation" role="alert"><strong>${pending.action==='delete'?'Confirmar eliminação':'Confirmar inversão'}</strong>${pending.action==='delete'?'<span>A relação desaparecerá do grafo, mas a operação ficará registada na auditoria.</span>':`<span>Nova direção: ${esc(reversedSentence)}</span>`}<div class="eg-relation-actions"><button type="button" class="eg-relation-action" data-edge-confirm="${esc(pending.action)}" data-edge-id="${esc(edge.id)}">${pending.action==='delete'?'Eliminar relação':'Confirmar inversão'}</button><button type="button" class="eg-relation-action" data-edge-cancel="${esc(edge.id)}">Cancelar</button></div></div>`
+        :`<div class="eg-relation-actions"><button type="button" class="eg-relation-action" data-edge-reverse="${esc(edge.id)}">⇄ Inverter direção</button><button type="button" class="eg-relation-action" data-edge-delete="${esc(edge.id)}">Eliminar</button></div>`;
+      return `<article class="eg-relation-row${edge.id===lastConfirmedEdgeId?' is-confirmed':''}" data-edge-id="${esc(edge.id)}"><span>${esc(nodeName(source))}</span><strong>${esc(relationPhrase(edge.edge_type,source))} →</strong><span>${esc(nodeName(target))}</span>${warning?`<div class="eg-relation-warning">Possível direção invertida: ${esc(warning)}</div>`:''}${actions}</article>`;
     }).join(''):'<div class="eg-relations-empty">Ainda não existem relações explícitas. A primeira relação confirmada ficará visível aqui.</div>';
+  }
+
+  async function handleRelationAction(event){
+    const cancelButton=event.target.closest('[data-edge-cancel]');
+    if(cancelButton){
+      pendingRelationAction=null;
+      renderRelations(window.__srisEvidenceGraph||{nodes:[],edges:[]});
+      setEdgeStatus('Operação cancelada. Nenhuma relação foi alterada.','idle');
+      return;
+    }
+    const confirmButton=event.target.closest('[data-edge-confirm]');
+    const reverseButton=event.target.closest('[data-edge-reverse]');
+    const deleteButton=event.target.closest('[data-edge-delete]');
+    const button=confirmButton||reverseButton||deleteButton;
+    if(!button)return;
+    const code=missionCode();
+    const edgeId=button.dataset.edgeId||button.dataset.edgeReverse||button.dataset.edgeDelete;
+    const graph=window.__srisEvidenceGraph||{nodes:[],edges:[]};
+    const edge=(graph.edges||[]).find(candidate=>candidate.id===edgeId);
+    if(!code||!edge){
+      setEdgeStatus('Não foi possível identificar a relação selecionada. Atualize o grafo e tente novamente.','error');
+      return;
+    }
+    const source=(graph.nodes||[]).find(node=>node.id===edge.from_node_id);
+    const target=(graph.nodes||[]).find(node=>node.id===edge.to_node_id);
+    const currentSentence=relationSentence(edge.edge_type,source,target);
+    const status=document.querySelector('#eg-status');
+    const action=confirmButton?.dataset.edgeConfirm||(deleteButton?'delete':'reverse');
+
+    if(!confirmButton){
+      pendingRelationAction={edgeId,action};
+      renderRelations(graph);
+      setEdgeStatus(action==='delete'?'Confirme a eliminação dentro da relação selecionada.':'Confirme a nova direção dentro da relação selecionada.','pending');
+      return;
+    }
+
+    if(action==='delete'){
+      button.disabled=true;
+      setEdgeStatus('A eliminar e a confirmar a remoção no servidor…','pending');
+      try{
+        await req(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}/edges/${encodeURIComponent(edgeId)}`,{method:'DELETE'});
+        lastConfirmedEdgeId='';
+        pendingRelationAction=null;
+        const confirmedGraph=await loadGraph();
+        if((confirmedGraph?.edges||[]).some(candidate=>candidate.id===edgeId))throw new Error('O servidor ainda devolveu a relação depois da eliminação.');
+        status.textContent='Relação eliminada e ausência confirmada no grafo persistente.';
+        setEdgeStatus(`Relação eliminada e confirmada: ${currentSentence}.`,'success');
+      }catch(error){
+        pendingRelationAction=null;
+        renderRelations(window.__srisEvidenceGraph||{nodes:[],edges:[]});
+        status.textContent=`Não foi possível eliminar a relação: ${error.message}`;
+        setEdgeStatus(`A relação não foi eliminada: ${error.message}`,'error');
+      }
+      return;
+    }
+
+    const reversedSentence=relationSentence(edge.edge_type,target,source);
+    button.disabled=true;
+    setEdgeStatus('A inverter e a confirmar a nova direção no servidor…','pending');
+    try{
+      const reversed=await req(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}/edges/${encodeURIComponent(edgeId)}/reverse`,{method:'POST'});
+      lastConfirmedEdgeId=reversed.id;
+      pendingRelationAction=null;
+      const confirmedGraph=await loadGraph();
+      const persisted=(confirmedGraph?.edges||[]).find(candidate=>candidate.id===edgeId&&candidate.from_node_id===edge.to_node_id&&candidate.to_node_id===edge.from_node_id);
+      if(!persisted)throw new Error('O servidor não confirmou a relação com a direção invertida.');
+      lastConfirmedEdgeId=persisted.id;
+      render(confirmedGraph);
+      status.textContent='Direção corrigida e confirmada no grafo persistente.';
+      setEdgeStatus(`Direção corrigida e confirmada: ${reversedSentence}.`,'success');
+    }catch(error){
+      pendingRelationAction=null;
+      renderRelations(window.__srisEvidenceGraph||{nodes:[],edges:[]});
+      status.textContent=`Não foi possível inverter a relação: ${error.message}`;
+      setEdgeStatus(`A direção não foi alterada: ${error.message}`,'error');
+    }
   }
 
   async function createNode(event){
@@ -375,7 +509,7 @@
     if(existing){
       lastConfirmedEdgeId=existing.id;
       render(currentGraph);
-      const sentence=`${nodeName(source)} — ${relationLabels[edgeType]||edgeType} → ${nodeName(target)}`;
+      const sentence=relationSentence(edgeType,source,target);
       status.textContent='A relação selecionada já estava guardada.';
       setEdgeStatus(`Relação já existente e confirmada: ${sentence}.`,'success');
       return;
@@ -402,7 +536,7 @@
       if(!persisted)throw new Error('O servidor não devolveu a relação no grafo persistente.');
       lastConfirmedEdgeId=persisted.id;
       render(confirmedGraph);
-      const sentence=`${nodeName(source)} — ${relationLabels[edgeType]||edgeType} → ${nodeName(target)}`;
+      const sentence=relationSentence(edgeType,source,target);
       const outcome=savedEdge.created===false?'Relação já existente e confirmada':'Relação criada e confirmada';
       status.textContent=`${outcome} no grafo persistente.`;
       setEdgeStatus(`${outcome}: ${sentence}.`,'success');
