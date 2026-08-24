@@ -47,11 +47,12 @@ test('runtime truth disables unconfigured assistance without blocking missions',
 });
 
 test('mobile mission creation wins the synchronization race and stays actionable',()=>{
-  assert.match(app,/const missionSync=section==='mission'/);
+  assert.match(app,/const missionSync=section==='mission'&&orgId\(\)/);
   assert.match(app,/await go\('mission'\)/);
   assert.match(app,/dataset\.mode!=='editor'/);
   assert.match(app,/revealMissionWorkspace\(\$\('#mission-editor'\)\)/);
-  assert.match(index,/data-create-mission/);
+  assert.match(index,/id="primary-mission-cta"/);
+  assert.match(index,/id="empty-new-btn"/);
   assert.match(index,/class="mission-path-details"/);
   assert.match(css,/calc\(126px \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(css,/#mission\[data-mode="editor"\] \.mission-rail/);

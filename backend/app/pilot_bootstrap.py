@@ -11,6 +11,7 @@ from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import Base, get_db
 from app.atlas_platform.models import Membership, Organization, User
 from app.mission_intelligence import models as mission_models  # noqa: F401
+from app.pilot_serialization import as_iso
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-bootstrap"])
 MICRO_EUR = 1_000_000
@@ -166,7 +167,7 @@ def pilot_profile_bootstrap(
             "amount_eur": _micro_to_eur(row["amount_microeur"]),
             "reference": row["reference"],
             "provider_cost_usd": round((row["provider_cost_microusd"] or 0) / MICRO_USD, 6),
-            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            "created_at": as_iso(row["created_at"]),
         } for row in rows]
 
     return {

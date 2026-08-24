@@ -56,7 +56,7 @@ async def security_and_trace_headers(request: Request, call_next):
 
     path = request.url.path
     is_frontend_asset = path.endswith((".js", ".css", ".svg", ".webp", ".png", ".jpg", ".jpeg"))
-    if path.startswith("/api/") or path in {"/", "/app"}:
+    if path.startswith("/api/") or path in {"/", "/app", "/account.html"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"

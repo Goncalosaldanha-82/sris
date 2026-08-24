@@ -119,7 +119,7 @@
               <option value="claim">Afirmação</option>
             </select></div>
             <div class="field"><label for="eg-node-label">Título</label><input id="eg-node-label" required minlength="2" maxlength="300"></div>
-            <div class="field"><label for="eg-node-body">Conteúdo</label><textarea id="eg-node-body" placeholder="Descreva o objeto e os seus limites."></textarea></div>
+            <div class="field"><label for="eg-node-body">Conteúdo *</label><textarea id="eg-node-body" required minlength="2" placeholder="Descreva o objeto, os critérios relevantes e os seus limites."></textarea></div>
             <div class="field"><label for="eg-node-status">Estado</label><select id="eg-node-status"><option value="proposed">Proposto</option><option value="verified">Verificado</option><option value="accepted">Aceite</option><option value="rejected">Rejeitado</option><option value="superseded">Substituído</option></select></div>
             <div class="field"><label for="eg-node-confidence">Confiança (opcional)</label><select id="eg-node-confidence"><option value="">Não avaliada</option><option value="0.25">Baixa · 25%</option><option value="0.5">Moderada · 50%</option><option value="0.75">Elevada · 75%</option><option value="1">Confirmada · 100%</option></select></div>
             <button class="btn btn-primary" type="submit">Adicionar ao grafo</button>
