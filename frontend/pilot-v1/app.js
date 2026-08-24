@@ -229,6 +229,10 @@ function clearAppMessage(){
 
 function setAssistanceState(ready){
   document.documentElement.dataset.assistance=ready?'ready':'unavailable';
+  const section=$('#copilot');
+  if(section)section.dataset.state=ready?'ready':'unavailable';
+  $('#assistance-unavailable')?.classList.toggle('hidden',ready);
+  $('#assistance-workspace')?.classList.toggle('hidden',!ready);
   const submit=$('#copilot-form [type="submit"]');
   if(submit){
     submit.disabled=!ready;
@@ -243,13 +247,17 @@ function go(section){
   $$('.nav button').forEach(button=>button.classList.toggle('active',button.dataset.section===section));
   setText('#page-title',titles[section]||'SRIS');
   setMenu(false);
-  if(section==='mission'&&orgId())loadMissions({openFirst:true});
+  const missionSync=section==='mission'&&orgId()?loadMissions({openFirst:true}):Promise.resolve();
   if(section==='copilot')updateCopilotContext();
   window.scrollTo({top:0,behavior:'smooth'});
+  return missionSync;
 }
 
-$$('.nav button').forEach(button=>button.addEventListener('click',()=>go(button.dataset.section)));
-$$('[data-go]').forEach(button=>button.addEventListener('click',()=>go(button.dataset.go)));
+$$('.nav button').forEach(button=>button.addEventListener('click',()=>{void go(button.dataset.section);}));
+$$('[data-go]').forEach(button=>button.addEventListener('click',async()=>{
+  await go(button.dataset.go);
+  if(button.hasAttribute('data-create-mission')&&!missions.length)resetMissionForm();
+}));
 
 function setMenu(open){
   const sidebar=$('#sidebar');
@@ -328,7 +336,7 @@ function updateMissionCTA(){
 }
 
 $('#primary-mission-cta')?.addEventListener('click',async()=>{
-  go('mission');
+  await go('mission');
   if(!missions.length)resetMissionForm();
   else if(!selectedMission)await openMission(missions[0].id);
 });
@@ -443,6 +451,13 @@ function showMissionMode(mode){
   $('#mission-empty')?.classList.toggle('hidden',mode!=='empty');
   $('#mission-editor')?.classList.toggle('hidden',mode!=='editor');
   $('#mission-detail')?.classList.toggle('hidden',mode!=='detail');
+  const section=$('#mission');
+  if(section)section.dataset.mode=mode;
+}
+
+function revealMissionWorkspace(target){
+  if(!window.matchMedia('(max-width: 800px)').matches)return;
+  requestAnimationFrame(()=>target?.scrollIntoView({behavior:'smooth',block:'start'}));
 }
 
 function resetMissionForm(parent=null,template=null){
@@ -473,7 +488,8 @@ function resetMissionForm(parent=null,template=null){
     setValue('#mission-horizon',template.horizon);
   }
   showMissionMode('editor');
-  setTimeout(()=>$('#mission-title')?.focus(),50);
+  revealMissionWorkspace($('#mission-editor'));
+  setTimeout(()=>$('#mission-title')?.focus({preventScroll:true}),280);
 }
 
 $('#new-mission-btn')?.addEventListener('click',()=>resetMissionForm());
@@ -495,6 +511,7 @@ function renderMissionList(){
   const rows=missions.filter(mission=>!search||`${mission.title} ${mission.code}`.toLowerCase().includes(search));
   const root=$('#mission-list');
   if(!root)return;
+  $('#mission-rail')?.classList.toggle('no-missions',missions.length===0);
   root.innerHTML=rows.length?rows.map(missionRow).join(''):'<div class="note">Nenhuma missão encontrada.</div>';
   $$('[data-mid]',root).forEach(button=>button.addEventListener('click',()=>openMission(button.dataset.mid)));
 }
@@ -514,7 +531,12 @@ async function loadMissions({openFirst=false}={}){
     missions=Array.isArray(rows)?rows:[];
     renderMissionList();
     updateMissionCTA();
-    if(!missions.length){selectedMission=null;showMissionMode('empty');updateCopilotContext();return;}
+    if(!missions.length){
+      selectedMission=null;
+      if($('#mission')?.dataset.mode!=='editor')showMissionMode('empty');
+      updateCopilotContext();
+      return;
+    }
     if(selectedMission){
       const stillExists=missions.some(mission=>mission.id===selectedMission.id);
       if(!stillExists)selectedMission=null;
@@ -560,6 +582,7 @@ async function openMission(id){
     const answer=$('#mission-answer');
     if(answer){answer.textContent='A análise assistida é opcional. A missão e a evidência permanecem canónicas independentemente da sua utilização.';answer.classList.add('empty');}
     showMissionMode('detail');
+    revealMissionWorkspace($('#mission-detail'));
     updateCopilotContext();
     document.dispatchEvent(new CustomEvent('sris:mission-opened',{detail:{mission}}));
     await Promise.allSettled([loadAttachments(),loadHistory(),loadEpistemicCounts(mission.code)]);

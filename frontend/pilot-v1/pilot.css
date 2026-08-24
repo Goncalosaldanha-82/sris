@@ -190,6 +190,8 @@ a{color:var(--forest)}
 .mission-template:hover{transform:translateY(-2px);border-color:#8faa9f}.mission-template b{color:var(--gold);font-size:10px}.mission-template strong{font-size:13px}.mission-template span{color:var(--muted);font-size:10px;line-height:1.5}
 .mission-start-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:17px}
 .mission-start-step{display:grid;gap:5px;border-top:2px solid #d6c18a;padding:12px 3px}.mission-start-step b{color:var(--gold);font-size:9px}.mission-start-step strong{font-size:11px}.mission-start-step span{color:var(--muted);font-size:9px}
+.mission-path-details{margin-top:16px;border-top:1px solid var(--line)}
+.mission-path-details summary{padding:14px 2px;color:var(--forest-soft);font-size:10px;font-weight:800;cursor:pointer}
 .detail-head{align-items:center}.detail-head h2{font-size:clamp(30px,4vw,48px)}
 .detail-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .report-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -209,6 +211,10 @@ a{color:var(--forest)}
 .epistemic-summary{margin:13px 0}
 .provenance-list{margin-top:13px}.provenance-list h4{margin-bottom:8px}.provenance-row{border-top:1px solid var(--line);padding:9px 0;color:var(--muted);font-size:10px}
 .utility-intro{margin-bottom:14px}.stats{display:grid;gap:1px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--line)}.stats div{display:flex;justify-content:space-between;gap:12px;background:#fff;padding:12px}.stats dt{color:var(--muted);font-size:10px}.stats dd{margin:0;font-size:11px;font-weight:750}
+.assistance-unavailable{display:grid;gap:15px;margin-top:18px;border:1px solid #dacb9f;border-radius:16px;background:#fffaf0;padding:20px}
+.assistance-unavailable.hidden{display:none}
+.assistance-unavailable p{margin:5px 0 0;color:var(--muted);font-size:12px}
+.assistance-state-mark{display:grid;width:42px;height:42px;place-items:center;border-radius:50%;background:#f2dfae;color:#815f24;font-size:20px}
 .account-utilities{margin-top:14px}
 
 @media(max-width:1180px){
@@ -255,23 +261,39 @@ a{color:var(--forest)}
   .topbar h1{flex:1;font-size:13px}
   .menu-btn{display:grid;place-items:center}
   .status-pill{display:none}
-  .section{padding:17px 13px calc(34px + env(safe-area-inset-bottom))}
-  .hero-card{padding:27px 20px}.hero-card h2{font-size:42px}.hero-card p{font-size:14px}.hero-card .button-row{display:grid}.hero-card .btn{width:100%}
+  .section{padding:14px 12px calc(126px + env(safe-area-inset-bottom))}
+  .hero-card{padding:22px 18px}.hero-card h2{font-size:34px;line-height:.98}.hero-card p{font-size:13px;line-height:1.5}.hero-card .button-row{display:grid;margin-top:18px}.hero-card .btn{width:100%}
+  .decision-chain{margin:12px 0}
   .epistemic-layer,.epistemic-summary,#mission-detail>.epistemic-summary{display:grid}
+  .epistemic-layer{gap:12px;padding:16px}.epistemic-layer p{display:none}.epistemic-layer h3{font-size:18px}
   .epistemic-chips{justify-content:flex-start}
-  .overview-grid,.two-col,.form-grid,.detail-grid{grid-template-columns:1fr}
-  .product-card{min-height:190px}
+  .overview-grid{display:flex;gap:10px;margin:13px -12px;overflow-x:auto;padding:1px 12px 12px;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .overview-grid::-webkit-scrollbar{display:none}
+  .overview-grid .product-card{flex:0 0 min(82vw,320px);min-height:158px;scroll-snap-align:start;padding:18px}
+  .overview-grid .product-card p{font-size:12px}
+  .two-col,.form-grid,.detail-grid{grid-template-columns:1fr}
+  .overview-secondary{margin-top:5px}.overview-secondary>.card:last-child{display:none}.overview-secondary .memory-primary{padding:18px}.overview-secondary .memory-primary p{font-size:13px}.overview-secondary .memory-primary .btn{width:100%}
   .technical-grid{grid-template-columns:1fr 1fr}
   .mission-layout{grid-template-columns:1fr}
-  .mission-rail{position:static}.mission-list{max-height:300px}
-  .mission-workspace{min-height:420px;padding:17px}
+  .mission-rail{position:static;padding:14px}.mission-rail .card-head{display:flex;align-items:center}.mission-rail .card-head h2{font-family:Inter,ui-sans-serif,sans-serif;font-size:24px;font-weight:800}.mission-rail.no-missions .input,.mission-rail.no-missions .mission-list{display:none}
+  #mission[data-mode="editor"] .mission-rail,#mission[data-mode="detail"] .mission-rail{display:none}
+  .mission-workspace{min-height:0;padding:16px;scroll-margin-top:76px}
+  .empty-state{padding:5px 0}.empty-state>.brand-emblem{display:none}.empty-state h2{font-size:34px;line-height:1}.empty-state>p{font-size:13px;line-height:1.55}
   .template-heading,.detail-head,.card-head,.card-title{display:grid}
-  .mission-template-grid{grid-template-columns:1fr}
-  .mission-start-grid{grid-template-columns:1fr 1fr}
+  .template-heading{margin:20px 0 12px;padding-top:18px}.template-heading h3{font-size:22px}.template-heading .btn{width:100%}
+  .mission-template-grid{display:flex;gap:10px;margin-right:-16px;overflow-x:auto;padding:1px 16px 12px 0;scroll-snap-type:x mandatory;scrollbar-width:none}.mission-template-grid::-webkit-scrollbar{display:none}
+  .mission-template{flex:0 0 min(82vw,320px);min-height:132px;scroll-snap-align:start}
+  .mission-path-details{margin-top:7px}.mission-path-details summary{padding:14px 0}
+  .mission-start-grid{grid-template-columns:1fr 1fr;margin-top:0}
+  #mission-editor,#mission-detail{scroll-margin-top:76px}#mission-editor h2{font-size:34px}#mission-editor textarea{min-height:96px}
+  .detail-head h2{font-size:34px;line-height:1}
   .detail-actions{justify-content:flex-start}
   .report-actions{width:100%}.report-actions button{flex:1}
   .upload-zone-head{display:grid}.upload-row{display:grid}.upload-row .btn{width:100%}
   .attachment-row{align-items:flex-start}.attachment-actions{flex-direction:column;align-items:flex-end}
+  #copilot[data-state="unavailable"] .utility-intro,#copilot[data-state="unavailable"] .two-col>article:last-child{display:none}
+  #copilot[data-state="unavailable"] .card{padding:18px}
+  .assistance-unavailable{padding:17px}.assistance-unavailable .btn{width:100%}
 }
 
 @media(max-width:440px){

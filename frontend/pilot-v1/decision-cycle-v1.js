@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260824-stabilization-v1';
+  const BUILD='20260824-mobile-workflow-v2';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;

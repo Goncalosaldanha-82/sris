@@ -64,7 +64,7 @@
         <article class="card memory-primary">
           <div class="card-head"><div><div class="eyebrow">PRÓXIMO PASSO</div><h3>Comece por uma decisão real, não por uma conversa genérica.</h3></div><span class="pill">Persistente</span></div>
           <p>Crie uma missão estreita, carregue a evidência que já existe e deixe o SRIS estruturar o que se sabe, o que se está a assumir e o que precisa de ser verificado antes de agir.</p>
-          <button class="btn btn-primary" data-go="mission">Criar ou abrir missão</button>
+          <button class="btn btn-primary" data-go="mission" data-create-mission>Criar ou abrir missão</button>
         </article>
         <article class="card">
           <div class="eyebrow">DISCIPLINA DO SISTEMA</div>
@@ -85,7 +85,7 @@
 
     <section class="section" id="mission">
       <div class="mission-layout">
-        <aside class="mission-rail card">
+        <aside class="mission-rail card" id="mission-rail">
           <div class="card-head"><div><h2>Missões</h2><div class="note">Portefólio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div>
           <input id="mission-search" class="input" placeholder="Pesquisar missões…" autocomplete="off">
           <div id="mission-list" class="mission-list"><div class="note">A sincronizar missões…</div></div>
@@ -106,12 +106,15 @@
                 <button class="mission-template" type="button" data-mission-template="investment"><b>03</b><strong>Investimento ou alteração</strong><span>Alternativas, risco, reversibilidade, critério de sucesso e revisão.</span></button>
               </div>
 
-              <div class="mission-start-grid">
-                <div class="mission-start-step"><b>01</b><strong>Definir</strong><span>Objetivo, pergunta central, horizonte e decisão necessária.</span></div>
-                <div class="mission-start-step"><b>02</b><strong>Fundamentar</strong><span>Carregar documentos, observações e evidência disponível.</span></div>
-                <div class="mission-start-step"><b>03</b><strong>Decidir e agir</strong><span>Comparar hipóteses, alternativas, riscos e próxima ação.</span></div>
-                <div class="mission-start-step"><b>04</b><strong>Aprender</strong><span>Registar resultado, rever aprendizagem e preservar memória.</span></div>
-              </div>
+              <details class="mission-path-details">
+                <summary>Ver o percurso completo da missão</summary>
+                <div class="mission-start-grid">
+                  <div class="mission-start-step"><b>01</b><strong>Definir</strong><span>Objetivo, pergunta central, horizonte e decisão necessária.</span></div>
+                  <div class="mission-start-step"><b>02</b><strong>Fundamentar</strong><span>Carregar documentos, observações e evidência disponível.</span></div>
+                  <div class="mission-start-step"><b>03</b><strong>Decidir e agir</strong><span>Comparar hipóteses, alternativas, riscos e próxima ação.</span></div>
+                  <div class="mission-start-step"><b>04</b><strong>Aprender</strong><span>Registar resultado, rever aprendizagem e preservar memória.</span></div>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -187,10 +190,17 @@
       <div class="two-col">
         <article class="card">
           <div class="card-head"><div><h2>Análise assistida</h2><p class="note">Questione uma decisão, teste uma hipótese, procure contradições ou identifique a evidência que falta.</p></div><span class="pill">Opcional</span></div>
-          <div id="copilot-context-note" class="context-note">Abra uma missão para usar o respetivo contexto, documentos recuperados e proveniência.</div>
-          <form id="copilot-form"><div class="field"><label for="copilot-message">Pergunta</label><textarea id="copilot-message" rows="6" required placeholder="Ex.: Que pressupostos podem alterar materialmente esta decisão?"></textarea></div><div class="field"><label for="copilot-context">Contexto adicional (opcional)</label><textarea id="copilot-context" rows="5"></textarea></div><button class="btn btn-primary full" type="submit">Analisar</button></form>
-          <div class="answer-box empty" id="copilot-answer">A resposta aparecerá aqui.</div>
-          <div id="copilot-provenance" class="provenance-list hidden"></div>
+          <div class="assistance-unavailable hidden" id="assistance-unavailable" role="status">
+            <div class="assistance-state-mark" aria-hidden="true">✦</div>
+            <div><strong>Assistência ainda não ativa neste staging</strong><p>O fornecedor de IA precisa de ser configurado no serviço. Pode continuar a criar missões, carregar documentos, estruturar evidência e registar decisões sem perder trabalho.</p></div>
+            <button class="btn btn-primary" type="button" data-go="mission">Continuar no espaço de missão</button>
+          </div>
+          <div id="assistance-workspace">
+            <div id="copilot-context-note" class="context-note">Abra uma missão para usar o respetivo contexto, documentos recuperados e proveniência.</div>
+            <form id="copilot-form"><div class="field"><label for="copilot-message">Pergunta</label><textarea id="copilot-message" rows="6" required placeholder="Ex.: Que pressupostos podem alterar materialmente esta decisão?"></textarea></div><div class="field"><label for="copilot-context">Contexto adicional (opcional)</label><textarea id="copilot-context" rows="5"></textarea></div><button class="btn btn-primary full" type="submit">Analisar</button></form>
+            <div class="answer-box empty" id="copilot-answer">A resposta aparecerá aqui.</div>
+            <div id="copilot-provenance" class="provenance-list hidden"></div>
+          </div>
         </article>
         <article class="card"><h3>Disciplina analítica</h3><p class="note">A resposta é um contributo sujeito a revisão humana. Nunca substitui a decisão nem converte automaticamente uma inferência em facto.</p><dl class="stats"><div><dt>Disponibilidade</dt><dd id="copilot-availability">A confirmar</dd></div><div><dt>Contexto</dt><dd id="copilot-context-state">Workspace</dd></div><div><dt>Revisão</dt><dd>Humana obrigatória</dd></div></dl></article>
       </div>
