@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260824-operational-core-v3';
+  const BUILD='20260824-operational-core-v4';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;
