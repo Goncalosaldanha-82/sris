@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260824-mobile-workflow-v2';
+  const BUILD='20260824-operational-core-v3';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;
@@ -28,6 +28,7 @@
   let installed=false;
   let loading=false;
   let rows=[];
+  let evidenceNodes=[];
 
   window.__srisDecisionLoopV2={
     installed:true,
@@ -118,8 +119,8 @@
               <span class="pill">revisão humana</span>
             </div>
             <form id="dc1-create-form">
-              <input type="hidden" id="dc1-evidence-node">
               <div class="field"><label for="dc1-decision">Decisão *</label><textarea id="dc1-decision" required maxlength="5000" placeholder="Que decisão foi ou será tomada?"></textarea></div>
+              <div class="field"><label for="dc1-evidence-node">Fundamento da decisão *</label><select id="dc1-evidence-node" required><option value="">A carregar evidência da missão…</option></select><div class="note">Selecione a fonte ou evidência que fundamenta esta decisão. A ligação ficará preservada no grafo.</div></div>
               <div class="dc1-editor-grid">
                 <div class="field"><label for="dc1-owner">Responsável</label><input id="dc1-owner" maxlength="200" placeholder="Pessoa ou função responsável"></div>
                 <div class="field"><label for="dc1-due">Prazo</label><input id="dc1-due" type="date"></div>
@@ -154,6 +155,7 @@
     },true);
     document.addEventListener('sris:mission-opened',()=>{
       rows=[];
+      evidenceNodes=[];
       renderKPIs();
       if($('[data-mission-tab="cycle"]')?.classList.contains('active'))load(false);
     });
@@ -204,7 +206,7 @@
     if($('#dc1-owner'))$('#dc1-owner').value=seed.owner||'';
     if($('#dc1-due'))$('#dc1-due').value=seed.due_date||'';
     if($('#dc1-expected'))$('#dc1-expected').value=seed.expected_outcome||'';
-    if($('#dc1-evidence-node'))$('#dc1-evidence-node').value=seed.evidence_node_id||'';
+    void loadEvidenceOptions(seed.evidence_node_id||'');
     const title=$('#dc1-create-title');
     if(title)title.textContent=seed.source==='workbench'?'Rever decisão proposta antes de a guardar':'Registar uma decisão acompanhável';
     const message=$('#dc1-create-message');
@@ -240,6 +242,12 @@
       $('#dc1-decision')?.focus();
       return;
     }
+    const foundation=$('#dc1-evidence-node')?.value||'';
+    if(!foundation){
+      if(message){message.textContent='Selecione a evidência que fundamenta a decisão.';message.className='dc1-inline error';}
+      $('#dc1-evidence-node')?.focus();
+      return;
+    }
     const payload={
       mission_code:missionCode(),
       decision,
@@ -247,7 +255,7 @@
       owner:$('#dc1-owner')?.value.trim()||null,
       due_date:$('#dc1-due')?.value||null,
       expected_outcome:$('#dc1-expected')?.value.trim()||null,
-      evidence_node_id:$('#dc1-evidence-node')?.value||null,
+      evidence_node_id:foundation,
     };
     button?.classList.add('loading');
     if(message){message.textContent='A guardar a decisão…';message.className='dc1-inline';}
@@ -293,6 +301,7 @@
     list.innerHTML=rows.length?rows.map(renderCard).join(''):'<div class="dc1-empty">Ainda não existem decisões em acompanhamento. Registe a primeira decisão desta missão.</div>';
     $$('[data-dc-save]',list).forEach(button=>button.addEventListener('click',()=>save(button.dataset.dcSave)));
     $$('[data-dc-materialize]',list).forEach(button=>button.addEventListener('click',()=>materialize(button.dataset.dcMaterialize)));
+    document.dispatchEvent(new CustomEvent('sris:decision-cycles-updated',{detail:{mission_code:missionCode(),cycles:rows}}));
   }
 
   function renderKPIs(){
@@ -328,6 +337,7 @@
       </div>
       ${renderStage(row.status)}
       <div class="dc1-grid">
+        ${summaryField('Fundamento',row.evidence_node_id?`Evidência ${String(row.evidence_node_id).slice(0,12)}…`:'','Ainda não associado')}
         ${summaryField('Ação',row.action,'Ainda não definida')}
         ${summaryField('Responsável / prazo',[row.owner,row.due_date?formatDate(row.due_date):null].filter(Boolean).join(' · '),'Ainda não definidos')}
         ${summaryField('Resultado esperado',row.expected_outcome,'Ainda não definido')}
@@ -372,13 +382,13 @@
   }
 
   function qualityScore(row){
-    const values=[row.action,row.owner,row.due_date,row.expected_outcome,row.actual_outcome,row.learning];
+    const values=[row.evidence_node_id,row.action,row.owner,row.due_date,row.expected_outcome,row.actual_outcome,row.learning];
     return {complete:values.filter(v=>String(v||'').trim()).length,total:values.length,percent:Math.round(values.filter(v=>String(v||'').trim()).length/values.length*100)};
   }
 
   function needsAttention(row){
     if(row.status==='abandoned')return false;
-    if(['committed','in_progress'].includes(row.status)&&(!row.action||!row.owner||!row.expected_outcome))return true;
+    if(['committed','in_progress'].includes(row.status)&&(!row.evidence_node_id||!row.action||!row.owner||!row.expected_outcome))return true;
     if(row.status==='completed'&&(!row.actual_outcome||!row.learning))return true;
     return false;
   }
@@ -408,8 +418,10 @@
     const status=payload.status;
     if(['committed','in_progress','completed'].includes(status)&&!String(payload.action||'').trim())return 'Defina a ação antes de avançar o estado da decisão.';
     if(['in_progress','completed'].includes(status)&&!String(payload.owner||'').trim())return 'Identifique o responsável antes de iniciar ou concluir a execução.';
+    if(['in_progress','completed'].includes(status)&&!payload.due_date)return 'Defina o prazo antes de iniciar ou concluir a execução.';
     if(['committed','in_progress','completed'].includes(status)&&!String(payload.expected_outcome||'').trim())return 'Defina o resultado esperado para que a decisão possa ser avaliada.';
     if(status==='completed'&&!String(payload.actual_outcome||'').trim())return 'Registe o resultado observado antes de concluir a decisão.';
+    if(status==='completed'&&!String(payload.learning||'').trim())return 'Registe a aprendizagem antes de concluir a decisão.';
     return '';
   }
 
@@ -472,6 +484,10 @@
 
   function augmentGraph(){
     const graph=window.__srisEvidenceGraph;
+    if(graph){
+      evidenceNodes=(graph.nodes||[]).filter(node=>node.node_type==='evidence'&&!['rejected','superseded'].includes(node.status));
+      renderEvidenceOptions();
+    }
     if(!graph?.nodes?.length)return;
     $$('.eg-node[data-type="learning"]').forEach(card=>{
       if($('.dc1-review',card))return;
@@ -492,6 +508,28 @@
       $('[data-learning-reject]',wrap)?.addEventListener('click',()=>reviewNode(node.id,'rejected',wrap));
       $('[data-learning-publish]',wrap)?.addEventListener('click',()=>publishLearning(node.id,wrap));
     });
+  }
+
+  function renderEvidenceOptions(selected=''){
+    const select=$('#dc1-evidence-node');
+    if(!select)return;
+    const current=selected||select.value||'';
+    select.innerHTML=`<option value="">${evidenceNodes.length?'Escolha evidência…':'Registe evidência documental ou manual primeiro'}</option>${evidenceNodes.map(node=>`<option value="${esc(node.id)}" ${current===node.id?'selected':''}>${esc((node.label||'Evidência').slice(0,100))} · ${esc(node.status||'proposta')}</option>`).join('')}`;
+  }
+
+  async function loadEvidenceOptions(selected=''){
+    const code=missionCode();
+    if(!code)return;
+    try{
+      const graph=await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`);
+      window.__srisEvidenceGraph=graph;
+      evidenceNodes=(graph.nodes||[]).filter(node=>node.node_type==='evidence'&&!['rejected','superseded'].includes(node.status));
+      renderEvidenceOptions(selected);
+    }catch(err){
+      const select=$('#dc1-evidence-node');
+      if(select)select.innerHTML='<option value="">Não foi possível carregar a evidência</option>';
+      announce(`Não foi possível carregar os fundamentos disponíveis: ${err.message}`,'error');
+    }
   }
 
   async function reviewNode(id,status,wrap){
@@ -522,6 +560,7 @@
       wrap.innerHTML=`<div class="dc1-review-note"><strong>Publicada na memória organizacional</strong><br>Linhagem ${esc((packet.lineage_sha256||'').slice(0,16))}… · preserva evidência, decisão e resultado.</div>`;
       const graphStatus=$('#eg-status');
       if(graphStatus)graphStatus.textContent='Aprendizagem publicada com linhagem verificável. Pode surgir como candidata noutras missões, sempre sujeita a validação contextual.';
+      document.dispatchEvent(new CustomEvent('sris:learning-published',{detail:{mission_code:code,node_id:id,packet}}));
     }catch(err){
       inline(wrap,err.message,'error');
     }finally{

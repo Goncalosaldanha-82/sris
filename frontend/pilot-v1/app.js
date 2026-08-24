@@ -8,6 +8,9 @@ let missions=[];
 let selectedMission=null;
 let profileAvailable=false;
 let refreshPromise=null;
+let editingMissionId=null;
+let workspaceSummary=null;
+const missionRuntime={attachments:[],graph:null,cycles:[],readiness:null,dialogues:[],memory:[],extraction:null};
 
 const titles={
   overview:'Visão geral',
@@ -176,6 +179,18 @@ function orgId(){
   return profile?.organization?.id||localStorage.getItem('sris_org_id');
 }
 
+function activeMissionStorageKey(){
+  return `sris_active_mission:${orgId()||'workspace'}`;
+}
+
+function rememberedMissionId(){
+  return localStorage.getItem(activeMissionStorageKey())||'';
+}
+
+function rememberMission(id){
+  if(id)localStorage.setItem(activeMissionStorageKey(),id);
+}
+
 function miBase(){
   return `/api/organizations/${encodeURIComponent(orgId())}/mission-intelligence`;
 }
@@ -247,13 +262,25 @@ function go(section){
   $$('.nav button').forEach(button=>button.classList.toggle('active',button.dataset.section===section));
   setText('#page-title',titles[section]||'SRIS');
   setMenu(false);
-  const missionSync=section==='mission'&&orgId()?loadMissions({openFirst:true}):Promise.resolve();
+  const missionSync=section==='mission'&&orgId()
+    ? loadMissions({openFirst:true})
+    : section==='overview'&&orgId()
+      ? loadWorkspaceSummary()
+      : Promise.resolve();
   if(section==='copilot')updateCopilotContext();
   window.scrollTo({top:0,behavior:'smooth'});
   return missionSync;
 }
 
-$$('.nav button').forEach(button=>button.addEventListener('click',()=>{void go(button.dataset.section);}));
+$$('.nav button[data-section]').forEach(button=>button.addEventListener('click',()=>{void go(button.dataset.section);}));
+$$('.nav button[data-mission-area]').forEach(button=>button.addEventListener('click',async()=>{
+  await go('mission');
+  normaliseMissionTabs();
+  const tab=$(`[data-mission-tab="${button.dataset.missionArea}"]`);
+  if(tab)tab.click();
+  $$('.nav button').forEach(item=>item.classList.toggle('active',item===button));
+  setText('#page-title',button.querySelector('span')?.textContent||'Espaço de missão');
+}));
 $$('[data-go]').forEach(button=>button.addEventListener('click',async()=>{
   await go(button.dataset.go);
   if(button.hasAttribute('data-create-mission')&&!missions.length)resetMissionForm();
@@ -335,10 +362,68 @@ function updateMissionCTA(){
   setText('#mission-count',missions.length);
 }
 
+function commandMissionRow(mission,{attention=false}={}){
+  const progress=Math.max(0,Math.min(100,Number(mission.progress_percent||0)));
+  return `<button class="command-row" type="button" data-command-mission="${escapeHtml(mission.id)}">
+    <span class="command-row-main"><strong>${escapeHtml(mission.title)}</strong><small>${escapeHtml(mission.code)} · ${escapeHtml(lifecycleLabels[mission.lifecycle_state]||mission.lifecycle_state)}</small></span>
+    <span class="command-row-status"><b>${progress}%</b><i><em style="width:${progress}%"></em></i>${attention?`<small>${escapeHtml(mission.next_action)}</small>`:''}</span>
+  </button>`;
+}
+
+function renderWorkspaceSummary(summary){
+  workspaceSummary=summary;
+  const metrics=summary?.metrics||{};
+  setText('#metric-active',metrics.missions_active??0);
+  setText('#metric-attention',metrics.missions_attention??0);
+  setText('#metric-gaps',metrics.evidence_gaps??0);
+  setText('#metric-results',metrics.pending_results??0);
+  setText('#metric-learning',metrics.published_learning??0);
+  const rows=Array.isArray(summary?.missions)?summary.missions:[];
+  const recent=$('#command-missions');
+  if(recent)recent.innerHTML=rows.length?rows.slice(0,5).map(row=>commandMissionRow(row)).join(''):'<div class="command-empty"><strong>Ainda não existem missões.</strong><span>Crie a primeira missão a partir de uma decisão real.</span></div>';
+  const attentionRows=rows.filter(row=>['active','paused'].includes(row.lifecycle_state)&&(row.attention>0||row.progress_percent<100)).sort((a,b)=>(b.attention-a.attention)||(a.progress_percent-b.progress_percent));
+  const attentionRoot=$('#command-attention');
+  if(attentionRoot)attentionRoot.innerHTML=attentionRows.length?attentionRows.slice(0,6).map(row=>commandMissionRow(row,{attention:true})).join(''):'<div class="command-empty success"><strong>Sem bloqueios operacionais.</strong><span>As missões ativas não apresentam ações pendentes.</span></div>';
+}
+
+async function loadWorkspaceSummary(){
+  if(!orgId())return null;
+  try{
+    const summary=await api('/api/pilot/workspace-summary');
+    renderWorkspaceSummary(summary);
+    return summary;
+  }catch(error){
+    const root=$('#command-attention');
+    if(root)root.innerHTML=`<div class="alert error">Não foi possível calcular o estado operacional: ${escapeHtml(error.message)}</div>`;
+    return null;
+  }
+}
+
+$('#overview')?.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-command-mission]');
+  if(!button)return;
+  await go('mission');
+  await openMission(button.dataset.commandMission);
+});
+
+async function loadAccountCapabilities(){
+  const root=$('#account-capabilities');
+  if(!root)return;
+  try{
+    const [authCapabilities,pilotCapabilities]=await Promise.all([api('/api/auth/capabilities'),api('/api/pilot/capabilities')]);
+    root.innerHTML=`<div><dt>Convites</dt><dd>${authCapabilities.invitations_enabled?'Disponíveis':'Configuração necessária'}</dd></div><div><dt>Email transacional</dt><dd>${pilotCapabilities.transactional_email_ready?'Ativo':'Não configurado'}</dd></div><div><dt>Auditoria</dt><dd>Ativa</dd></div>`;
+  }catch{
+    root.innerHTML='<div><dt>Convites</dt><dd>A confirmar</dd></div><div><dt>Email transacional</dt><dd>A confirmar</dd></div><div><dt>Auditoria</dt><dd>Ativa</dd></div>';
+  }
+}
+
 $('#primary-mission-cta')?.addEventListener('click',async()=>{
   await go('mission');
   if(!missions.length)resetMissionForm();
-  else if(!selectedMission)await openMission(missions[0].id);
+  else if(!selectedMission){
+    const remembered=missions.find(mission=>mission.id===rememberedMissionId());
+    await openMission((remembered||missions[0]).id);
+  }
 });
 
 $('#open-missions-cta')?.addEventListener('click',()=>go('mission'));
@@ -463,6 +548,8 @@ function revealMissionWorkspace(target){
 function resetMissionForm(parent=null,template=null){
   const form=$('#mission-form');
   if(!form)return;
+  editingMissionId=null;
+  $('#mission-editor')?.classList.remove('editing');
   form.reset();
   setValue('#mission-domain','cross_domain');
   setValue('#mission-kind','mission');
@@ -492,12 +579,43 @@ function resetMissionForm(parent=null,template=null){
   setTimeout(()=>$('#mission-title')?.focus({preventScroll:true}),280);
 }
 
+function editCurrentMission(){
+  if(!selectedMission)return;
+  const form=$('#mission-form');
+  if(!form)return;
+  editingMissionId=selectedMission.id;
+  $('#mission-editor')?.classList.add('editing');
+  form.reset();
+  setValue('#mission-parent-id',selectedMission.parent_mission_id||'');
+  setValue('#mission-title',selectedMission.title);
+  setValue('#mission-objective',selectedMission.objective);
+  setValue('#mission-question',selectedMission.central_question);
+  setValue('#mission-context',selectedMission.context);
+  setValue('#mission-kind',selectedMission.mission_kind||'mission');
+  setValue('#mission-domain',selectedMission.domain||'cross_domain');
+  setValue('#mission-priority',selectedMission.priority||'strategic');
+  setValue('#mission-horizon',selectedMission.horizon||'');
+  setText('#mission-code-label',`${selectedMission.code} · REVISÃO ${Number(selectedMission.revision||1)}`);
+  setText('#mission-editor-title','Editar enquadramento da missão');
+  setText('#save-mission-btn','Guardar nova revisão');
+  const box=$('#mission-message');
+  if(box){box.className='alert hidden';box.textContent='';}
+  showMissionMode('editor');
+  revealMissionWorkspace($('#mission-editor'));
+  setTimeout(()=>$('#mission-title')?.focus({preventScroll:true}),180);
+}
+
 $('#new-mission-btn')?.addEventListener('click',()=>resetMissionForm());
 $('#empty-new-btn')?.addEventListener('click',()=>resetMissionForm());
 $$('[data-mission-template]').forEach(button=>button.addEventListener('click',()=>resetMissionForm(null,missionTemplates[button.dataset.missionTemplate])));
-$('#cancel-mission-btn')?.addEventListener('click',()=>selectedMission?openMission(selectedMission.id):showMissionMode('empty'));
+$('#cancel-mission-btn')?.addEventListener('click',()=>{
+  editingMissionId=null;
+  $('#mission-editor')?.classList.remove('editing');
+  return selectedMission?openMission(selectedMission.id):showMissionMode('empty');
+});
 $('#create-submission-btn')?.addEventListener('click',()=>selectedMission&&resetMissionForm(selectedMission));
 $('#detail-submission-btn')?.addEventListener('click',()=>selectedMission&&resetMissionForm(selectedMission));
+$('#detail-edit-btn')?.addEventListener('click',editCurrentMission);
 
 function missionRow(mission){
   const indent=Math.min(Number(mission.depth||0),5)*14;
@@ -541,7 +659,10 @@ async function loadMissions({openFirst=false}={}){
       const stillExists=missions.some(mission=>mission.id===selectedMission.id);
       if(!stillExists)selectedMission=null;
     }
-    if(openFirst&&!selectedMission)await openMission(missions[0].id);
+    if(openFirst&&!selectedMission){
+      const remembered=missions.find(mission=>mission.id===rememberedMissionId());
+      await openMission((remembered||missions[0]).id);
+    }
   }catch(error){
     if(root){
       root.innerHTML='<div class="alert error">Não foi possível sincronizar as missões.<br><button class="btn btn-secondary compact" id="retry-missions" style="margin-top:10px">Tentar novamente</button></div>';
@@ -563,10 +684,107 @@ async function loadEpistemicCounts(code){
   }
 }
 
+function normaliseMissionTabs(){
+  const tabs=$('.mission-tabs');
+  const detail=$('#mission-detail');
+  if(!tabs||!detail)return;
+  const order=['summary','documents','graph','cycle','intelligence','memory','learning','history'];
+  const labels={summary:'Resumo',documents:'Documentos',graph:'Evidência',cycle:'Decisão e resultado',intelligence:'Diálogo',memory:'Memória canónica',learning:'Reutilizar aprendizagem',history:'Auditoria'};
+  order.forEach(name=>{
+    const button=$(`[data-mission-tab="${name}"]`,tabs);
+    const panel=$(`#mission-tab-${name}`,detail);
+    if(button){button.textContent=labels[name]||button.textContent;tabs.appendChild(button);}
+    if(panel)detail.appendChild(panel);
+  });
+}
+
+function activateMissionTab(name){
+  normaliseMissionTabs();
+  const button=$(`.mission-tabs [data-mission-tab="${name}"]`);
+  if(!button)return false;
+  button.click();
+  return true;
+}
+
+function renderMissionOperationalState(){
+  if(!selectedMission)return;
+  const graph=missionRuntime.graph||{};
+  const counts=graph.counts||{};
+  const cycles=missionRuntime.cycles||[];
+  const readiness=missionRuntime.readiness||{};
+  const attachments=missionRuntime.attachments||[];
+  const readyDocuments=attachments.filter(item=>['ready','visual_ready','provider_ready'].includes(item.extraction_status)).length;
+  const completedCycles=cycles.filter(item=>item.status==='completed').length;
+  const reviewedLearning=(graph.nodes||[]).filter(item=>item.node_type==='learning'&&['accepted','verified'].includes(item.status)).length;
+  const kpis=$('#mission-summary-kpis');
+  if(kpis)kpis.innerHTML=`
+    <div><strong>${readyDocuments}</strong><span>fontes prontas</span></div>
+    <div><strong>${Number(counts.evidence||0)}</strong><span>evidências</span></div>
+    <div><strong>${Number(counts.hypothesis||0)}</strong><span>hipóteses</span></div>
+    <div><strong>${Number(counts.alternative||0)}</strong><span>alternativas</span></div>
+    <div><strong>${cycles.length}</strong><span>decisões</span></div>
+    <div><strong>${completedCycles}</strong><span>resultados</span></div>
+    <div><strong>${reviewedLearning}</strong><span>aprendizagens revistas</span></div>`;
+  const progress=Number(readiness.progress_percent||0);
+  setText('#mission-progress-value',`${progress}%`);
+  const checks=Array.isArray(readiness.checks)?readiness.checks:[];
+  const readinessRoot=$('#mission-readiness');
+  if(readinessRoot)readinessRoot.innerHTML=checks.length?checks.map(check=>`<div class="readiness-row ${check.passed?'passed':'pending'}"><span aria-hidden="true">${check.passed?'✓':'○'}</span><strong>${escapeHtml(check.label)}</strong><small>${Number(check.count||0)}</small></div>`).join(''):'<div class="note">Ainda não foi possível calcular a prontidão desta missão.</div>';
+  const next=checks.find(check=>!check.passed);
+  setText('#mission-next-action',next?next.label:'Missão pronta para conclusão e reutilização.');
+  setValue('#mission-lifecycle',selectedMission.lifecycle_state||'active');
+  const hash=String(selectedMission.content_hash||'');
+  setText('#mission-integrity',`Revisão ${Number(selectedMission.revision||1)} · hash ${hash?hash.slice(0,16)+'…':'a sincronizar'}`);
+}
+
+async function loadMissionOperationalState(){
+  if(!selectedMission)return;
+  const missionId=selectedMission.id;
+  const code=selectedMission.code;
+  const [graphResult,cyclesResult,readinessResult]=await Promise.allSettled([
+    api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`),
+    api(`/api/pilot/decision-cycles/missions/${encodeURIComponent(code)}`),
+    api(`/api/pilot/missions/${encodeURIComponent(code)}/completion-readiness`),
+  ]);
+  if(!selectedMission||selectedMission.id!==missionId)return;
+  if(graphResult.status==='fulfilled')missionRuntime.graph=graphResult.value;
+  if(cyclesResult.status==='fulfilled')missionRuntime.cycles=cyclesResult.value;
+  if(readinessResult.status==='fulfilled')missionRuntime.readiness=readinessResult.value;
+  renderMissionOperationalState();
+}
+
+document.addEventListener('sris:evidence-graph-updated',event=>{
+  missionRuntime.graph=event.detail||missionRuntime.graph;
+  void loadMissionOperationalState();
+});
+document.addEventListener('sris:decision-cycles-updated',event=>{
+  missionRuntime.cycles=event.detail?.cycles||event.detail||missionRuntime.cycles;
+  void loadMissionOperationalState();
+});
+document.addEventListener('sris:learning-published',()=>{void loadMissionOperationalState();});
+
+document.addEventListener('click',event=>{
+  const tab=event.target.closest('.mission-tabs [data-mission-tab]');
+  if(tab){
+    $$('.mission-tabs [data-mission-tab]').forEach(item=>item.classList.toggle('active',item===tab));
+    $$('.mission-tab').forEach(panel=>panel.classList.toggle('active',panel.id===`mission-tab-${tab.dataset.missionTab}`));
+  }
+  const opener=event.target.closest('[data-open-mission-tab]');
+  if(opener)activateMissionTab(opener.dataset.openMissionTab);
+});
+
 async function openMission(id){
   try{
     const mission=await api(`${miBase()}/missions/${encodeURIComponent(id)}`);
     selectedMission=mission;
+    rememberMission(mission.id);
+    missionRuntime.attachments=[];
+    missionRuntime.graph=null;
+    missionRuntime.cycles=[];
+    missionRuntime.readiness=null;
+    missionRuntime.extraction=null;
+    const extractionPanel=$('#attachment-extraction-panel');
+    if(extractionPanel){extractionPanel.classList.add('hidden');extractionPanel.innerHTML='';}
     if(window.__srisMissionWorkspace){
       window.__srisMissionWorkspace.missionId=mission.id;
       window.__srisMissionWorkspace.mission=mission;
@@ -579,13 +797,18 @@ async function openMission(id){
     setText('#detail-context',mission.context||'Ainda não existe contexto registado.');
     const meta=$('#detail-meta');
     if(meta)meta.innerHTML=`<span>${mission.mission_kind==='program'?'Programa':'Missão'}</span><span>${escapeHtml(priorityLabels[mission.priority]||mission.priority||'Estratégica')}</span><span>Rev. ${Number(mission.revision||1)}</span><span>${escapeHtml(lifecycleLabels[mission.lifecycle_state]||mission.lifecycle_state||'Ativa')}</span>`;
+    setValue('#mission-lifecycle',mission.lifecycle_state||'active');
+    const revisionRoot=$('#mission-revision-history');
+    if(revisionRoot)revisionRoot.innerHTML=`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão canónica ${Number(mission.revision||1)}</strong><div class="note">${mission.updated_at?new Date(mission.updated_at).toLocaleString('pt-PT'):''} · hash ${escapeHtml(String(mission.content_hash||'').slice(0,16))}…</div></div></div>`;
     const answer=$('#mission-answer');
     if(answer){answer.textContent='A análise assistida é opcional. A missão e a evidência permanecem canónicas independentemente da sua utilização.';answer.classList.add('empty');}
     showMissionMode('detail');
     revealMissionWorkspace($('#mission-detail'));
     updateCopilotContext();
     document.dispatchEvent(new CustomEvent('sris:mission-opened',{detail:{mission}}));
-    await Promise.allSettled([loadAttachments(),loadHistory(),loadEpistemicCounts(mission.code)]);
+    setTimeout(normaliseMissionTabs,0);
+    await Promise.allSettled([loadAttachments(),loadHistory(),loadMissionRevisions(),loadEpistemicCounts(mission.code),loadMissionOperationalState()]);
+    renderMissionOperationalState();
   }catch(error){
     $('#mission-list')?.insertAdjacentHTML('afterbegin',`<div class="alert error">Não foi possível abrir esta missão: ${escapeHtml(error.message)}</div>`);
   }
@@ -641,6 +864,23 @@ $('#mission-form')?.addEventListener('submit',async event=>{
   };
   event.submitter?.classList.add('loading');
   try{
+    if(editingMissionId&&selectedMission?.id===editingMissionId){
+      const updated=await api(`${miBase()}/missions/${encodeURIComponent(editingMissionId)}`,{
+        method:'PATCH',
+        body:JSON.stringify({
+          ...payload,
+          expected_revision:Number(selectedMission.revision||1),
+          change_note:'Enquadramento revisto no espaço operacional do Pilot V1.',
+        }),
+      });
+      editingMissionId=null;
+      $('#mission-editor')?.classList.remove('editing');
+      await loadMissions();
+      await openMission(updated.id);
+      showMissionMessage(`Missão revista. Revisão ${updated.revision} preservada com hash canónico.`,'success');
+      await loadWorkspaceSummary();
+      return;
+    }
     const mission=await api(`${miBase()}/missions`,{method:'POST',body:JSON.stringify(payload)});
     const graphResult=await bootstrapEpistemicNodes(mission,epistemic);
     if(box){
@@ -649,6 +889,7 @@ $('#mission-form')?.addEventListener('submit',async event=>{
     }
     await loadMissions();
     await openMission(mission.id);
+    await loadWorkspaceSummary();
   }catch(error){
     if(box){box.textContent=error.message;box.className='alert error';}
   }finally{
@@ -662,6 +903,45 @@ $('#detail-analyze-btn')?.addEventListener('click',event=>{
   setValue('#copilot-message','Que pressupostos, contradições, lacunas de evidência e alternativas podem alterar materialmente esta decisão?');
   setValue('#copilot-context',selectedMission.context||'');
   go('copilot');
+});
+
+$('#save-lifecycle-btn')?.addEventListener('click',async event=>{
+  if(!selectedMission)return;
+  const button=event.currentTarget;
+  const next=$('#mission-lifecycle')?.value||'active';
+  if(next===selectedMission.lifecycle_state){
+    showMissionMessage('O estado da missão não foi alterado.','success');
+    return;
+  }
+  button.classList.add('loading');
+  try{
+    if(next==='completed'){
+      const readiness=await api(`/api/pilot/missions/${encodeURIComponent(selectedMission.code)}/completion-readiness`);
+      missionRuntime.readiness=readiness;
+      renderMissionOperationalState();
+      if(!readiness.ready){
+        const first=readiness.checks.find(check=>!check.passed);
+        throw new Error(`A missão ainda não pode ser concluída. Próximo passo: ${first?.label||'complete o percurso operacional'}.`);
+      }
+    }
+    const updated=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.id)}`,{
+      method:'PATCH',
+      body:JSON.stringify({
+        expected_revision:Number(selectedMission.revision||1),
+        lifecycle_state:next,
+        change_note:`Estado alterado de ${selectedMission.lifecycle_state||'active'} para ${next} no Pilot V1.`,
+      }),
+    });
+    await loadMissions();
+    await openMission(updated.id);
+    await loadWorkspaceSummary();
+    showMissionMessage(`Estado atualizado para ${lifecycleLabels[next]||next}. A revisão anterior permanece preservada.`,'success');
+  }catch(error){
+    setValue('#mission-lifecycle',selectedMission.lifecycle_state||'active');
+    showMissionMessage(error.message);
+  }finally{
+    button.classList.remove('loading');
+  }
 });
 
 $$('[data-mission-tab]').forEach(button=>button.addEventListener('click',()=>{
@@ -707,18 +987,82 @@ async function loadAttachments(){
   if(!selectedMission)return;
   try{
     const rows=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments`);
+    missionRuntime.attachments=rows;
     const root=$('#attachment-list');
     if(!root)return;
     root.innerHTML=rows.length?rows.map(attachment=>{
       const filename=attachment.original_filename||attachment.filename||'Documento';
-      return `<div class="attachment-row"><span><strong>${escapeHtml(filename)}</strong><small>${escapeHtml(attachment.extraction_status||'registado')}${attachment.byte_size?` · ${Math.ceil(attachment.byte_size/1024)} KB`:''}</small></span><span class="attachment-actions"><span class="pill">${escapeHtml(attachment.extension||'ficheiro')}</span>${attachment.id?`<button type="button" data-download-attachment="${escapeHtml(attachment.id)}" data-filename="${escapeHtml(filename)}">Descarregar</button>`:''}</span></div>`;
+      const status=attachment.extraction_status||'received';
+      const ready=status==='ready';
+      const failed=['error','partial'].includes(status);
+      const stateLabel={ready:'Texto extraído e indexado',visual_ready:'Imagem recebida · revisão visual disponível',provider_ready:'Recebido · sem texto local',partial:'Extração parcial',error:'Erro de extração',received:'Recebido',processing:'A processar'}[status]||status;
+      return `<div class="attachment-row"><span><strong>${escapeHtml(filename)}</strong><small>${escapeHtml(stateLabel)}${attachment.byte_size?` · ${Math.ceil(attachment.byte_size/1024)} KB`:''}${attachment.archive_chunk_count?` · ${Number(attachment.archive_chunk_count)} excerto(s)`:''}</small><span class="document-flow" aria-label="Estado: recebido, processado e ${failed?'com erro':'pronto'}"><i class="done">Recebido</i><i class="${status==='received'?'':'done'}">Processamento</i><i class="${ready?'done':failed?'failed':''}">${failed?'Erro':ready?'Pronto':'Revisão'}</i></span>${attachment.extraction_error?`<small class="document-error">${escapeHtml(attachment.extraction_error)}</small>`:''}</span><span class="attachment-actions"><span class="pill">${escapeHtml(attachment.extension||'ficheiro')}</span>${attachment.id?`<button type="button" data-inspect-extraction="${escapeHtml(attachment.id)}">${attachment.archive_indexed?'Ver texto extraído':'Rever fonte'}</button><button type="button" data-download-attachment="${escapeHtml(attachment.id)}" data-filename="${escapeHtml(filename)}">Descarregar</button>`:''}</span></div>`;
     }).join(''):'<div class="note">Sem documentos carregados.</div>';
     $$('[data-download-attachment]',root).forEach(button=>button.addEventListener('click',()=>downloadAttachment(button.dataset.downloadAttachment,button.dataset.filename,button)));
+    $$('[data-inspect-extraction]',root).forEach(button=>button.addEventListener('click',()=>loadAttachmentExtraction(button.dataset.inspectExtraction,button)));
     document.dispatchEvent(new CustomEvent('sris:attachments-updated',{detail:{mission:selectedMission,attachments:rows}}));
+    renderMissionOperationalState();
   }catch(error){
     const root=$('#attachment-list');
     if(root)root.innerHTML=`<div class="note">Os documentos desta missão não estão disponíveis neste momento: ${escapeHtml(error.message)}</div>`;
   }
+}
+
+async function loadAttachmentExtraction(attachmentId,button){
+  if(!selectedMission)return;
+  const panel=$('#attachment-extraction-panel');
+  if(!panel)return;
+  button?.classList.add('loading');
+  panel.classList.remove('hidden');
+  panel.innerHTML='<div class="note">A verificar a extração e a proveniência da fonte…</div>';
+  try{
+    const data=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments/${encodeURIComponent(attachmentId)}/extraction?limit=50`);
+    missionRuntime.extraction=data;
+    const source=data.attachment||{};
+    const filename=source.filename||'Documento';
+    const fragments=data.fragments||[];
+    panel.innerHTML=`<div class="document-extraction-head"><div><div class="eyebrow">EXTRAÇÃO DOCUMENTAL · SEM IA</div><h4>${escapeHtml(filename)}</h4><p>${Number(data.total_fragments||0)} excerto(s) indexado(s) · SHA-256 ${escapeHtml(String(data.source_sha256||'').slice(0,16))}…</p></div><button type="button" class="inline-link" id="close-extraction">Fechar</button></div><div class="document-fragments">${fragments.length?fragments.map(fragment=>`<article class="document-fragment"><div class="document-fragment-head"><div><strong>Excerto ${Number(fragment.ordinal||0)}</strong><small>${escapeHtml(fragment.location||`caracteres ${fragment.char_start}–${fragment.char_end}`)} · hash ${escapeHtml(String(fragment.content_sha256||'').slice(0,12))}…</small></div><button class="btn btn-secondary compact" type="button" data-promote-document-evidence="${escapeHtml(fragment.id)}">Registar como evidência</button></div><pre>${escapeHtml(fragment.excerpt||'')}</pre></article>`).join(''):`<form id="visual-evidence-form" class="visual-evidence-form"><div><strong>Fonte sem texto extraível</strong><p>A fonte original está preservada. Abra-a, descreva apenas o que observou diretamente e registe essa observação com proveniência visual.</p></div><div class="field"><label for="visual-evidence-body">Observação humana sobre a fonte *</label><textarea id="visual-evidence-body" required maxlength="10000" placeholder="Descreva o elemento observável, sem o converter automaticamente numa conclusão."></textarea></div><button class="btn btn-primary" type="submit">Registar fonte visual como evidência</button><div class="note" id="visual-evidence-status"></div></form>`}</div>`;
+    $('#close-extraction',panel)?.addEventListener('click',()=>{panel.classList.add('hidden');panel.innerHTML='';});
+    $$('[data-promote-document-evidence]',panel).forEach(promote=>promote.addEventListener('click',()=>promoteDocumentEvidence(promote.dataset.promoteDocumentEvidence,promote)));
+    $('#visual-evidence-form',panel)?.addEventListener('submit',event=>promoteVisualEvidence(source.id,event));
+    panel.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(error){
+    panel.innerHTML=`<div class="alert error">Não foi possível abrir o texto extraído: ${escapeHtml(error.message)}</div>`;
+  }finally{button?.classList.remove('loading');}
+}
+
+async function promoteVisualEvidence(attachmentId,event){
+  event.preventDefault();
+  if(!selectedMission||!attachmentId)return;
+  const form=event.currentTarget;
+  const body=$('#visual-evidence-body',form)?.value.trim()||'';
+  const status=$('#visual-evidence-status',form);
+  if(!body){if(status)status.textContent='Descreva primeiro a observação feita sobre a fonte.';return;}
+  const button=$('button[type="submit"]',form);
+  button?.classList.add('loading');
+  if(status)status.textContent='A preservar a fonte, a autoria humana e o hash…';
+  try{
+    await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(selectedMission.code)}/document-evidence`,{method:'POST',body:JSON.stringify({attachment_id:attachmentId,body})});
+    if(status)status.textContent='Evidência visual registada com proveniência.';
+    button.disabled=true;
+    await Promise.allSettled([loadMissionOperationalState(),loadWorkspaceSummary()]);
+    showMissionMessage('A observação visual foi registada como evidência humana ligada à fonte original.','success');
+  }catch(error){if(status)status.textContent=error.message;}
+  finally{button?.classList.remove('loading');}
+}
+
+async function promoteDocumentEvidence(chunkId,button){
+  if(!selectedMission||!chunkId)return;
+  button?.classList.add('loading');
+  try{
+    await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(selectedMission.code)}/document-evidence`,{method:'POST',body:JSON.stringify({chunk_id:chunkId})});
+    button.textContent='Evidência registada ✓';
+    button.disabled=true;
+    await Promise.allSettled([loadMissionOperationalState(),loadWorkspaceSummary()]);
+    showMissionMessage('O excerto foi registado como evidência com fonte, posição e hashes preservados.','success');
+  }catch(error){
+    showMissionMessage(`Não foi possível registar a evidência: ${error.message}`);
+  }finally{button?.classList.remove('loading');}
 }
 
 async function uploadFiles(fileList,button=$('#upload-file-btn')){
@@ -731,7 +1075,7 @@ async function uploadFiles(fileList,button=$('#upload-file-btn')){
   button?.setAttribute('aria-busy','true');
   for(let index=0;index<files.length;index++){
     const file=files[index];
-    if(progress)progress.textContent=`A carregar ${index+1} de ${files.length}: ${file.name}`;
+    if(progress)progress.textContent=`Receção ${index+1} de ${files.length}: ${file.name} · a validar e processar…`;
     const formData=new FormData();
     formData.append('file',file);
     try{
@@ -745,6 +1089,7 @@ async function uploadFiles(fileList,button=$('#upload-file-btn')){
   if(failures.length)showMissionMessage(`Alguns documentos não foram carregados: ${failures.join(' · ')}`);
   else showMissionMessage(`${files.length} documento(s) carregado(s) e associado(s) à missão.`,'success');
   await loadAttachments();
+  await Promise.allSettled([loadMissionOperationalState(),loadWorkspaceSummary()]);
 }
 
 $('#upload-file-btn')?.addEventListener('click',event=>uploadFiles($('#mission-file')?.files,event.currentTarget));
@@ -759,69 +1104,149 @@ const dropZone=$('#upload-drop-zone');
 ['dragleave','drop'].forEach(name=>dropZone?.addEventListener(name,event=>{event.preventDefault();dropZone.classList.remove('dragging');}));
 dropZone?.addEventListener('drop',event=>uploadFiles(event.dataTransfer?.files));
 
-function reportSnapshot(){
-  if(!selectedMission)return null;
-  const activeButton=$('.mission-tabs [data-mission-tab].active');
-  const activeName=activeButton?.textContent?.trim()||'Estado da missão';
-  const activePanel=activeButton?$('#mission-tab-'+activeButton.dataset.missionTab):null;
-  return {
-    code:selectedMission.code||$('#detail-code')?.textContent?.trim()||'MISSÃO',
-    title:selectedMission.title||$('#detail-title')?.textContent?.trim()||'Missão',
-    objective:selectedMission.objective||$('#detail-objective')?.textContent?.trim()||'',
-    question:selectedMission.central_question||$('#detail-question')?.textContent?.trim()||'',
-    context:selectedMission.context||$('#detail-context')?.textContent?.trim()||'',
-    meta:$('#detail-meta')?.textContent?.trim()||'',
-    conditions:$('#detail-epistemic-counts')?.textContent?.trim()||'',
-    sectionTitle:activeName,
-    sectionText:activePanel?.innerText?.trim()||'Sem conteúdo registado nesta secção.',
-    generatedAt:new Date(),
-  };
-}
-
 function slug(value){
   return String(value||'relatorio').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,90)||'relatorio';
 }
 
+function stableJson(value){
+  if(Array.isArray(value))return`[${value.map(stableJson).join(',')}]`;
+  if(value&&typeof value==='object')return`{${Object.keys(value).sort().map(key=>`${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+
+async function sha256(value){
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
+}
+
+async function reportSnapshot(){
+  if(!selectedMission)return null;
+  const mission={...selectedMission};
+  const code=mission.code;
+  const [attachmentsResult,graphResult,cyclesResult,dialoguesResult,readinessResult,memoryResult,revisionsResult]=await Promise.allSettled([
+    api(`${miBase()}/missions/${encodeURIComponent(code)}/attachments`),
+    api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`),
+    api(`/api/pilot/decision-cycles/missions/${encodeURIComponent(code)}`),
+    api(`${miBase()}/dialogues?mission_code=${encodeURIComponent(code)}`),
+    api(`/api/pilot/missions/${encodeURIComponent(code)}/completion-readiness`),
+    api(`${miBase()}/memory/items?limit=500`),
+    api(`${miBase()}/missions/${encodeURIComponent(mission.id)}/revisions`),
+  ]);
+  const value=(result,fallback)=>result.status==='fulfilled'?result.value:fallback;
+  const memory=value(memoryResult,[]);
+  const archive={
+    schema:'sris.pilot.mission-export.v1',
+    generated_at:new Date().toISOString(),
+    human_review_required:true,
+    mission,
+    attachments:value(attachmentsResult,[]).map(item=>({
+      id:item.id,
+      filename:item.original_filename||item.filename,
+      media_type:item.media_type,
+      byte_size:item.byte_size,
+      sha256:item.sha256,
+      extraction_status:item.extraction_status,
+      extraction_error:item.extraction_error||'',
+      created_at:item.created_at,
+    })),
+    evidence_graph:value(graphResult,{nodes:[],edges:[],counts:{}}),
+    decision_cycles:value(cyclesResult,[]),
+    dialogue_sessions:value(dialoguesResult,[]),
+    mission_memory:(Array.isArray(memory)?memory:memory.items||[]).filter(item=>item.mission_id===mission.id),
+    mission_revisions:value(revisionsResult,[]),
+    completion_readiness:value(readinessResult,{ready:false,checks:[]}),
+  };
+  archive.integrity={
+    algorithm:'SHA-256',
+    scope:'canonical-json-without-integrity',
+    digest:await sha256(stableJson(archive)),
+    mission_content_hash:mission.content_hash||null,
+    mission_revision:Number(mission.revision||1),
+  };
+  return archive;
+}
+
 function completeReportHtml(snapshot){
-  const generated=snapshot.generatedAt.toLocaleString('pt-PT');
-  const section=(heading,text)=>`<section><h2>${escapeHtml(heading)}</h2><div>${escapeHtml(text||'Não registado')}</div></section>`;
-  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(snapshot.code)} — ${escapeHtml(snapshot.title)}</title><style>body{margin:0;background:#f6f3ea;color:#10231d;font:15px/1.65 Arial,sans-serif}main{max-width:920px;margin:auto;padding:54px}header{padding-bottom:28px;border-bottom:2px solid #c99a43}.brand{font-weight:800;letter-spacing:.13em;color:#103d32}h1,h2{font-family:Georgia,serif;font-weight:500}h1{font-size:42px;line-height:1.05;margin:20px 0 8px}h2{font-size:24px;margin:28px 0 9px}section{padding-bottom:18px;border-bottom:1px solid #d8dfda;white-space:pre-wrap}.meta{color:#687971}.stamp{margin-top:34px;color:#687971;font-size:12px}@media print{body{background:#fff}main{padding:16mm}}</style></head><body><main><header><div class="brand">SRIS · MISSION INTELLIGENCE</div><h1>${escapeHtml(snapshot.title)}</h1><div class="meta">${escapeHtml(snapshot.code)}${snapshot.meta?` · ${escapeHtml(snapshot.meta)}`:''}</div></header>${section('Objetivo',snapshot.objective)}${section('Pergunta central',snapshot.question)}${section('Contexto',snapshot.context)}${section('Condições explícitas',snapshot.conditions)}${section(snapshot.sectionTitle,snapshot.sectionText)}<div class="stamp">Relatório gerado em ${escapeHtml(generated)}. Documento de trabalho sujeito a revisão humana.</div></main></body></html>`;
+  const mission=snapshot.mission||{};
+  const graph=snapshot.evidence_graph||{};
+  const nodes=graph.nodes||[];
+  const cycles=snapshot.decision_cycles||[];
+  const section=(heading,content)=>`<section><h2>${escapeHtml(heading)}</h2>${content}</section>`;
+  const text=value=>`<div class="pre">${escapeHtml(value||'Não registado')}</div>`;
+  const list=(rows,renderer,empty='Sem registos.')=>rows.length?`<ol>${rows.map(renderer).join('')}</ol>`:`<p class="muted">${escapeHtml(empty)}</p>`;
+  const evidence=list(nodes,node=>`<li><strong>${escapeHtml(node.node_type)} · ${escapeHtml(node.label)}</strong><div>${escapeHtml(node.body||'')}</div><small>${escapeHtml(node.status||'')} · ${escapeHtml(node.source_kind||'')} ${node.source_sha256?`· hash ${escapeHtml(String(node.source_sha256).slice(0,16))}…`:''}</small></li>`,'Sem objetos no Evidence Graph.');
+  const decisions=list(cycles,cycle=>`<li><strong>${escapeHtml(cycle.decision)}</strong><div>Ação: ${escapeHtml(cycle.action||'não definida')}<br>Responsável/prazo: ${escapeHtml(cycle.owner||'—')} · ${escapeHtml(cycle.due_date||'—')}<br>Esperado: ${escapeHtml(cycle.expected_outcome||'—')}<br>Observado: ${escapeHtml(cycle.actual_outcome||'—')}<br>Aprendizagem: ${escapeHtml(cycle.learning||'—')}</div><small>Estado: ${escapeHtml(cycle.status||'')}</small></li>`,'Sem ciclos de decisão.');
+  const documents=list(snapshot.attachments||[],item=>`<li><strong>${escapeHtml(item.filename||'Documento')}</strong><div>${escapeHtml(item.extraction_status||'registado')} · ${Number(item.byte_size||0)} bytes</div><small>SHA-256 ${escapeHtml(item.sha256||'não disponível')}</small></li>`,'Sem documentos.');
+  const checks=list(snapshot.completion_readiness?.checks||[],check=>`<li><strong>${check.passed?'✓':'○'} ${escapeHtml(check.label)}</strong><small>${Number(check.count||0)} registo(s)</small></li>`,'Prontidão não calculada.');
+  const generated=new Date(snapshot.generated_at).toLocaleString('pt-PT');
+  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(mission.code)} — ${escapeHtml(mission.title)}</title><style>body{margin:0;background:#f6f3ea;color:#10231d;font:15px/1.65 Arial,sans-serif}main{max-width:940px;margin:auto;padding:54px}header{padding-bottom:28px;border-bottom:2px solid #c99a43}.brand{font-weight:800;letter-spacing:.13em;color:#103d32}h1,h2{font-family:Georgia,serif;font-weight:500}h1{font-size:42px;line-height:1.05;margin:20px 0 8px}h2{font-size:24px;margin:28px 0 9px}section{padding-bottom:18px;border-bottom:1px solid #d8dfda}.pre{white-space:pre-wrap}li{margin:0 0 14px}li small,.muted,.meta,.stamp{color:#687971}.stamp{margin-top:34px;font-size:12px;overflow-wrap:anywhere}@media print{body{background:#fff}main{padding:16mm}}</style></head><body><main><header><div class="brand">SRIS · MISSION INTELLIGENCE</div><h1>${escapeHtml(mission.title)}</h1><div class="meta">${escapeHtml(mission.code)} · revisão ${Number(mission.revision||1)} · ${escapeHtml(mission.lifecycle_state||'active')}</div></header>${section('Objetivo',text(mission.objective))}${section('Pergunta central',text(mission.central_question))}${section('Contexto',text(mission.context))}${section('Documentos e integridade',documents)}${section('Evidência, hipóteses e alternativas',evidence)}${section('Decisão → ação → resultado → aprendizagem',decisions)}${section('Prontidão para conclusão',checks)}${section('Memória da missão',list(snapshot.mission_memory||[],item=>`<li><strong>${escapeHtml(item.title||item.item_type||'Memória')}</strong><div>${escapeHtml(item.summary||'')}</div></li>`,'Sem itens de memória canónica.'))}${section('Revisões preservadas',list(snapshot.mission_revisions||[],item=>`<li><strong>Revisão ${Number(item.revision||1)}</strong><div>${escapeHtml(item.change_note||'')}</div><small>SHA-256 ${escapeHtml(item.content_hash||'')}</small></li>`,'Sem revisões.'))}<div class="stamp">Gerado em ${escapeHtml(generated)} · arquivo ${escapeHtml(snapshot.integrity.digest)} · hash canónico da missão ${escapeHtml(snapshot.integrity.mission_content_hash||'não disponível')}. Documento de trabalho sujeito a revisão humana.</div></main></body></html>`;
 }
 
-function exportReport(kind){
-  const snapshot=reportSnapshot();
-  if(!snapshot){showMissionMessage('Abra primeiro uma missão.');return;}
-  const base=slug(`${snapshot.code}-${snapshot.title}`);
-  if(kind==='html'){
-    downloadBlob(new Blob([completeReportHtml(snapshot)],{type:'text/html;charset=utf-8'}),`${base}-relatorio.html`);
-    return;
-  }
-  if(kind==='md'){
-    const markdown=`# ${snapshot.title}\n\n**Missão:** ${snapshot.code}\n\n## ${snapshot.sectionTitle}\n\n${snapshot.sectionText}\n\n---\nGerado pelo SRIS Mission Intelligence em ${snapshot.generatedAt.toLocaleString('pt-PT')}.\n`;
-    downloadBlob(new Blob([markdown],{type:'text/markdown;charset=utf-8'}),`${base}-${slug(snapshot.sectionTitle)}.md`);
-    return;
-  }
-  const reportWindow=window.open('','_blank');
-  if(!reportWindow){showMissionMessage('O browser bloqueou a janela de impressão. Autorize pop-ups para guardar o relatório em PDF.');return;}
-  reportWindow.opener=null;
-  reportWindow.document.open();
-  reportWindow.document.write(completeReportHtml(snapshot));
-  reportWindow.document.close();
-  reportWindow.addEventListener('load',()=>{reportWindow.focus();reportWindow.print();},{once:true});
+function reportMarkdown(snapshot){
+  const mission=snapshot.mission;
+  const nodes=snapshot.evidence_graph?.nodes||[];
+  const cycles=snapshot.decision_cycles||[];
+  const lines=[`# ${mission.title}`,``,`**Missão:** ${mission.code} · revisão ${mission.revision} · ${mission.lifecycle_state}`,`**Integridade do arquivo:** SHA-256 \`${snapshot.integrity.digest}\``,``,`## Objetivo`,``,mission.objective||'Não registado',``,`## Pergunta central`,``,mission.central_question||'Não registada',``,`## Contexto`,``,mission.context||'Não registado',``,`## Documentos`,``,...(snapshot.attachments.length?snapshot.attachments.map(item=>`- ${item.filename} — ${item.extraction_status} — SHA-256 ${item.sha256||'—'}`):['- Sem documentos.']),``,`## Evidência e raciocínio`,``,...(nodes.length?nodes.map(node=>`- **${node.node_type} · ${node.label}** [${node.status}] — ${node.body||''}`):['- Sem objetos no grafo.']),``,`## Decisão, resultado e aprendizagem`,``,...(cycles.length?cycles.map(cycle=>`- **${cycle.decision}** [${cycle.status}]\n  - Ação: ${cycle.action||'—'}\n  - Responsável/prazo: ${cycle.owner||'—'} · ${cycle.due_date||'—'}\n  - Esperado: ${cycle.expected_outcome||'—'}\n  - Observado: ${cycle.actual_outcome||'—'}\n  - Aprendizagem: ${cycle.learning||'—'}`):['- Sem decisões.']),``,`## Prontidão`,``,...(snapshot.completion_readiness?.checks||[]).map(check=>`- [${check.passed?'x':' '}] ${check.label}`),``,`---`,`Gerado pelo SRIS Mission Intelligence em ${new Date(snapshot.generated_at).toLocaleString('pt-PT')}. Revisão humana obrigatória.`];
+  return lines.join('\n');
 }
 
-$$('[data-report]').forEach(button=>button.addEventListener('click',()=>exportReport(button.dataset.report)));
+async function exportReport(kind,button){
+  if(!selectedMission){showMissionMessage('Abra primeiro uma missão.');return;}
+  button?.classList.add('loading');
+  try{
+    const snapshot=await reportSnapshot();
+    const base=slug(`${snapshot.mission.code}-${snapshot.mission.title}`);
+    if(kind==='json'){
+      downloadBlob(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json;charset=utf-8'}),`${base}-arquivo-verificavel.json`);
+      return;
+    }
+    if(kind==='html'){
+      downloadBlob(new Blob([completeReportHtml(snapshot)],{type:'text/html;charset=utf-8'}),`${base}-relatorio-completo.html`);
+      return;
+    }
+    if(kind==='md'){
+      downloadBlob(new Blob([reportMarkdown(snapshot)],{type:'text/markdown;charset=utf-8'}),`${base}-relatorio-completo.md`);
+      return;
+    }
+    const reportWindow=window.open('','_blank');
+    if(!reportWindow){showMissionMessage('O browser bloqueou a janela de impressão. Autorize pop-ups para guardar o relatório em PDF.');return;}
+    reportWindow.opener=null;
+    reportWindow.document.open();
+    reportWindow.document.write(completeReportHtml(snapshot));
+    reportWindow.document.close();
+    setTimeout(()=>{reportWindow.focus();reportWindow.print();},250);
+  }catch(error){
+    showMissionMessage(`Não foi possível gerar o relatório completo: ${error.message}`);
+  }finally{
+    button?.classList.remove('loading');
+  }
+}
+
+$$('[data-report]').forEach(button=>button.addEventListener('click',()=>exportReport(button.dataset.report,button)));
 
 async function loadHistory(){
   if(!selectedMission)return;
   try{
     const rows=await api(`${miBase()}/dialogues?mission_code=${encodeURIComponent(selectedMission.code)}`);
+    missionRuntime.dialogues=rows;
     const root=$('#dialogue-history');
     if(!root)return;
     root.innerHTML=rows.length?rows.map(dialogue=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>${escapeHtml(dialogue.status||'Sessão analítica')}</strong><div class="note">${dialogue.created_at?new Date(dialogue.created_at).toLocaleString('pt-PT'):''}</div></div></div>`).join(''):'<div class="note">Ainda não existem sessões interativas nesta missão.</div>';
   }catch{
     const root=$('#dialogue-history');
     if(root)root.innerHTML='<div class="note">Histórico temporariamente indisponível.</div>';
+  }
+}
+
+async function loadMissionRevisions(){
+  if(!selectedMission)return;
+  const root=$('#mission-revision-history');
+  if(!root)return;
+  try{
+    const rows=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.id)}/revisions`);
+    root.innerHTML=rows.length?rows.map(row=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão ${Number(row.revision||1)}</strong><div>${escapeHtml(row.change_note||'Revisão canónica preservada.')}</div><div class="note">${row.created_at?new Date(row.created_at).toLocaleString('pt-PT'):''} · hash ${escapeHtml(String(row.content_hash||'').slice(0,16))}…</div></div></div>`).join(''):'<div class="note">Sem revisões disponíveis.</div>';
+  }catch(error){
+    root.innerHTML=`<div class="note">Não foi possível carregar as revisões: ${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -842,5 +1267,6 @@ function refineStaticCopy(){
     renderDegradedProfile();
     showAppMessage(`A sessão foi iniciada, mas o workspace não conseguiu sincronizar: ${error.message}`,{retry:true});
   }
-  if(orgId())await loadMissions();
+  if(orgId())await Promise.allSettled([loadMissions(),loadWorkspaceSummary(),loadAccountCapabilities()]);
+  setTimeout(normaliseMissionTabs,500);
 })();

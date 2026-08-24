@@ -15,6 +15,7 @@ from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, User
 from app.mission_intelligence.models import CanonicalMission
+from app.pilot_serialization import as_iso
 
 router = APIRouter(prefix="/api/pilot/learning", tags=["pilot-learning-lineage"])
 
@@ -210,7 +211,7 @@ def _packet_view(row) -> dict:
         "statement": row["statement"],
         "lineage_sha256": row["lineage_sha256"],
         "lineage": snapshot,
-        "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        "created_at": as_iso(row["created_at"]),
     }
 
 
@@ -353,7 +354,7 @@ def learning_candidates(
             "disposition": row["disposition"],
             "rationale": row["rationale"],
             "context_change": row["context_change"],
-            "reviewed_at": row["reviewed_at"].isoformat() if row["reviewed_at"] else None,
+            "reviewed_at": as_iso(row["reviewed_at"]),
         }
         candidates.append(packet)
     candidates.sort(key=lambda item: item["relevance_score"], reverse=True)

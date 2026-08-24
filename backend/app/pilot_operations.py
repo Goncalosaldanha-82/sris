@@ -8,15 +8,22 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import AuditEvent, Membership, Organization, Role, User
+from app.evidence_graph import _ensure_schema as _ensure_graph_schema
+from app.learning_lineage import _ensure_schema as _ensure_learning_schema
+from app.mission_intelligence.models import CanonicalMission, MissionAttachment
+from app.pilot_decision_cycle import _ensure_schema as _ensure_decision_schema
+from app.pilot_readiness import mission_completion_readiness
+from app.pilot_serialization import as_iso
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-operations"])
 
@@ -108,6 +115,255 @@ def ops_status(
         "ai_enabled": os.getenv("SRIS_AI_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"},
         "rate_limit_scope": "process-local-pilot",
     }
+
+
+@router.get("/workspace-summary")
+def workspace_summary(
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Operational command view for the authenticated workspace.
+
+    This endpoint is deliberately deterministic.  It reports what is present
+    in the mission, evidence, decision and learning stores without asking an
+    assistant to infer progress.
+    """
+
+    membership = _membership(db, user.id)
+    org_id = membership.organization_id
+    _ensure_graph_schema(db)
+    _ensure_decision_schema(db)
+    _ensure_learning_schema(db)
+
+    mission_rows = (
+        db.query(CanonicalMission)
+        .filter(CanonicalMission.organization_id == org_id)
+        .order_by(CanonicalMission.updated_at.desc(), CanonicalMission.created_at.desc())
+        .all()
+    )
+
+    attachment_rows = db.execute(
+        text(
+            """
+            SELECT mission_id, extraction_status, COUNT(*) AS total
+            FROM mi_mission_attachments
+            WHERE organization_id=:org
+            GROUP BY mission_id, extraction_status
+            """
+        ),
+        {"org": org_id},
+    ).mappings().all()
+    attachment_counts: dict[str, dict[str, int]] = defaultdict(dict)
+    for row in attachment_rows:
+        attachment_counts[str(row["mission_id"])][str(row["extraction_status"])] = int(row["total"] or 0)
+
+    graph_rows = db.execute(
+        text(
+            """
+            SELECT mission_id, node_type, status, source_kind, COUNT(*) AS total
+            FROM pilot_evidence_graph_nodes
+            WHERE organization_id=:org
+              AND status NOT IN ('rejected', 'superseded')
+            GROUP BY mission_id, node_type, status, source_kind
+            """
+        ),
+        {"org": org_id},
+    ).mappings().all()
+    graph_counts: dict[str, dict[str, int]] = defaultdict(dict)
+    reviewed_learning: dict[str, int] = defaultdict(int)
+    for row in graph_rows:
+        mission_id = str(row["mission_id"])
+        node_type = str(row["node_type"])
+        graph_counts[mission_id][node_type] = graph_counts[mission_id].get(node_type, 0) + int(row["total"] or 0)
+        if node_type == "learning" and row["status"] in {"accepted", "verified"}:
+            reviewed_learning[mission_id] += int(row["total"] or 0)
+
+    cycle_rows = db.execute(
+        text(
+            """
+            SELECT mission_code, status, action, owner, due_date, evidence_node_id,
+                   expected_outcome, actual_outcome, learning
+            FROM pilot_decision_cycles
+            WHERE organization_id=:org
+            """
+        ),
+        {"org": org_id},
+    ).mappings().all()
+    cycles_by_mission: dict[str, list] = defaultdict(list)
+    for row in cycle_rows:
+        cycles_by_mission[str(row["mission_code"])].append(row)
+
+    packet_rows = db.execute(
+        text(
+            """
+            SELECT source_mission_id, COUNT(*) AS total
+            FROM pilot_learning_packets
+            WHERE organization_id=:org
+            GROUP BY source_mission_id
+            """
+        ),
+        {"org": org_id},
+    ).mappings().all()
+    packet_counts = {str(row["source_mission_id"]): int(row["total"] or 0) for row in packet_rows}
+
+    now = _utcnow().date()
+    mission_cards: list[dict] = []
+    total_gaps = 0
+    pending_results = 0
+    for mission in mission_rows:
+        attachments = attachment_counts.get(mission.id, {})
+        source_ready = sum(attachments.get(status, 0) for status in ("ready", "visual_ready", "provider_ready"))
+        graph = graph_counts.get(mission.id, {})
+        cycles = cycles_by_mission.get(mission.code, [])
+        total_gaps += graph.get("gap", 0)
+
+        attention = 0
+        for cycle in cycles:
+            incomplete_execution = cycle["status"] in {"committed", "in_progress"} and (
+                not str(cycle["action"] or "").strip()
+                or not str(cycle["owner"] or "").strip()
+                or not str(cycle["expected_outcome"] or "").strip()
+            )
+            incomplete_result = cycle["status"] == "completed" and (
+                not str(cycle["actual_outcome"] or "").strip()
+                or not str(cycle["learning"] or "").strip()
+            )
+            overdue = (
+                cycle["due_date"] is not None
+                and str(cycle["due_date"]) < now.isoformat()
+                and cycle["status"] not in {"completed", "abandoned"}
+            )
+            if incomplete_execution or incomplete_result or overdue:
+                attention += 1
+            if cycle["status"] in {"committed", "in_progress"} or incomplete_result:
+                pending_results += 1
+
+        readiness = mission_completion_readiness(
+            db,
+            organization_id=org_id,
+            mission_id=mission.id,
+            mission_code=mission.code,
+        )
+        next_action = next(
+            (check["label"] for check in readiness["checks"] if not check["passed"]),
+            "Missão pronta para conclusão",
+        )
+        if mission.lifecycle_state == "paused":
+            next_action = "Reativar a missão ou arquivá-la com justificação"
+        elif mission.lifecycle_state == "completed":
+            next_action = "Aprendizagem preservada; reutilizar quando for relevante"
+        elif mission.lifecycle_state == "archived":
+            next_action = "Missão arquivada"
+
+        mission_cards.append(
+            {
+                "id": mission.id,
+                "code": mission.code,
+                "title": mission.title,
+                "priority": mission.priority,
+                "lifecycle_state": mission.lifecycle_state,
+                "revision": mission.revision,
+                "content_hash": mission.content_hash,
+                "updated_at": as_iso(mission.updated_at),
+                "documents": sum(attachments.values()),
+                "documents_ready": source_ready,
+                "document_errors": attachments.get("error", 0),
+                "evidence": graph.get("evidence", 0),
+                "hypotheses": graph.get("hypothesis", 0),
+                "alternatives": graph.get("alternative", 0),
+                "gaps": graph.get("gap", 0),
+                "decisions": len(cycles),
+                "attention": attention,
+                "reviewed_learning": reviewed_learning.get(mission.id, 0),
+                "published_learning": packet_counts.get(mission.id, 0),
+                "progress_percent": readiness["progress_percent"],
+                "next_action": next_action,
+            }
+        )
+
+    active_states = {"active", "paused"}
+    attention_missions = sum(
+        1
+        for mission in mission_cards
+        if mission["lifecycle_state"] in active_states
+        and (mission["attention"] > 0 or mission["progress_percent"] < 100)
+    )
+    db.commit()
+    return {
+        "generated_at": _utcnow().isoformat(),
+        "organization_id": org_id,
+        "role": membership.role,
+        "metrics": {
+            "missions_total": len(mission_cards),
+            "missions_active": sum(1 for row in mission_cards if row["lifecycle_state"] == "active"),
+            "missions_attention": attention_missions,
+            "evidence_gaps": total_gaps,
+            "pending_results": pending_results,
+            "published_learning": sum(packet_counts.values()),
+        },
+        "missions": mission_cards,
+    }
+
+
+@router.get("/missions/{mission_code}/completion-readiness")
+def completion_readiness(
+    mission_code: str,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    membership = _membership(db, user.id)
+    mission = (
+        db.query(CanonicalMission)
+        .filter(
+            CanonicalMission.organization_id == membership.organization_id,
+            CanonicalMission.code == mission_code,
+        )
+        .one_or_none()
+    )
+    if mission is None:
+        raise HTTPException(status_code=404, detail="A missão indicada não existe neste workspace.")
+    result = mission_completion_readiness(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+    )
+    db.commit()
+    return result
+
+
+@router.get("/admin/audit")
+def list_audit_events(
+    limit: int = Query(default=50, ge=1, le=200),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    membership = _require_admin(db, user)
+    rows = (
+        db.query(AuditEvent)
+        .filter(AuditEvent.organization_id == membership.organization_id)
+        .order_by(AuditEvent.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    events = []
+    for row in rows:
+        try:
+            payload = json.loads(row.payload_json or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        events.append(
+            {
+                "id": row.id,
+                "action": row.action,
+                "resource_type": row.resource_type,
+                "resource_id": row.resource_id,
+                "user_id": row.user_id,
+                "payload": payload,
+                "created_at": as_iso(row.created_at),
+            }
+        )
+    return {"events": events, "count": len(events)}
 
 
 @router.get("/admin/accounts")

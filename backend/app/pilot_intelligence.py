@@ -22,6 +22,7 @@ from app.mission_intelligence.governance import (
     settle_ai_usage,
 )
 from app.mission_intelligence.models import CanonicalMission, MissionAttachment
+from app.pilot_serialization import as_iso
 
 router = APIRouter(prefix="/api/pilot/intelligence", tags=["pilot-intelligence"])
 MICRO_EUR = 1_000_000
@@ -386,7 +387,7 @@ def pilot_intelligence_history(
             "message": row["user_message"], "answer": row["answer"],
             "context": json.loads(row["context_manifest_json"] or "{}"),
             "charged_eur": round(int(row["charged_microeur"] or 0) / MICRO_EUR, 4),
-            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            "created_at": as_iso(row["created_at"]),
         }
         for row in rows
     ]

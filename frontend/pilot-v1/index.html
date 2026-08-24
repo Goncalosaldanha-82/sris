@@ -17,6 +17,9 @@
         <div class="nav-group-label">Trabalho</div>
         <button class="active" data-section="overview">⌂ <span>Visão geral</span></button>
         <button data-section="mission">◉ <span>Missões</span></button>
+        <button data-mission-area="graph">◇ <span>Evidência</span></button>
+        <button data-mission-area="cycle">✓ <span>Decisões e resultados</span></button>
+        <button data-mission-area="learning">↻ <span>Memória</span></button>
         <button data-section="account">○ <span>Conta</span></button>
       </div>
       <div class="nav-group nav-group-optional">
@@ -37,40 +40,35 @@
     <div id="app-message" class="app-message alert hidden" role="status" aria-live="polite"></div>
 
     <section class="section active" id="overview">
-      <div class="hero-card">
-        <div class="eyebrow">INFRAESTRUTURA DE DECISÃO</div>
-        <h2>Comece pela decisão. Preserve a razão.</h2>
-        <p id="welcome-title">O SRIS organiza o caminho entre o que foi observado, a evidência disponível, os pressupostos assumidos, a decisão tomada e aquilo que se aprendeu depois.</p>
-        <div class="button-row"><button class="btn btn-light" id="primary-mission-cta" type="button">Criar missão</button><button class="btn btn-outline-light" id="open-missions-cta" type="button">Abrir missões</button></div>
+      <div class="command-hero">
+        <div><div class="eyebrow">ÁREA DE COMANDO</div><h2>O que precisa de atenção agora.</h2><p id="welcome-title">A sincronizar o trabalho persistente do workspace…</p></div>
+        <div class="button-row"><button class="btn btn-primary" id="primary-mission-cta" type="button">Criar missão</button><button class="btn btn-secondary" id="open-missions-cta" type="button">Abrir missões</button></div>
       </div>
 
-      <div class="decision-chain" aria-label="Cadeia principal de decisão do SRIS">
-        <span>Observação</span><span>Evidência</span><span>Hipótese</span><span>Alternativa</span><span>Decisão</span><span>Ação</span><span>Resultado</span><span>Aprendizagem</span>
+      <div class="command-metrics" id="command-metrics" aria-label="Indicadores operacionais">
+        <article class="command-metric"><span>Missões ativas</span><strong id="metric-active">—</strong><small>em trabalho</small></article>
+        <article class="command-metric attention"><span>Requerem atenção</span><strong id="metric-attention">—</strong><small>próximo passo incompleto</small></article>
+        <article class="command-metric"><span>Lacunas explícitas</span><strong id="metric-gaps">—</strong><small>evidência por obter</small></article>
+        <article class="command-metric"><span>Resultados pendentes</span><strong id="metric-results">—</strong><small>decisões em acompanhamento</small></article>
+        <article class="command-metric"><span>Aprendizagens publicadas</span><strong id="metric-learning">—</strong><small>com linhagem reutilizável</small></article>
       </div>
 
-      <article class="epistemic-layer" aria-label="Camada transversal de disciplina">
-        <div><span class="product-index">CAMADA TRANSVERSAL</span><h3>O que condiciona a decisão permanece explícito.</h3><p>A assistência deve indicar incerteza, separar facto de inferência e nunca preencher lacunas com confiança artificial.</p></div>
+      <div class="command-grid">
+        <article class="card command-panel">
+          <div class="card-head"><div><div class="eyebrow">CONTINUIDADE</div><h3>Retomar trabalho</h3></div><button class="inline-link" data-go="mission">Ver portefólio →</button></div>
+          <div id="command-missions" class="command-list"><div class="note">A sincronizar missões…</div></div>
+        </article>
+        <article class="card command-panel">
+          <div class="card-head"><div><div class="eyebrow">FILA DE ATENÇÃO</div><h3>Próximas ações</h3></div><span class="pill">determinístico</span></div>
+          <div id="command-attention" class="command-list"><div class="note">A avaliar o estado persistente…</div></div>
+        </article>
+      </div>
+
+      <details class="how-it-works">
+        <summary>Como o SRIS fecha um ciclo de decisão</summary>
+        <div class="decision-chain" aria-label="Cadeia principal de decisão do SRIS"><span>Observação</span><span>Evidência</span><span>Hipótese</span><span>Alternativa</span><span>Decisão</span><span>Ação</span><span>Resultado</span><span>Aprendizagem</span></div>
         <div class="epistemic-chips"><span>Pressupostos</span><span>Restrições</span><span>Lacunas</span><span>Incerteza</span><span>Proveniência</span><span>Confiança</span></div>
-      </article>
-
-      <div class="overview-grid product-grid">
-        <article class="card product-card"><div><span class="product-index">01 · Trabalho</span><h3>Missões persistentes</h3><p>Cada problema mantém identidade, contexto, revisões, documentos, diálogo e continuidade.</p></div><button class="inline-link" data-go="mission">Abrir missões →</button></article>
-        <article class="card product-card"><div><span class="product-index">02 · Fundamento</span><h3>Evidência e proveniência</h3><p>Fontes, factos, pressupostos, hipóteses e lacunas permanecem ligados à sua origem e ao momento da decisão.</p></div><button class="inline-link" data-go="mission">Trabalhar evidência →</button></article>
-        <article class="card product-card"><div><span class="product-index">03 · Execução</span><h3>Decisão → Resultado</h3><p>Registe a ação, o responsável, o resultado esperado, o observado e a aprendizagem produzida.</p></div><button class="inline-link" data-go="mission">Fechar o ciclo →</button></article>
-        <article class="card product-card"><div><span class="product-index">04 · Continuidade</span><h3>Memória organizacional</h3><p>Aprendizagens revistas podem ser reutilizadas sem perder contexto, confiança ou linhagem.</p></div><button class="inline-link" data-go="mission">Abrir memória →</button></article>
-      </div>
-
-      <div class="two-col overview-secondary">
-        <article class="card memory-primary">
-          <div class="card-head"><div><div class="eyebrow">PRÓXIMO PASSO</div><h3>Comece por uma decisão real, não por uma conversa genérica.</h3></div><span class="pill">Persistente</span></div>
-          <p>Crie uma missão estreita, carregue a evidência que já existe e deixe o SRIS estruturar o que se sabe, o que se está a assumir e o que precisa de ser verificado antes de agir.</p>
-          <button class="btn btn-primary" data-go="mission" data-create-mission>Criar ou abrir missão</button>
-        </article>
-        <article class="card">
-          <div class="eyebrow">DISCIPLINA DO SISTEMA</div>
-          <ol class="principles"><li>Factos ≠ hipóteses</li><li>Incerteza explícita</li><li>Decisões rastreáveis</li><li>Aprendizagem acumulativa</li></ol>
-        </article>
-      </div>
+      </details>
 
       <details class="technical-details">
         <summary>Estado técnico do piloto</summary>
@@ -151,9 +149,11 @@
               <div class="detail-actions">
                 <div class="report-actions" id="report-actions" aria-label="Exportar relatório">
                   <button type="button" data-report="print">Imprimir / PDF</button>
-                  <button type="button" data-report="html">Relatório .html</button>
-                  <button type="button" data-report="md">Secção .md</button>
+                  <button type="button" data-report="html">Relatório completo .html</button>
+                  <button type="button" data-report="json">Arquivo verificável .json</button>
+                  <button type="button" data-report="md">Relatório .md</button>
                 </div>
+                <button class="btn btn-secondary compact" id="detail-edit-btn" type="button">Editar missão</button>
                 <button class="btn btn-primary compact" id="detail-submission-btn" type="button">+ Sub-missão</button>
               </div>
             </div>
@@ -169,8 +169,19 @@
 
             <div class="button-row"><button class="btn btn-secondary" id="detail-analyze-btn">Abrir análise assistida</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div>
             <div class="answer-box empty" id="mission-answer">A análise assistida é opcional. A missão, a evidência, a decisão e a memória permanecem canónicas independentemente da sua utilização.</div>
-            <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="history">Histórico</button></div>
-            <div class="mission-tab active" id="mission-tab-documents">
+            <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="summary">Resumo</button><button type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="history">Auditoria</button></div>
+            <div class="mission-tab active" id="mission-tab-summary">
+              <div class="mission-command-head"><div><div class="eyebrow">ESTADO OPERACIONAL</div><h3>Do contexto à aprendizagem</h3><p class="note">O progresso é calculado a partir dos registos persistentes, não de uma conclusão automática.</p></div><div class="mission-progress"><strong id="mission-progress-value">0%</strong><span>percurso completo</span></div></div>
+              <div class="mission-summary-kpis" id="mission-summary-kpis"></div>
+              <div class="mission-readiness" id="mission-readiness"><div class="note">A sincronizar o percurso da missão…</div></div>
+              <div class="mission-next-step"><div><span class="product-index">PRÓXIMO PASSO</span><strong id="mission-next-action">A sincronizar…</strong></div><div class="button-row"><button class="btn btn-secondary compact" type="button" data-open-mission-tab="documents">Abrir documentos</button><button class="btn btn-secondary compact" type="button" data-open-mission-tab="graph">Estruturar evidência</button><button class="btn btn-primary compact" type="button" data-open-mission-tab="cycle">Trabalhar decisão</button></div></div>
+              <div class="mission-governance">
+                <div class="field"><label for="mission-lifecycle">Estado da missão</label><select id="mission-lifecycle"><option value="active">Ativa</option><option value="paused">Pausada</option><option value="completed">Concluída</option><option value="archived">Arquivada</option></select></div>
+                <button class="btn btn-secondary" id="save-lifecycle-btn" type="button">Guardar estado</button>
+                <span class="note" id="mission-integrity">Revisão e hash a sincronizar.</span>
+              </div>
+            </div>
+            <div class="mission-tab" id="mission-tab-documents">
               <div class="card-head"><div><h3>Inteligência documental</h3><div class="note">Uploads com extração, proveniência e recuperação híbrida.</div></div></div>
               <div class="upload-zone" id="upload-drop-zone">
                 <div class="upload-zone-head"><div><h4>Carregar documentos</h4><p>Selecione ou arraste vários ficheiros. Cada documento fica associado à missão, com extração e proveniência.</p></div><span class="pill">PDF · Office · imagem · texto</span></div>
@@ -178,8 +189,9 @@
                 <div class="upload-progress" id="upload-progress" role="status" aria-live="polite"></div>
               </div>
               <div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div>
+              <section id="attachment-extraction-panel" class="document-extraction hidden" aria-live="polite"></section>
             </div>
-            <div class="mission-tab" id="mission-tab-history"><h3>Histórico persistente</h3><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
+            <div class="mission-tab" id="mission-tab-history"><h3>Auditoria e histórico persistente</h3><p class="note">Revisões, sessões e alterações preservadas no workspace.</p><div id="mission-revision-history"></div><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
           </div>
         </div>
       </div>
@@ -212,6 +224,7 @@
         <article class="card"><h2>Organização</h2><div class="field"><label for="account-org">Workspace</label><input id="account-org" readonly></div><div class="field"><label for="account-role">Função</label><input id="account-role" readonly></div></article>
       </div>
       <article class="card account-utilities"><div class="card-head"><div><h3>Ferramentas opcionais</h3><p class="note">A assistência analítica fica separada do trabalho canónico de decisão.</p></div></div><div class="button-row"><button class="btn btn-secondary" data-go="copilot">Abrir análise assistida</button></div></article>
+      <article class="card"><div class="card-head"><div><h3>Acesso e continuidade</h3><p class="note">Convites, recuperação de acesso e estado técnico são apresentados sem ocultar configurações em falta.</p></div><a class="btn btn-secondary compact" href="/account.html">Recuperar acesso</a></div><dl class="stats" id="account-capabilities"><div><dt>Convites</dt><dd>A confirmar</dd></div><div><dt>Email transacional</dt><dd>A confirmar</dd></div><div><dt>Auditoria</dt><dd>Ativa</dd></div></dl></article>
       <article class="card"><h3>Segurança</h3><p class="note">A sessão é protegida por token e a alteração de palavra-passe invalida as sessões anteriores.</p><button class="btn btn-danger" id="logout-btn-2">Terminar sessão</button></article>
     </section>
   </main>

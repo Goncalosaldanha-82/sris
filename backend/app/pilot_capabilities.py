@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter
+from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260824-mobile-workflow-v2"
+PILOT_BUILD = "20260824-operational-core-v3"
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -41,6 +42,8 @@ def pilot_capabilities() -> dict:
         "public_signup": _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True),
         "password_reset": True,
         "password_reset_delivery": _password_reset_delivery(),
+        "transactional_email_ready": auth_email_delivery_ready(),
+        "invitations_enabled": auth_email_delivery_ready(),
         "workspace_profile_endpoint": "/api/pilot/profile",
         "mission_intelligence": True,
         "document_intelligence": True,

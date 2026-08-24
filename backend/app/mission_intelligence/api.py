@@ -10,7 +10,6 @@ from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role
 
 from .ai import (
-    configured_model,
     configured_pilot_organization_id,
     institutional_onboarding_closed,
     is_ai_configured,
@@ -21,6 +20,7 @@ from .attachments import (
     MAX_ATTACHMENT_BYTES,
     AttachmentError,
     attachment_content,
+    attachment_extraction_view,
     attachment_views,
     create_attachment,
     delete_attachment,
@@ -48,7 +48,7 @@ from .dialogue_service import (
 from .engine import ENGINE_VERSION
 from .governance import governance_view, update_policy, usage_event_view
 from .interactive import INTERACTIVE_PROMPT_VERSION
-from .models import AIUsageEvent, CanonicalMission, IntelligenceRun
+from .models import AIUsageEvent, CanonicalMission, IntelligenceRun, MissionRevision
 from .portfolio import (
     create_mission,
     list_mission_portfolio,
@@ -83,7 +83,6 @@ def capability_status() -> dict:
         "proposal_review": "granular_human_review",
         "canonical_auto_mutation": False,
         "ai_provider": "openai",
-        "ai_model": configured_model(),
         "ai_configured": is_ai_configured(),
         "context_research_engine": "installed",
         "context_research_configured": is_context_research_configured(),
@@ -188,6 +187,50 @@ def get_canonical_mission(
     return mission_view(db, organization_id=organization_id, row=row)
 
 
+@organization_router.get("/missions/{mission_id}/revisions")
+def list_mission_revisions(
+    organization_id: str,
+    mission_id: str,
+    _: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    mission = (
+        db.query(CanonicalMission)
+        .filter(
+            CanonicalMission.id == mission_id,
+            CanonicalMission.organization_id == organization_id,
+        )
+        .one_or_none()
+    )
+    if mission is None:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    rows = (
+        db.query(MissionRevision)
+        .filter(MissionRevision.mission_id == mission.id)
+        .order_by(MissionRevision.revision.desc())
+        .all()
+    )
+    return [
+        {
+            "id": row.id,
+            "revision": row.revision,
+            "content_hash": row.content_hash,
+            "change_note": row.change_note,
+            "created_by_user_id": row.created_by_user_id,
+            "created_at": row.created_at,
+        }
+        for row in rows
+    ]
+
+
 @organization_router.patch("/missions/{mission_id}")
 def patch_canonical_mission(
     organization_id: str,
@@ -227,7 +270,12 @@ async def upload_mission_attachment(
     dialogue_session_id: str | None = Form(default=None),
     question_id: str | None = Form(default=None),
     membership: Membership = Depends(
-        require_org_role(Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value)
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+        )
     ),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -309,6 +357,38 @@ def download_mission_attachment(
             )
         },
     )
+
+
+@organization_router.get("/missions/{mission_code}/attachments/{attachment_id}/extraction")
+def inspect_mission_attachment_extraction(
+    organization_id: str,
+    mission_code: str,
+    attachment_id: str,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=50),
+    _: Membership = Depends(
+        require_org_role(
+            Role.OWNER.value,
+            Role.ADMIN.value,
+            Role.REVIEWER.value,
+            Role.CONTRIBUTOR.value,
+            Role.OBSERVER.value,
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> dict:
+    row = get_attachment(
+        db,
+        organization_id=organization_id,
+        mission_code=mission_code,
+        attachment_id=attachment_id,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    try:
+        return attachment_extraction_view(db, row, offset=offset, limit=limit)
+    except AttachmentError as exc:
+        raise _attachment_error(exc) from exc
 
 
 @organization_router.delete(

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.atlas_platform.config import Settings, configured_database_url, validate_security_settings
 from app.main import app
@@ -52,9 +54,9 @@ def test_pilot_entry_is_one_versioned_mobile_safe_surface() -> None:
         "Disciplina antes da assistência",
         "Ver melhor.",
         "Decidir melhor.",
-        "/pilot.css?v=20260824-mobile-workflow-v2",
-        "/territory-sunrise.webp?v=20260824-mobile-workflow-v2",
-        "/auth.js?v=20260824-mobile-workflow-v2",
+        f"/pilot.css?v={PILOT_BUILD}",
+        f"/territory-sunrise.webp?v={PILOT_BUILD}",
+        f"/auth.js?v={PILOT_BUILD}",
         'id="login-submit"',
     ):
         assert marker in response.text
@@ -95,7 +97,11 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
     for marker in (
         "SRIS — Espaço de Missão",
         "Visão geral",
-        "Comece pela decisão. Preserve a razão.",
+        "O que precisa de atenção agora.",
+        "Missões ativas",
+        "Requerem atenção",
+        "Resultados pendentes",
+        "Aprendizagens publicadas",
         "Observação",
         "Evidência",
         "Hipótese",
@@ -112,11 +118,15 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "Portefólio persistente",
         "+ Sub-missão",
         "Inteligência documental",
-        "Histórico persistente",
+        "Auditoria e histórico persistente",
         "Análise assistida, não centro do produto.",
         "Imprimir / PDF",
-        "Relatório .html",
-        "Secção .md",
+        "Relatório completo .html",
+        "Arquivo verificável .json",
+        "Relatório .md",
+        "ESTADO OPERACIONAL",
+        "PRÓXIMO PASSO",
+        "Editar missão",
         'id="upload-drop-zone"',
         'id="mission-file" multiple',
     ):
@@ -147,6 +157,9 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert payload["evidence_graph"] is True
     assert payload["organizational_memory"] is True
     assert payload["billing_mode"] == "disabled"
+    public_status = client.get("/api/mission-intelligence/status")
+    assert public_status.status_code == 200
+    assert "ai_model" not in public_status.json()
 
     app_script = client.get("/app.js")
     assert app_script.status_code == 200
@@ -157,6 +170,11 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
         "data-download-attachment",
         "function completeReportHtml",
         "function exportReport",
+        "async function reportSnapshot",
+        "function stableJson",
+        "async function loadWorkspaceSummary",
+        "completion-readiness",
+        "sris_active_mission:",
         "sris:mission-opened",
         "missionTemplates",
         "source:'mission_onboarding'",
@@ -166,9 +184,12 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
 
     learning = client.get("/learning-lineage.js")
     decision = client.get("/decision-cycle-v1.js")
+    workspace = client.get("/mission-workspace-v2.js")
     assert "window.fetch=" not in learning.text
     assert "MutationObserver" not in decision.text
     assert "sris:evidence-graph-updated" in decision.text
+    assert "model_or_system" not in workspace.text
+    assert "credit_eur" not in workspace.text
 
 
 def test_pilot_openapi_exposes_the_operational_scope() -> None:
@@ -183,6 +204,7 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_id}",
         "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_code}/attachments",
         "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_code}/attachments/{attachment_id}/download",
+        "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_code}/attachments/{attachment_id}/extraction",
         "/api/organizations/{organization_id}/mission-intelligence/dialogues",
         "/api/pilot/register",
         "/api/pilot/profile",
@@ -192,8 +214,14 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/intelligence/ask",
         "/api/pilot/decision-cycles",
         "/api/pilot/evidence-graph/missions/{mission_code}",
+        "/api/pilot/evidence-graph/missions/{mission_code}/document-evidence",
         "/api/pilot/learning/missions/{mission_code}/candidates",
         "/api/pilot/learning/missions/{mission_code}/active-context",
+        "/api/pilot/workspace-summary",
+        "/api/pilot/missions/{mission_code}/completion-readiness",
+        "/api/pilot/admin/audit",
+        "/api/organizations/{organization_id}/invitations",
+        "/api/organizations/{organization_id}/mission-intelligence/missions/{mission_id}/revisions",
     )
     for path in required_paths:
         assert path in document["paths"]
@@ -213,6 +241,22 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "learning",
     ):
         assert kind in serialized
+
+
+def test_pilot_account_activation_surface_uses_pilot_session_contract() -> None:
+    response = client.get("/account.html")
+    assert response.status_code == 200
+    assert response.headers["cache-control"].startswith("no-store")
+    for marker in (
+        "Acesso ao workspace · SRIS Pilot",
+        "/api/auth/invitations/inspect",
+        "/api/auth/invitations/accept",
+        "/api/auth/password-reset/confirm",
+        "localStorage.setItem('sris_access_token'",
+        "localStorage.setItem('sris_refresh_token'",
+        "location.replace('/app')",
+    ):
+        assert marker in response.text
 
 
 def test_account_to_persistent_mission_journey(monkeypatch) -> None:
@@ -273,6 +317,244 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert downloaded.status_code == 200, downloaded.text
     assert downloaded.content == b"Evidence preserved by the Pilot journey."
+
+    extraction = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['code']}/attachments/{attachment['id']}/extraction",
+        headers=headers,
+    )
+    assert extraction.status_code == 200, extraction.text
+    assert extraction.json()["source_sha256"] == attachment["sha256"]
+    assert extraction.json()["total_fragments"] == 1
+    fragment = extraction.json()["fragments"][0]
+    assert fragment["excerpt"] == "Evidence preserved by the Pilot journey."
+    assert fragment["char_start"] == 0
+    assert fragment["char_end"] == len(fragment["excerpt"])
+
+    graph_base = f"/api/pilot/evidence-graph/missions/{mission_payload['code']}"
+    evidence = client.post(
+        f"{graph_base}/document-evidence",
+        headers=headers,
+        json={"chunk_id": fragment["id"], "label": "Fonte operacional preservada"},
+    )
+    assert evidence.status_code == 201, evidence.text
+    assert evidence.json()["source_kind"] == "document_chunk"
+    assert evidence.json()["attachment_id"] == attachment["id"]
+    assert evidence.json()["char_start"] == fragment["char_start"]
+    assert evidence.json()["char_end"] == fragment["char_end"]
+    assert evidence.json()["source_sha256"] == attachment["sha256"]
+
+    visual_buffer = BytesIO()
+    Image.new("RGB", (2, 2), color=(28, 84, 66)).save(visual_buffer, format="PNG")
+    visual_upload = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['code']}/attachments",
+        headers=headers,
+        files={"file": ("observation.png", visual_buffer.getvalue(), "image/png")},
+    )
+    assert visual_upload.status_code == 201, visual_upload.text
+    assert visual_upload.json()["extraction_status"] == "visual_ready"
+    visual_extraction = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['code']}/attachments/{visual_upload.json()['id']}/extraction",
+        headers=headers,
+    )
+    assert visual_extraction.status_code == 200, visual_extraction.text
+    assert visual_extraction.json()["fragments"] == []
+    visual_evidence = client.post(
+        f"{graph_base}/document-evidence",
+        headers=headers,
+        json={
+            "attachment_id": visual_upload.json()["id"],
+            "body": "Observação humana: a imagem recebida contém um quadrado verde uniforme.",
+        },
+    )
+    assert visual_evidence.status_code == 201, visual_evidence.text
+    assert visual_evidence.json()["source_kind"] == "visual_document"
+    assert visual_evidence.json()["attachment_id"] == visual_upload.json()["id"]
+    hypothesis = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "hypothesis",
+            "label": "Hipótese operacional",
+            "body": "A persistência mantém o contexto entre sessões.",
+            "status": "proposed",
+        },
+    )
+    assert hypothesis.status_code == 201, hypothesis.text
+    alternative = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "alternative",
+            "label": "Alternativa comparável",
+            "body": "Manter o processo apenas em documentos dispersos.",
+            "status": "proposed",
+        },
+    )
+    assert alternative.status_code == 201, alternative.text
+    second_alternative = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "alternative",
+            "label": "Alternativa persistente",
+            "body": "Manter o contexto canónico, os documentos e a proveniência no Pilot V1.",
+            "status": "proposed",
+        },
+    )
+    assert second_alternative.status_code == 201, second_alternative.text
+    linked = client.post(
+        f"{graph_base}/edges",
+        headers=headers,
+        json={
+            "from_node_id": evidence.json()["id"],
+            "to_node_id": hypothesis.json()["id"],
+            "edge_type": "supports",
+            "provenance": {"human_curated": True},
+        },
+    )
+    assert linked.status_code == 201, linked.text
+
+    blocked = client.patch(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",
+        headers=headers,
+        json={
+            "expected_revision": mission_payload["revision"],
+            "lifecycle_state": "completed",
+            "change_note": "Tentativa deliberadamente prematura.",
+        },
+    )
+    assert blocked.status_code == 409, blocked.text
+    assert blocked.json()["detail"]["code"] == "mission_completion_blocked"
+
+    decision = client.post(
+        "/api/pilot/decision-cycles",
+        headers=headers,
+        json={
+            "mission_code": mission_payload["code"],
+            "decision": "Adotar o percurso persistente do Pilot V1.",
+            "action": "Reabrir a missão depois de uma nova autenticação.",
+            "owner": "Pilot Journey",
+            "due_date": "2026-09-01",
+            "expected_outcome": "A missão reaparece com o mesmo contexto.",
+            "evidence_node_id": evidence.json()["id"],
+        },
+    )
+    assert decision.status_code == 201, decision.text
+    completed_cycle = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={
+            "status": "completed",
+            "action": "Reabrir a missão depois de uma nova autenticação.",
+            "owner": "Pilot Journey",
+            "due_date": "2026-09-01",
+            "expected_outcome": "A missão reaparece com o mesmo contexto.",
+            "actual_outcome": "A missão, o documento e o grafo reapareceram.",
+            "learning": "A continuidade deve ser validada pelo estado persistente e não pelo ecrã.",
+        },
+    )
+    assert completed_cycle.status_code == 200, completed_cycle.text
+    materialized = client.post(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}/materialize-learning",
+        headers=headers,
+    )
+    assert materialized.status_code == 201, materialized.text
+    assert materialized.json()["decision_node_id"] != evidence.json()["id"]
+    learning_node_id = materialized.json()["learning_node_id"]
+    lineage_graph = client.get(graph_base, headers=headers)
+    assert lineage_graph.status_code == 200, lineage_graph.text
+    assert any(
+        edge["from_node_id"] == evidence.json()["id"]
+        and edge["to_node_id"] == materialized.json()["decision_node_id"]
+        and edge["edge_type"] == "informs"
+        for edge in lineage_graph.json()["edges"]
+    )
+    accepted = client.patch(
+        f"{graph_base}/nodes/{learning_node_id}",
+        headers=headers,
+        json={"status": "accepted"},
+    )
+    assert accepted.status_code == 200, accepted.text
+    published = client.post(
+        f"/api/pilot/learning/missions/{mission_payload['code']}/publish/{learning_node_id}",
+        headers=headers,
+    )
+    assert published.status_code == 201, published.text
+
+    readiness = client.get(
+        f"/api/pilot/missions/{mission_payload['code']}/completion-readiness",
+        headers=headers,
+    )
+    assert readiness.status_code == 200, readiness.text
+    assert readiness.json()["ready"] is True
+    assert all(check["passed"] for check in readiness.json()["checks"])
+
+    completed_mission = client.patch(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",
+        headers=headers,
+        json={
+            "expected_revision": mission_payload["revision"],
+            "lifecycle_state": "completed",
+            "change_note": "Ciclo completo, revisto e publicado.",
+        },
+    )
+    assert completed_mission.status_code == 200, completed_mission.text
+    assert completed_mission.json()["lifecycle_state"] == "completed"
+
+    sub_mission = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions",
+        headers=headers,
+        json={
+            "title": "Sub-missão persistente do percurso",
+            "objective": "Confirmar que o trabalho pode ser decomposto sem perder linhagem.",
+            "central_question": "A sub-missão preserva a relação com a missão concluída?",
+            "context": "Validação funcional do percurso hierárquico do Pilot V1.",
+            "parent_mission_id": mission_payload["id"],
+            "mission_kind": "mission",
+            "domain": "pilot_validation",
+            "priority": "standard",
+        },
+    )
+    assert sub_mission.status_code == 201, sub_mission.text
+    assert sub_mission.json()["parent_code"] == mission_payload["code"]
+    candidates = client.get(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates",
+        headers=headers,
+    )
+    assert candidates.status_code == 200, candidates.text
+    packet = next(
+        row
+        for row in candidates.json()["candidates"]
+        if row["source_mission"]["code"] == mission_payload["code"]
+    )
+    reviewed = client.post(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates/{packet['id']}/review",
+        headers=headers,
+        json={
+            "disposition": "still_valid",
+            "rationale": "A sub-missão partilha o mesmo contrato de persistência.",
+            "context_change": "",
+        },
+    )
+    assert reviewed.status_code == 200, reviewed.text
+    inherited = client.get(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/active-context",
+        headers=headers,
+    )
+    assert inherited.status_code == 200, inherited.text
+    assert "continuidade" in inherited.json()["context_text"].lower()
+
+    summary = client.get("/api/pilot/workspace-summary", headers=headers)
+    assert summary.status_code == 200, summary.text
+    summary_mission = next(row for row in summary.json()["missions"] if row["id"] == mission_payload["id"])
+    assert summary_mission["progress_percent"] == 100
+    assert summary_mission["published_learning"] == 1
+    revisions = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}/revisions",
+        headers=headers,
+    )
+    assert revisions.status_code == 200, revisions.text
+    assert [row["revision"] for row in revisions.json()] == [2, 1]
 
     logged_in = client.post(
         "/api/auth/login",

@@ -11,18 +11,22 @@ const index=fs.readFileSync(path.join(pilot,'index.html'),'utf8');
 
 test('Decision Loop is syntactically valid and follows the Pilot build token',()=>{
   assert.doesNotThrow(()=>new Function(source));
-  assert.match(source,/20260824-mobile-workflow-v2/);
+  assert.match(source,/20260824-operational-core-v3/);
   assert.match(index,/decision-cycle-v1\.js\?v=__PILOT_BUILD__/);
   assert.doesNotMatch(index,/decision-workbench-v1\.js/);
   assert.doesNotMatch(source,/new MutationObserver\s*\(/);
   assert.match(source,/sris:evidence-graph-updated/);
   assert.match(source,/sris:mission-opened/);
+  assert.match(source,/sris:decision-cycles-updated/);
 });
 
 test('Decision Loop uses governed forms instead of browser prompts',()=>{
   assert.doesNotMatch(source,/\bprompt\s*\(/);
   assert.doesNotMatch(source,/\balert\s*\(/);
   for(const id of ['dc1-create-form','dc1-decision','dc1-action','dc1-owner','dc1-due','dc1-expected'])assert.match(source,new RegExp(id));
+  assert.match(source,/Fundamento da decisão/);
+  assert.match(source,/loadEvidenceOptions/);
+  assert.match(source,/Selecione a evidência que fundamenta a decisão/);
   assert.match(source,/Defina a ação antes de avançar o estado da decisão/);
   assert.match(source,/Registe o resultado observado antes de concluir a decisão/);
 });

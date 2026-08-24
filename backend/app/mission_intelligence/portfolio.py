@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
+from app.pilot_readiness import mission_completion_readiness
 
 from .contracts import MissionCreateRequest, MissionDocumentV13, MissionUpdateRequest
 from .models import CanonicalMission, MissionRevision
@@ -404,6 +405,27 @@ def update_mission(
                 "current_revision": row.revision,
             },
         )
+
+    if payload.lifecycle_state == "completed" and row.lifecycle_state != "completed":
+        readiness = mission_completion_readiness(
+            db,
+            organization_id=organization_id,
+            mission_id=row.id,
+            mission_code=row.code,
+        )
+        if not readiness["ready"]:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "mission_completion_blocked",
+                    "message": (
+                        "A missão ainda não pode ser concluída. Complete o percurso "
+                        "documento → evidência → hipótese → alternativa → decisão → "
+                        "resultado → aprendizagem revista e publicada."
+                    ),
+                    "readiness": readiness,
+                },
+            )
 
     parent_id = row.parent_mission_id
     if payload.clear_parent:

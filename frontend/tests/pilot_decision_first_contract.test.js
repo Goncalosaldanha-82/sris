@@ -39,11 +39,13 @@ test('the Pilot has one explicit browser composition',()=>{
 });
 
 test('Mission Workspace remains the product centre and assistance is secondary',()=>{
-  assert.match(index,/Comece pela decisão\. Preserve a razão\./);
-  assert.match(index,/Comece por uma decisão real, não por uma conversa genérica\./);
+  assert.match(index,/O que precisa de atenção agora\./);
+  assert.match(index,/Retomar trabalho/);
+  assert.match(index,/FILA DE ATENÇÃO/);
   assert.match(index,/Análise assistida, não centro do produto\./);
   assert.match(index,/Humana obrigatória/i);
   assert.doesNotMatch(index,/data-section="billing"|Créditos e planos|gpt-5\.6-terra/);
+  assert.doesNotMatch(loaded.workspace,/model_or_system|embedding_model|credit_eur/);
   for(const marker of ['Eficiência de recursos','Problema operacional','Investimento ou alteração','Critério de sucesso']){
     assert.match(index,new RegExp(marker));
   }
@@ -75,13 +77,20 @@ test('sessions refresh once before protected work is abandoned',()=>{
 test('documents and auditable report exports are canonical actions',()=>{
   assert.match(index,/id="mission-file" multiple/);
   assert.match(index,/id="upload-drop-zone"/);
+  assert.match(index,/id="attachment-extraction-panel"/);
   assert.match(index,/data-report="print"/);
   assert.match(index,/data-report="html"/);
+  assert.match(index,/data-report="json"/);
   assert.match(index,/data-report="md"/);
   assert.match(loaded.app,/async function uploadFiles/);
+  assert.match(loaded.app,/async function loadAttachmentExtraction/);
+  assert.match(loaded.app,/document-evidence/);
+  assert.match(loaded.app,/EXTRAÇÃO DOCUMENTAL · SEM IA/);
   assert.match(loaded.app,/data-download-attachment/);
   assert.match(loaded.app,/function completeReportHtml/);
   assert.match(loaded.app,/function exportReport/);
+  assert.match(loaded.app,/async function reportSnapshot/);
+  assert.match(loaded.app,/crypto\.subtle\.digest/);
 });
 
 test('canonical transverse objects retain human provenance',()=>{

@@ -13,6 +13,7 @@ from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, User
 from app.mission_intelligence.models import CanonicalMission, MissionAttachment
+from app.pilot_serialization import as_iso
 
 router = APIRouter(prefix="/api/pilot/evidence-graph", tags=["pilot-evidence-graph"])
 
@@ -143,8 +144,8 @@ def _node_view(row) -> dict:
         "char_end": row["char_end"],
         "source_sha256": row["source_sha256"],
         "provenance": json.loads(row["provenance_json"] or "{}"),
-        "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-        "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+        "created_at": as_iso(row["created_at"]),
+        "updated_at": as_iso(row["updated_at"]),
     }
 
 
@@ -155,7 +156,7 @@ def _edge_view(row) -> dict:
         "to_node_id": row["to_node_id"],
         "edge_type": row["edge_type"],
         "provenance": json.loads(row["provenance_json"] or "{}"),
-        "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        "created_at": as_iso(row["created_at"]),
     }
 
 
