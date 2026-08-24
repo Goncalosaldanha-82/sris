@@ -26,6 +26,7 @@ test('the Pilot has one explicit browser composition',()=>{
     assert.doesNotThrow(()=>new Function(source),`${name} must parse`);
     assert.doesNotMatch(source,/new MutationObserver\s*\(/,`${name} must not rewrite the DOM through a broad observer`);
     assert.doesNotMatch(source,/window\.fetch\s*=/,`${name} must not replace global fetch`);
+    assert.doesNotMatch(source,/\b(?:prompt|alert|confirm)\s*\(/,`${name} must use governed in-product forms`);
   }
   assert.equal((home.match(/rel="stylesheet"/g)||[]).length,1);
   assert.equal((index.match(/rel="stylesheet"/g)||[]).length,1);
@@ -100,4 +101,11 @@ test('canonical transverse objects retain human provenance',()=>{
   assert.match(loaded.app,/source:'mission_onboarding'/);
   assert.match(loaded.graph,/value="gap"/);
   assert.match(loaded.graph,/value="alternative"/);
+});
+
+test('learning reuse is reviewed in-product and shows active inherited context',()=>{
+  assert.match(loaded.learning,/data-review-form/);
+  assert.match(loaded.learning,/active-context/);
+  assert.match(loaded.learning,/Aprendizagem já revista neste contexto/);
+  assert.match(loaded.learning,/sris:learning-reviewed/);
 });
