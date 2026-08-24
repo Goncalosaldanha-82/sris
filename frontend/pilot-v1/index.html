@@ -6,12 +6,7 @@
   <meta name="theme-color" content="#103d32">
   <title>SRIS — Espaço de Missão</title>
   <meta name="description" content="SRIS Mission Intelligence — missões persistentes, evidência rastreável, decisões verificáveis e memória organizacional.">
-  <link rel="stylesheet" href="/styles.css?v=20260823-decision-first">
-  <link rel="stylesheet" href="/brand-v2.css?v=20260823-decision-first">
-  <link rel="stylesheet" href="/pilot.css?v=20260823-decision-first">
-  <link rel="stylesheet" href="/runtime-fixes.css?v=20260823-decision-first">
-  <link rel="stylesheet" href="/product-recovery-v1.css?v=20260823-decision-first">
-  <link rel="stylesheet" href="/product-core-v2.css?v=20260823-decision-first">
+  <link rel="stylesheet" href="/pilot.css?v=__PILOT_BUILD__">
 </head>
 <body>
 <div class="app-shell">
@@ -31,13 +26,15 @@
     </nav>
     <div class="mini-profile"><div class="avatar" id="avatar">S</div><div><strong id="mini-name">A sincronizar…</strong><small id="mini-org">Workspace</small></div></div>
   </aside>
+  <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Fechar menu"></button>
 
   <main class="app-main">
     <header class="topbar">
-      <button class="menu-btn" id="menu-btn" aria-label="Abrir menu">☰</button>
+      <button class="menu-btn" id="menu-btn" type="button" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">☰</button>
       <h1 id="page-title">Visão geral</h1>
       <div class="topbar-actions"><span class="status-pill" id="provider-state">Workspace a sincronizar</span><button class="ghost-btn" id="logout-btn">Sair</button></div>
     </header>
+    <div id="app-message" class="app-message alert hidden" role="status" aria-live="polite"></div>
 
     <section class="section active" id="overview">
       <div class="hero-card">
@@ -146,7 +143,18 @@
           </div>
 
           <div id="mission-detail" class="hidden">
-            <div class="detail-head"><div><div class="eyebrow" id="detail-code">MISSÃO</div><h2 id="detail-title">Missão</h2></div><button class="btn btn-primary" id="detail-submission-btn">+ Sub-missão</button></div>
+            <div class="detail-head">
+              <div><div class="eyebrow" id="detail-code">MISSÃO</div><h2 id="detail-title">Missão</h2></div>
+              <div class="detail-actions">
+                <div class="report-actions" id="report-actions" aria-label="Exportar relatório">
+                  <button type="button" data-report="print">Imprimir / PDF</button>
+                  <button type="button" data-report="html">Relatório .html</button>
+                  <button type="button" data-report="md">Secção .md</button>
+                </div>
+                <button class="btn btn-primary compact" id="detail-submission-btn" type="button">+ Sub-missão</button>
+              </div>
+            </div>
+            <div id="detail-message" class="alert hidden" role="status" aria-live="polite"></div>
             <div id="detail-meta" class="meta-row"></div>
             <div class="detail-grid"><article><h3>Objetivo</h3><p id="detail-objective">Ainda não definido</p></article><article><h3>Pergunta central</h3><p id="detail-question">Ainda não definida</p></article></div>
             <article><h3>Contexto</h3><p id="detail-context">Ainda não existe contexto registado.</p></article>
@@ -158,15 +166,17 @@
 
             <div class="button-row"><button class="btn btn-secondary" id="detail-analyze-btn">Abrir análise assistida</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div>
             <div class="answer-box empty" id="mission-answer">A análise assistida é opcional. A missão, a evidência, a decisão e a memória permanecem canónicas independentemente da sua utilização.</div>
-            <div class="mission-tabs"><button class="active" data-mission-tab="documents">Documentos</button><button data-mission-tab="history">Histórico</button><button data-mission-tab="evidence">Evidência</button><button data-mission-tab="memory">Memória</button></div>
+            <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="history">Histórico</button></div>
             <div class="mission-tab active" id="mission-tab-documents">
               <div class="card-head"><div><h3>Inteligência documental</h3><div class="note">Uploads com extração, proveniência e recuperação híbrida.</div></div></div>
-              <div class="upload-row"><input type="file" id="mission-file" accept=".pdf,.html,.htm,.md,.markdown,.txt,.csv,.tsv,.xlsx,.xls,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif"><button class="btn btn-primary" id="upload-file-btn">Carregar documento</button></div>
+              <div class="upload-zone" id="upload-drop-zone">
+                <div class="upload-zone-head"><div><h4>Carregar documentos</h4><p>Selecione ou arraste vários ficheiros. Cada documento fica associado à missão, com extração e proveniência.</p></div><span class="pill">PDF · Office · imagem · texto</span></div>
+                <div class="upload-row"><input type="file" id="mission-file" multiple accept=".pdf,.html,.htm,.md,.markdown,.txt,.csv,.tsv,.xlsx,.xls,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif"><button class="btn btn-primary" type="button" id="upload-file-btn">Carregar documentos</button></div>
+                <div class="upload-progress" id="upload-progress" role="status" aria-live="polite"></div>
+              </div>
               <div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div>
             </div>
             <div class="mission-tab" id="mission-tab-history"><h3>Histórico persistente</h3><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
-            <div class="mission-tab" id="mission-tab-evidence"><h3>Grafo de evidência</h3><div id="evidence-graph-root" class="note">Observações, evidência, pressupostos, restrições, hipóteses, alternativas, decisões e relações aparecerão aqui com proveniência.</div></div>
-            <div class="mission-tab" id="mission-tab-memory"><h3>Memória entre missões</h3><div id="learning-lineage-root" class="note">Aprendizagens reutilizáveis e respetiva linhagem aparecerão aqui.</div></div>
           </div>
         </div>
       </div>
@@ -197,15 +207,11 @@
   </main>
 </div>
 
-<script src="/app.js?v=20260823-decision-first" defer></script>
-<script src="/mission-workspace-v2.js?v=20260823-decision-first" defer></script>
-<script src="/evidence-graph.js?v=20260823-decision-first" defer></script>
-<script src="/learning-lineage.js?v=20260823-decision-first" defer></script>
-<script src="/intelligence-v2.js?v=20260823-decision-first" defer></script>
-<script src="/admin-accounts.js?v=20260823-decision-first" defer></script>
-<script src="/pilot-integration-v3.js?v=20260823-decision-first" defer></script>
-<script src="/mission-experience-v1.js?v=20260823-decision-first" defer></script>
-<script src="/decision-cycle-v1.js?v=20260822-decision-loop-v2" defer></script>
-<script src="/decision-workbench-v1.js?v=20260822-decision-loop-v2" defer></script>
+<script src="/app.js?v=__PILOT_BUILD__" defer></script>
+<script src="/mission-workspace-v2.js?v=__PILOT_BUILD__" defer></script>
+<script src="/evidence-graph.js?v=__PILOT_BUILD__" defer></script>
+<script src="/learning-lineage.js?v=__PILOT_BUILD__" defer></script>
+<script src="/decision-cycle-v1.js?v=__PILOT_BUILD__" defer></script>
+<script src="/admin-accounts.js?v=__PILOT_BUILD__" defer></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -111,6 +111,18 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _coerce_datetime(value: object) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _iso_datetime(value: object | None) -> str | None:
+    return _coerce_datetime(value).isoformat() if value is not None else None
+
+
 def _hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -125,68 +137,20 @@ def _membership_for_user(db: Session, user_id: str) -> Membership | None:
 
 
 def _ensure_pilot_schema(db: Session) -> None:
-    # Pilot-owned tables are created idempotently so a new isolated Railway
-    # service can be brought up without a manual migration step. They are
-    # deliberately namespaced and do not alter canonical SRIS tables.
-    db.execute(
-        text(
-            """
-            CREATE TABLE IF NOT EXISTS pilot_ai_wallets (
-                organization_id VARCHAR(64) PRIMARY KEY,
-                plan_code VARCHAR(40) NOT NULL DEFAULT 'pilot',
-                credit_microeur BIGINT NOT NULL DEFAULT 0,
-                trial_granted_at TIMESTAMPTZ NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            )
-            """
+    """Verify the migrated Pilot schema without mutating it at request time."""
+
+    required = {
+        "pilot_ai_wallets",
+        "pilot_ai_wallet_ledger",
+        "pilot_password_reset_tokens",
+    }
+    available = set(inspect(db.get_bind()).get_table_names())
+    missing = sorted(required - available)
+    if missing:
+        raise RuntimeError(
+            "Pilot database schema is incomplete; run `alembic upgrade head` "
+            f"before serving requests (missing: {', '.join(missing)})"
         )
-    )
-    db.execute(
-        text(
-            """
-            CREATE TABLE IF NOT EXISTS pilot_ai_wallet_ledger (
-                id VARCHAR(64) PRIMARY KEY,
-                organization_id VARCHAR(64) NOT NULL,
-                kind VARCHAR(40) NOT NULL,
-                amount_microeur BIGINT NOT NULL,
-                reference VARCHAR(200) NULL,
-                provider_cost_microusd BIGINT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            )
-            """
-        )
-    )
-    db.execute(
-        text(
-            """
-            CREATE INDEX IF NOT EXISTS ix_pilot_wallet_ledger_org_created
-            ON pilot_ai_wallet_ledger (organization_id, created_at DESC)
-            """
-        )
-    )
-    db.execute(
-        text(
-            """
-            CREATE TABLE IF NOT EXISTS pilot_password_reset_tokens (
-                id VARCHAR(64) PRIMARY KEY,
-                user_id VARCHAR(64) NOT NULL,
-                token_hash VARCHAR(64) NOT NULL UNIQUE,
-                expires_at TIMESTAMPTZ NOT NULL,
-                used_at TIMESTAMPTZ NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            )
-            """
-        )
-    )
-    db.execute(
-        text(
-            """
-            CREATE INDEX IF NOT EXISTS ix_pilot_password_reset_user
-            ON pilot_password_reset_tokens (user_id, created_at DESC)
-            """
-        )
-    )
 
 
 def _ensure_ai_policy(db: Session, organization_id: str, user_id: str | None = None) -> None:
@@ -200,12 +164,14 @@ def _ensure_ai_policy(db: Session, organization_id: str, user_id: str | None = N
         text(
             """
             INSERT INTO mi_ai_organization_policies
-            (id, organization_id, enabled, monthly_request_limit,
+            (id, organization_id, enabled, enforce_monthly_limits,
+             monthly_request_limit,
              monthly_input_token_limit, monthly_output_token_limit,
              monthly_budget_microusd, per_request_input_token_limit,
              per_request_output_token_limit, max_concurrent_requests,
-             updated_by_user_id)
-            VALUES (:id, :org, :enabled, 200, 3000000, 800000, 25000000, 120000, 12000, 2, :user_id)
+             updated_by_user_id, created_at, updated_at)
+            VALUES (:id, :org, :enabled, false, 200, 3000000, 800000,
+                    25000000, 120000, 12000, 2, :user_id, :now, :now)
             """
         ),
         {
@@ -213,6 +179,7 @@ def _ensure_ai_policy(db: Session, organization_id: str, user_id: str | None = N
             "org": organization_id,
             "enabled": _flag("SRIS_AI_ENABLED", False),
             "user_id": user_id,
+            "now": _utcnow(),
         },
     )
 
@@ -232,10 +199,10 @@ def _ensure_wallet(db: Session, organization_id: str) -> None:
             """
             INSERT INTO pilot_ai_wallets
             (organization_id, plan_code, credit_microeur, trial_granted_at)
-            VALUES (:org, 'pilot', :credit, now())
+            VALUES (:org, 'pilot', :credit, :now)
             """
         ),
-        {"org": organization_id, "credit": amount},
+        {"org": organization_id, "credit": amount, "now": _utcnow()},
     )
     if amount:
         db.execute(
@@ -416,8 +383,8 @@ def pilot_password_reset_request(payload: PilotPasswordResetRequest, db: Session
         return response
 
     db.execute(
-        text("UPDATE pilot_password_reset_tokens SET used_at=now() WHERE user_id=:uid AND used_at IS NULL"),
-        {"uid": user.id},
+        text("UPDATE pilot_password_reset_tokens SET used_at=:now WHERE user_id=:uid AND used_at IS NULL"),
+        {"uid": user.id, "now": _utcnow()},
     )
     raw_token = secrets.token_urlsafe(48)
     db.execute(
@@ -460,7 +427,7 @@ def pilot_password_reset_confirm(payload: PilotPasswordResetConfirm, db: Session
         ),
         {"token_hash": token_hash},
     ).mappings().first()
-    if not row or row["used_at"] is not None or row["expires_at"] <= _utcnow():
+    if not row or row["used_at"] is not None or _coerce_datetime(row["expires_at"]) <= _utcnow():
         raise HTTPException(status_code=400, detail="O link de recuperação é inválido ou expirou.")
 
     user = db.get(User, row["user_id"])
@@ -469,8 +436,8 @@ def pilot_password_reset_confirm(payload: PilotPasswordResetConfirm, db: Session
     user.password_hash = hash_password(payload.new_password)
     user.auth_version = int(user.auth_version or 0) + 1
     db.execute(
-        text("UPDATE pilot_password_reset_tokens SET used_at=now() WHERE id=:id"),
-        {"id": row["id"]},
+        text("UPDATE pilot_password_reset_tokens SET used_at=:now WHERE id=:id"),
+        {"id": row["id"], "now": _utcnow()},
     )
     db.commit()
     return {"status": "password_updated"}
@@ -529,7 +496,7 @@ def pilot_profile(user: User = Depends(current_user), db: Session = Depends(get_
                 "amount_eur": _micro_to_eur(row["amount_microeur"]),
                 "reference": row["reference"],
                 "provider_cost_usd": round((row["provider_cost_microusd"] or 0) / MICRO_USD, 6),
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "created_at": _iso_datetime(row["created_at"]),
             }
             for row in rows
         ]
@@ -588,8 +555,8 @@ def pilot_test_topup(
     _ensure_wallet(db, membership.organization_id)
     amount = _eur_to_micro(payload.amount_eur)
     db.execute(
-        text("UPDATE pilot_ai_wallets SET credit_microeur=credit_microeur+:amount, updated_at=now() WHERE organization_id=:org"),
-        {"amount": amount, "org": membership.organization_id},
+        text("UPDATE pilot_ai_wallets SET credit_microeur=credit_microeur+:amount, updated_at=:now WHERE organization_id=:org"),
+        {"amount": amount, "org": membership.organization_id, "now": _utcnow()},
     )
     db.execute(
         text(
@@ -639,11 +606,11 @@ def pilot_ai_ask(
         text(
             """
             UPDATE pilot_ai_wallets
-            SET credit_microeur=credit_microeur-:charge, updated_at=now()
+            SET credit_microeur=credit_microeur-:charge, updated_at=:now
             WHERE organization_id=:org
             """
         ),
-        {"charge": charge, "org": membership.organization_id},
+        {"charge": charge, "org": membership.organization_id, "now": _utcnow()},
     )
     db.execute(
         text(

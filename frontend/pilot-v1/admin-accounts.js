@@ -25,6 +25,7 @@
   }
 
   async function api(path,options={}){
+    if(window.SRISApi?.request)return window.SRISApi.request(API+path,options);
     const headers={'Content-Type':'application/json',...(options.headers||{})};
     if(token())headers.Authorization=`Bearer ${token()}`;
     const response=await fetch(API+path,{...options,headers,cache:'no-store'});

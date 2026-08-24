@@ -1,28 +1,9 @@
 (()=>{
-  const baseFetch=window.fetch.bind(window);
   const token=()=>localStorage.getItem('sris_access_token');
   const authHeaders=()=>({'Content-Type':'application/json','Authorization':`Bearer ${token()}`});
   const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const missionCode=()=>{const raw=(document.querySelector('#detail-code')?.textContent||'').trim();const p=raw.split('/').map(x=>x.trim()).filter(Boolean);return p[p.length-1]||raw;};
-  async function api(url,options={}){const res=await baseFetch(url,{...options,headers:{...authHeaders(),...(options.headers||{})}});let data={};try{data=await res.json()}catch{}if(res.status===401){localStorage.removeItem('sris_access_token');location.href='/';throw new Error('Sessão expirada.');}if(!res.ok){const d=data?.detail;throw new Error(typeof d==='string'?d:(d?.message||d?.code||`Erro ${res.status}`));}return data;}
-
-  // This hook is the product thesis in code: reviewed learning changes the next mission's AI context.
-  window.fetch=async(input,init={})=>{
-    const url=typeof input==='string'?input:input?.url||'';
-    if(url==='/api/pilot/intelligence/ask' && init?.body){
-      try{
-        const payload=JSON.parse(init.body);
-        if(payload.mission_code){
-          const inherited=await api(`/api/pilot/learning/missions/${encodeURIComponent(payload.mission_code)}/active-context`);
-          if(inherited?.context_text){
-            payload.context=[payload.context||'',inherited.context_text].filter(Boolean).join('\n\n---\n\n');
-            init={...init,body:JSON.stringify(payload),headers:{...(init.headers||{}),'X-SRIS-Learning-Inheritance':'applied'}};
-          }
-        }
-      }catch(err){console.warn('SRIS learning inheritance unavailable; continuing without inherited context.',err);}
-    }
-    return baseFetch(input,init);
-  };
+  async function api(url,options={}){if(window.SRISApi?.request)return window.SRISApi.request(url,options);const res=await fetch(url,{...options,headers:{...authHeaders(),...(options.headers||{})}});let data={};try{data=await res.json()}catch{}if(res.status===401){localStorage.removeItem('sris_access_token');location.href='/';throw new Error('Sessão expirada.');}if(!res.ok){const d=data?.detail;throw new Error(typeof d==='string'?d:(d?.message||d?.code||`Erro ${res.status}`));}return data;}
 
   function install(){
     const tabs=document.querySelector('.mission-tabs'),detail=document.querySelector('#mission-detail');
