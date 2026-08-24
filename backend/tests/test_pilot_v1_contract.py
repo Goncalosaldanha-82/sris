@@ -441,6 +441,38 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert linked.status_code == 201, linked.text
+    assert linked.json()["created"] is True
+
+    duplicate_link = client.post(
+        f"{graph_base}/edges",
+        headers=headers,
+        json={
+            "from_node_id": evidence.json()["id"],
+            "to_node_id": hypothesis.json()["id"],
+            "edge_type": "supports",
+            "provenance": {"human_curated": True},
+        },
+    )
+    assert duplicate_link.status_code == 201, duplicate_link.text
+    assert duplicate_link.json()["id"] == linked.json()["id"]
+    assert duplicate_link.json()["created"] is False
+
+    self_link = client.post(
+        f"{graph_base}/edges",
+        headers=headers,
+        json={
+            "from_node_id": evidence.json()["id"],
+            "to_node_id": evidence.json()["id"],
+            "edge_type": "informs",
+            "provenance": {"human_curated": True},
+        },
+    )
+    assert self_link.status_code == 422, self_link.text
+    assert self_link.json()["detail"] == "Uma relação tem de ligar dois objetos diferentes."
+
+    persisted_graph = client.get(graph_base, headers=headers)
+    assert persisted_graph.status_code == 200, persisted_graph.text
+    assert any(edge["id"] == linked.json()["id"] for edge in persisted_graph.json()["edges"])
 
     blocked = client.patch(
         f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",

@@ -104,6 +104,17 @@ test('canonical transverse objects retain human provenance',()=>{
   assert.match(loaded.graph,/value="alternative"/);
 });
 
+test('evidence relations confirm persistence where the user creates them',()=>{
+  for(const marker of ['id="eg-edge-preview"','id="eg-edge-submit"','id="eg-edge-status"','id="eg-relations"','id="eg-relations-count"']){
+    assert.match(loaded.graph,new RegExp(marker));
+  }
+  assert.match(loaded.graph,/A guardar e a confirmar a relação no servidor/);
+  assert.match(loaded.graph,/Relação criada e confirmada/);
+  assert.match(loaded.graph,/Relação já existente e confirmada/);
+  assert.match(loaded.graph,/O servidor não devolveu a relação no grafo persistente/);
+  assert.match(loaded.graph,/from_node_id===from&&edge\.to_node_id===to&&edge\.edge_type===edgeType/);
+});
+
 test('learning reuse is reviewed in-product and shows active inherited context',()=>{
   assert.match(loaded.learning,/data-review-form/);
   assert.match(loaded.learning,/active-context/);

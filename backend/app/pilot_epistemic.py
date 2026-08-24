@@ -368,6 +368,11 @@ def create_graph_edge(
     _require_writer(membership)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    if payload.from_node_id == payload.to_node_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Uma relação tem de ligar dois objetos diferentes.",
+        )
     ids = db.execute(
         text(
             """
@@ -386,6 +391,25 @@ def create_graph_edge(
     if len(set(ids)) != 2:
         raise HTTPException(status_code=422, detail="Os dois nós têm de pertencer à mesma missão.")
 
+    existing_edge_id = db.execute(
+        text(
+            """
+            SELECT id FROM pilot_evidence_graph_edges
+            WHERE organization_id=:org AND mission_id=:mission
+              AND from_node_id=:from_id AND to_node_id=:to_id
+              AND edge_type=:edge_type
+            LIMIT 1
+            """
+        ),
+        {
+            "org": membership.organization_id,
+            "mission": mission.id,
+            "from_id": payload.from_node_id,
+            "to_id": payload.to_node_id,
+            "edge_type": payload.edge_type,
+        },
+    ).scalar_one_or_none()
+
     edge_id = _upsert_edge(
         db,
         organization_id=membership.organization_id,
@@ -401,4 +425,6 @@ def create_graph_edge(
         text("SELECT * FROM pilot_evidence_graph_edges WHERE id=:id"),
         {"id": edge_id},
     ).mappings().one()
-    return _edge_view(row)
+    result = _edge_view(row)
+    result["created"] = existing_edge_id is None
+    return result
