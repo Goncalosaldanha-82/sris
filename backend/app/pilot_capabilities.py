@@ -7,7 +7,7 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260824-measurable-validation-v5"
+PILOT_BUILD = "20260824-source-integrity-v6"
 
 
 def _flag(name: str, default: bool = False) -> bool:

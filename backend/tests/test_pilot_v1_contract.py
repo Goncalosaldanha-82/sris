@@ -190,10 +190,14 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "billing-balance" not in app_script.text
 
     learning = client.get("/learning-lineage.js")
+    evidence_graph = client.get("/evidence-graph.js")
     validation = client.get("/validation-protocol.js")
     decision = client.get("/decision-cycle-v1.js")
     workspace = client.get("/mission-workspace-v2.js")
     assert "window.fetch=" not in learning.text
+    assert evidence_graph.status_code == 200
+    assert "Fonte íntegra não significa conteúdo verdadeiro" in evidence_graph.text
+    assert "validade factual não avaliada" in evidence_graph.text
     assert validation.status_code == 200
     assert "CÁLCULO DETERMINÍSTICO · SEM IA" in validation.text
     assert "sris:validation-updated" in validation.text
@@ -359,6 +363,10 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert evidence.json()["char_start"] == fragment["char_start"]
     assert evidence.json()["char_end"] == fragment["char_end"]
     assert evidence.json()["source_sha256"] == attachment["sha256"]
+    assert evidence.json()["status"] == "proposed"
+    assert evidence.json()["provenance"]["source_integrity_verified"] is True
+    assert evidence.json()["provenance"]["factual_validation"] == "not_assessed"
+    assert evidence.json()["provenance"]["authoritative_source"] is False
 
     visual_buffer = BytesIO()
     Image.new("RGB", (2, 2), color=(28, 84, 66)).save(visual_buffer, format="PNG")
@@ -386,6 +394,9 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert visual_evidence.status_code == 201, visual_evidence.text
     assert visual_evidence.json()["source_kind"] == "visual_document"
     assert visual_evidence.json()["attachment_id"] == visual_upload.json()["id"]
+    assert visual_evidence.json()["status"] == "proposed"
+    assert visual_evidence.json()["provenance"]["source_integrity_verified"] is True
+    assert visual_evidence.json()["provenance"]["factual_validation"] == "not_assessed"
     hypothesis = client.post(
         f"{graph_base}/nodes",
         headers=headers,

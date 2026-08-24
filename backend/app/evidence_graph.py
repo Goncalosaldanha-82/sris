@@ -364,7 +364,10 @@ def sync_mission_graph(
                 node_type="evidence",
                 label=source.get("filename") or (attachment.original_filename if attachment else "Documento"),
                 body=excerpt,
-                status="verified" if attachment is not None else "proposed",
+                # Retrieval and attachment integrity do not establish that the
+                # retrieved content is factually true.  A documentary source is
+                # proposed until a human completes a separate factual review.
+                status="proposed",
                 confidence=None,
                 source_kind="document_chunk",
                 source_id=evidence_source_id,
@@ -383,7 +386,10 @@ def sync_mission_graph(
                     "hybrid_score": source.get("hybrid_score"),
                     "embedding_model": source.get("embedding_model"),
                     "retrieval": manifest.get("retrieval") or {},
-                    "authoritative_source": True,
+                    "source_integrity_verified": attachment is not None,
+                    "factual_validation": "not_assessed",
+                    "authoritative_source": False,
+                    "epistemic_separation_version": "20260824-1",
                 },
                 user_id=user.id,
             )

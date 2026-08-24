@@ -319,7 +319,10 @@ def promote_document_evidence(
         node_type="evidence",
         label=label,
         body=excerpt,
-        status="verified",
+        # Selecting an excerpt verifies its identity, position and integrity;
+        # it does not verify the factual truth of the excerpt.  Documentary
+        # content remains proposed until a separate human factual review.
+        status="proposed",
         confidence=None,
         source_kind=source_kind,
         source_id=source_id,
@@ -333,7 +336,11 @@ def promote_document_evidence(
             "attachment_id": attachment.id,
             "source_sha256": attachment.sha256,
             "human_promoted": True,
-            "authoritative_source": True,
+            "source_selection_reviewed_by_human": True,
+            "source_integrity_verified": True,
+            "factual_validation": "not_assessed",
+            "authoritative_source": False,
+            "epistemic_separation_version": "20260824-1",
         },
         user_id=user.id,
     )

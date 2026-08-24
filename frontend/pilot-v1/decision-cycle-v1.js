@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260824-measurable-validation-v5';
+  const BUILD='20260824-source-integrity-v6';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;

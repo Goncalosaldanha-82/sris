@@ -1044,7 +1044,7 @@ async function loadAttachmentExtraction(attachmentId,button){
     const source=data.attachment||{};
     const filename=source.filename||'Documento';
     const fragments=data.fragments||[];
-    panel.innerHTML=`<div class="document-extraction-head"><div><div class="eyebrow">EXTRAÇÃO DOCUMENTAL · SEM IA</div><h4>${escapeHtml(filename)}</h4><p>${Number(data.total_fragments||0)} excerto(s) indexado(s) · SHA-256 ${escapeHtml(String(data.source_sha256||'').slice(0,16))}…</p></div><button type="button" class="inline-link" id="close-extraction">Fechar</button></div><div class="document-fragments">${fragments.length?fragments.map(fragment=>`<article class="document-fragment"><div class="document-fragment-head"><div><strong>Excerto ${Number(fragment.ordinal||0)}</strong><small>${escapeHtml(fragment.location||`caracteres ${fragment.char_start}–${fragment.char_end}`)} · hash ${escapeHtml(String(fragment.content_sha256||'').slice(0,12))}…</small></div><button class="btn btn-secondary compact" type="button" data-promote-document-evidence="${escapeHtml(fragment.id)}">Registar como evidência</button></div><pre>${escapeHtml(fragment.excerpt||'')}</pre></article>`).join(''):`<form id="visual-evidence-form" class="visual-evidence-form"><div><strong>Fonte sem texto extraível</strong><p>A fonte original está preservada. Abra-a, descreva apenas o que observou diretamente e registe essa observação com proveniência visual.</p></div><div class="field"><label for="visual-evidence-body">Observação humana sobre a fonte *</label><textarea id="visual-evidence-body" required maxlength="10000" placeholder="Descreva o elemento observável, sem o converter automaticamente numa conclusão."></textarea></div><button class="btn btn-primary" type="submit">Registar fonte visual como evidência</button><div class="note" id="visual-evidence-status"></div></form>`}</div>`;
+    panel.innerHTML=`<div class="document-extraction-head"><div><div class="eyebrow">EXTRAÇÃO DOCUMENTAL · SEM IA</div><h4>${escapeHtml(filename)}</h4><p>${Number(data.total_fragments||0)} excerto(s) indexado(s) · SHA-256 ${escapeHtml(String(data.source_sha256||'').slice(0,16))}…</p><p class="note"><strong>Integridade da fonte ≠ validade factual.</strong> Registar o excerto preserva a origem e o hash; o conteúdo permanece por validar.</p></div><button type="button" class="inline-link" id="close-extraction">Fechar</button></div><div class="document-fragments">${fragments.length?fragments.map(fragment=>`<article class="document-fragment"><div class="document-fragment-head"><div><strong>Excerto ${Number(fragment.ordinal||0)}</strong><small>${escapeHtml(fragment.location||`caracteres ${fragment.char_start}–${fragment.char_end}`)} · hash ${escapeHtml(String(fragment.content_sha256||'').slice(0,12))}…</small></div><button class="btn btn-secondary compact" type="button" data-promote-document-evidence="${escapeHtml(fragment.id)}">Registar fonte no grafo</button></div><pre>${escapeHtml(fragment.excerpt||'')}</pre></article>`).join(''):`<form id="visual-evidence-form" class="visual-evidence-form"><div><strong>Fonte sem texto extraível</strong><p>A fonte original está preservada. Abra-a, descreva apenas o que observou diretamente e registe essa observação com proveniência visual.</p></div><div class="field"><label for="visual-evidence-body">Observação humana sobre a fonte *</label><textarea id="visual-evidence-body" required maxlength="10000" placeholder="Descreva o elemento observável, sem o converter automaticamente numa conclusão."></textarea></div><button class="btn btn-primary" type="submit">Registar fonte visual no grafo</button><div class="note" id="visual-evidence-status"></div></form>`}</div>`;
     $('#close-extraction',panel)?.addEventListener('click',()=>{panel.classList.add('hidden');panel.innerHTML='';});
     $$('[data-promote-document-evidence]',panel).forEach(promote=>promote.addEventListener('click',()=>promoteDocumentEvidence(promote.dataset.promoteDocumentEvidence,promote)));
     $('#visual-evidence-form',panel)?.addEventListener('submit',event=>promoteVisualEvidence(source.id,event));
@@ -1066,10 +1066,10 @@ async function promoteVisualEvidence(attachmentId,event){
   if(status)status.textContent='A preservar a fonte, a autoria humana e o hash…';
   try{
     await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(selectedMission.code)}/document-evidence`,{method:'POST',body:JSON.stringify({attachment_id:attachmentId,body})});
-    if(status)status.textContent='Evidência visual registada com proveniência.';
+    if(status)status.textContent='Fonte visual registada com proveniência; validade factual por avaliar.';
     button.disabled=true;
     await Promise.allSettled([loadMissionOperationalState(),loadWorkspaceSummary()]);
-    showMissionMessage('A observação visual foi registada como evidência humana ligada à fonte original.','success');
+    showMissionMessage('A fonte visual foi preservada no grafo. O conteúdo permanece proposto até revisão factual humana.','success');
   }catch(error){if(status)status.textContent=error.message;}
   finally{button?.classList.remove('loading');}
 }
@@ -1079,10 +1079,10 @@ async function promoteDocumentEvidence(chunkId,button){
   button?.classList.add('loading');
   try{
     await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(selectedMission.code)}/document-evidence`,{method:'POST',body:JSON.stringify({chunk_id:chunkId})});
-    button.textContent='Evidência registada ✓';
+    button.textContent='Fonte registada ✓';
     button.disabled=true;
     await Promise.allSettled([loadMissionOperationalState(),loadWorkspaceSummary()]);
-    showMissionMessage('O excerto foi registado como evidência com fonte, posição e hashes preservados.','success');
+    showMissionMessage('O excerto foi preservado com fonte, posição e hashes. A validade factual permanece por avaliar.','success');
   }catch(error){
     showMissionMessage(`Não foi possível registar a evidência: ${error.message}`);
   }finally{button?.classList.remove('loading');}

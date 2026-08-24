@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260824-measurable-validation-v5';
+  const BUILD='20260824-source-integrity-v6';
   const state={mission:null,aggregate:null,evidence:[],loading:false};
   const profiles={
     measurable_decision:{

@@ -1,10 +1,11 @@
+import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 
 def run_alembic(repo_root: Path, *args: str, database_url: str) -> None:
@@ -123,3 +124,90 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
 
         remaining = table_names(database_url)
         assert remaining in (set(), {"alembic_version"})
+
+
+def test_document_source_migration_repairs_only_automatic_verification() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    with TemporaryDirectory(prefix="atlas-source-integrity-") as tmp:
+        database_path = Path(tmp) / "source-integrity.db"
+        database_url = f"sqlite+pysqlite:///{database_path.as_posix()}"
+
+        run_alembic(
+            repo_root,
+            "upgrade",
+            "20260824_0015",
+            database_url=database_url,
+        )
+        engine = create_engine(database_url)
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """
+                        CREATE TABLE pilot_evidence_graph_nodes (
+                            id VARCHAR(64) PRIMARY KEY,
+                            node_type VARCHAR(40) NOT NULL,
+                            status VARCHAR(40) NOT NULL,
+                            source_kind VARCHAR(80),
+                            provenance_json TEXT NOT NULL DEFAULT '{}',
+                            updated_at DATETIME
+                        )
+                        """
+                    )
+                )
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO pilot_evidence_graph_nodes
+                            (id, node_type, status, source_kind, provenance_json)
+                        VALUES
+                            (:automatic, 'evidence', 'verified', 'document_chunk', :automatic_provenance),
+                            (:reviewed, 'evidence', 'verified', 'document_chunk', :reviewed_provenance)
+                        """
+                    ),
+                    {
+                        "automatic": "automatic-document-evidence",
+                        "reviewed": "human-reviewed-evidence",
+                        "automatic_provenance": json.dumps(
+                            {"human_promoted": True, "authoritative_source": True}
+                        ),
+                        "reviewed_provenance": json.dumps(
+                            {
+                                "human_promoted": True,
+                                "authoritative_source": True,
+                                "factual_review_completed": True,
+                                "factual_validation": "verified",
+                            }
+                        ),
+                    },
+                )
+        finally:
+            engine.dispose()
+
+        run_alembic(repo_root, "upgrade", "head", database_url=database_url)
+
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                rows = {
+                    row["id"]: row
+                    for row in connection.execute(
+                        text(
+                            """
+                            SELECT id, status, provenance_json
+                            FROM pilot_evidence_graph_nodes
+                            ORDER BY id
+                            """
+                        )
+                    ).mappings()
+                }
+            automatic = rows["automatic-document-evidence"]
+            automatic_provenance = json.loads(automatic["provenance_json"])
+            assert automatic["status"] == "proposed"
+            assert automatic_provenance["source_integrity_verified"] is True
+            assert automatic_provenance["factual_validation"] == "not_assessed"
+            assert automatic_provenance["authoritative_source"] is False
+            assert rows["human-reviewed-evidence"]["status"] == "verified"
+        finally:
+            engine.dispose()
