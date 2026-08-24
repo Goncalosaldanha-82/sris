@@ -83,6 +83,9 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "mi_ai_organization_policies",
             "mi_ai_usage_periods",
             "mi_ai_usage_events",
+            "pilot_validation_protocols",
+            "pilot_validation_measurements",
+            "pilot_validation_events",
         }
 
         assert expected.issubset(tables)

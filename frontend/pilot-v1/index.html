@@ -18,6 +18,7 @@
         <button class="active" data-section="overview">⌂ <span>Visão geral</span></button>
         <button data-section="mission">◉ <span>Missões</span></button>
         <button data-mission-area="graph">◇ <span>Evidência</span></button>
+        <button data-mission-area="validation">↗ <span>Medição e impacto</span></button>
         <button data-mission-area="cycle">✓ <span>Decisões e resultados</span></button>
         <button data-mission-area="learning">↻ <span>Memória</span></button>
         <button data-section="account">○ <span>Conta</span></button>
@@ -139,6 +140,15 @@
                 <div class="field"><label for="mission-priority">Prioridade</label><select id="mission-priority"><option value="critical">Crítica</option><option value="strategic" selected>Estratégica</option><option value="standard">Normal</option><option value="exploratory">Exploratória</option></select></div>
                 <div class="field"><label for="mission-horizon">Horizonte</label><input id="mission-horizon" placeholder="Ex.: 90 dias"></div>
               </div>
+              <div class="field validation-profile-field">
+                <label for="mission-validation-profile">Protocolo de validação</label>
+                <select id="mission-validation-profile">
+                  <option value="none">Sem protocolo quantitativo</option>
+                  <option value="measurable_decision">Validação mensurável transversal</option>
+                  <option value="tourism_advance_resource_efficiency">Tourism Advance · Eficiência de recursos</option>
+                </select>
+                <div class="note">Acrescenta baseline, resultado comparável, meta e revisão de atribuição. O cálculo é determinístico; a interpretação permanece humana.</div>
+              </div>
               <div class="button-row"><button class="btn btn-primary" id="save-mission-btn" type="submit">Criar missão</button><button class="btn btn-secondary" id="cancel-mission-btn" type="button">Cancelar</button></div>
             </form>
           </div>
@@ -169,12 +179,12 @@
 
             <div class="button-row"><button class="btn btn-secondary" id="detail-analyze-btn">Abrir análise assistida</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div>
             <div class="answer-box empty" id="mission-answer">A análise assistida é opcional. A missão, a evidência, a decisão e a memória permanecem canónicas independentemente da sua utilização.</div>
-            <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="summary">Resumo</button><button type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="history">Auditoria</button></div>
+            <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="summary">Resumo</button><button type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="validation">Medição</button><button type="button" data-mission-tab="history">Auditoria</button></div>
             <div class="mission-tab active" id="mission-tab-summary">
               <div class="mission-command-head"><div><div class="eyebrow">ESTADO OPERACIONAL</div><h3>Do contexto à aprendizagem</h3><p class="note">O progresso é calculado a partir dos registos persistentes, não de uma conclusão automática.</p></div><div class="mission-progress"><strong id="mission-progress-value">0%</strong><span>percurso completo</span></div></div>
               <div class="mission-summary-kpis" id="mission-summary-kpis"></div>
               <div class="mission-readiness" id="mission-readiness"><div class="note">A sincronizar o percurso da missão…</div></div>
-              <div class="mission-next-step"><div><span class="product-index">PRÓXIMO PASSO</span><strong id="mission-next-action">A sincronizar…</strong></div><div class="button-row"><button class="btn btn-secondary compact" type="button" data-open-mission-tab="documents">Abrir documentos</button><button class="btn btn-secondary compact" type="button" data-open-mission-tab="graph">Estruturar evidência</button><button class="btn btn-primary compact" type="button" data-open-mission-tab="cycle">Trabalhar decisão</button></div></div>
+              <div class="mission-next-step"><div><span class="product-index">PRÓXIMO PASSO</span><strong id="mission-next-action">A sincronizar…</strong></div><div class="button-row"><button class="btn btn-secondary compact" type="button" data-open-mission-tab="documents">Abrir documentos</button><button class="btn btn-secondary compact" type="button" data-open-mission-tab="graph">Estruturar evidência</button><button class="btn btn-secondary compact" type="button" data-open-mission-tab="validation">Medir impacto</button><button class="btn btn-primary compact" type="button" data-open-mission-tab="cycle">Trabalhar decisão</button></div></div>
               <div class="mission-governance">
                 <div class="field"><label for="mission-lifecycle">Estado da missão</label><select id="mission-lifecycle"><option value="active">Ativa</option><option value="paused">Pausada</option><option value="completed">Concluída</option><option value="archived">Arquivada</option></select></div>
                 <button class="btn btn-secondary" id="save-lifecycle-btn" type="button">Guardar estado</button>
@@ -190,6 +200,9 @@
               </div>
               <div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div>
               <section id="attachment-extraction-panel" class="document-extraction hidden" aria-live="polite"></section>
+            </div>
+            <div class="mission-tab" id="mission-tab-validation">
+              <div id="validation-root" class="validation-root"><div class="note">A sincronizar o protocolo mensurável da missão…</div></div>
             </div>
             <div class="mission-tab" id="mission-tab-history"><h3>Auditoria e histórico persistente</h3><p class="note">Revisões, sessões e alterações preservadas no workspace.</p><div id="mission-revision-history"></div><div id="dialogue-history"><div class="note">Sem histórico.</div></div></div>
           </div>
@@ -233,6 +246,7 @@
 <script src="/app.js?v=__PILOT_BUILD__" defer></script>
 <script src="/mission-workspace-v2.js?v=__PILOT_BUILD__" defer></script>
 <script src="/evidence-graph.js?v=__PILOT_BUILD__" defer></script>
+<script src="/validation-protocol.js?v=__PILOT_BUILD__" defer></script>
 <script src="/learning-lineage.js?v=__PILOT_BUILD__" defer></script>
 <script src="/decision-cycle-v1.js?v=__PILOT_BUILD__" defer></script>
 <script src="/admin-accounts.js?v=__PILOT_BUILD__" defer></script>

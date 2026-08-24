@@ -87,6 +87,7 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "/app.js",
         "/mission-workspace-v2.js",
         "/evidence-graph.js",
+        "/validation-protocol.js",
         "/learning-lineage.js",
         "/decision-cycle-v1.js",
         "/admin-accounts.js",
@@ -118,6 +119,9 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "Portefólio persistente",
         "+ Sub-missão",
         "Inteligência documental",
+        "Medição e impacto",
+        "Protocolo de validação",
+        "Tourism Advance · Eficiência de recursos",
         "Auditoria e histórico persistente",
         "Análise assistida, não centro do produto.",
         "Imprimir / PDF",
@@ -156,6 +160,9 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert payload["persistent_dialogue"] is True
     assert payload["evidence_graph"] is True
     assert payload["organizational_memory"] is True
+    assert payload["measurable_validation"] is True
+    assert payload["tourism_advance_profile"] is True
+    assert payload["baseline_and_result_comparison"] is True
     assert payload["billing_mode"] == "disabled"
     public_status = client.get("/api/mission-intelligence/status")
     assert public_status.status_code == 200
@@ -183,9 +190,14 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "billing-balance" not in app_script.text
 
     learning = client.get("/learning-lineage.js")
+    validation = client.get("/validation-protocol.js")
     decision = client.get("/decision-cycle-v1.js")
     workspace = client.get("/mission-workspace-v2.js")
     assert "window.fetch=" not in learning.text
+    assert validation.status_code == 200
+    assert "CÁLCULO DETERMINÍSTICO · SEM IA" in validation.text
+    assert "sris:validation-updated" in validation.text
+    assert "window.fetch=" not in validation.text
     assert "MutationObserver" not in decision.text
     assert "sris:evidence-graph-updated" in decision.text
     assert "model_or_system" not in workspace.text
@@ -215,6 +227,11 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/decision-cycles",
         "/api/pilot/evidence-graph/missions/{mission_code}",
         "/api/pilot/evidence-graph/missions/{mission_code}/document-evidence",
+        "/api/pilot/validation/profiles",
+        "/api/pilot/validation/missions/{mission_code}",
+        "/api/pilot/validation/missions/{mission_code}/protocol",
+        "/api/pilot/validation/missions/{mission_code}/measurements/{phase}",
+        "/api/pilot/validation/missions/{mission_code}/review",
         "/api/pilot/learning/missions/{mission_code}/candidates",
         "/api/pilot/learning/missions/{mission_code}/active-context",
         "/api/pilot/workspace-summary",
@@ -597,3 +614,197 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         "/api/auth/login",
         json={"email": email, "password": new_password},
     ).status_code == 200
+
+
+def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> None:
+    monkeypatch.setenv("SRIS_PUBLIC_SIGNUP_ENABLED", "true")
+    suffix = uuid4().hex[:10]
+    registered = client.post(
+        "/api/pilot/register",
+        json={
+            "full_name": "Tourism Pilot Reviewer",
+            "organization_name": f"Tourism Validation {suffix}",
+            "email": f"tourism-validation-{suffix}@example.com",
+            "password": "tourism-validation-123",
+        },
+    )
+    assert registered.status_code == 201, registered.text
+    headers = auth_headers(registered.json()["access_token"])
+    profile = client.get("/api/pilot/profile", headers=headers)
+    organization_id = profile.json()["organization"]["id"]
+
+    mission = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions",
+        headers=headers,
+        json={
+            "title": "Reduzir água normalizada pela atividade real",
+            "objective": "Validar uma intervenção operacional pequena, mensurável e reversível.",
+            "central_question": "A intervenção reduz água por quarto ocupado sem degradar a operação?",
+            "context": "Piloto Tourism Advance numa unidade de alojamento.",
+            "mission_kind": "mission",
+            "domain": "hospitality_resource_efficiency",
+            "priority": "strategic",
+            "horizon": "90 dias",
+            "validation_profile": "tourism_advance_resource_efficiency",
+            "stakeholders": [],
+        },
+    )
+    assert mission.status_code == 201, mission.text
+    mission_payload = mission.json()
+    assert mission_payload["validation_profile"] == "tourism_advance_resource_efficiency"
+    validation_base = f"/api/pilot/validation/missions/{mission_payload['code']}"
+
+    seeded = client.get(validation_base, headers=headers)
+    assert seeded.status_code == 200, seeded.text
+    seeded_payload = seeded.json()
+    assert seeded_payload["required"] is True
+    assert seeded_payload["profile"] == "tourism_advance_resource_efficiency"
+    assert seeded_payload["protocol"]["denominator_name"] == "Quartos ocupados"
+
+    protocol = client.put(
+        f"{validation_base}/protocol",
+        headers=headers,
+        json={
+            "expected_revision": seeded_payload["protocol"]["revision"],
+            "profile": "tourism_advance_resource_efficiency",
+            "subject": "Hotel piloto · edifício principal",
+            "subject_type": "Unidade de alojamento",
+            "problem_statement": "Consumo de água acima da baseline operacional normalizada.",
+            "indicator_name": "Consumo de água",
+            "indicator_unit": "m³",
+            "desired_direction": "decrease",
+            "denominator_name": "Quartos ocupados",
+            "denominator_unit": "quarto ocupado",
+            "target_value": 0.08,
+            "target_description": "Atingir no máximo 0,08 m³ por quarto ocupado no período de revisão.",
+            "guardrails": "Sem aumento material de reclamações, custo ou consumo noutro recurso.",
+            "intervention_description": "Ajustar rotinas de lavandaria e testar deteção diária de fugas.",
+            "intervention_start_date": "2026-02-01",
+            "intervention_end_date": "2026-02-28",
+            "review_date": "2026-04-01",
+            "attribution_method": "Comparação antes/depois normalizada, com ocupação e fatores externos revistos.",
+        },
+    )
+    assert protocol.status_code == 200, protocol.text
+
+    graph_base = f"/api/pilot/evidence-graph/missions/{mission_payload['code']}"
+    baseline_evidence = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "evidence",
+            "label": "Leituras e ocupação · janeiro",
+            "body": "100 m³ e 1 000 quartos ocupados, conferidos pela operação.",
+            "status": "verified",
+            "provenance": {"source": "operational_records", "human_reviewed": True},
+        },
+    )
+    result_evidence = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "evidence",
+            "label": "Leituras e ocupação · março",
+            "body": "70 m³ e 1 000 quartos ocupados, conferidos pela operação.",
+            "status": "verified",
+            "provenance": {"source": "operational_records", "human_reviewed": True},
+        },
+    )
+    assert baseline_evidence.status_code == 201, baseline_evidence.text
+    assert result_evidence.status_code == 201, result_evidence.text
+
+    baseline = client.put(
+        f"{validation_base}/measurements/baseline",
+        headers=headers,
+        json={
+            "expected_revision": protocol.json()["protocol"]["revision"],
+            "period_start": "2026-01-01",
+            "period_end": "2026-01-31",
+            "numerator_value": 100,
+            "denominator_value": 1000,
+            "evidence_node_id": baseline_evidence.json()["id"],
+            "data_quality": "high",
+            "notes": "Período completo anterior à intervenção.",
+        },
+    )
+    assert baseline.status_code == 200, baseline.text
+    assert baseline.json()["baseline"]["normalized_value"] == 0.1
+
+    result = client.put(
+        f"{validation_base}/measurements/result",
+        headers=headers,
+        json={
+            "expected_revision": baseline.json()["protocol"]["revision"],
+            "period_start": "2026-03-01",
+            "period_end": "2026-03-31",
+            "numerator_value": 70,
+            "denominator_value": 1000,
+            "evidence_node_id": result_evidence.json()["id"],
+            "data_quality": "high",
+            "notes": "Período completo posterior à intervenção.",
+        },
+    )
+    assert result.status_code == 200, result.text
+    analysis = result.json()["analysis"]
+    assert analysis["comparable"] is True
+    assert analysis["result_value"] == 0.07
+    assert round(analysis["percent_change"], 6) == -30.0
+    assert analysis["target_status"] == "met"
+
+    current_protocol = result.json()["protocol"]
+    protocol_fields = (
+        "profile",
+        "subject",
+        "subject_type",
+        "problem_statement",
+        "indicator_name",
+        "indicator_unit",
+        "desired_direction",
+        "denominator_name",
+        "denominator_unit",
+        "target_value",
+        "target_description",
+        "guardrails",
+        "intervention_description",
+        "intervention_start_date",
+        "intervention_end_date",
+        "review_date",
+        "attribution_method",
+    )
+    changed_contract = {key: current_protocol[key] for key in protocol_fields}
+    changed_contract["expected_revision"] = current_protocol["revision"]
+    changed_contract["denominator_name"] = "Hóspedes-noite"
+    locked = client.put(
+        f"{validation_base}/protocol",
+        headers=headers,
+        json=changed_contract,
+    )
+    assert locked.status_code == 409, locked.text
+    assert locked.json()["detail"]["code"] == "validation_measurement_contract_locked"
+
+    reviewed = client.post(
+        f"{validation_base}/review",
+        headers=headers,
+        json={
+            "expected_revision": result.json()["protocol"]["revision"],
+            "attribution_confidence": "moderate",
+            "review_rationale": "A normalização mantém a atividade comparável e a intervenção antecede o resultado.",
+            "limitations": "Piloto curto, sem grupo de controlo e sujeito a sazonalidade residual.",
+            "external_factors": "Ocupação estável; sem obras ou alterações relevantes de mix.",
+            "implementation_deviation": "Uma rotina começou três dias depois do previsto.",
+        },
+    )
+    assert reviewed.status_code == 200, reviewed.text
+    reviewed_payload = reviewed.json()
+    assert reviewed_payload["readiness"]["ready"] is True
+    assert all(check["passed"] for check in reviewed_payload["readiness"]["checks"])
+    assert len(reviewed_payload["protocol"]["content_hash"]) == 64
+    assert reviewed_payload["history"][0]["event_type"] == "attribution_reviewed"
+
+    overall = client.get(
+        f"/api/pilot/missions/{mission_payload['code']}/completion-readiness",
+        headers=headers,
+    )
+    assert overall.status_code == 200, overall.text
+    assert overall.json()["validation"]["ready"] is True
+    assert overall.json()["ready"] is False

@@ -10,7 +10,7 @@ let profileAvailable=false;
 let refreshPromise=null;
 let editingMissionId=null;
 let workspaceSummary=null;
-const missionRuntime={attachments:[],graph:null,cycles:[],readiness:null,dialogues:[],memory:[],extraction:null};
+const missionRuntime={attachments:[],graph:null,validation:null,cycles:[],readiness:null,dialogues:[],memory:[],extraction:null};
 
 const titles={
   overview:'Visão geral',
@@ -54,6 +54,7 @@ const missionTemplates={
     domain:'hospitality_resource_efficiency',
     priority:'strategic',
     horizon:'90 dias',
+    validationProfile:'tourism_advance_resource_efficiency',
   },
   incident:{
     title:'Resolver uma ocorrência operacional sem perder a aprendizagem',
@@ -66,6 +67,7 @@ const missionTemplates={
     domain:'operations_incident',
     priority:'critical',
     horizon:'30 dias',
+    validationProfile:'measurable_decision',
   },
   investment:{
     title:'Avaliar um investimento ou uma alteração operacional',
@@ -78,6 +80,7 @@ const missionTemplates={
     domain:'investment_decision',
     priority:'strategic',
     horizon:'120 dias',
+    validationProfile:'measurable_decision',
   },
 };
 
@@ -554,6 +557,9 @@ function resetMissionForm(parent=null,template=null){
   setValue('#mission-domain','cross_domain');
   setValue('#mission-kind','mission');
   setValue('#mission-priority','strategic');
+  setValue('#mission-validation-profile','none');
+  const validationProfile=$('#mission-validation-profile');
+  if(validationProfile){validationProfile.disabled=false;validationProfile.title='';}
   setValue('#mission-parent-id',parent?.id||'');
   setText('#mission-code-label',parent?`SUB-MISSÃO DE ${parent.code}`:'NOVA MISSÃO');
   setText('#mission-editor-title',parent?'Criar sub-missão':'Criar missão');
@@ -573,6 +579,7 @@ function resetMissionForm(parent=null,template=null){
     setValue('#mission-domain',template.domain);
     setValue('#mission-priority',template.priority);
     setValue('#mission-horizon',template.horizon);
+    setValue('#mission-validation-profile',template.validationProfile||'none');
   }
   showMissionMode('editor');
   revealMissionWorkspace($('#mission-editor'));
@@ -595,6 +602,12 @@ function editCurrentMission(){
   setValue('#mission-domain',selectedMission.domain||'cross_domain');
   setValue('#mission-priority',selectedMission.priority||'strategic');
   setValue('#mission-horizon',selectedMission.horizon||'');
+  setValue('#mission-validation-profile',selectedMission.validation_profile||'none');
+  const validationProfile=$('#mission-validation-profile');
+  if(validationProfile&&selectedMission.validation_profile&&selectedMission.validation_profile!=='none'){
+    validationProfile.disabled=true;
+    validationProfile.title='O perfil ativo é governado na área Medição da missão.';
+  }
   setText('#mission-code-label',`${selectedMission.code} · REVISÃO ${Number(selectedMission.revision||1)}`);
   setText('#mission-editor-title','Editar enquadramento da missão');
   setText('#save-mission-btn','Guardar nova revisão');
@@ -688,8 +701,8 @@ function normaliseMissionTabs(){
   const tabs=$('.mission-tabs');
   const detail=$('#mission-detail');
   if(!tabs||!detail)return;
-  const order=['summary','documents','graph','cycle','intelligence','memory','learning','history'];
-  const labels={summary:'Resumo',documents:'Documentos',graph:'Evidência',cycle:'Decisão e resultado',intelligence:'Diálogo',memory:'Memória canónica',learning:'Reutilizar aprendizagem',history:'Auditoria'};
+  const order=['summary','documents','graph','validation','cycle','intelligence','memory','learning','history'];
+  const labels={summary:'Resumo',documents:'Documentos',graph:'Evidência',validation:'Medição',cycle:'Decisão e resultado',intelligence:'Diálogo',memory:'Memória canónica',learning:'Reutilizar aprendizagem',history:'Auditoria'};
   order.forEach(name=>{
     const button=$(`[data-mission-tab="${name}"]`,tabs);
     const panel=$(`#mission-tab-${name}`,detail);
@@ -711,6 +724,7 @@ function renderMissionOperationalState(){
   const graph=missionRuntime.graph||{};
   const counts=graph.counts||{};
   const cycles=missionRuntime.cycles||[];
+  const validation=missionRuntime.validation||{};
   const readiness=missionRuntime.readiness||{};
   const attachments=missionRuntime.attachments||[];
   const readyDocuments=attachments.filter(item=>['ready','visual_ready','provider_ready'].includes(item.extraction_status)).length;
@@ -724,7 +738,8 @@ function renderMissionOperationalState(){
     <div><strong>${Number(counts.alternative||0)}</strong><span>alternativas</span></div>
     <div><strong>${cycles.length}</strong><span>decisões</span></div>
     <div><strong>${completedCycles}</strong><span>resultados</span></div>
-    <div><strong>${reviewedLearning}</strong><span>aprendizagens revistas</span></div>`;
+    <div><strong>${reviewedLearning}</strong><span>aprendizagens revistas</span></div>
+    <div><strong>${validation.required?`${Number(validation.readiness?.completed_checks||0)}/${Number(validation.readiness?.total_checks||0)}`:'—'}</strong><span>validação mensurável</span></div>`;
   const progress=Number(readiness.progress_percent||0);
   setText('#mission-progress-value',`${progress}%`);
   const checks=Array.isArray(readiness.checks)?readiness.checks:[];
@@ -741,13 +756,15 @@ async function loadMissionOperationalState(){
   if(!selectedMission)return;
   const missionId=selectedMission.id;
   const code=selectedMission.code;
-  const [graphResult,cyclesResult,readinessResult]=await Promise.allSettled([
+  const [graphResult,validationResult,cyclesResult,readinessResult]=await Promise.allSettled([
     api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`),
+    api(`/api/pilot/validation/missions/${encodeURIComponent(code)}`),
     api(`/api/pilot/decision-cycles/missions/${encodeURIComponent(code)}`),
     api(`/api/pilot/missions/${encodeURIComponent(code)}/completion-readiness`),
   ]);
   if(!selectedMission||selectedMission.id!==missionId)return;
   if(graphResult.status==='fulfilled')missionRuntime.graph=graphResult.value;
+  if(validationResult.status==='fulfilled')missionRuntime.validation=validationResult.value;
   if(cyclesResult.status==='fulfilled')missionRuntime.cycles=cyclesResult.value;
   if(readinessResult.status==='fulfilled')missionRuntime.readiness=readinessResult.value;
   renderMissionOperationalState();
@@ -759,6 +776,10 @@ document.addEventListener('sris:evidence-graph-updated',event=>{
 });
 document.addEventListener('sris:decision-cycles-updated',event=>{
   missionRuntime.cycles=event.detail?.cycles||event.detail||missionRuntime.cycles;
+  void loadMissionOperationalState();
+});
+document.addEventListener('sris:validation-updated',event=>{
+  missionRuntime.validation=event.detail||missionRuntime.validation;
   void loadMissionOperationalState();
 });
 document.addEventListener('sris:learning-published',()=>{void loadMissionOperationalState();});
@@ -780,6 +801,7 @@ async function openMission(id){
     rememberMission(mission.id);
     missionRuntime.attachments=[];
     missionRuntime.graph=null;
+    missionRuntime.validation=null;
     missionRuntime.cycles=[];
     missionRuntime.readiness=null;
     missionRuntime.extraction=null;
@@ -860,6 +882,7 @@ $('#mission-form')?.addEventListener('submit',async event=>{
     domain:$('#mission-domain').value.trim()||'cross_domain',
     priority:$('#mission-priority').value,
     horizon:$('#mission-horizon').value.trim(),
+    validation_profile:$('#mission-validation-profile')?.value||'none',
     stakeholders:[],
   };
   event.submitter?.classList.add('loading');
@@ -1123,11 +1146,12 @@ async function reportSnapshot(){
   if(!selectedMission)return null;
   const mission={...selectedMission};
   const code=mission.code;
-  const [attachmentsResult,graphResult,cyclesResult,dialoguesResult,readinessResult,memoryResult,revisionsResult]=await Promise.allSettled([
+  const [attachmentsResult,graphResult,cyclesResult,dialoguesResult,validationResult,readinessResult,memoryResult,revisionsResult]=await Promise.allSettled([
     api(`${miBase()}/missions/${encodeURIComponent(code)}/attachments`),
     api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`),
     api(`/api/pilot/decision-cycles/missions/${encodeURIComponent(code)}`),
     api(`${miBase()}/dialogues?mission_code=${encodeURIComponent(code)}`),
+    api(`/api/pilot/validation/missions/${encodeURIComponent(code)}`),
     api(`/api/pilot/missions/${encodeURIComponent(code)}/completion-readiness`),
     api(`${miBase()}/memory/items?limit=500`),
     api(`${miBase()}/missions/${encodeURIComponent(mission.id)}/revisions`),
@@ -1135,7 +1159,7 @@ async function reportSnapshot(){
   const value=(result,fallback)=>result.status==='fulfilled'?result.value:fallback;
   const memory=value(memoryResult,[]);
   const archive={
-    schema:'sris.pilot.mission-export.v1',
+    schema:'sris.pilot.mission-export.v2',
     generated_at:new Date().toISOString(),
     human_review_required:true,
     mission,
@@ -1152,6 +1176,7 @@ async function reportSnapshot(){
     evidence_graph:value(graphResult,{nodes:[],edges:[],counts:{}}),
     decision_cycles:value(cyclesResult,[]),
     dialogue_sessions:value(dialoguesResult,[]),
+    validation_protocol:value(validationResult,{required:false,profile:'none',protocol:null,baseline:null,result:null,analysis:{comparable:false},readiness:{checks:[]}}),
     mission_memory:(Array.isArray(memory)?memory:memory.items||[]).filter(item=>item.mission_id===mission.id),
     mission_revisions:value(revisionsResult,[]),
     completion_readiness:value(readinessResult,{ready:false,checks:[]}),
@@ -1164,6 +1189,22 @@ async function reportSnapshot(){
     mission_revision:Number(mission.revision||1),
   };
   return archive;
+}
+
+function reportNumber(value,maximumFractionDigits=4){
+  const number=Number(value);
+  return Number.isFinite(number)?number.toLocaleString('pt-PT',{maximumFractionDigits}):'—';
+}
+
+function validationReportHtml(validation){
+  if(!validation?.required)return'<p class="muted">Esta missão não exige um protocolo quantitativo.</p>';
+  const protocol=validation.protocol||{};
+  const baseline=validation.baseline||{};
+  const result=validation.result||{};
+  const analysis=validation.analysis||{};
+  const targetLabels={met:'Meta atingida',missed:'Meta não atingida',indeterminate:'Não comparável',not_configured:'Meta não configurada'};
+  const measurement=(label,row)=>`<li><strong>${escapeHtml(label)}</strong><div>${escapeHtml(row.period_start||'—')} → ${escapeHtml(row.period_end||'—')} · bruto ${reportNumber(row.numerator_value)}${row.denominator_value!==null&&row.denominator_value!==undefined?` / atividade ${reportNumber(row.denominator_value)}`:''} · normalizado ${reportNumber(row.normalized_value)} ${escapeHtml(analysis.normalized_unit||'')}</div><small>Evidência ${escapeHtml(row.evidence_node_id||'não associada')} · qualidade ${escapeHtml(row.data_quality||'—')}</small></li>`;
+  return `<p><strong>${escapeHtml(validation.profile_definition?.label||validation.profile||'Validação mensurável')}</strong></p><dl class="measure"><div><dt>Unidade observada</dt><dd>${escapeHtml(protocol.subject||'—')}</dd></div><div><dt>Indicador</dt><dd>${escapeHtml(protocol.indicator_name||'—')} · ${escapeHtml(protocol.indicator_unit||'—')}</dd></div><div><dt>Normalização</dt><dd>${escapeHtml(protocol.denominator_name||'Sem denominador')} · ${escapeHtml(protocol.denominator_unit||'—')}</dd></div><div><dt>Intervenção</dt><dd>${escapeHtml(protocol.intervention_description||'—')}</dd></div><div><dt>Meta</dt><dd>${reportNumber(protocol.target_value)} · ${escapeHtml(protocol.target_description||'—')}</dd></div></dl><ol>${measurement('Baseline',baseline)}${measurement('Resultado',result)}</ol><p><strong>Comparação determinística:</strong> ${analysis.comparable?`${reportNumber(analysis.absolute_change)} ${escapeHtml(analysis.normalized_unit||'')} · ${reportNumber(analysis.percent_change,2)}% · ${escapeHtml(targetLabels[analysis.target_status]||analysis.target_status||'—')}`:'Os períodos ainda não são comparáveis.'}</p><p><strong>Revisão humana de atribuição:</strong> ${escapeHtml(protocol.attribution_confidence||'pendente')}<br>${escapeHtml(protocol.review_rationale||'Sem racional revisto.')}<br><strong>Limitações:</strong> ${escapeHtml(protocol.limitations||'Ainda não revistas.')}</p><small>Revisão ${Number(protocol.revision||1)} · SHA-256 ${escapeHtml(protocol.content_hash||'a sincronizar')}</small>`;
 }
 
 function completeReportHtml(snapshot){
@@ -1179,14 +1220,19 @@ function completeReportHtml(snapshot){
   const documents=list(snapshot.attachments||[],item=>`<li><strong>${escapeHtml(item.filename||'Documento')}</strong><div>${escapeHtml(item.extraction_status||'registado')} · ${Number(item.byte_size||0)} bytes</div><small>SHA-256 ${escapeHtml(item.sha256||'não disponível')}</small></li>`,'Sem documentos.');
   const checks=list(snapshot.completion_readiness?.checks||[],check=>`<li><strong>${check.passed?'✓':'○'} ${escapeHtml(check.label)}</strong><small>${Number(check.count||0)} registo(s)</small></li>`,'Prontidão não calculada.');
   const generated=new Date(snapshot.generated_at).toLocaleString('pt-PT');
-  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(mission.code)} — ${escapeHtml(mission.title)}</title><style>body{margin:0;background:#f6f3ea;color:#10231d;font:15px/1.65 Arial,sans-serif}main{max-width:940px;margin:auto;padding:54px}header{padding-bottom:28px;border-bottom:2px solid #c99a43}.brand{font-weight:800;letter-spacing:.13em;color:#103d32}h1,h2{font-family:Georgia,serif;font-weight:500}h1{font-size:42px;line-height:1.05;margin:20px 0 8px}h2{font-size:24px;margin:28px 0 9px}section{padding-bottom:18px;border-bottom:1px solid #d8dfda}.pre{white-space:pre-wrap}li{margin:0 0 14px}li small,.muted,.meta,.stamp{color:#687971}.stamp{margin-top:34px;font-size:12px;overflow-wrap:anywhere}@media print{body{background:#fff}main{padding:16mm}}</style></head><body><main><header><div class="brand">SRIS · MISSION INTELLIGENCE</div><h1>${escapeHtml(mission.title)}</h1><div class="meta">${escapeHtml(mission.code)} · revisão ${Number(mission.revision||1)} · ${escapeHtml(mission.lifecycle_state||'active')}</div></header>${section('Objetivo',text(mission.objective))}${section('Pergunta central',text(mission.central_question))}${section('Contexto',text(mission.context))}${section('Documentos e integridade',documents)}${section('Evidência, hipóteses e alternativas',evidence)}${section('Decisão → ação → resultado → aprendizagem',decisions)}${section('Prontidão para conclusão',checks)}${section('Memória da missão',list(snapshot.mission_memory||[],item=>`<li><strong>${escapeHtml(item.title||item.item_type||'Memória')}</strong><div>${escapeHtml(item.summary||'')}</div></li>`,'Sem itens de memória canónica.'))}${section('Revisões preservadas',list(snapshot.mission_revisions||[],item=>`<li><strong>Revisão ${Number(item.revision||1)}</strong><div>${escapeHtml(item.change_note||'')}</div><small>SHA-256 ${escapeHtml(item.content_hash||'')}</small></li>`,'Sem revisões.'))}<div class="stamp">Gerado em ${escapeHtml(generated)} · arquivo ${escapeHtml(snapshot.integrity.digest)} · hash canónico da missão ${escapeHtml(snapshot.integrity.mission_content_hash||'não disponível')}. Documento de trabalho sujeito a revisão humana.</div></main></body></html>`;
+  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(mission.code)} — ${escapeHtml(mission.title)}</title><style>body{margin:0;background:#f6f3ea;color:#10231d;font:15px/1.65 Arial,sans-serif}main{max-width:940px;margin:auto;padding:54px}header{padding-bottom:28px;border-bottom:2px solid #c99a43}.brand{font-weight:800;letter-spacing:.13em;color:#103d32}h1,h2{font-family:Georgia,serif;font-weight:500}h1{font-size:42px;line-height:1.05;margin:20px 0 8px}h2{font-size:24px;margin:28px 0 9px}section{padding-bottom:18px;border-bottom:1px solid #d8dfda}.pre{white-space:pre-wrap}li{margin:0 0 14px}li small,.muted,.meta,.stamp{color:#687971}.measure{display:grid;gap:1px;border:1px solid #d8dfda;background:#d8dfda}.measure div{display:grid;grid-template-columns:180px 1fr;gap:16px;background:#fff;padding:9px}.measure dt{color:#687971}.measure dd{margin:0;font-weight:700}.stamp{margin-top:34px;font-size:12px;overflow-wrap:anywhere}@media print{body{background:#fff}main{padding:16mm}}</style></head><body><main><header><div class="brand">SRIS · MISSION INTELLIGENCE</div><h1>${escapeHtml(mission.title)}</h1><div class="meta">${escapeHtml(mission.code)} · revisão ${Number(mission.revision||1)} · ${escapeHtml(mission.lifecycle_state||'active')}</div></header>${section('Objetivo',text(mission.objective))}${section('Pergunta central',text(mission.central_question))}${section('Contexto',text(mission.context))}${section('Documentos e integridade',documents)}${section('Evidência, hipóteses e alternativas',evidence)}${section('Baseline → intervenção → resultado',validationReportHtml(snapshot.validation_protocol))}${section('Decisão → ação → resultado → aprendizagem',decisions)}${section('Prontidão para conclusão',checks)}${section('Memória da missão',list(snapshot.mission_memory||[],item=>`<li><strong>${escapeHtml(item.title||item.item_type||'Memória')}</strong><div>${escapeHtml(item.summary||'')}</div></li>`,'Sem itens de memória canónica.'))}${section('Revisões preservadas',list(snapshot.mission_revisions||[],item=>`<li><strong>Revisão ${Number(item.revision||1)}</strong><div>${escapeHtml(item.change_note||'')}</div><small>SHA-256 ${escapeHtml(item.content_hash||'')}</small></li>`,'Sem revisões.'))}<div class="stamp">Gerado em ${escapeHtml(generated)} · arquivo ${escapeHtml(snapshot.integrity.digest)} · hash canónico da missão ${escapeHtml(snapshot.integrity.mission_content_hash||'não disponível')}. Documento de trabalho sujeito a revisão humana.</div></main></body></html>`;
 }
 
 function reportMarkdown(snapshot){
   const mission=snapshot.mission;
   const nodes=snapshot.evidence_graph?.nodes||[];
   const cycles=snapshot.decision_cycles||[];
-  const lines=[`# ${mission.title}`,``,`**Missão:** ${mission.code} · revisão ${mission.revision} · ${mission.lifecycle_state}`,`**Integridade do arquivo:** SHA-256 \`${snapshot.integrity.digest}\``,``,`## Objetivo`,``,mission.objective||'Não registado',``,`## Pergunta central`,``,mission.central_question||'Não registada',``,`## Contexto`,``,mission.context||'Não registado',``,`## Documentos`,``,...(snapshot.attachments.length?snapshot.attachments.map(item=>`- ${item.filename} — ${item.extraction_status} — SHA-256 ${item.sha256||'—'}`):['- Sem documentos.']),``,`## Evidência e raciocínio`,``,...(nodes.length?nodes.map(node=>`- **${node.node_type} · ${node.label}** [${node.status}] — ${node.body||''}`):['- Sem objetos no grafo.']),``,`## Decisão, resultado e aprendizagem`,``,...(cycles.length?cycles.map(cycle=>`- **${cycle.decision}** [${cycle.status}]\n  - Ação: ${cycle.action||'—'}\n  - Responsável/prazo: ${cycle.owner||'—'} · ${cycle.due_date||'—'}\n  - Esperado: ${cycle.expected_outcome||'—'}\n  - Observado: ${cycle.actual_outcome||'—'}\n  - Aprendizagem: ${cycle.learning||'—'}`):['- Sem decisões.']),``,`## Prontidão`,``,...(snapshot.completion_readiness?.checks||[]).map(check=>`- [${check.passed?'x':' '}] ${check.label}`),``,`---`,`Gerado pelo SRIS Mission Intelligence em ${new Date(snapshot.generated_at).toLocaleString('pt-PT')}. Revisão humana obrigatória.`];
+  const validation=snapshot.validation_protocol||{};
+  const protocol=validation.protocol||{};
+  const analysis=validation.analysis||{};
+  const measurement=(label,row)=>row?[`- **${label}:** ${row.period_start} → ${row.period_end}`,`  - Valor bruto: ${reportNumber(row.numerator_value)}`,`  - Atividade: ${reportNumber(row.denominator_value)}`,`  - Normalizado: ${reportNumber(row.normalized_value)} ${analysis.normalized_unit||''}`,`  - Evidência: ${row.evidence_node_id||'—'} · qualidade ${row.data_quality||'—'}`]:[`- **${label}:** não registada`];
+  const validationLines=validation.required?[`- **Perfil:** ${validation.profile_definition?.label||validation.profile}`,`- **Unidade observada:** ${protocol.subject||'—'}`,`- **Indicador:** ${protocol.indicator_name||'—'} · ${protocol.indicator_unit||'—'}`,`- **Normalização:** ${protocol.denominator_name||'sem denominador'} · ${protocol.denominator_unit||'—'}`,`- **Intervenção:** ${protocol.intervention_description||'—'}`,`- **Meta:** ${reportNumber(protocol.target_value)} · ${protocol.target_description||'—'}`,...measurement('Baseline',validation.baseline),...measurement('Resultado',validation.result),`- **Comparação determinística:** ${analysis.comparable?`${reportNumber(analysis.absolute_change)} ${analysis.normalized_unit||''} · ${reportNumber(analysis.percent_change,2)}% · ${analysis.target_status}`:'períodos ainda não comparáveis'}`,`- **Atribuição revista:** ${protocol.attribution_confidence||'pendente'}`,`- **Racional:** ${protocol.review_rationale||'—'}`,`- **Limitações:** ${protocol.limitations||'—'}`,`- **Integridade do protocolo:** revisão ${protocol.revision||1} · SHA-256 ${protocol.content_hash||'—'}`]:['- Esta missão não exige um protocolo quantitativo.'];
+  const lines=[`# ${mission.title}`,``,`**Missão:** ${mission.code} · revisão ${mission.revision} · ${mission.lifecycle_state}`,`**Integridade do arquivo:** SHA-256 \`${snapshot.integrity.digest}\``,``,`## Objetivo`,``,mission.objective||'Não registado',``,`## Pergunta central`,``,mission.central_question||'Não registada',``,`## Contexto`,``,mission.context||'Não registado',``,`## Documentos`,``,...(snapshot.attachments.length?snapshot.attachments.map(item=>`- ${item.filename} — ${item.extraction_status} — SHA-256 ${item.sha256||'—'}`):['- Sem documentos.']),``,`## Evidência e raciocínio`,``,...(nodes.length?nodes.map(node=>`- **${node.node_type} · ${node.label}** [${node.status}] — ${node.body||''}`):['- Sem objetos no grafo.']),``,`## Baseline → intervenção → resultado`,``,...validationLines,``,`## Decisão, resultado e aprendizagem`,``,...(cycles.length?cycles.map(cycle=>`- **${cycle.decision}** [${cycle.status}]\n  - Ação: ${cycle.action||'—'}\n  - Responsável/prazo: ${cycle.owner||'—'} · ${cycle.due_date||'—'}\n  - Esperado: ${cycle.expected_outcome||'—'}\n  - Observado: ${cycle.actual_outcome||'—'}\n  - Aprendizagem: ${cycle.learning||'—'}`):['- Sem decisões.']),``,`## Prontidão`,``,...(snapshot.completion_readiness?.checks||[]).map(check=>`- [${check.passed?'x':' '}] ${check.label}`),``,`---`,`Gerado pelo SRIS Mission Intelligence em ${new Date(snapshot.generated_at).toLocaleString('pt-PT')}. Revisão humana obrigatória.`];
   return lines.join('\n');
 }
 

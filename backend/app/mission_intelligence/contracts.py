@@ -130,6 +130,11 @@ class MissionCreateRequest(StrictModel):
     priority: Literal["critical", "strategic", "standard", "exploratory"] = "strategic"
     horizon: str = Field(default="", max_length=120)
     stakeholders: list[str] = Field(default_factory=list, max_length=50)
+    validation_profile: Literal[
+        "none",
+        "measurable_decision",
+        "tourism_advance_resource_efficiency",
+    ] = "none"
 
 
 class MissionUpdateRequest(StrictModel):
@@ -147,6 +152,11 @@ class MissionUpdateRequest(StrictModel):
     priority: Literal["critical", "strategic", "standard", "exploratory"] | None = None
     horizon: str | None = Field(default=None, max_length=120)
     stakeholders: list[str] | None = Field(default=None, max_length=50)
+    validation_profile: Literal[
+        "none",
+        "measurable_decision",
+        "tourism_advance_resource_efficiency",
+    ] | None = None
     lifecycle_state: Literal["active", "paused", "completed", "archived"] | None = None
     change_note: str = Field(min_length=3, max_length=1000)
 

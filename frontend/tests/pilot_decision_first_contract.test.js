@@ -16,6 +16,7 @@ const loaded={
   auth:read('auth.js'),
   workspace:read('mission-workspace-v2.js'),
   graph:read('evidence-graph.js'),
+  validation:read('validation-protocol.js'),
   learning:read('learning-lineage.js'),
   decision:read('decision-cycle-v1.js'),
   admin:read('admin-accounts.js'),
@@ -31,7 +32,7 @@ test('the Pilot has one explicit browser composition',()=>{
   assert.equal((home.match(/rel="stylesheet"/g)||[]).length,1);
   assert.equal((index.match(/rel="stylesheet"/g)||[]).length,1);
   assert.match(home,/pilot\.css\?v=__PILOT_BUILD__/);
-  for(const asset of ['app.js','mission-workspace-v2.js','evidence-graph.js','learning-lineage.js','decision-cycle-v1.js','admin-accounts.js']){
+  for(const asset of ['app.js','mission-workspace-v2.js','evidence-graph.js','validation-protocol.js','learning-lineage.js','decision-cycle-v1.js','admin-accounts.js']){
     assert.equal((index.match(new RegExp(asset.replace('.','\\.'),'g'))||[]).length,1);
   }
   for(const obsolete of ['pilot-integration-v3.js','mission-experience-v1.js','release-hardening-v2.js','decision-workbench-v1.js','intelligence-v2.js']){
@@ -70,7 +71,7 @@ test('sessions refresh once before protected work is abandoned',()=>{
   assert.match(loaded.app,/\/api\/auth\/refresh/);
   assert.match(loaded.app,/response\.status===401&&retryAuth&&refreshToken\(\)/);
   assert.match(loaded.app,/return rawApi\(path,\{\.\.\.options,retryAuth:false\}\)/);
-  for(const name of ['workspace','graph','learning','decision','admin']){
+  for(const name of ['workspace','graph','validation','learning','decision','admin']){
     assert.match(loaded[name],/window\.SRISApi\?\.request/);
   }
 });

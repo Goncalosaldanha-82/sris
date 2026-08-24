@@ -277,6 +277,9 @@ def workspace_summary(
                 "reviewed_learning": reviewed_learning.get(mission.id, 0),
                 "published_learning": packet_counts.get(mission.id, 0),
                 "progress_percent": readiness["progress_percent"],
+                "validation_profile": readiness.get("validation", {}).get("profile", "none"),
+                "validation_required": readiness.get("validation", {}).get("required", False),
+                "validation_progress_percent": readiness.get("validation", {}).get("progress_percent", 100),
                 "next_action": next_action,
             }
         )

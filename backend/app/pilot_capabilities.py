@@ -7,7 +7,7 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260824-operational-core-v4"
+PILOT_BUILD = "20260824-measurable-validation-v5"
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -52,6 +52,9 @@ def pilot_capabilities() -> dict:
         "evidence_graph": True,
         "provenance": True,
         "organizational_memory": True,
+        "measurable_validation": True,
+        "tourism_advance_profile": True,
+        "baseline_and_result_comparison": True,
         "hybrid_retrieval": True,
         "assistance_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
         "assistance_enabled": _flag("SRIS_AI_ENABLED", False),

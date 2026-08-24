@@ -244,6 +244,7 @@ def _initial_document(
             "priority": payload.priority,
             "horizon": payload.horizon,
             "stakeholders": payload.stakeholders,
+            "validation_profile": payload.validation_profile,
             "hierarchy": {
                 "parent_mission_id": parent.id if parent else None,
                 "parent_mission_code": parent.code if parent else None,
@@ -319,6 +320,16 @@ def create_mission(
     )
     db.add(row)
     db.flush()
+    if payload.validation_profile != "none":
+        from app.pilot_validation import seed_validation_protocol
+
+        seed_validation_protocol(
+            db,
+            organization_id=organization_id,
+            mission=row,
+            profile=payload.validation_profile,
+            user_id=user_id,
+        )
     db.add(
         MissionRevision(
             mission_id=row.id,
@@ -362,7 +373,14 @@ def _updated_document(
         parent_mission_code=parent.code if parent else None,
     )
     metadata["hierarchy"] = hierarchy
-    for field in ("objective", "mission_kind", "domain", "priority", "horizon"):
+    for field in (
+        "objective",
+        "mission_kind",
+        "domain",
+        "priority",
+        "horizon",
+        "validation_profile",
+    ):
         value = getattr(payload, field)
         if value is not None:
             metadata[field] = value
@@ -458,6 +476,17 @@ def update_mission(
     row.document_json = document_json
     row.content_hash = content_hash
     row.revision += 1
+    validation_profile = str(updated.metadata.get("validation_profile") or "none")
+    if validation_profile != "none":
+        from app.pilot_validation import seed_validation_protocol
+
+        seed_validation_protocol(
+            db,
+            organization_id=organization_id,
+            mission=row,
+            profile=validation_profile,
+            user_id=user_id,
+        )
     db.add(
         MissionRevision(
             mission_id=row.id,
@@ -535,6 +564,7 @@ def mission_view(
         "priority": row.priority,
         "horizon": str(metadata.get("horizon") or ""),
         "stakeholders": list(metadata.get("stakeholders") or []),
+        "validation_profile": str(metadata.get("validation_profile") or "none"),
         "parent_mission_id": row.parent_mission_id,
         "parent_code": parent.code if parent else None,
         "depth": len(lineage),
