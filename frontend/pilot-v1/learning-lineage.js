@@ -91,7 +91,7 @@
       const revalidationCount=(activeContext?.inheritance?.requires_revalidation||[]).length;
       if(status)status.textContent=candidates.candidates.length
         ? `${activeCount} aprendizagem(ns) ativa(s) neste contexto · ${revalidationCount} a revalidar. Reveja as restantes antes de as reutilizar.`
-        : 'Ainda não há aprendizagens publicadas por outras missões.';
+        : 'Esta área mostra apenas aprendizagens publicadas por outras missões. A aprendizagem da missão atual fica na Memória canónica e só aparecerá aqui quando abrir outra missão.';
     }catch(error){
       if(status)status.textContent=`Não foi possível carregar aprendizagem: ${error.message}`;
     }
@@ -139,7 +139,7 @@
           <div class="ll-review-message" data-review-message role="status" aria-live="polite"></div>
         </form>
       </article>`;
-    }).join(''):'<div class="eg-empty">Nenhuma aprendizagem publicada por outras missões.</div>';
+    }).join(''):'<div class="eg-empty"><strong>Nenhuma aprendizagem externa disponível para esta missão.</strong><br>A própria aprendizagem não é apresentada aqui para evitar reutilização circular. Abra outra missão para a testar como candidata.</div>';
   }
 
   function handleClick(event){

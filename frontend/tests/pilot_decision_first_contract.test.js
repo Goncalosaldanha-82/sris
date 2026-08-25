@@ -157,5 +157,7 @@ test('learning reuse is reviewed in-product and shows active inherited context',
   assert.match(loaded.learning,/data-review-form/);
   assert.match(loaded.learning,/active-context/);
   assert.match(loaded.learning,/Aprendizagem já revista neste contexto/);
+  assert.match(loaded.learning,/apenas aprendizagens publicadas por outras missões/);
+  assert.match(loaded.learning,/evitar reutilização circular/);
   assert.match(loaded.learning,/sris:learning-reviewed/);
 });

@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260825-alternative-dedup-v12';
+  const BUILD='20260825-canonical-memory-bridge-v13';
   const state={mission:null,aggregate:null,evidence:[],loading:false};
   const profiles={
     measurable_decision:{

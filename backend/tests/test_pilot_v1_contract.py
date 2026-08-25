@@ -889,6 +889,40 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert published.status_code == 201, published.text
 
+    memory_base = (
+        f"/api/organizations/{organization_id}/mission-intelligence/memory"
+    )
+    memory_sync = client.post(f"{memory_base}/sync", headers=headers)
+    assert memory_sync.status_code == 200, memory_sync.text
+    assert memory_sync.json()["created"] >= 1
+    assert memory_sync.json()["assets_created"] >= 1
+    mission_memory = client.get(
+        f"{memory_base}/items?limit=500",
+        headers=headers,
+    )
+    assert mission_memory.status_code == 200, mission_memory.text
+    memory_items = [
+        item for item in mission_memory.json()
+        if item["mission_id"] == mission_payload["id"]
+    ]
+    assert any(item["item_type"] == "evidence" for item in memory_items)
+    assert any(item["item_type"] == "hypothesis" for item in memory_items)
+    assert any(item["item_type"] == "decision" for item in memory_items)
+    assert any(item["item_type"] == "outcome" for item in memory_items)
+    published_memory = next(
+        item for item in memory_items if item["item_type"] == "learning"
+    )
+    assert published_memory["metadata"]["published_learning"] is True
+    assert published_memory["metadata"]["lineage_sha256"] == published.json()["lineage_sha256"]
+    assert published_memory["canonical_record_id"] == f"PILOT-{learning_node_id}"
+    memory_status = client.get(f"{memory_base}/status", headers=headers)
+    assert memory_status.status_code == 200, memory_status.text
+    assert memory_status.json()["assets"] >= 1
+    repeated_memory_sync = client.post(f"{memory_base}/sync", headers=headers)
+    assert repeated_memory_sync.status_code == 200, repeated_memory_sync.text
+    assert repeated_memory_sync.json()["created"] == 0
+    assert repeated_memory_sync.json()["assets_created"] == 0
+
     readiness = client.get(
         f"/api/pilot/missions/{mission_payload['code']}/completion-readiness",
         headers=headers,
