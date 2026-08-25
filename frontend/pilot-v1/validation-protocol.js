@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260824-source-integrity-v6';
+  const BUILD='20260825-validation-semantics-v9';
   const state={mission:null,aggregate:null,evidence:[],loading:false};
   const profiles={
     measurable_decision:{
@@ -13,7 +13,8 @@
       description:'Normaliza água, energia, resíduos ou custo pela atividade real da unidade antes de avaliar a intervenção.',
     },
   };
-  const targetLabels={met:'Meta atingida',missed:'Meta não atingida',indeterminate:'Não comparável',not_configured:'Meta não configurada'};
+  const targetLabels={met:'Meta matemática atingida',missed:'Meta matemática não atingida',indeterminate:'Não comparável',not_configured:'Meta não configurada'};
+  const attributionLabels={high:'Alta',moderate:'Moderada',low:'Baixa',not_evaluable:'Não avaliável',pending:'Pendente'};
   const eventLabels={protocol_seeded:'Perfil inicial criado',protocol_created:'Protocolo criado',protocol_updated:'Protocolo revisto',baseline_recorded:'Baseline registada',result_recorded:'Resultado registado',attribution_reviewed:'Atribuição revista'};
 
   const $=(selector,root=document)=>root.querySelector(selector);
@@ -59,7 +60,28 @@
     const readiness=state.aggregate?.readiness||{};
     const checks=Array.isArray(readiness.checks)?readiness.checks:[];
     if(!checks.length)return'<div class="vp-readiness-empty">Ative um perfil para acrescentar validação quantitativa a esta missão.</div>';
-    return `<div class="vp-readiness-head"><div><span>PRONTIDÃO DA VALIDAÇÃO</span><strong>${Number(readiness.progress_percent||0)}%</strong></div><small>${Number(readiness.completed_checks||0)} de ${Number(readiness.total_checks||0)} condições verificadas</small></div><div class="vp-checks">${checks.map(check=>`<div class="vp-check ${check.passed?'passed':''}"><span>${check.passed?'✓':'○'}</span><strong>${esc(check.label)}</strong></div>`).join('')}</div>`;
+    return `<div class="vp-readiness-head"><div><span>PRONTIDÃO DO PROTOCOLO</span><strong>${Number(readiness.progress_percent||0)}%</strong></div><small>${Number(readiness.completed_checks||0)} de ${Number(readiness.total_checks||0)} condições verificadas</small></div><div class="vp-checks">${checks.map(check=>`<div class="vp-check ${check.passed?'passed':''}"><span>${check.passed?'✓':'○'}</span><strong>${esc(check.label)}</strong></div>`).join('')}</div>${interpretationHtml()}`;
+  }
+
+  function interpretationHtml(){
+    const aggregate=state.aggregate||{};
+    const readiness=aggregate.readiness||{};
+    const analysis=aggregate.analysis||{};
+    const protocol=aggregate.protocol||{};
+    const attributionStatus=protocol.attribution_confidence||'pending';
+    const attributionLabel=attributionLabels[attributionStatus]||attributionStatus;
+    const targetLabel=targetLabels[analysis.target_status]||analysis.target_status||'Por avaliar';
+    const attributionDetail=attributionStatus==='not_evaluable'
+      ?'Impacto real não validado.'
+      :protocol.reviewed_at
+        ?'Atribuição revista por uma pessoa; a confiança declarada permanece explícita.'
+        :'A atribuição causal ainda não foi revista.';
+    const processLabel=readiness.ready?'Processo completo.':'Processo em construção.';
+    return `<div class="vp-interpretation ${attributionStatus==='not_evaluable'?'not-evaluable':''}" data-attribution-status="${esc(attributionStatus)}">
+      <div><span>Resultado face à meta</span><strong>${esc(targetLabel)}</strong></div>
+      <div><span>Atribuição causal</span><strong>${esc(attributionLabel)}</strong><small>${esc(attributionDetail)}</small></div>
+      <p><strong>${processLabel}</strong> 100% mede a conclusão do protocolo; não valida, por si só, impacto causal.</p>
+    </div>`;
   }
 
   function protocolForm(){
@@ -79,11 +101,11 @@
           <div class="field"><label for="vp-indicator">Indicador</label><input id="vp-indicator" name="indicator_name" maxlength="300" value="${esc(protocol.indicator_name||'')}" placeholder="Ex.: Consumo de água"></div>
           <div class="field"><label for="vp-indicator-unit">Unidade</label><input id="vp-indicator-unit" name="indicator_unit" maxlength="80" value="${esc(protocol.indicator_unit||'')}" placeholder="Ex.: m³"></div>
           <div class="field"><label for="vp-direction">Direção desejada</label><select id="vp-direction" name="desired_direction"><option value="decrease" ${protocol.desired_direction!=='increase'&&protocol.desired_direction!=='maintain'&&protocol.desired_direction!=='target'?'selected':''}>Reduzir</option><option value="increase" ${protocol.desired_direction==='increase'?'selected':''}>Aumentar</option><option value="maintain" ${protocol.desired_direction==='maintain'?'selected':''}>Manter</option><option value="target" ${protocol.desired_direction==='target'?'selected':''}>Atingir valor</option></select></div>
-          <div class="field"><label for="vp-target">Meta numérica</label><input id="vp-target" name="target_value" type="number" step="any" value="${protocol.target_value??''}" placeholder="Valor normalizado"></div>
+          <div class="field"><label id="vp-target-label" for="vp-target">Meta numérica do indicador</label><input id="vp-target" name="target_value" type="number" step="any" value="${protocol.target_value??''}" placeholder="Valor final do indicador"><small id="vp-target-hint" class="note vp-field-hint">Introduza o valor final na unidade definida, não uma percentagem de variação.</small></div>
         </div>
         <div class="vp-grid two">
-          <div class="field"><label for="vp-denominator">Atividade para normalização</label><input id="vp-denominator" name="denominator_name" maxlength="300" value="${esc(protocol.denominator_name||'')}" placeholder="Ex.: Quartos ocupados"></div>
-          <div class="field"><label for="vp-denominator-unit">Unidade da atividade</label><input id="vp-denominator-unit" name="denominator_unit" maxlength="80" value="${esc(protocol.denominator_unit||'')}" placeholder="Ex.: quarto ocupado"></div>
+          <div class="field"><label for="vp-denominator">Atividade para normalização</label><input id="vp-denominator" name="denominator_name" maxlength="300" value="${esc(protocol.denominator_name||'')}" placeholder="Ex.: Quartos-noite ocupados"></div>
+          <div class="field"><label for="vp-denominator-unit">Unidade da atividade</label><input id="vp-denominator-unit" name="denominator_unit" maxlength="80" value="${esc(protocol.denominator_unit||'')}" placeholder="Ex.: quarto-noite ocupado"></div>
         </div>
         <div class="field"><label for="vp-target-description">Critério da meta</label><textarea id="vp-target-description" name="target_description" rows="2" maxlength="3000" placeholder="Defina o valor, horizonte e condição de sucesso.">${esc(protocol.target_description||'')}</textarea></div>
         <div class="field"><label for="vp-intervention">Intervenção a testar</label><textarea id="vp-intervention" name="intervention_description" rows="3" maxlength="5000" placeholder="O que muda, onde, por quem e com que reversibilidade?">${esc(protocol.intervention_description||'')}</textarea></div>
@@ -178,8 +200,9 @@
     const aggregate=state.aggregate||{required:false,profile:state.mission.validation_profile||'none',protocol:null,readiness:{checks:[]},analysis:{}};
     state.aggregate=aggregate;
     const configured=Boolean(aggregate.protocol);
+    const processComplete=Boolean(aggregate.readiness?.ready&&configured);
     container.innerHTML=`<div class="vp-shell" data-build="${BUILD}">
-      <header class="vp-hero"><div><span class="product-index">PROTOCOLO DE VALIDAÇÃO</span><h3>Do resultado observado ao impacto defensável.</h3><p>O SRIS preserva a amplitude da missão e acrescenta uma camada mensurável quando ela é necessária. O perfil Tourism Advance é uma configuração especializada desta arquitetura transversal.</p></div><span class="vp-state ${aggregate.readiness?.ready?'ready':''}">${aggregate.readiness?.ready?'Validado':configured?'Em construção':'Opcional'}</span></header>
+      <header class="vp-hero"><div><span class="product-index">PROTOCOLO DE VALIDAÇÃO</span><h3>Do resultado observado ao impacto defensável.</h3><p>O SRIS preserva a amplitude da missão e acrescenta uma camada mensurável quando ela é necessária. O perfil Tourism Advance é uma configuração especializada desta arquitetura transversal.</p></div><span class="vp-state ${processComplete?'ready':''}">${processComplete?'Processo completo':configured?'Em construção':'Opcional'}</span></header>
       <div class="vp-chain" aria-label="Percurso de validação"><span>Âmbito</span><i>→</i><span>Indicador</span><i>→</i><span>Baseline</span><i>→</i><span>Intervenção</span><i>→</i><span>Resultado</span><i>→</i><span>Atribuição</span></div>
       <section class="vp-readiness">${readinessHtml()}</section>
       ${protocolForm()}
@@ -203,8 +226,16 @@
     const tourism=code==='tourism_advance_resource_efficiency';
     const denominator=$('#vp-denominator',root());
     const denominatorUnit=$('#vp-denominator-unit',root());
-    if(denominator)denominator.placeholder=tourism?'Ex.: Quartos ocupados':'Opcional para indicadores absolutos';
-    if(denominatorUnit)denominatorUnit.placeholder=tourism?'Ex.: quarto ocupado':'Ex.: utilizador, unidade produzida';
+    const target=$('#vp-target',root());
+    const targetLabel=$('#vp-target-label',root());
+    const targetHint=$('#vp-target-hint',root());
+    if(denominator)denominator.placeholder=tourism?'Ex.: Quartos-noite ocupados':'Opcional para indicadores absolutos';
+    if(denominatorUnit)denominatorUnit.placeholder=tourism?'Ex.: quarto-noite ocupado':'Ex.: utilizador, unidade produzida';
+    if(targetLabel)targetLabel.textContent=tourism?'Meta normalizada (valor absoluto)':'Meta numérica do indicador';
+    if(target)target.placeholder=tourism?'Ex.: 0,08 — não 20%':'Valor final do indicador';
+    if(targetHint)targetHint.textContent=tourism
+      ?'Introduza o limite final normalizado. Ex.: 0,08 m³/quarto-noite ocupado; não introduza a redução percentual de 20%.'
+      :'Introduza o valor final na unidade definida, não uma percentagem de variação.';
   }
 
   async function saveProtocol(event){

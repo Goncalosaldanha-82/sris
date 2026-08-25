@@ -743,7 +743,7 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
         json={
             "title": "Reduzir água normalizada pela atividade real",
             "objective": "Validar uma intervenção operacional pequena, mensurável e reversível.",
-            "central_question": "A intervenção reduz água por quarto ocupado sem degradar a operação?",
+            "central_question": "A intervenção reduz água por quarto-noite ocupado sem degradar a operação?",
             "context": "Piloto Tourism Advance numa unidade de alojamento.",
             "mission_kind": "mission",
             "domain": "hospitality_resource_efficiency",
@@ -763,7 +763,8 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
     seeded_payload = seeded.json()
     assert seeded_payload["required"] is True
     assert seeded_payload["profile"] == "tourism_advance_resource_efficiency"
-    assert seeded_payload["protocol"]["denominator_name"] == "Quartos ocupados"
+    assert seeded_payload["protocol"]["denominator_name"] == "Quartos-noite ocupados"
+    assert seeded_payload["protocol"]["denominator_unit"] == "quarto-noite ocupado"
 
     protocol = client.put(
         f"{validation_base}/protocol",
@@ -777,10 +778,10 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
             "indicator_name": "Consumo de água",
             "indicator_unit": "m³",
             "desired_direction": "decrease",
-            "denominator_name": "Quartos ocupados",
-            "denominator_unit": "quarto ocupado",
+            "denominator_name": "Quartos-noite ocupados",
+            "denominator_unit": "quarto-noite ocupado",
             "target_value": 0.08,
-            "target_description": "Atingir no máximo 0,08 m³ por quarto ocupado no período de revisão.",
+            "target_description": "Atingir no máximo 0,08 m³ por quarto-noite ocupado no período de revisão.",
             "guardrails": "Sem aumento material de reclamações, custo ou consumo noutro recurso.",
             "intervention_description": "Ajustar rotinas de lavandaria e testar deteção diária de fugas.",
             "intervention_start_date": "2026-02-01",
@@ -798,7 +799,7 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
         json={
             "node_type": "evidence",
             "label": "Leituras e ocupação · janeiro",
-            "body": "100 m³ e 1 000 quartos ocupados, conferidos pela operação.",
+            "body": "100 m³ e 1 000 quartos-noite ocupados, conferidos pela operação.",
             "status": "verified",
             "provenance": {"source": "operational_records", "human_reviewed": True},
         },
@@ -809,7 +810,7 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
         json={
             "node_type": "evidence",
             "label": "Leituras e ocupação · março",
-            "body": "70 m³ e 1 000 quartos ocupados, conferidos pela operação.",
+            "body": "70 m³ e 1 000 quartos-noite ocupados, conferidos pela operação.",
             "status": "verified",
             "provenance": {"source": "operational_records", "human_reviewed": True},
         },

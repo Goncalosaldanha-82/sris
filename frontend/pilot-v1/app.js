@@ -44,13 +44,13 @@ const lifecycleLabels={
 
 const missionTemplates={
   resource:{
-    title:'Normalizar e reduzir o consumo de água por quarto ocupado',
+    title:'Normalizar e reduzir o consumo de água por quarto-noite ocupado',
     objective:'Decidir que intervenção operacional deve ser testada para reduzir o consumo de água normalizado pela atividade real, sem degradar a experiência do hóspede nem transferir custo para outra parte da operação.',
     question:'Que fatores explicam a variação observada e qual é a intervenção mais pequena, mensurável e reversível que deve ser testada primeiro?',
     context:'Reunir consumos de água, ocupação, quartos vendidos, hóspedes/noite, rega, lavandaria, manutenção, ocorrências e alterações de procedimento do período em análise.',
     assumptions:'O aumento observado pode estar relacionado com atividade e não apenas com ineficiência.\nOs dados existentes permitem construir uma baseline minimamente comparável.',
     constraints:'Não reduzir qualidade percebida pelo hóspede.\nNão interromper a operação.\nUsar inicialmente dados já disponíveis.',
-    success:'Redução sustentada do consumo por quarto ocupado, sem aumento material de reclamações, custo operacional ou consumo noutro recurso.',
+    success:'Redução sustentada do consumo por quarto-noite ocupado, sem aumento material de reclamações, custo operacional ou consumo noutro recurso.',
     domain:'hospitality_resource_efficiency',
     priority:'strategic',
     horizon:'90 dias',

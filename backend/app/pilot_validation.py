@@ -726,8 +726,8 @@ def seed_validation_protocol(
         "subject_type": "Unidade de alojamento" if profile == PROFILE_TOURISM else "Unidade de análise",
         "indicator_name": "Consumo de água" if profile == PROFILE_TOURISM else "",
         "indicator_unit": "m³" if profile == PROFILE_TOURISM else "",
-        "denominator_name": "Quartos ocupados" if profile == PROFILE_TOURISM else "",
-        "denominator_unit": "quarto ocupado" if profile == PROFILE_TOURISM else "",
+        "denominator_name": "Quartos-noite ocupados" if profile == PROFILE_TOURISM else "",
+        "denominator_unit": "quarto-noite ocupado" if profile == PROFILE_TOURISM else "",
         "guardrails": (
             "Experiência do hóspede; custo operacional; continuidade da operação; "
             "ausência de transferência material do consumo para outro recurso."

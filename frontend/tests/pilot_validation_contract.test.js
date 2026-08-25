@@ -46,3 +46,22 @@ test('baseline and result remain evidence-backed and deterministic',()=>{
   assert.doesNotMatch(validation,/window\.fetch\s*=/);
   assert.doesNotMatch(validation,/\b(?:prompt|alert|confirm)\s*\(/);
 });
+
+test('protocol completion is never presented as automatic impact validation',()=>{
+  assert.match(validation,/PRONTIDÃO DO PROTOCOLO/);
+  assert.match(validation,/Processo completo/);
+  assert.match(validation,/Meta matemática atingida/);
+  assert.match(validation,/Atribuição causal/);
+  assert.match(validation,/Impacto real não validado/);
+  assert.match(validation,/100% mede a conclusão do protocolo; não valida, por si só, impacto causal/);
+  assert.doesNotMatch(validation,/readiness\?\.ready\?'Validado'/);
+});
+
+test('Tourism Advance uses room-night normalization and an unambiguous absolute target',()=>{
+  assert.match(validation,/Quartos-noite ocupados/);
+  assert.match(validation,/quarto-noite ocupado/);
+  assert.match(validation,/Meta normalizada \(valor absoluto\)/);
+  assert.match(validation,/0,08 m³\/quarto-noite ocupado/);
+  assert.match(validation,/não introduza a redução percentual de 20%/);
+  assert.match(app,/consumo de água por quarto-noite ocupado/);
+});
