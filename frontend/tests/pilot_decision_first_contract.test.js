@@ -52,6 +52,11 @@ test('alternative comparison is multicriteria, persistent and decision-neutral',
   assert.match(loaded.comparison,/Confirmar revisão humana/);
   assert.match(loaded.comparison,/Nenhuma alternativa é selecionada automaticamente/);
   assert.match(loaded.comparison,/sris:alternative-matrix-updated/);
+  assert.match(loaded.comparison,/Duplicado exato detetado/);
+  assert.match(loaded.comparison,/Retirar duplicado/);
+  assert.match(loaded.comparison,/if \(addingAlternative\) return/);
+  assert.match(loaded.comparison,/alternative_change\?\.created/);
+  assert.match(loaded.comparison,/\/alternatives\/\$\{encodeURIComponent\(alternativeId\)\}\/duplicate/);
 });
 
 test('decision foundation uses the human document title instead of a technical UUID',()=>{

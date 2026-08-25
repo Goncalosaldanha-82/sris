@@ -455,6 +455,8 @@ def get_mission_graph(
     """), {"org": membership.organization_id, "mission": mission.id}).mappings().all()
     counts: dict[str, int] = {}
     for row in nodes:
+        if row["status"] in {"rejected", "superseded"}:
+            continue
         counts[row["node_type"]] = counts.get(row["node_type"], 0) + 1
     return {
         "mission": {"id": mission.id, "code": mission.code, "title": mission.title, "revision": mission.revision},

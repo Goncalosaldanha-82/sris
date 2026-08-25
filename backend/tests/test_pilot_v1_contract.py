@@ -255,6 +255,8 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/validation/missions/{mission_code}/measurements/{phase}",
         "/api/pilot/validation/missions/{mission_code}/review",
         "/api/pilot/alternative-matrices/missions/{mission_code}",
+        "/api/pilot/alternative-matrices/missions/{mission_code}/alternatives",
+        "/api/pilot/alternative-matrices/missions/{mission_code}/alternatives/{alternative_node_id}/duplicate",
         "/api/pilot/alternative-matrices/missions/{mission_code}/review",
         "/api/pilot/learning/missions/{mission_code}/candidates",
         "/api/pilot/learning/missions/{mission_code}/active-context",
@@ -450,6 +452,82 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert second_alternative.status_code == 201, second_alternative.text
+
+    matrix_alternatives_url = (
+        f"/api/pilot/alternative-matrices/missions/{mission_payload['code']}/alternatives"
+    )
+    prevented_duplicate = client.post(
+        matrix_alternatives_url,
+        headers=headers,
+        json={
+            "title": second_alternative.json()["label"],
+            "body": second_alternative.json()["body"],
+        },
+    )
+    assert prevented_duplicate.status_code == 200, prevented_duplicate.text
+    assert prevented_duplicate.json()["alternative_change"] == {
+        "created": False,
+        "alternative_id": second_alternative.json()["id"],
+        "reason": "exact_duplicate",
+    }
+    assert len(prevented_duplicate.json()["alternatives"]) == 2
+
+    accidental_duplicate = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "alternative",
+            "label": second_alternative.json()["label"],
+            "body": second_alternative.json()["body"],
+            "status": "proposed",
+        },
+    )
+    assert accidental_duplicate.status_code == 201, accidental_duplicate.text
+    duplicate_matrix = client.get(
+        f"/api/pilot/alternative-matrices/missions/{mission_payload['code']}",
+        headers=headers,
+    )
+    assert duplicate_matrix.status_code == 200, duplicate_matrix.text
+    marked_duplicates = [
+        item for item in duplicate_matrix.json()["alternatives"] if item["duplicate_of_id"]
+    ]
+    assert len(marked_duplicates) == 1
+    duplicate_to_retire = marked_duplicates[0]
+    retired_duplicate = client.delete(
+        f"{matrix_alternatives_url}/{duplicate_to_retire['id']}/duplicate",
+        headers=headers,
+    )
+    assert retired_duplicate.status_code == 200, retired_duplicate.text
+    assert retired_duplicate.json()["alternative_change"]["retired"] is True
+    second_active_id = retired_duplicate.json()["alternative_change"]["retained_alternative_id"]
+    assert len(retired_duplicate.json()["alternatives"]) == 2
+    assert all(not item["duplicate_of_id"] for item in retired_duplicate.json()["alternatives"])
+
+    unique_retirement = client.delete(
+        f"{matrix_alternatives_url}/{alternative.json()['id']}/duplicate",
+        headers=headers,
+    )
+    assert unique_retirement.status_code == 409, unique_retirement.text
+    assert unique_retirement.json()["detail"] == (
+        "Esta alternativa é única e não pode ser retirada como duplicado."
+    )
+    graph_after_retirement = client.get(graph_base, headers=headers)
+    assert graph_after_retirement.status_code == 200, graph_after_retirement.text
+    assert graph_after_retirement.json()["counts"]["alternative"] == 2
+    retired_node = next(
+        item
+        for item in graph_after_retirement.json()["nodes"]
+        if item["id"] == duplicate_to_retire["id"]
+    )
+    assert retired_node["status"] == "superseded"
+
+    duplicate_audit = client.get("/api/pilot/admin/audit?limit=100", headers=headers)
+    assert duplicate_audit.status_code == 200, duplicate_audit.text
+    assert any(
+        event["action"] == "pilot.alternative.duplicate_retired"
+        and event["resource_id"] == duplicate_to_retire["id"]
+        for event in duplicate_audit.json()["events"]
+    )
     observation = client.post(
         f"{graph_base}/nodes",
         headers=headers,
@@ -655,7 +733,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
                 },
             ),
             matrix_evaluation(
-                second_alternative.json()["id"],
+                second_active_id,
                 {
                     "efficacy": 5,
                     "cost": 3,
@@ -691,7 +769,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert first_matrix_payload["matrix"]["integrity_verified"] is True
     assert first_matrix_payload["readiness"]["passed"] is True
     assert first_matrix_payload["readiness"]["count"] == 2
-    assert first_matrix_payload["ranking"][0]["alternative_node_id"] == second_alternative.json()["id"]
+    assert first_matrix_payload["ranking"][0]["alternative_node_id"] == second_active_id
     assert first_matrix_payload["ranking"][0]["weighted_score"] == 86.0
     assert first_matrix_payload["calculation"]["formula"] == "sum(score × weight) / 5"
     assert first_matrix_payload["calculation"]["result_range"] == [20, 100]
@@ -705,7 +783,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     second_assessment = next(
         item
         for item in revised_matrix["evaluations"]
-        if item["alternative_node_id"] == second_alternative.json()["id"]
+        if item["alternative_node_id"] == second_active_id
     )
     evidence_robustness = next(
         item for item in second_assessment["scores"] if item["criterion"] == "evidence_robustness"

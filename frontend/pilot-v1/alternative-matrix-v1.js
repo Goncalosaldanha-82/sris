@@ -51,6 +51,9 @@
   let state = null;
   let currentMissionCode = "";
   let loading = false;
+  let addingAlternative = false;
+  let removingAlternative = false;
+  let pendingRemovalId = "";
 
   const esc = (value) => String(value == null ? "" : value)
     .replaceAll("&", "&amp;")
@@ -114,7 +117,7 @@
     style.id = "alternative-matrix-styles";
     style.textContent = `
       .alternative-matrix-root .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-      .alternative-matrix-root{display:grid;gap:18px}.alternative-matrix-hero{background:linear-gradient(135deg,#073d31,#17644f);color:#fff;border-radius:24px;padding:28px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alternative-matrix-hero h3{font-family:inherit;font-size:clamp(28px,4vw,46px);line-height:1.02;margin:8px 0}.alternative-matrix-hero p{max-width:780px;color:#e6f0ec;margin:0}.alternative-matrix-revision{border:1px solid rgba(255,255,255,.38);border-radius:999px;padding:10px 14px;white-space:nowrap;font-weight:800}.alternative-matrix-card{border:1px solid #cfdbd6;border-radius:20px;padding:20px;background:#fff}.alternative-matrix-card h4{margin:0 0 8px}.alternative-matrix-status{min-height:24px;color:#4e645c}.alternative-matrix-status.success{color:#176a4d}.alternative-matrix-status.error{color:#a22b23}.alternative-matrix-status.warning{color:#886516}.alternative-matrix-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.alternative-matrix-controls .btn{margin:0}.alternative-matrix-weights{display:grid;grid-template-columns:repeat(6,minmax(118px,1fr));gap:10px;margin-top:14px}.alternative-matrix-weight{border:1px solid #d6dfdb;border-radius:14px;padding:10px}.alternative-matrix-weight label{display:block;font-size:12px;font-weight:800;min-height:32px}.alternative-matrix-weight input{width:100%;margin-top:6px}.alternative-matrix-weight-total{font-weight:800}.alternative-matrix-weight-total.invalid{color:#a22b23}.alternative-matrix-scroller{overflow-x:auto;padding-bottom:5px}.alternative-matrix-table{border-collapse:separate;border-spacing:0;width:100%;min-width:760px}.alternative-matrix-table th,.alternative-matrix-table td{border-right:1px solid #d9e1de;border-bottom:1px solid #d9e1de;padding:12px;vertical-align:top}.alternative-matrix-table th{background:#f4f7f5;text-align:left}.alternative-matrix-table tr:first-child th{border-top:1px solid #d9e1de}.alternative-matrix-table th:first-child,.alternative-matrix-table td:first-child{border-left:1px solid #d9e1de;position:sticky;left:0;background:#fff;z-index:1;min-width:180px}.alternative-matrix-table tr:first-child th:first-child{background:#f4f7f5;z-index:2;border-top-left-radius:12px}.alternative-matrix-table tr:first-child th:last-child{border-top-right-radius:12px}.alternative-matrix-table select{min-width:118px;width:100%}.alternative-matrix-scale{display:block;font-size:11px;color:#667a72;margin-top:5px}.alternative-matrix-contribution{display:block;font-size:11px;color:#a07617;margin-top:6px}.alternative-matrix-rationales{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.alternative-matrix-rationales details{border:1px solid #d5dfdb;border-radius:16px;padding:14px}.alternative-matrix-rationales summary{cursor:pointer;font-weight:800}.alternative-matrix-rationale{padding:14px 0;border-top:1px solid #e2e8e5}.alternative-matrix-rationale:first-of-type{margin-top:12px}.alternative-matrix-rationale textarea,.alternative-matrix-rationale select{width:100%;margin-top:7px}.alternative-matrix-rationale textarea{min-height:92px}.alternative-matrix-ranking{display:grid;gap:10px}.alternative-matrix-rank{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;border:1px solid #d4dfda;border-radius:14px;padding:12px}.alternative-matrix-rank strong:first-child{font-size:24px;color:#b98620}.alternative-matrix-rank-score{font-size:22px;font-weight:900}.alternative-matrix-criterion-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.alternative-matrix-criterion-chips span{font-size:11px;background:#eef4f1;border-radius:999px;padding:4px 7px}.alternative-matrix-add{display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,2fr) auto;gap:10px;align-items:end}.alternative-matrix-history{display:grid;gap:8px}.alternative-matrix-history-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #e1e7e4;padding-top:10px}.alternative-matrix-empty{border:1px dashed #bdcbc5;border-radius:14px;padding:18px;color:#5b7068}.alternative-matrix-explanation{background:#f5f8f6;border-radius:14px;padding:12px;margin-top:12px;color:#52665e}.alternative-matrix-root input,.alternative-matrix-root textarea,.alternative-matrix-root select{border:1px solid #cbd7d2;border-radius:10px;padding:10px;background:#fff;color:#092c23}.alternative-matrix-root textarea{resize:vertical}.alternative-matrix-root label{color:#183d32}.alternative-matrix-root .product-index{color:#d5a844}.alternative-matrix-root .note{color:#62766e}.alternative-matrix-root .eyebrow{letter-spacing:.18em}.alternative-matrix-root button:disabled{opacity:.55;cursor:not-allowed}
+      .alternative-matrix-root{display:grid;gap:18px}.alternative-matrix-hero{background:linear-gradient(135deg,#073d31,#17644f);color:#fff;border-radius:24px;padding:28px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.alternative-matrix-hero h3{font-family:inherit;font-size:clamp(28px,4vw,46px);line-height:1.02;margin:8px 0}.alternative-matrix-hero p{max-width:780px;color:#e6f0ec;margin:0}.alternative-matrix-revision{border:1px solid rgba(255,255,255,.38);border-radius:999px;padding:10px 14px;white-space:nowrap;font-weight:800}.alternative-matrix-card{border:1px solid #cfdbd6;border-radius:20px;padding:20px;background:#fff}.alternative-matrix-card h4{margin:0 0 8px}.alternative-matrix-status{min-height:24px;color:#4e645c}.alternative-matrix-status.success{color:#176a4d}.alternative-matrix-status.error{color:#a22b23}.alternative-matrix-status.warning{color:#886516}.alternative-matrix-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.alternative-matrix-controls .btn{margin:0}.alternative-matrix-weights{display:grid;grid-template-columns:repeat(6,minmax(118px,1fr));gap:10px;margin-top:14px}.alternative-matrix-weight{border:1px solid #d6dfdb;border-radius:14px;padding:10px}.alternative-matrix-weight label{display:block;font-size:12px;font-weight:800;min-height:32px}.alternative-matrix-weight input{width:100%;margin-top:6px}.alternative-matrix-weight-total{font-weight:800}.alternative-matrix-weight-total.invalid{color:#a22b23}.alternative-matrix-scroller{overflow-x:auto;padding-bottom:5px}.alternative-matrix-table{border-collapse:separate;border-spacing:0;width:100%;min-width:760px}.alternative-matrix-table th,.alternative-matrix-table td{border-right:1px solid #d9e1de;border-bottom:1px solid #d9e1de;padding:12px;vertical-align:top}.alternative-matrix-table th{background:#f4f7f5;text-align:left}.alternative-matrix-table tr:first-child th{border-top:1px solid #d9e1de}.alternative-matrix-table th:first-child,.alternative-matrix-table td:first-child{border-left:1px solid #d9e1de;position:sticky;left:0;background:#fff;z-index:1;min-width:180px}.alternative-matrix-table tr:first-child th:first-child{background:#f4f7f5;z-index:2;border-top-left-radius:12px}.alternative-matrix-table tr:first-child th:last-child{border-top-right-radius:12px}.alternative-matrix-table select{min-width:118px;width:100%}.alternative-matrix-scale{display:block;font-size:11px;color:#667a72;margin-top:5px}.alternative-matrix-contribution{display:block;font-size:11px;color:#a07617;margin-top:6px}.alternative-matrix-rationales{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.alternative-matrix-rationales details{border:1px solid #d5dfdb;border-radius:16px;padding:14px}.alternative-matrix-rationales summary{cursor:pointer;font-weight:800}.alternative-matrix-rationale{padding:14px 0;border-top:1px solid #e2e8e5}.alternative-matrix-rationale:first-of-type{margin-top:12px}.alternative-matrix-rationale textarea,.alternative-matrix-rationale select{width:100%;margin-top:7px}.alternative-matrix-rationale textarea{min-height:92px}.alternative-matrix-ranking{display:grid;gap:10px}.alternative-matrix-rank{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;border:1px solid #d4dfda;border-radius:14px;padding:12px}.alternative-matrix-rank strong:first-child{font-size:24px;color:#b98620}.alternative-matrix-rank-score{font-size:22px;font-weight:900}.alternative-matrix-criterion-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.alternative-matrix-criterion-chips span{font-size:11px;background:#eef4f1;border-radius:999px;padding:4px 7px}.alternative-matrix-add{display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,2fr) auto;gap:10px;align-items:end}.alternative-matrix-history{display:grid;gap:8px}.alternative-matrix-history-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #e1e7e4;padding-top:10px}.alternative-matrix-empty{border:1px dashed #bdcbc5;border-radius:14px;padding:18px;color:#5b7068}.alternative-matrix-explanation{background:#f5f8f6;border-radius:14px;padding:12px;margin-top:12px;color:#52665e}.alternative-matrix-root input,.alternative-matrix-root textarea,.alternative-matrix-root select{border:1px solid #cbd7d2;border-radius:10px;padding:10px;background:#fff;color:#092c23}.alternative-matrix-root textarea{resize:vertical}.alternative-matrix-root label{color:#183d32}.alternative-matrix-root .product-index{color:#d5a844}.alternative-matrix-root .note{color:#62766e}.alternative-matrix-root .eyebrow{letter-spacing:.18em}.alternative-matrix-root button:disabled{opacity:.55;cursor:not-allowed}.alternative-matrix-duplicate{display:grid;gap:7px;margin-top:10px;padding:9px;border:1px solid #e4c989;border-radius:10px;background:#fff9e9}.alternative-matrix-duplicate-actions{display:flex;flex-wrap:wrap;gap:6px}.alternative-matrix-duplicate button{font:inherit;border-radius:8px;padding:6px 9px;cursor:pointer}.alternative-matrix-remove{border:1px solid #a94b42;background:#fff;color:#842c25}.alternative-matrix-cancel{border:1px solid #b9c8c2;background:#fff;color:#244b40}
       .alternative-matrix-total-row th,.alternative-matrix-total-row td{background:#edf4f1;font-weight:900}.alternative-matrix-live-total{font-size:20px;color:#17644f}
       @media(max-width:980px){.alternative-matrix-weights{grid-template-columns:repeat(3,1fr)}.alternative-matrix-rationales{grid-template-columns:1fr}.alternative-matrix-add{grid-template-columns:1fr}.alternative-matrix-hero{display:block}.alternative-matrix-revision{display:inline-block;margin-top:16px}}
       @media(max-width:620px){.alternative-matrix-card{padding:15px}.alternative-matrix-hero{padding:22px 18px;border-radius:18px}.alternative-matrix-weights{grid-template-columns:repeat(2,1fr)}.alternative-matrix-rank{grid-template-columns:38px 1fr}.alternative-matrix-rank-score{grid-column:2}.alternative-matrix-table th:first-child,.alternative-matrix-table td:first-child{min-width:142px}.alternative-matrix-history-row{display:grid}}
@@ -178,7 +181,12 @@
     const revision = state.matrix
       ? `Revisão ${state.matrix.revision} · ${state.matrix.status === "reviewed" ? "revista" : "rascunho"}${state.matrix.integrity_verified ? "" : " · integridade inválida"}`
       : "Sem revisão guardada";
-    const tableHead = alternatives.map((alternative) => `<th scope="col"><strong>${esc(alternative.label)}</strong><span class="alternative-matrix-scale">${esc(alternative.body || "Sem descrição")}</span></th>`).join("");
+    const tableHead = alternatives.map((alternative) => {
+      const duplicateControl = alternative.duplicate_of_id
+        ? `<div class="alternative-matrix-duplicate"><span>Duplicado exato detetado.</span>${pendingRemovalId === alternative.id ? `<span class="alternative-matrix-scale">Confirmar retirada? A cópia original permanece ativa e esta fica preservada no histórico.</span><div class="alternative-matrix-duplicate-actions"><button class="alternative-matrix-remove" type="button" data-acm-remove-confirm="${esc(alternative.id)}" ${removingAlternative ? "disabled" : ""}>Sim, retirar duplicado</button><button class="alternative-matrix-cancel" type="button" data-acm-remove-cancel>Cancelar</button></div>` : `<button class="alternative-matrix-remove" type="button" data-acm-remove="${esc(alternative.id)}">Retirar duplicado</button>`}</div>`
+        : "";
+      return `<th scope="col"><strong>${esc(alternative.label)}</strong><span class="alternative-matrix-scale">${esc(alternative.body || "Sem descrição")}</span>${duplicateControl}</th>`;
+    }).join("");
     const tableRows = criterionList.map((criterion) => {
       const cells = alternatives.map((alternative) => {
         const saved = existing.get(alternative.id)?.get(criterion.key);
@@ -205,7 +213,7 @@
     node.innerHTML = `
       <section class="alternative-matrix-hero"><div><span class="product-index">COMPARAÇÃO MULTICRITÉRIO · SEM IA</span><h3>Comparar antes de decidir.</h3><p>Seis critérios canónicos, pesos explícitos, justificação humana e evidência por avaliação. O cálculo é reproduzível e a decisão continua a pertencer à pessoa responsável.</p></div><span class="alternative-matrix-revision">${esc(revision)}</span></section>
       <div id="alternative-matrix-status" class="alternative-matrix-status ${state.matrix && !state.matrix.integrity_verified ? "error" : ""}" role="status" aria-live="polite">${state.matrix && !state.matrix.integrity_verified ? "A revisão persistida não coincide com o respetivo snapshot e hash. A ordenação foi bloqueada; guarde uma nova revisão íntegra." : ""}</div>
-      <section class="alternative-matrix-card"><div class="card-head"><div><h4>Alternativas da missão</h4><p class="note">As alternativas pertencem ao grafo canónico da missão; não são cópias locais da matriz.</p></div><span class="pill">${alternatives.length} disponíveis</span></div><form id="alternative-matrix-add" class="alternative-matrix-add"><div class="field"><label for="acm-new-title">Título</label><input id="acm-new-title" required minlength="3" placeholder="Ex.: Redutores de caudal reguláveis"></div><div class="field"><label for="acm-new-body">Descrição</label><input id="acm-new-body" required minlength="5" placeholder="Âmbito, diferença material e condição de aplicação"></div><button class="btn btn-secondary" type="submit">Adicionar alternativa</button></form></section>
+      <section class="alternative-matrix-card"><div class="card-head"><div><h4>Alternativas da missão</h4><p class="note">As alternativas pertencem ao grafo canónico da missão; não são cópias locais da matriz. Duplicados exatos podem ser retirados sem apagar o histórico.</p></div><span class="pill">${alternatives.length} disponíveis</span></div><form id="alternative-matrix-add" class="alternative-matrix-add"><div class="field"><label for="acm-new-title">Título</label><input id="acm-new-title" required minlength="3" placeholder="Ex.: Redutores de caudal reguláveis"></div><div class="field"><label for="acm-new-body">Descrição</label><input id="acm-new-body" required minlength="5" placeholder="Âmbito, diferença material e condição de aplicação"></div><button id="alternative-matrix-add-submit" class="btn btn-secondary" type="submit" ${addingAlternative ? "disabled" : ""}>${addingAlternative ? "A adicionar…" : "Adicionar alternativa"}</button></form></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Pesos da decisão</h4><p class="note">A soma tem de ser 100%. Os pesos fazem parte de cada revisão e ficam sujeitos a auditoria.</p></div><span id="alternative-matrix-weight-total" class="alternative-matrix-weight-total"></span></div><div class="alternative-matrix-weights">${weightEditors}</div></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Matriz de pontuação</h4><p class="note">Escala 1–5 orientada para valor. Em custo e risco, 5 representa a condição mais favorável.</p></div><span class="pill">20–100 pontos</span></div>${alternatives.length ? `<div class="alternative-matrix-scroller"><table class="alternative-matrix-table"><thead><tr><th scope="col">Critério</th>${tableHead}</tr></thead><tbody>${tableRows}<tr class="alternative-matrix-total-row"><th scope="row">Pontuação total</th>${totalCells}</tr></tbody></table></div><div class="alternative-matrix-rationales">${rationaleEditors}</div>` : '<div class="alternative-matrix-empty">Adicione pelo menos duas alternativas para iniciar a comparação.</div>'}<div class="alternative-matrix-explanation">Fórmula: soma(pontuação × peso) ÷ 5. Como a escala começa em 1, o resultado final varia entre 20 e 100 pontos. Desempate: robustez da evidência, eficácia e título. Nenhuma alternativa é selecionada automaticamente.</div><div class="alternative-matrix-controls" style="margin-top:14px"><button id="alternative-matrix-save" class="btn btn-primary" type="button" ${alternatives.length < 2 ? "disabled" : ""}>Guardar nova revisão</button><button id="alternative-matrix-review" class="btn btn-secondary" type="button" ${!state.matrix || !state.readiness?.passed || state.matrix.status === "reviewed" ? "disabled" : ""}>Confirmar revisão humana</button></div></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Ordenação transparente</h4><p class="note">Resultado da última revisão guardada.</p></div><span class="pill">${state.readiness?.passed ? "comparação completa" : "incompleta"}</span></div><div class="alternative-matrix-ranking">${ranking}</div></section>
@@ -314,28 +322,77 @@
 
   async function addAlternative(event) {
     event.preventDefault();
+    if (addingAlternative) return;
     const title = (document.querySelector("#acm-new-title")?.value || "").trim();
     const body = (document.querySelector("#acm-new-body")?.value || "").trim();
     if (title.length < 3 || body.length < 5) {
       setStatus("Indique um título e uma descrição material para a alternativa.", "error");
       return;
     }
+    addingAlternative = true;
+    const submit = document.querySelector("#alternative-matrix-add-submit");
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = "A adicionar…";
+    }
     try {
       setStatus("A adicionar a alternativa ao grafo da missão…", "");
-      await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(currentMissionCode)}/nodes`, {
+      state = await api(`/api/pilot/alternative-matrices/missions/${encodeURIComponent(currentMissionCode)}/alternatives`, {
         method: "POST",
-        body: JSON.stringify({ node_type: "alternative", label: title, body, status: "proposed" }),
+        body: JSON.stringify({ title, body }),
       });
-      await load(currentMissionCode, true);
-      setStatus(`Alternativa “${title}” adicionada.`, "success");
-      document.dispatchEvent(new CustomEvent("sris:evidence-graph-updated"));
+      const created = state.alternative_change?.created !== false;
+      addingAlternative = false;
+      render();
+      setStatus(created ? `Alternativa “${title}” adicionada.` : `A alternativa “${title}” já existia e não foi duplicada.`, created ? "success" : "warning");
+      if (created) document.dispatchEvent(new CustomEvent("sris:evidence-graph-updated"));
     } catch (error) {
+      addingAlternative = false;
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = "Adicionar alternativa";
+      }
+      setStatus(error.message, "error");
+    }
+  }
+
+  function requestDuplicateRemoval(alternativeId) {
+    pendingRemovalId = alternativeId;
+    render();
+    setStatus("Confirme a retirada da cópia duplicada. A alternativa original será mantida.", "warning");
+  }
+
+  function cancelDuplicateRemoval() {
+    pendingRemovalId = "";
+    render();
+    setStatus("Retirada cancelada.", "");
+  }
+
+  async function removeDuplicate(alternativeId) {
+    if (removingAlternative || pendingRemovalId !== alternativeId) return;
+    removingAlternative = true;
+    render();
+    setStatus("A retirar a cópia duplicada e a preservar o registo histórico…", "");
+    try {
+      state = await api(`/api/pilot/alternative-matrices/missions/${encodeURIComponent(currentMissionCode)}/alternatives/${encodeURIComponent(alternativeId)}/duplicate`, { method: "DELETE" });
+      pendingRemovalId = "";
+      removingAlternative = false;
+      render();
+      setStatus("Duplicado retirado. A alternativa original permanece ativa e o histórico foi preservado.", "success");
+      document.dispatchEvent(new CustomEvent("sris:evidence-graph-updated"));
+      document.dispatchEvent(new CustomEvent("sris:alternative-matrix-updated", { detail: state }));
+    } catch (error) {
+      removingAlternative = false;
+      render();
       setStatus(error.message, "error");
     }
   }
 
   function bind() {
     document.querySelector("#alternative-matrix-add")?.addEventListener("submit", addAlternative);
+    document.querySelectorAll("[data-acm-remove]").forEach((button) => button.addEventListener("click", () => requestDuplicateRemoval(button.dataset.acmRemove)));
+    document.querySelectorAll("[data-acm-remove-confirm]").forEach((button) => button.addEventListener("click", () => removeDuplicate(button.dataset.acmRemoveConfirm)));
+    document.querySelectorAll("[data-acm-remove-cancel]").forEach((button) => button.addEventListener("click", cancelDuplicateRemoval));
     document.querySelector("#alternative-matrix-save")?.addEventListener("click", save);
     document.querySelector("#alternative-matrix-review")?.addEventListener("click", review);
     document.querySelectorAll("[data-acm-score], [data-acm-weight]").forEach((node) => node.addEventListener("input", updateLiveCalculations));

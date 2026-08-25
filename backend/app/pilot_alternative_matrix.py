@@ -19,6 +19,7 @@ from app.evidence_graph import (
     _ensure_schema as _ensure_graph_schema,
     _membership,
     _mission,
+    _upsert_node,
 )
 from app.pilot_serialization import as_iso
 
@@ -135,6 +136,19 @@ class MatrixSave(BaseModel):
         return self
 
 
+class AlternativeCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=500)
+    body: str = Field(min_length=5, max_length=6000)
+
+    @model_validator(mode="after")
+    def normalize_text(self):
+        self.title = " ".join(self.title.split())
+        self.body = " ".join(self.body.split())
+        if len(self.title) < 3 or len(self.body) < 5:
+            raise ValueError("Indique um título e uma descrição material para a alternativa.")
+        return self
+
+
 def _require_membership(db: Session, user_id: str) -> Membership:
     membership = _membership(db, user_id)
     if membership is None:
@@ -233,16 +247,61 @@ def _weights_valid(weights: dict[str, int]) -> bool:
 def _active_nodes(db: Session, *, organization_id: str, mission_id: str, node_type: str) -> list[dict]:
     rows = db.execute(
         text("""
-            SELECT id, label, body, status, source_kind, source_id, source_sha256
-            FROM pilot_evidence_graph_nodes
-            WHERE organization_id=:org AND mission_id=:mission
-              AND node_type=:node_type
-              AND status NOT IN ('rejected', 'superseded')
-            ORDER BY created_at ASC, label ASC
+            SELECT node.id, node.label, node.body, node.status, node.source_kind,
+                   node.source_id, node.source_sha256, node.created_at,
+                   (SELECT COUNT(*) FROM pilot_evidence_graph_edges edge
+                    WHERE edge.organization_id=node.organization_id
+                      AND edge.mission_id=node.mission_id
+                      AND (edge.from_node_id=node.id OR edge.to_node_id=node.id))
+                   +
+                   (SELECT COUNT(*) FROM pilot_alternative_matrix_scores score
+                    WHERE score.organization_id=node.organization_id
+                      AND score.mission_id=node.mission_id
+                      AND score.alternative_node_id=node.id) AS reference_count
+            FROM pilot_evidence_graph_nodes node
+            WHERE node.organization_id=:org AND node.mission_id=:mission
+              AND node.node_type=:node_type
+              AND node.status NOT IN ('rejected', 'superseded')
+            ORDER BY node.created_at ASC, node.label ASC, node.id ASC
         """),
         {"org": organization_id, "mission": mission_id, "node_type": node_type},
     ).mappings().all()
     return [dict(row) for row in rows]
+
+
+def _alternative_identity(label: str | None, body: str | None) -> tuple[str, str]:
+    return (
+        " ".join(str(label or "").split()).casefold(),
+        " ".join(str(body or "").split()).casefold(),
+    )
+
+
+def _mark_duplicates(alternatives: list[dict]) -> list[dict]:
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for alternative in alternatives:
+        groups.setdefault(
+            _alternative_identity(alternative.get("label"), alternative.get("body")),
+            [],
+        ).append(alternative)
+    retained_by_identity = {
+        identity: sorted(
+            items,
+            key=lambda item: (
+                -int(item.get("reference_count") or 0),
+                str(item.get("created_at") or ""),
+                str(item["id"]),
+            ),
+        )[0]["id"]
+        for identity, items in groups.items()
+    }
+    marked: list[dict] = []
+    for alternative in alternatives:
+        item = dict(alternative)
+        identity = _alternative_identity(item.get("label"), item.get("body"))
+        retained_id = str(retained_by_identity[identity])
+        item["duplicate_of_id"] = retained_id if str(item["id"]) != retained_id else None
+        marked.append(item)
+    return marked
 
 
 def _latest_matrix_row(db: Session, *, organization_id: str, mission_id: str):
@@ -555,11 +614,13 @@ def _history(db: Session, *, organization_id: str, mission_id: str) -> list[dict
 def _response(db: Session, *, organization_id: str, mission) -> dict:
     latest = _latest_matrix_row(db, organization_id=organization_id, mission_id=mission.id)
     matrix = _matrix_view(db, latest)
-    alternatives = _active_nodes(
-        db,
-        organization_id=organization_id,
-        mission_id=mission.id,
-        node_type="alternative",
+    alternatives = _mark_duplicates(
+        _active_nodes(
+            db,
+            organization_id=organization_id,
+            mission_id=mission.id,
+            node_type="alternative",
+        )
     )
     evidence = _active_nodes(
         db,
@@ -590,6 +651,161 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
             "decision_policy": "A ordenação informa a revisão humana e nunca seleciona automaticamente uma decisão.",
         },
     }
+
+
+@router.post("/missions/{mission_code}/alternatives")
+def add_alternative(
+    mission_code: str,
+    payload: AlternativeCreate,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    membership = _require_membership(db, user.id)
+    _require_writer(membership)
+    _ensure_graph_schema(db)
+    _ensure_schema(db)
+    mission = _mission(db, membership.organization_id, mission_code)
+    active = _active_nodes(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        node_type="alternative",
+    )
+    identity = _alternative_identity(payload.title, payload.body)
+    existing = next(
+        (
+            item
+            for item in active
+            if _alternative_identity(item.get("label"), item.get("body")) == identity
+        ),
+        None,
+    )
+    if existing is not None:
+        response = _response(db, organization_id=membership.organization_id, mission=mission)
+        response["alternative_change"] = {
+            "created": False,
+            "alternative_id": existing["id"],
+            "reason": "exact_duplicate",
+        }
+        db.commit()
+        return response
+
+    node_id = _upsert_node(
+        db,
+        organization_id=membership.organization_id,
+        mission=mission,
+        node_type="alternative",
+        label=payload.title,
+        body=payload.body,
+        status="proposed",
+        confidence=None,
+        source_kind="human_entry",
+        source_id=f"matrix-human:{uuid4()}",
+        attachment_id=None,
+        char_start=None,
+        char_end=None,
+        source_sha256=None,
+        provenance={"human_authored": True, "entry_point": "alternative_matrix"},
+        user_id=user.id,
+    )
+    record_audit(
+        db,
+        action="pilot.alternative.created",
+        resource_type="evidence_graph_node",
+        resource_id=node_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={"mission_code": mission.code, "entry_point": "alternative_matrix"},
+    )
+    db.commit()
+    response = _response(db, organization_id=membership.organization_id, mission=mission)
+    response["alternative_change"] = {
+        "created": True,
+        "alternative_id": node_id,
+        "reason": None,
+    }
+    return response
+
+
+@router.delete("/missions/{mission_code}/alternatives/{alternative_node_id}/duplicate")
+def retire_duplicate_alternative(
+    mission_code: str,
+    alternative_node_id: str,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    membership = _require_membership(db, user.id)
+    _require_writer(membership)
+    _ensure_graph_schema(db)
+    _ensure_schema(db)
+    mission = _mission(db, membership.organization_id, mission_code)
+    alternatives = _active_nodes(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        node_type="alternative",
+    )
+    target = next((item for item in alternatives if item["id"] == alternative_node_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="A alternativa indicada não está ativa nesta missão.")
+    identity = _alternative_identity(target.get("label"), target.get("body"))
+    identical = [
+        item
+        for item in alternatives
+        if _alternative_identity(item.get("label"), item.get("body")) == identity
+    ]
+    if len(identical) < 2:
+        raise HTTPException(
+            status_code=409,
+            detail="Esta alternativa é única e não pode ser retirada como duplicado.",
+        )
+    retained = sorted(
+        identical,
+        key=lambda item: (
+            -int(item.get("reference_count") or 0),
+            str(item.get("created_at") or ""),
+            str(item["id"]),
+        ),
+    )[0]
+    if retained["id"] == alternative_node_id:
+        raise HTTPException(
+            status_code=409,
+            detail="Retire a cópia mais recente para preservar a alternativa original.",
+        )
+    db.execute(
+        text("""
+            UPDATE pilot_evidence_graph_nodes
+            SET status='superseded', updated_at=CURRENT_TIMESTAMP
+            WHERE id=:id AND organization_id=:org AND mission_id=:mission
+        """),
+        {
+            "id": alternative_node_id,
+            "org": membership.organization_id,
+            "mission": mission.id,
+        },
+    )
+    record_audit(
+        db,
+        action="pilot.alternative.duplicate_retired",
+        resource_type="evidence_graph_node",
+        resource_id=alternative_node_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "mission_code": mission.code,
+            "retained_alternative_id": retained["id"],
+            "label": target["label"],
+            "retirement_status": "superseded",
+        },
+    )
+    db.commit()
+    response = _response(db, organization_id=membership.organization_id, mission=mission)
+    response["alternative_change"] = {
+        "retired": True,
+        "alternative_id": alternative_node_id,
+        "retained_alternative_id": retained["id"],
+    }
+    return response
 
 
 @router.get("/missions/{mission_code}")
