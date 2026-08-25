@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260825-validation-semantics-v9';
+  const BUILD='20260825-evidence-lineage-v10';
   const state={mission:null,aggregate:null,evidence:[],loading:false};
   const profiles={
     measurable_decision:{

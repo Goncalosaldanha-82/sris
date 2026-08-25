@@ -89,18 +89,47 @@ def mission_completion_readiness(
             text(
                 """
                 SELECT COUNT(DISTINCT hypothesis.id)
-                FROM pilot_evidence_graph_edges edge
-                JOIN pilot_evidence_graph_nodes evidence
-                  ON evidence.id=edge.from_node_id
-                JOIN pilot_evidence_graph_nodes hypothesis
-                  ON hypothesis.id=edge.to_node_id
-                WHERE edge.organization_id=:org AND edge.mission_id=:mission
-                  AND evidence.node_type='evidence'
+                FROM pilot_evidence_graph_nodes hypothesis
+                WHERE hypothesis.organization_id=:org
+                  AND hypothesis.mission_id=:mission
                   AND hypothesis.node_type='hypothesis'
-                  AND evidence.status NOT IN ('rejected', 'superseded')
                   AND hypothesis.status NOT IN ('rejected', 'superseded')
                   AND TRIM(COALESCE(hypothesis.body, '')) <> ''
-                  AND edge.edge_type IN ('supports', 'contradicts', 'informs', 'tests')
+                  AND (
+                    EXISTS (
+                      SELECT 1
+                      FROM pilot_evidence_graph_edges direct_edge
+                      JOIN pilot_evidence_graph_nodes evidence
+                        ON evidence.id=direct_edge.from_node_id
+                      WHERE direct_edge.organization_id=:org
+                        AND direct_edge.mission_id=:mission
+                        AND direct_edge.to_node_id=hypothesis.id
+                        AND direct_edge.edge_type IN ('supports', 'contradicts', 'informs', 'tests')
+                        AND evidence.node_type='evidence'
+                        AND evidence.status NOT IN ('rejected', 'superseded')
+                    )
+                    OR EXISTS (
+                      SELECT 1
+                      FROM pilot_evidence_graph_edges source_edge
+                      JOIN pilot_evidence_graph_nodes evidence
+                        ON evidence.id=source_edge.from_node_id
+                      JOIN pilot_evidence_graph_nodes bridge
+                        ON bridge.id=source_edge.to_node_id
+                      JOIN pilot_evidence_graph_edges hypothesis_edge
+                        ON hypothesis_edge.from_node_id=bridge.id
+                       AND hypothesis_edge.to_node_id=hypothesis.id
+                      WHERE source_edge.organization_id=:org
+                        AND source_edge.mission_id=:mission
+                        AND hypothesis_edge.organization_id=:org
+                        AND hypothesis_edge.mission_id=:mission
+                        AND source_edge.edge_type IN ('supports', 'informs', 'derived_from')
+                        AND hypothesis_edge.edge_type IN ('supports', 'contradicts', 'informs', 'tests')
+                        AND evidence.node_type='evidence'
+                        AND bridge.node_type IN ('observation', 'claim')
+                        AND evidence.status NOT IN ('rejected', 'superseded')
+                        AND bridge.status NOT IN ('rejected', 'superseded')
+                    )
+                  )
                 """
             ),
             {"org": organization_id, "mission": mission_id},
@@ -184,7 +213,7 @@ def mission_completion_readiness(
         },
         {
             "key": "hypothesis_explicit",
-            "label": "Hipótese explicitamente ligada à evidência",
+            "label": "Hipótese com linhagem explícita até à evidência",
             "passed": linked_hypotheses > 0,
             "count": linked_hypotheses,
         },

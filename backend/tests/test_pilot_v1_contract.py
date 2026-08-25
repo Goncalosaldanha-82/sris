@@ -432,6 +432,57 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert second_alternative.status_code == 201, second_alternative.text
+    observation = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "observation",
+            "label": "Observação documental",
+            "body": "A fonte preservada descreve continuidade entre sessões.",
+            "status": "proposed",
+        },
+    )
+    assert observation.status_code == 201, observation.text
+    evidence_to_observation = client.post(
+        f"{graph_base}/edges",
+        headers=headers,
+        json={
+            "from_node_id": evidence.json()["id"],
+            "to_node_id": observation.json()["id"],
+            "edge_type": "informs",
+            "provenance": {"human_curated": True},
+        },
+    )
+    assert evidence_to_observation.status_code == 201, evidence_to_observation.text
+    observation_to_hypothesis = client.post(
+        f"{graph_base}/edges",
+        headers=headers,
+        json={
+            "from_node_id": observation.json()["id"],
+            "to_node_id": hypothesis.json()["id"],
+            "edge_type": "informs",
+            "provenance": {"human_curated": True},
+        },
+    )
+    assert observation_to_hypothesis.status_code == 201, observation_to_hypothesis.text
+
+    indirect_readiness = client.get(
+        f"/api/pilot/missions/{mission_payload['code']}/completion-readiness",
+        headers=headers,
+    )
+    assert indirect_readiness.status_code == 200, indirect_readiness.text
+    hypothesis_check = next(
+        check
+        for check in indirect_readiness.json()["checks"]
+        if check["key"] == "hypothesis_explicit"
+    )
+    assert hypothesis_check == {
+        "key": "hypothesis_explicit",
+        "label": "Hipótese com linhagem explícita até à evidência",
+        "passed": True,
+        "count": 1,
+    }
+
     linked = client.post(
         f"{graph_base}/edges",
         headers=headers,
