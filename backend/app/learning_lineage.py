@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import current_user
@@ -19,19 +19,35 @@ from app.pilot_serialization import as_iso
 
 router = APIRouter(prefix="/api/pilot/learning", tags=["pilot-learning-lineage"])
 
-Disposition = Literal["still_valid", "requires_revalidation", "invalidated"]
+Applicability = Literal["reuse", "requires_revalidation", "not_applicable"]
+LegacyDisposition = Literal["still_valid", "requires_revalidation", "invalidated"]
 
 
 class LearningReviewRequest(BaseModel):
-    disposition: Disposition
+    applicability: Applicability | None = None
+    disposition: LegacyDisposition | None = None
     rationale: str = Field(min_length=3, max_length=10000)
     context_change: str = Field(default="", max_length=10000)
 
     @model_validator(mode="after")
-    def require_context_change(self) -> "LearningReviewRequest":
-        if self.disposition != "still_valid" and not self.context_change.strip():
-            raise ValueError("Indique o que mudou no contexto para revalidar ou invalidar a aprendizagem.")
+    def validate_contextual_review(self) -> "LearningReviewRequest":
+        if self.applicability is None and self.disposition is None:
+            raise ValueError("Indique a aplicabilidade da aprendizagem nesta missão.")
+        if self.applicability is not None and self.disposition is not None:
+            raise ValueError("Use apenas applicability; disposition existe apenas para compatibilidade.")
+        if self.effective_applicability == "requires_revalidation" and not self.context_change.strip():
+            raise ValueError("Indique o que mudou no contexto e precisa de ser revalidado.")
         return self
+
+    @property
+    def effective_applicability(self) -> Applicability:
+        if self.applicability is not None:
+            return self.applicability
+        return {
+            "still_valid": "reuse",
+            "requires_revalidation": "requires_revalidation",
+            "invalidated": "not_applicable",
+        }[self.disposition]
 
 
 def _membership(db: Session, user_id: str) -> Membership | None:
@@ -84,6 +100,29 @@ def _ensure_schema(db: Session) -> None:
     db.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_pilot_learning_reviews_target
         ON pilot_learning_reviews (organization_id, target_mission_id, disposition)
+    """))
+    inspector = inspect(db.get_bind())
+    packet_columns = {column["name"] for column in inspector.get_columns("pilot_learning_packets")}
+    if "canonical_status" not in packet_columns:
+        db.execute(text("""
+            ALTER TABLE pilot_learning_packets
+            ADD COLUMN canonical_status VARCHAR(40) NOT NULL DEFAULT 'valid'
+        """))
+    review_columns = {column["name"] for column in inspector.get_columns("pilot_learning_reviews")}
+    if "applicability" not in review_columns:
+        db.execute(text("""
+            ALTER TABLE pilot_learning_reviews
+            ADD COLUMN applicability VARCHAR(40) NOT NULL DEFAULT 'pending'
+        """))
+    db.execute(text("""
+        UPDATE pilot_learning_reviews
+        SET applicability = CASE disposition
+            WHEN 'still_valid' THEN 'reuse'
+            WHEN 'requires_revalidation' THEN 'requires_revalidation'
+            WHEN 'invalidated' THEN 'not_applicable'
+            ELSE 'pending'
+        END
+        WHERE applicability IS NULL OR applicability = 'pending'
     """))
 
 
@@ -186,14 +225,62 @@ def _graph_snapshot(db: Session, *, organization_id: str, mission_id: str, learn
         }
         for edge in {edge["id"]: edge for edge in lineage_edges}.values()
     ]
+    raw_counts = {
+        kind: sum(1 for node in nodes if node["node_type"] == kind)
+        for kind in ("evidence", "claim", "hypothesis", "decision", "outcome", "learning")
+    }
+
+    def governed_entities(kind: str) -> list[dict]:
+        candidates = [node for node in nodes if node["node_type"] == kind]
+        if kind == "decision":
+            committed = [
+                node for node in candidates
+                if node["provenance"].get("role") == "committed_decision"
+                or (
+                    node.get("source_kind") == "decision_cycle"
+                    and str(node.get("source_id") or "").startswith("decision:")
+                )
+            ]
+            if committed:
+                candidates = committed
+        elif kind == "outcome":
+            observed = [
+                node for node in candidates
+                if node["provenance"].get("role") == "observed_outcome"
+                or (
+                    node.get("source_kind") == "decision_cycle"
+                    and str(node.get("source_id") or "").startswith("outcome:")
+                )
+            ]
+            if observed:
+                candidates = observed
+        elif kind == "learning":
+            candidates = [node for node in candidates if node["id"] == learning_node_id]
+
+        unique: dict[tuple, dict] = {}
+        for node in candidates:
+            identity = (
+                node.get("source_kind") or "",
+                node.get("source_id")
+                or node.get("attachment_id")
+                or node.get("source_sha256")
+                or node["id"],
+            )
+            unique[identity] = node
+        return list(unique.values())
+
+    entity_counts = {
+        kind: len(governed_entities(kind))
+        for kind in ("evidence", "claim", "hypothesis", "decision", "outcome", "learning")
+    }
     return {
         "learning_node_id": learning_node_id,
         "nodes": sorted(nodes, key=lambda n: (n["node_type"], n["id"])),
         "edges": sorted(edges, key=lambda e: e["id"]),
-        "counts": {
-            kind: sum(1 for node in nodes if node["node_type"] == kind)
-            for kind in ("evidence", "claim", "hypothesis", "decision", "outcome", "learning")
-        },
+        "counts": entity_counts,
+        "entity_counts": entity_counts,
+        "raw_node_counts": raw_counts,
+        "counting_policy": "Entidades únicas e governadas; nós técnicos ou candidatos não contam como decisões executivas.",
         "principle": "A aprendizagem é transportada com a cadeia de evidência e decisão que a originou.",
     }
 
@@ -209,6 +296,7 @@ def _packet_view(row) -> dict:
         "source_learning_node_id": row["source_learning_node_id"],
         "title": row["title"],
         "statement": row["statement"],
+        "canonical_status": row.get("canonical_status") or "valid",
         "lineage_sha256": row["lineage_sha256"],
         "lineage": snapshot,
         "created_at": as_iso(row["created_at"]),
@@ -219,12 +307,12 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
     """Return only human-reviewed inheritance that is allowed to alter a future mission."""
     _ensure_schema(db)
     rows = db.execute(text("""
-        SELECT p.*, r.disposition, r.rationale, r.context_change, r.updated_at AS reviewed_at
+        SELECT p.*, r.applicability, r.rationale, r.context_change, r.updated_at AS reviewed_at
         FROM pilot_learning_packets p
         JOIN pilot_learning_reviews r ON r.learning_packet_id=p.id
         WHERE p.organization_id=:org AND r.organization_id=:org
           AND r.target_mission_id=:target
-          AND r.disposition IN ('still_valid','requires_revalidation')
+          AND r.applicability IN ('reuse','requires_revalidation')
         ORDER BY r.updated_at DESC
     """), {"org": organization_id, "target": target_mission_id}).mappings().all()
     valid, revalidation = [], []
@@ -239,7 +327,7 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
             "rationale": row["rationale"],
             "context_change": row["context_change"],
         }
-        (valid if row["disposition"] == "still_valid" else revalidation).append(item)
+        (valid if row["applicability"] == "reuse" else revalidation).append(item)
     parts = []
     if valid:
         parts.append("APRENDIZAGEM ORGANIZACIONAL HERDADA — VALIDADA NESTE CONTEXTO:\n" + "\n".join(
@@ -254,7 +342,7 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
     return "\n\n".join(parts), {
         "valid": valid,
         "requires_revalidation": revalidation,
-        "policy": "Only explicit human dispositions may alter future mission context.",
+        "policy": "Only explicit human applicability reviews may alter future mission context.",
     }
 
 
@@ -331,7 +419,7 @@ def learning_candidates(
     target_terms = _tokens(target.title, target.domain, str(target_doc.get("context") or ""), str(target_doc.get("central_question") or ""))
     rows = db.execute(text("""
         SELECT p.*, m.title AS source_title, m.domain AS source_domain,
-               r.disposition, r.rationale, r.context_change, r.updated_at AS reviewed_at
+               r.applicability, r.rationale, r.context_change, r.updated_at AS reviewed_at
         FROM pilot_learning_packets p
         JOIN mi_missions m ON m.id=p.source_mission_id
         LEFT JOIN pilot_learning_reviews r
@@ -350,8 +438,8 @@ def learning_candidates(
         packet["source_mission"]["title"] = row["source_title"]
         packet["source_mission"]["domain"] = row["source_domain"]
         packet["relevance_score"] = round(relevance, 4)
-        packet["review"] = None if row["disposition"] is None else {
-            "disposition": row["disposition"],
+        packet["review"] = None if row["applicability"] in {None, "pending"} else {
+            "applicability": row["applicability"],
             "rationale": row["rationale"],
             "context_change": row["context_change"],
             "reviewed_at": as_iso(row["reviewed_at"]),
@@ -360,14 +448,15 @@ def learning_candidates(
     candidates.sort(key=lambda item: item["relevance_score"], reverse=True)
     return {
         "target_mission": {"id": target.id, "code": target.code, "title": target.title, "domain": target.domain},
-        "principle": "A missão seguinte recebe aprendizagem com justificação, mas só a revisão humana decide se ela continua válida.",
+        "principle": "A validade canónica pertence à aprendizagem; a revisão humana decide separadamente se ela é aplicável nesta missão.",
         "candidates": candidates,
         "summary": {
             "candidate_count": len(candidates),
             "reviewed_count": sum(1 for item in candidates if item["review"]),
-            "still_valid_count": sum(1 for item in candidates if (item["review"] or {}).get("disposition") == "still_valid"),
-            "requires_revalidation_count": sum(1 for item in candidates if (item["review"] or {}).get("disposition") == "requires_revalidation"),
-            "invalidated_count": sum(1 for item in candidates if (item["review"] or {}).get("disposition") == "invalidated"),
+            "canonically_valid_count": sum(1 for item in candidates if item["canonical_status"] == "valid"),
+            "reusable_count": sum(1 for item in candidates if (item["review"] or {}).get("applicability") == "reuse"),
+            "requires_revalidation_count": sum(1 for item in candidates if (item["review"] or {}).get("applicability") == "requires_revalidation"),
+            "not_applicable_count": sum(1 for item in candidates if (item["review"] or {}).get("applicability") == "not_applicable"),
         },
     }
 
@@ -390,19 +479,27 @@ def review_learning_candidate(
     """), {"id": packet_id, "org": membership.organization_id}).mappings().first()
     if packet is None or packet["source_mission_id"] == target.id:
         raise HTTPException(status_code=404, detail="A aprendizagem candidata não existe para esta missão.")
+    applicability = payload.effective_applicability
+    legacy_disposition = {
+        "reuse": "still_valid",
+        "requires_revalidation": "requires_revalidation",
+        "not_applicable": "invalidated",
+    }[applicability]
     review_id = str(uuid4())
     db.execute(text("""
         INSERT INTO pilot_learning_reviews
         (id, organization_id, target_mission_id, target_mission_code, learning_packet_id,
-         disposition, rationale, context_change, reviewed_by_user_id)
-        VALUES (:id, :org, :target, :code, :packet, :disposition, :rationale, :context_change, :user_id)
+         disposition, applicability, rationale, context_change, reviewed_by_user_id)
+        VALUES (:id, :org, :target, :code, :packet, :disposition, :applicability, :rationale, :context_change, :user_id)
         ON CONFLICT (organization_id, target_mission_id, learning_packet_id)
-        DO UPDATE SET disposition=EXCLUDED.disposition, rationale=EXCLUDED.rationale,
+        DO UPDATE SET disposition=EXCLUDED.disposition, applicability=EXCLUDED.applicability,
+                      rationale=EXCLUDED.rationale,
                       context_change=EXCLUDED.context_change, reviewed_by_user_id=EXCLUDED.reviewed_by_user_id,
                       updated_at=CURRENT_TIMESTAMP
     """), {
         "id": review_id, "org": membership.organization_id, "target": target.id,
-        "code": target.code, "packet": packet_id, "disposition": payload.disposition,
+        "code": target.code, "packet": packet_id, "disposition": legacy_disposition,
+        "applicability": applicability,
         "rationale": payload.rationale, "context_change": payload.context_change,
         "user_id": user.id,
     })
@@ -411,11 +508,12 @@ def review_learning_candidate(
         "status": "reviewed",
         "target_mission_code": target.code,
         "learning_packet_id": packet_id,
-        "disposition": payload.disposition,
+        "canonical_status": packet.get("canonical_status") or "valid",
+        "applicability": applicability,
         "context_effect": (
-            "will_influence_future_ai_context" if payload.disposition == "still_valid"
-            else "will_be_presented_as_revalidation_question" if payload.disposition == "requires_revalidation"
-            else "excluded_from_future_ai_context"
+            "will_influence_future_ai_context" if applicability == "reuse"
+            else "will_be_presented_as_revalidation_question" if applicability == "requires_revalidation"
+            else "not_used_in_this_mission"
         ),
     }
 

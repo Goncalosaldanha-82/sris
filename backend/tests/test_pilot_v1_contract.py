@@ -969,11 +969,14 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         for row in candidates.json()["candidates"]
         if row["source_mission"]["code"] == mission_payload["code"]
     )
+    assert packet["canonical_status"] == "valid"
+    assert packet["lineage"]["counts"]["decision"] == 1
+    assert packet["lineage"]["raw_node_counts"]["decision"] >= packet["lineage"]["counts"]["decision"]
     reviewed = client.post(
         f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates/{packet['id']}/review",
         headers=headers,
         json={
-            "disposition": "still_valid",
+            "applicability": "reuse",
             "rationale": "A sub-missão partilha o mesmo contrato de persistência.",
             "context_change": "",
         },
@@ -985,6 +988,29 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert inherited.status_code == 200, inherited.text
     assert "continuidade" in inherited.json()["context_text"].lower()
+    not_applicable = client.post(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates/{packet['id']}/review",
+        headers=headers,
+        json={
+            "applicability": "not_applicable",
+            "rationale": "A aprendizagem permanece válida, mas não se aplica a esta missão.",
+            "context_change": "",
+        },
+    )
+    assert not_applicable.status_code == 200, not_applicable.text
+    assert not_applicable.json()["canonical_status"] == "valid"
+    assert not_applicable.json()["applicability"] == "not_applicable"
+    excluded_context = client.get(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/active-context",
+        headers=headers,
+    )
+    assert excluded_context.status_code == 200, excluded_context.text
+    assert excluded_context.json()["inheritance"]["valid"] == []
+    reviewed_candidates = client.get(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates",
+        headers=headers,
+    )
+    assert reviewed_candidates.json()["summary"]["not_applicable_count"] == 1
 
     summary = client.get("/api/pilot/workspace-summary", headers=headers)
     assert summary.status_code == 200, summary.text
