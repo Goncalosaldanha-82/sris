@@ -16,6 +16,7 @@ const loaded={
   auth:read('auth.js'),
   workspace:read('mission-workspace-v2.js'),
   graph:read('evidence-graph.js'),
+  comparison:read('alternative-matrix-v1.js'),
   validation:read('validation-protocol.js'),
   learning:read('learning-lineage.js'),
   decision:read('decision-cycle-v1.js'),
@@ -32,12 +33,31 @@ test('the Pilot has one explicit browser composition',()=>{
   assert.equal((home.match(/rel="stylesheet"/g)||[]).length,1);
   assert.equal((index.match(/rel="stylesheet"/g)||[]).length,1);
   assert.match(home,/pilot\.css\?v=__PILOT_BUILD__/);
-  for(const asset of ['app.js','mission-workspace-v2.js','evidence-graph.js','validation-protocol.js','learning-lineage.js','decision-cycle-v1.js','admin-accounts.js']){
+  for(const asset of ['app.js','mission-workspace-v2.js','evidence-graph.js','alternative-matrix-v1.js','validation-protocol.js','learning-lineage.js','decision-cycle-v1.js','admin-accounts.js']){
     assert.equal((index.match(new RegExp(asset.replace('.','\\.'),'g'))||[]).length,1);
   }
   for(const obsolete of ['pilot-integration-v3.js','mission-experience-v1.js','release-hardening-v2.js','decision-workbench-v1.js','intelligence-v2.js']){
     assert.doesNotMatch(index,new RegExp(obsolete.replaceAll('.','\\.')));
   }
+});
+
+test('alternative comparison is multicriteria, persistent and decision-neutral',()=>{
+  for(const marker of ['Eficácia','Custo','Risco','Reversibilidade','Experiência do hóspede','Robustez da evidência']){
+    assert.match(loaded.comparison,new RegExp(marker));
+  }
+  assert.match(index,/data-open-mission-tab="comparison"/);
+  assert.match(loaded.comparison,/20–100 pontos/);
+  assert.match(loaded.comparison,/data-acm-live-total/);
+  assert.match(loaded.comparison,/Guardar nova revisão/);
+  assert.match(loaded.comparison,/Confirmar revisão humana/);
+  assert.match(loaded.comparison,/Nenhuma alternativa é selecionada automaticamente/);
+  assert.match(loaded.comparison,/sris:alternative-matrix-updated/);
+});
+
+test('decision foundation uses the human document title instead of a technical UUID',()=>{
+  assert.match(loaded.decision,/const foundationLabel=row\.evidence_label/);
+  assert.match(loaded.decision,/summaryField\('Fundamento',foundationLabel/);
+  assert.doesNotMatch(loaded.decision,/summaryField\('Fundamento',row\.evidence_node_id\?`Evidência/);
 });
 
 test('Mission Workspace remains the product centre and assistance is secondary',()=>{

@@ -15,6 +15,7 @@ from app.mission_intelligence import memory_models  # noqa: F401
 from app.pilot_capabilities import PILOT_BUILD, router as pilot_capabilities_router
 from app.pilot_product_secure import router as pilot_product_router
 from app.pilot_intelligence import router as pilot_intelligence_router
+from app.pilot_alternative_matrix import router as pilot_alternative_matrix_router
 from app.pilot_decision_cycle import router as pilot_decision_cycle_router
 from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_operations_router
 from app.pilot_validation import router as pilot_validation_router
@@ -29,6 +30,7 @@ app.include_router(organizational_memory_router)
 app.include_router(pilot_capabilities_router)
 app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
+app.include_router(pilot_alternative_matrix_router)
 app.include_router(pilot_decision_cycle_router)
 app.include_router(evidence_graph_router)
 app.include_router(learning_lineage_router)

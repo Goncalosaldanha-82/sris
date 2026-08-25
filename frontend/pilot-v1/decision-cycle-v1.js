@@ -330,6 +330,8 @@
       : row.status==='completed'&&!row.learning
         ? '<div class="dc1-learning warn">O resultado está concluído, mas falta explicitar a aprendizagem antes de a enviar para revisão.</div>'
         : '';
+    const foundationLabel=row.evidence_label
+      ||(row.evidence_node_id?`Evidência indisponível · ${String(row.evidence_node_id).slice(0,12)}…`:"");
     return `<article class="dc1-card" data-cycle="${esc(row.id)}" data-overdue="${due.overdue?'true':'false'}">
       <div class="dc1-head">
         <div class="dc1-title"><div class="eyebrow">DECISÃO</div><strong>${esc(row.decision)}</strong></div>
@@ -337,7 +339,7 @@
       </div>
       ${renderStage(row.status)}
       <div class="dc1-grid">
-        ${summaryField('Fundamento',row.evidence_node_id?`Evidência ${String(row.evidence_node_id).slice(0,12)}…`:'','Ainda não associado')}
+        ${summaryField('Fundamento',foundationLabel,'Ainda não associado')}
         ${summaryField('Ação',row.action,'Ainda não definida')}
         ${summaryField('Responsável / prazo',[row.owner,row.due_date?formatDate(row.due_date):null].filter(Boolean).join(' · '),'Ainda não definidos')}
         ${summaryField('Resultado esperado',row.expected_outcome,'Ainda não definido')}

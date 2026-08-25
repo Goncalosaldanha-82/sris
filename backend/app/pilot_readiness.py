@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.evidence_graph import _ensure_schema as _ensure_graph_schema
 from app.learning_lineage import _ensure_schema as _ensure_learning_schema
 from app.mission_intelligence.models import MissionAttachment
+from app.pilot_alternative_matrix import matrix_readiness
 from app.pilot_decision_cycle import _ensure_schema as _ensure_decision_schema
 from app.pilot_validation import validation_readiness
 
@@ -137,20 +138,10 @@ def mission_completion_readiness(
         or 0
     )
 
-    comparable_alternatives = int(
-        db.execute(
-            text(
-                """
-                SELECT COUNT(*) FROM pilot_evidence_graph_nodes
-                WHERE organization_id=:org AND mission_id=:mission
-                  AND node_type='alternative'
-                  AND status NOT IN ('rejected', 'superseded')
-                  AND TRIM(COALESCE(body, '')) <> ''
-                """
-            ),
-            {"org": organization_id, "mission": mission_id},
-        ).scalar()
-        or 0
+    alternative_matrix = matrix_readiness(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
     )
 
     cycles = db.execute(
@@ -219,9 +210,9 @@ def mission_completion_readiness(
         },
         {
             "key": "alternatives_compared",
-            "label": "Pelo menos duas alternativas comparáveis",
-            "passed": comparable_alternatives >= 2,
-            "count": comparable_alternatives,
+            "label": "Pelo menos duas alternativas comparadas por critérios",
+            "passed": alternative_matrix["passed"],
+            "count": alternative_matrix["count"],
         },
         {
             "key": "decision_observed",

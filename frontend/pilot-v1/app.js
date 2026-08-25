@@ -701,8 +701,8 @@ function normaliseMissionTabs(){
   const tabs=$('.mission-tabs');
   const detail=$('#mission-detail');
   if(!tabs||!detail)return;
-  const order=['summary','documents','graph','validation','cycle','intelligence','memory','learning','history'];
-  const labels={summary:'Resumo',documents:'Documentos',graph:'Evidência',validation:'Medição',cycle:'Decisão e resultado',intelligence:'Diálogo',memory:'Memória canónica',learning:'Reutilizar aprendizagem',history:'Auditoria'};
+  const order=['summary','documents','graph','comparison','validation','cycle','intelligence','memory','learning','history'];
+  const labels={summary:'Resumo',documents:'Documentos',graph:'Evidência',comparison:'Comparação',validation:'Medição',cycle:'Decisão e resultado',intelligence:'Diálogo',memory:'Memória canónica',learning:'Reutilizar aprendizagem',history:'Auditoria'};
   order.forEach(name=>{
     const button=$(`[data-mission-tab="${name}"]`,tabs);
     const panel=$(`#mission-tab-${name}`,detail);
@@ -782,6 +782,7 @@ document.addEventListener('sris:validation-updated',event=>{
   missionRuntime.validation=event.detail||missionRuntime.validation;
   void loadMissionOperationalState();
 });
+document.addEventListener('sris:alternative-matrix-updated',()=>{void loadMissionOperationalState();});
 document.addEventListener('sris:learning-published',()=>{void loadMissionOperationalState();});
 
 document.addEventListener('click',event=>{

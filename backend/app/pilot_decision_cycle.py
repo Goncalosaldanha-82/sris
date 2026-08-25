@@ -24,6 +24,27 @@ WRITER_ROLES = {
     Role.CONTRIBUTOR.value,
 }
 
+CYCLE_WITH_FOUNDATION_SELECT = """
+    SELECT cycle.*,
+           COALESCE(
+             NULLIF(TRIM(attachment.original_filename), ''),
+             NULLIF(TRIM(foundation.label), '')
+           ) AS evidence_label,
+           foundation.label AS evidence_node_label,
+           attachment.original_filename AS evidence_document_title,
+           foundation.source_kind AS evidence_source_kind,
+           foundation.source_sha256 AS evidence_source_sha256
+    FROM pilot_decision_cycles cycle
+    LEFT JOIN pilot_evidence_graph_nodes foundation
+      ON foundation.id=cycle.evidence_node_id
+     AND foundation.organization_id=cycle.organization_id
+     AND foundation.mission_code=cycle.mission_code
+    LEFT JOIN mi_mission_attachments attachment
+      ON attachment.id=foundation.attachment_id
+     AND attachment.organization_id=cycle.organization_id
+     AND attachment.mission_code=cycle.mission_code
+"""
+
 
 class DecisionCycleCreate(BaseModel):
     mission_code: str = Field(min_length=1, max_length=80)
@@ -117,6 +138,11 @@ def _row(row) -> dict:
         "status": row["status"], "expected_outcome": row["expected_outcome"],
         "actual_outcome": row["actual_outcome"], "learning": row["learning"],
         "evidence_node_id": row["evidence_node_id"],
+        "evidence_label": row.get("evidence_label"),
+        "evidence_node_label": row.get("evidence_node_label"),
+        "evidence_document_title": row.get("evidence_document_title"),
+        "evidence_source_kind": row.get("evidence_source_kind"),
+        "evidence_source_sha256": row.get("evidence_source_sha256"),
         "created_at": as_iso(row["created_at"]),
         "updated_at": as_iso(row["updated_at"]),
     }
@@ -124,8 +150,8 @@ def _row(row) -> dict:
 
 @router.get("/missions/{mission_code}")
 def list_cycles(mission_code: str, user: User = Depends(current_user), db: Session = Depends(get_db)) -> list[dict]:
-    membership = _membership(db, user.id); _ensure_schema(db)
-    rows = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE organization_id=:org AND mission_code=:mission ORDER BY created_at DESC"), {"org": membership.organization_id, "mission": mission_code}).mappings().all()
+    membership = _membership(db, user.id); _ensure_schema(db); _ensure_graph_schema(db)
+    rows = db.execute(text(CYCLE_WITH_FOUNDATION_SELECT + " WHERE cycle.organization_id=:org AND cycle.mission_code=:mission ORDER BY cycle.created_at DESC"), {"org": membership.organization_id, "mission": mission_code}).mappings().all()
     db.commit(); return [_row(r) for r in rows]
 
 
@@ -156,13 +182,13 @@ def create_cycle(payload: DecisionCycleCreate, user: User = Depends(current_user
         "decision": payload.decision, "action": payload.action, "owner": payload.owner,
         "due": payload.due_date, "expected": payload.expected_outcome, "node": payload.evidence_node_id, "user": user.id,
     })
-    db.commit(); row = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id"), {"id": cycle_id}).mappings().one(); return _row(row)
+    db.commit(); row = db.execute(text(CYCLE_WITH_FOUNDATION_SELECT + " WHERE cycle.id=:id"), {"id": cycle_id}).mappings().one(); return _row(row)
 
 
 @router.patch("/{cycle_id}")
 def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
-    membership = _membership(db, user.id); _require_writer(membership); _ensure_schema(db)
-    current = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id AND organization_id=:org"), {"id": cycle_id, "org": membership.organization_id}).mappings().first()
+    membership = _membership(db, user.id); _require_writer(membership); _ensure_schema(db); _ensure_graph_schema(db)
+    current = db.execute(text(CYCLE_WITH_FOUNDATION_SELECT + " WHERE cycle.id=:id AND cycle.organization_id=:org"), {"id": cycle_id, "org": membership.organization_id}).mappings().first()
     if current is None: raise HTTPException(status_code=404, detail="Ciclo de decisão não encontrado.")
     values = payload.model_dump(exclude_unset=True)
     if not values: return _row(current)
@@ -174,7 +200,7 @@ def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depen
         if key in allowed: parts.append(f"{key}=:{key}"); params[key]=value
     parts.append("updated_at=CURRENT_TIMESTAMP")
     db.execute(text(f"UPDATE pilot_decision_cycles SET {', '.join(parts)} WHERE id=:id AND organization_id=:org"), params)
-    db.commit(); row = db.execute(text("SELECT * FROM pilot_decision_cycles WHERE id=:id"), {"id": cycle_id}).mappings().one(); return _row(row)
+    db.commit(); row = db.execute(text(CYCLE_WITH_FOUNDATION_SELECT + " WHERE cycle.id=:id"), {"id": cycle_id}).mappings().one(); return _row(row)
 
 
 @router.post("/{cycle_id}/materialize-learning", status_code=201)

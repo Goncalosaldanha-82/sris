@@ -88,6 +88,7 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "/mission-workspace-v2.js",
         "/evidence-graph.js",
         "/validation-protocol.js",
+        "/alternative-matrix-v1.js",
         "/learning-lineage.js",
         "/decision-cycle-v1.js",
         "/admin-accounts.js",
@@ -121,6 +122,7 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "Inteligência documental",
         "Medição e impacto",
         "Protocolo de validação",
+        "Comparar alternativas",
         "Tourism Advance · Eficiência de recursos",
         "Auditoria e histórico persistente",
         "Análise assistida, não centro do produto.",
@@ -192,6 +194,7 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     learning = client.get("/learning-lineage.js")
     evidence_graph = client.get("/evidence-graph.js")
     validation = client.get("/validation-protocol.js")
+    comparison = client.get("/alternative-matrix-v1.js")
     decision = client.get("/decision-cycle-v1.js")
     workspace = client.get("/mission-workspace-v2.js")
     assert "window.fetch=" not in learning.text
@@ -202,6 +205,19 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "CÁLCULO DETERMINÍSTICO · SEM IA" in validation.text
     assert "sris:validation-updated" in validation.text
     assert "window.fetch=" not in validation.text
+    assert comparison.status_code == 200
+    assert "COMPARAÇÃO MULTICRITÉRIO · SEM IA" in comparison.text
+    assert "Eficácia" in comparison.text
+    assert "Custo" in comparison.text
+    assert "Risco" in comparison.text
+    assert "Reversibilidade" in comparison.text
+    assert "Experiência do hóspede" in comparison.text
+    assert "Robustez da evidência" in comparison.text
+    assert "sris:alternative-matrix-updated" in comparison.text
+    assert "button.dataset.missionTab = TAB" in comparison.text
+    assert 'data-open-mission-tab="comparison"' in client.get("/app").text
+    assert "comparison:'Comparação'" in client.get("/app.js").text
+    assert "window.fetch=" not in comparison.text
     assert "MutationObserver" not in decision.text
     assert "sris:evidence-graph-updated" in decision.text
     assert "model_or_system" not in workspace.text
@@ -238,6 +254,8 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/validation/missions/{mission_code}/protocol",
         "/api/pilot/validation/missions/{mission_code}/measurements/{phase}",
         "/api/pilot/validation/missions/{mission_code}/review",
+        "/api/pilot/alternative-matrices/missions/{mission_code}",
+        "/api/pilot/alternative-matrices/missions/{mission_code}/review",
         "/api/pilot/learning/missions/{mission_code}/candidates",
         "/api/pilot/learning/missions/{mission_code}/active-context",
         "/api/pilot/workspace-summary",
@@ -586,6 +604,133 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert restored_link.status_code == 201, restored_link.text
     assert restored_link.json()["created"] is True
 
+    matrix_url = f"/api/pilot/alternative-matrices/missions/{mission_payload['code']}"
+    empty_matrix = client.get(matrix_url, headers=headers)
+    assert empty_matrix.status_code == 200, empty_matrix.text
+    assert empty_matrix.json()["matrix"] is None
+    assert [item["key"] for item in empty_matrix.json()["criteria"]] == [
+        "efficacy",
+        "cost",
+        "risk",
+        "reversibility",
+        "guest_experience",
+        "evidence_robustness",
+    ]
+
+    criterion_keys = [item["key"] for item in empty_matrix.json()["criteria"]]
+
+    def matrix_evaluation(alternative_id: str, scores: dict[str, int]) -> dict:
+        return {
+            "alternative_node_id": alternative_id,
+            "scores": [
+                {
+                    "criterion": criterion,
+                    "score": scores[criterion],
+                    "rationale": f"Avaliação humana documentada para {criterion}.",
+                    "evidence_node_id": evidence.json()["id"],
+                }
+                for criterion in criterion_keys
+            ],
+        }
+
+    valid_matrix = {
+        "weights": {
+            "efficacy": 25,
+            "cost": 15,
+            "risk": 15,
+            "reversibility": 10,
+            "guest_experience": 20,
+            "evidence_robustness": 15,
+        },
+        "evaluations": [
+            matrix_evaluation(
+                alternative.json()["id"],
+                {
+                    "efficacy": 2,
+                    "cost": 4,
+                    "risk": 2,
+                    "reversibility": 4,
+                    "guest_experience": 2,
+                    "evidence_robustness": 2,
+                },
+            ),
+            matrix_evaluation(
+                second_alternative.json()["id"],
+                {
+                    "efficacy": 5,
+                    "cost": 3,
+                    "risk": 4,
+                    "reversibility": 4,
+                    "guest_experience": 5,
+                    "evidence_robustness": 4,
+                },
+            ),
+        ],
+    }
+    invalid_matrix = json.loads(json.dumps(valid_matrix))
+    invalid_matrix["weights"]["efficacy"] = 24
+    invalid_save = client.put(matrix_url, headers=headers, json=invalid_matrix)
+    assert invalid_save.status_code == 422, invalid_save.text
+
+    boolean_weight_matrix = json.loads(json.dumps(valid_matrix))
+    boolean_weight_matrix["weights"]["efficacy"] = True
+    boolean_weight_save = client.put(matrix_url, headers=headers, json=boolean_weight_matrix)
+    assert boolean_weight_save.status_code == 422, boolean_weight_save.text
+
+    boolean_score_matrix = json.loads(json.dumps(valid_matrix))
+    boolean_score_matrix["evaluations"][0]["scores"][0]["score"] = True
+    boolean_score_save = client.put(matrix_url, headers=headers, json=boolean_score_matrix)
+    assert boolean_score_save.status_code == 422, boolean_score_save.text
+
+    first_matrix = client.put(matrix_url, headers=headers, json=valid_matrix)
+    assert first_matrix.status_code == 200, first_matrix.text
+    first_matrix_payload = first_matrix.json()
+    assert first_matrix_payload["matrix"]["revision"] == 1
+    assert first_matrix_payload["matrix"]["status"] == "draft"
+    assert len(first_matrix_payload["matrix"]["content_hash"]) == 64
+    assert first_matrix_payload["matrix"]["integrity_verified"] is True
+    assert first_matrix_payload["readiness"]["passed"] is True
+    assert first_matrix_payload["readiness"]["count"] == 2
+    assert first_matrix_payload["ranking"][0]["alternative_node_id"] == second_alternative.json()["id"]
+    assert first_matrix_payload["ranking"][0]["weighted_score"] == 86.0
+    assert first_matrix_payload["calculation"]["formula"] == "sum(score × weight) / 5"
+    assert first_matrix_payload["calculation"]["result_range"] == [20, 100]
+
+    first_review = client.post(f"{matrix_url}/review", headers=headers)
+    assert first_review.status_code == 200, first_review.text
+    assert first_review.json()["matrix"]["status"] == "reviewed"
+    assert first_review.json()["matrix"]["reviewed_by_user_id"] == profile.json()["user"]["id"]
+
+    revised_matrix = json.loads(json.dumps(valid_matrix))
+    second_assessment = next(
+        item
+        for item in revised_matrix["evaluations"]
+        if item["alternative_node_id"] == second_alternative.json()["id"]
+    )
+    evidence_robustness = next(
+        item for item in second_assessment["scores"] if item["criterion"] == "evidence_robustness"
+    )
+    evidence_robustness["score"] = 5
+    evidence_robustness["rationale"] = "A fonte, a posição e o hash estão preservados e foram revistos por uma pessoa."
+    second_matrix = client.put(matrix_url, headers=headers, json=revised_matrix)
+    assert second_matrix.status_code == 200, second_matrix.text
+    second_matrix_payload = second_matrix.json()
+    assert second_matrix_payload["matrix"]["revision"] == 2
+    assert second_matrix_payload["matrix"]["status"] == "draft"
+    assert second_matrix_payload["matrix"]["integrity_verified"] is True
+    assert second_matrix_payload["matrix"]["content_hash"] != first_matrix_payload["matrix"]["content_hash"]
+    assert [item["revision"] for item in second_matrix_payload["history"]] == [2, 1]
+    assert second_matrix_payload["history"][1]["status"] == "reviewed"
+    assert all(item["integrity_verified"] is True for item in second_matrix_payload["history"])
+
+    second_review = client.post(f"{matrix_url}/review", headers=headers)
+    assert second_review.status_code == 200, second_review.text
+    assert second_review.json()["matrix"]["revision"] == 2
+    assert second_review.json()["matrix"]["status"] == "reviewed"
+    duplicate_review = client.post(f"{matrix_url}/review", headers=headers)
+    assert duplicate_review.status_code == 409, duplicate_review.text
+    assert duplicate_review.json()["detail"] == "A revisão mais recente já foi validada por uma pessoa."
+
     blocked = client.patch(
         f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",
         headers=headers,
@@ -612,6 +757,19 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert decision.status_code == 201, decision.text
+    # The exact value comes from the source document's original filename. In
+    # staging this resolves, for example, to
+    # "MIS-002 — Resultado de consumo de água — dados demonstrativos.pdf".
+    expected_foundation_title = "evidence.txt"
+    assert decision.json()["evidence_label"] == expected_foundation_title
+    assert decision.json()["evidence_document_title"] == expected_foundation_title
+    assert decision.json()["evidence_node_label"] == "Fonte operacional preservada"
+    listed_decisions = client.get(
+        f"/api/pilot/decision-cycles/missions/{mission_payload['code']}",
+        headers=headers,
+    )
+    assert listed_decisions.status_code == 200, listed_decisions.text
+    assert listed_decisions.json()[0]["evidence_label"] == expected_foundation_title
     completed_cycle = client.patch(
         f"/api/pilot/decision-cycles/{decision.json()['id']}",
         headers=headers,
