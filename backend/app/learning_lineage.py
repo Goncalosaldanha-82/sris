@@ -16,6 +16,7 @@ from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, User
 from app.mission_intelligence.models import CanonicalMission
 from app.pilot_serialization import as_iso
+from app.pilot_text import normalize_generated_title
 
 router = APIRouter(prefix="/api/pilot/learning", tags=["pilot-learning-lineage"])
 
@@ -271,7 +272,7 @@ def _packet_view(row) -> dict:
             "code": row["source_mission_code"],
         },
         "source_learning_node_id": row["source_learning_node_id"],
-        "title": row["title"],
+        "title": normalize_generated_title(row["title"]),
         "statement": row["statement"],
         # A published packet is canonically valid independently from any
         # target mission's contextual applicability review.
@@ -306,7 +307,7 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
         item = {
             "packet_id": row["id"],
             "source_mission_code": row["source_mission_code"],
-            "title": row["title"],
+            "title": normalize_generated_title(row["title"]),
             "statement": row["statement"],
             "lineage_sha256": row["lineage_sha256"],
             "lineage_counts": (json.loads(row["graph_snapshot_json"] or "{}").get("counts") or {}),
@@ -365,7 +366,7 @@ def publish_learning_packet(
                 lineage_sha256=:sha, updated_at=CURRENT_TIMESTAMP
             WHERE id=:id
         """), {
-            "id": existing["id"], "title": learning["label"], "statement": learning["body"],
+            "id": existing["id"], "title": normalize_generated_title(learning["label"]), "statement": learning["body"],
             "snapshot": canonical, "sha": lineage_sha,
         })
         packet_id = existing["id"]
@@ -378,7 +379,7 @@ def publish_learning_packet(
             VALUES (:id, :org, :mission, :code, :node, :title, :statement, :snapshot, :sha, :user_id)
         """), {
             "id": packet_id, "org": membership.organization_id, "mission": mission.id,
-            "code": mission.code, "node": learning_node_id, "title": learning["label"],
+            "code": mission.code, "node": learning_node_id, "title": normalize_generated_title(learning["label"]),
             "statement": learning["body"], "snapshot": canonical, "sha": lineage_sha,
             "user_id": user.id,
         })

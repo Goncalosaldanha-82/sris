@@ -826,7 +826,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         headers=headers,
         json={
             "mission_code": mission_payload["code"],
-            "decision": "Adotar o percurso persistente do Pilot V1.",
+            "decision": "Adotar o percurso persistente do Pilot V1 com dados real.",
             "action": "Reabrir a missão depois de uma nova autenticação.",
             "owner": "Pilot Journey",
             "due_date": "2026-09-01",
@@ -862,6 +862,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert completed_cycle.status_code == 200, completed_cycle.text
+    assert completed_cycle.json()["decision"].endswith("dados real.")
     materialized = client.post(
         f"/api/pilot/decision-cycles/{decision.json()['id']}/materialize-learning",
         headers=headers,
@@ -871,6 +872,10 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     learning_node_id = materialized.json()["learning_node_id"]
     lineage_graph = client.get(graph_base, headers=headers)
     assert lineage_graph.status_code == 200, lineage_graph.text
+    materialized_learning = next(
+        node for node in lineage_graph.json()["nodes"] if node["id"] == learning_node_id
+    )
+    assert materialized_learning["label"].endswith("dados reais.")
     assert any(
         edge["from_node_id"] == evidence.json()["id"]
         and edge["to_node_id"] == materialized.json()["decision_node_id"]
@@ -888,6 +893,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         headers=headers,
     )
     assert published.status_code == 201, published.text
+    assert published.json()["title"].endswith("dados reais.")
 
     memory_base = (
         f"/api/organizations/{organization_id}/mission-intelligence/memory"
@@ -915,6 +921,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert published_memory["metadata"]["published_learning"] is True
     assert published_memory["metadata"]["lineage_sha256"] == published.json()["lineage_sha256"]
     assert published_memory["canonical_record_id"] == f"PILOT-{learning_node_id}"
+    assert published_memory["title"].endswith("dados reais.")
     memory_status = client.get(f"{memory_base}/status", headers=headers)
     assert memory_status.status_code == 200, memory_status.text
     assert memory_status.json()["assets"] >= 1

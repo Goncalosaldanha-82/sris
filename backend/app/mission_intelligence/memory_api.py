@@ -15,6 +15,7 @@ from app.atlas_platform.audit import record_audit
 from app.atlas_platform.auth import require_org_role
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role
+from app.pilot_text import normalize_generated_title
 
 from .contracts import MissionDocumentV13
 from .memory_models import EvidenceAsset, MemoryItem, MemoryLink
@@ -65,7 +66,7 @@ def _item_view(item: MemoryItem) -> dict[str, Any]:
         "mission_id": item.mission_id,
         "canonical_record_id": item.canonical_record_id,
         "item_type": item.item_type,
-        "title": item.title,
+        "title": normalize_generated_title(item.title),
         "summary": item.summary,
         "state": item.state,
         "confidence": item.confidence,
@@ -142,7 +143,7 @@ def _pilot_memory_hash(node: Any, publication: Any | None) -> str:
     payload = {
         "id": node["id"],
         "node_type": node["node_type"],
-        "label": node["label"],
+        "label": normalize_generated_title(node["label"]),
         "body": node["body"],
         "status": node["status"],
         "confidence": node["confidence"],
@@ -206,6 +207,7 @@ def _sync_pilot_memory(
             continue
         record_id = f"PILOT-{node['id']}"
         source_hash = _pilot_memory_hash(node, publication)
+        display_title = normalize_generated_title(node["label"])
         provenance = _load(node["provenance_json"], {})
         metadata = {
             "source_mission_code": mission.code,
@@ -240,7 +242,7 @@ def _sync_pilot_memory(
                 mission_id=mission.id,
                 canonical_record_id=record_id,
                 item_type=kind,
-                title=node["label"],
+                title=display_title,
                 summary=node["body"] or "",
                 state=node["status"],
                 confidence=_pilot_confidence(node["confidence"]),
@@ -250,7 +252,7 @@ def _sync_pilot_memory(
                 source_content_hash=source_hash,
                 search_text="\n".join(filter(None, (
                     mission.code, mission.title, mission.domain, record_id,
-                    kind, node["label"], node["body"], _dump(metadata),
+                    kind, display_title, node["body"], _dump(metadata),
                 ))),
                 metadata_json=_dump(metadata),
                 created_by_user_id=node["created_by_user_id"],
@@ -260,7 +262,7 @@ def _sync_pilot_memory(
             created += 1
         elif item.source_content_hash != source_hash:
             item.item_type = kind
-            item.title = node["label"]
+            item.title = display_title
             item.summary = node["body"] or ""
             item.state = node["status"]
             item.confidence = _pilot_confidence(node["confidence"])
@@ -269,7 +271,7 @@ def _sync_pilot_memory(
             item.source_content_hash = source_hash
             item.search_text = "\n".join(filter(None, (
                 mission.code, mission.title, mission.domain, record_id,
-                kind, node["label"], node["body"], _dump(metadata),
+                kind, display_title, node["body"], _dump(metadata),
             )))
             item.metadata_json = _dump(metadata)
             updated += 1
