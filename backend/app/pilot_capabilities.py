@@ -7,7 +7,7 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260826-contextual-learning-compat-v16"
+PILOT_BUILD = "20260826-mobile-context-review-v17"
 
 
 def _flag(name: str, default: bool = False) -> bool:

@@ -165,5 +165,11 @@ test('learning reuse is reviewed in-product and shows active inherited context',
   assert.match(loaded.learning,/Não aplicável a esta missão/);
   assert.match(loaded.learning,/canonicamente válida/);
   assert.match(loaded.learning,/data-applicability/);
+  assert.match(loaded.learning,/Que diferenças existem entre os contextos\?/);
+  assert.match(loaded.learning,/pointerup.*ensureMobileEditorFocus/);
+  assert.match(loaded.learning,/pointer-events:auto!important/);
+  assert.match(loaded.learning,/enterkeyhint="next"/);
+  assert.match(loaded.learning,/enterkeyhint="done"/);
+  assert.doesNotMatch(loaded.learning,/O que mudou no contexto\?/);
   assert.doesNotMatch(loaded.learning,/data-disposition/);
 });

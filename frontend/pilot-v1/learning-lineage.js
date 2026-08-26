@@ -59,7 +59,7 @@
       #ll-status{min-height:20px;margin:12px 0}.ll-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.ll-stat{padding:11px;border:1px solid var(--line);border-radius:12px;background:#f8faf8}.ll-stat strong{display:block;font-size:22px;color:var(--forest)}.ll-stat span{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
       .ll-active-context{display:grid;gap:8px;margin:12px 0}.ll-active-context:empty{display:none}.ll-active-context h4{margin:0}.ll-context-row{border:1px solid #cfe0d6;border-radius:12px;background:#f5faf7;padding:12px}.ll-context-row.revalidate{border-color:#e7d19f;background:#fffaf0}.ll-context-row strong,.ll-context-row small{display:block}.ll-context-row p{margin:6px 0;color:var(--ink);white-space:pre-wrap}.ll-context-row small{color:var(--muted);font-size:9px}
       .ll-list{display:grid;gap:11px}.ll-card{border:1px solid var(--line);border-radius:15px;padding:15px;background:#fff}.ll-top{display:flex;justify-content:space-between;gap:12px}.ll-source{font-size:10px;color:var(--muted);margin:5px 0}.ll-statuses{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.ll-statement{line-height:1.6;white-space:pre-wrap}.ll-lineage{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.ll-chip{font-size:9px;padding:4px 7px;border-radius:999px;background:#eef4f1;color:#48695e}.ll-actions{display:flex;gap:7px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;margin-top:10px}.ll-actions button{padding:8px 10px}.ll-active{border-left:4px solid #2f765f}.ll-revalidate{border-left:4px solid #d49b3e}.ll-not-applicable{border-left:4px solid #8b9691;opacity:.78}
-      .ll-review-form{display:grid;gap:10px;margin-top:12px;border:1px solid #d8cba7;border-radius:12px;background:#fffaf0;padding:13px}.ll-review-form h4{margin:0}.ll-review-form .field{margin:0}.ll-review-form textarea{min-height:92px}.ll-review-actions{display:flex;gap:8px;flex-wrap:wrap}.ll-review-message{min-height:18px;color:var(--muted);font-size:10px}.ll-review-message.error{color:#93483e}
+      .ll-review-form{display:grid;gap:10px;margin-top:12px;border:1px solid #d8cba7;border-radius:12px;background:#fffaf0;padding:13px}.ll-review-form h4{margin:0}.ll-review-form .field{margin:0}.ll-review-form textarea{min-height:92px;position:relative;z-index:1;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text;user-select:text}.ll-review-actions{display:flex;gap:8px;flex-wrap:wrap}.ll-review-message{min-height:18px;color:var(--muted);font-size:10px}.ll-review-message.error{color:#93483e}
       @media(max-width:760px){.ll-head{display:grid}.ll-head .btn{width:100%}.ll-summary{grid-template-columns:repeat(2,1fr)}.ll-top{display:grid}.ll-actions,.ll-review-actions{display:grid}.ll-actions .btn,.ll-review-actions .btn{width:100%}}
     `;
     document.head.appendChild(style);
@@ -71,6 +71,7 @@
     });
     panel.querySelector('#ll-refresh')?.addEventListener('click',load);
     panel.addEventListener('click',handleClick);
+    panel.addEventListener('pointerup',ensureMobileEditorFocus,{passive:true});
     panel.addEventListener('submit',handleReviewSubmit);
     return true;
   }
@@ -132,17 +133,23 @@
         <div class="ll-top"><div><strong>${esc(candidate.title)}</strong><div class="ll-source">${esc(candidate.source_mission?.code)} · ${esc(candidate.source_mission?.title||'')} · relevância ${Math.round((candidate.relevance_score||0)*100)}%</div></div><div class="ll-statuses"><span class="pill">${esc(canonicalLabel)}</span><span class="pill">${esc(applicabilityLabel)}</span></div></div>
         <div class="ll-statement">${esc(candidate.statement)}</div>
         <div class="ll-lineage"><span class="ll-chip">${Number(counts.evidence||0)} evidência(s)</span><span class="ll-chip">${Number(counts.decision||0)} decisão(ões)</span><span class="ll-chip">${Number(counts.outcome||0)} resultado(s)</span><span class="ll-chip">linhagem ${esc(String(candidate.lineage_sha256||'').slice(0,10))}…</span></div>
-        ${review.rationale?`<div class="note">Revisão: ${esc(review.rationale)}${review.context_change?` · Mudança: ${esc(review.context_change)}`:''}</div>`:''}
+        ${review.rationale?`<div class="note">Revisão: ${esc(review.rationale)}${review.context_change?` · Diferenças contextuais: ${esc(review.context_change)}`:''}</div>`:''}
         <div class="ll-actions"><button class="btn btn-ghost" type="button" data-applicability="reuse">Reutilizar nesta missão</button><button class="btn btn-ghost" type="button" data-applicability="requires_revalidation">Revalidar antes de reutilizar</button><button class="btn btn-ghost" type="button" data-applicability="not_applicable">Não aplicável a esta missão</button></div>
         <form class="ll-review-form hidden" data-review-form data-applicability="">
           <h4 data-review-title>Rever aplicabilidade</h4>
-          <div class="field"><label>Justificação da aplicabilidade *</label><textarea data-review-rationale required maxlength="5000" placeholder="Explique por que razão esta aprendizagem deve ou não ser utilizada nesta missão.">${esc(review.rationale||'')}</textarea></div>
-          <div class="field hidden" data-context-field><label>O que mudou no contexto? *</label><textarea data-review-context maxlength="5000" placeholder="Registe a mudança material que impede a reutilização automática.">${esc(review.context_change||'')}</textarea></div>
+          <div class="field"><label for="ll-review-rationale-${esc(candidate.id)}">Justificação da aplicabilidade *</label><textarea id="ll-review-rationale-${esc(candidate.id)}" data-review-rationale required maxlength="5000" autocomplete="off" autocapitalize="sentences" enterkeyhint="next" placeholder="Explique por que razão esta aprendizagem deve ou não ser utilizada nesta missão.">${esc(review.rationale||'')}</textarea></div>
+          <div class="field hidden" data-context-field><label for="ll-review-context-${esc(candidate.id)}">Que diferenças existem entre os contextos? *</label><textarea id="ll-review-context-${esc(candidate.id)}" data-review-context maxlength="5000" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Registe as diferenças materiais entre a missão de origem e a missão atual que impedem a reutilização automática.">${esc(review.context_change||'')}</textarea></div>
           <div class="ll-review-actions"><button class="btn btn-primary" type="submit">Guardar revisão</button><button class="btn btn-secondary" type="button" data-cancel-review>Cancelar</button></div>
           <div class="ll-review-message" data-review-message role="status" aria-live="polite"></div>
         </form>
       </article>`;
     }).join(''):'<div class="eg-empty"><strong>Nenhuma aprendizagem externa disponível para esta missão.</strong><br>A própria aprendizagem não é apresentada aqui para evitar reutilização circular. Abra outra missão para a testar como candidata.</div>';
+  }
+
+  function ensureMobileEditorFocus(event){
+    const editor=event.target.closest?.('[data-review-rationale],[data-review-context]');
+    if(!editor||editor.disabled||editor.closest('.hidden'))return;
+    if(document.activeElement!==editor)requestAnimationFrame(()=>editor.focus({preventScroll:true}));
   }
 
   function handleClick(event){
@@ -184,7 +191,7 @@
     const message=form.querySelector('[data-review-message]');
     if(!packetId||!code||!applicability)return;
     if(!rationale){if(message){message.textContent='Explique a decisão de revisão.';message.classList.add('error');}return;}
-    if(applicability==='requires_revalidation'&&!contextChange){if(message){message.textContent='Registe o que mudou no contexto.';message.classList.add('error');}return;}
+    if(applicability==='requires_revalidation'&&!contextChange){if(message){message.textContent='Registe as diferenças materiais entre os contextos.';message.classList.add('error');}return;}
     const submit=form.querySelector('button[type="submit"]');
     submit?.classList.add('loading');
     if(message){message.textContent='A guardar a revisão humana e a proveniência…';message.classList.remove('error');}
