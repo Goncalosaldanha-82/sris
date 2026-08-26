@@ -3,8 +3,11 @@
 
   const token=()=>localStorage.getItem('sris_access_token')||sessionStorage.getItem('sris_access_token');
   const authHeaders=()=>({'Content-Type':'application/json','Authorization':`Bearer ${token()||''}`});
+  let openedMissionCode=window.__srisMissionWorkspace?.mission?.code||'';
+  let loadSequence=0;
   const esc=(value='')=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const missionCode=()=>{
+    if(openedMissionCode)return openedMissionCode;
     const raw=(document.querySelector('#detail-code')?.textContent||'').trim();
     const parts=raw.split('/').map(value=>value.trim()).filter(Boolean);
     return parts[parts.length-1]||raw;
@@ -69,16 +72,34 @@
       document.querySelectorAll('.mission-tab').forEach(item=>item.classList.toggle('active',item===panel));
       await load();
     });
-    panel.querySelector('#ll-refresh')?.addEventListener('click',load);
+    panel.querySelector('#ll-refresh')?.addEventListener('click',()=>void load());
     panel.addEventListener('click',handleClick);
     panel.addEventListener('pointerup',ensureMobileEditorFocus,{passive:true});
     panel.addEventListener('submit',handleReviewSubmit);
+    document.addEventListener('sris:mission-opened',event=>{
+      openedMissionCode=event.detail?.mission?.code||'';
+      loadSequence+=1;
+      clearMissionLearningPanel();
+      if(panel.classList.contains('active'))void load(openedMissionCode);
+    });
     return true;
   }
 
-  async function load(){
-    const code=missionCode();
+  function clearMissionLearningPanel(){
+    const status=document.querySelector('#ll-status');
+    const activeContext=document.querySelector('#ll-active-context');
+    const summary=document.querySelector('#ll-summary');
+    const candidates=document.querySelector('#ll-candidates');
+    if(status)status.textContent='';
+    if(activeContext)activeContext.innerHTML='';
+    if(summary)summary.innerHTML='';
+    if(candidates)candidates.innerHTML='';
+  }
+
+  async function load(requestedCode){
+    const code=requestedCode||missionCode();
     if(!code)return;
+    const requestSequence=++loadSequence;
     const status=document.querySelector('#ll-status');
     if(status)status.textContent='A procurar aprendizagem publicada noutras missões…';
     try{
@@ -86,6 +107,7 @@
         api(`/api/pilot/learning/missions/${encodeURIComponent(code)}/candidates`),
         api(`/api/pilot/learning/missions/${encodeURIComponent(code)}/active-context`),
       ]);
+      if(requestSequence!==loadSequence||code!==missionCode())return;
       render(candidates);
       renderActiveContext(activeContext);
       const activeCount=(activeContext?.inheritance?.valid||[]).length;
@@ -94,6 +116,7 @@
         ? `${activeCount} aprendizagem(ns) reutilizável(eis) neste contexto · ${revalidationCount} a revalidar. Reveja as restantes antes de as reutilizar.`
         : 'Esta área mostra apenas aprendizagens publicadas por outras missões. A aprendizagem da missão atual fica na Memória canónica e só aparecerá aqui quando abrir outra missão.';
     }catch(error){
+      if(requestSequence!==loadSequence||code!==missionCode())return;
       if(status)status.textContent=`Não foi possível carregar aprendizagem: ${error.message}`;
     }
   }
@@ -107,7 +130,7 @@
       ...valid.map(item=>({...item,kind:'valid'})),
       ...revalidation.map(item=>({...item,kind:'revalidate'})),
     ];
-    root.innerHTML=rows.length?`<h4>Aprendizagem já revista neste contexto</h4>${rows.map(item=>`<article class="ll-context-row ${item.kind==='revalidate'?'revalidate':''}"><strong>${esc(item.title)}</strong><p>${esc(item.statement)}</p><small>Origem ${esc(item.source_mission_code)} · ${item.kind==='valid'?'validada para utilização':'requer nova validação'} · linhagem ${esc(String(item.lineage_sha256||'').slice(0,12))}…</small></article>`).join('')}`:'';
+    root.innerHTML=rows.length?`<h4>Revisão de aplicabilidade nesta missão — ${esc(data?.mission_code||missionCode())}</h4>${rows.map(item=>`<article class="ll-context-row ${item.kind==='revalidate'?'revalidate':''}"><strong>${esc(item.title)}</strong><p>${esc(item.statement)}</p><small>Origem ${esc(item.source_mission_code)} · destino ${esc(data?.mission_code||missionCode())} · ${item.kind==='valid'?'validada para utilização':'requer nova validação'} · linhagem ${esc(String(item.lineage_sha256||'').slice(0,12))}…</small></article>`).join('')}`:'';
   }
 
   function render(data){

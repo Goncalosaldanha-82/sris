@@ -988,6 +988,41 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert inherited.status_code == 200, inherited.text
     assert "continuidade" in inherited.json()["context_text"].lower()
+
+    unrelated_target = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions",
+        headers=headers,
+        json={
+            "title": "Missão independente para testar isolamento contextual",
+            "objective": "Confirmar que uma revisão humana não transita entre missões.",
+            "central_question": "A aplicabilidade continua por rever nesta missão distinta?",
+            "context": "Contexto independente sem revisão de aplicabilidade registada.",
+            "mission_kind": "mission",
+            "domain": "pilot_validation",
+            "priority": "standard",
+        },
+    )
+    assert unrelated_target.status_code == 201, unrelated_target.text
+    unrelated_candidates = client.get(
+        f"/api/pilot/learning/missions/{unrelated_target.json()['code']}/candidates",
+        headers=headers,
+    )
+    assert unrelated_candidates.status_code == 200, unrelated_candidates.text
+    unrelated_packet = next(
+        row
+        for row in unrelated_candidates.json()["candidates"]
+        if row["id"] == packet["id"]
+    )
+    assert unrelated_packet["review"] is None
+    assert unrelated_candidates.json()["summary"]["reviewed_count"] == 0
+    unrelated_context = client.get(
+        f"/api/pilot/learning/missions/{unrelated_target.json()['code']}/active-context",
+        headers=headers,
+    )
+    assert unrelated_context.status_code == 200, unrelated_context.text
+    assert unrelated_context.json()["inheritance"]["valid"] == []
+    assert unrelated_context.json()["inheritance"]["requires_revalidation"] == []
+
     not_applicable = client.post(
         f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates/{packet['id']}/review",
         headers=headers,

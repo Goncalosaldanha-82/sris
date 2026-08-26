@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260826-mobile-context-review-v17';
+  const BUILD='20260826-mission-scoped-learning-v18';
   const state={mission:null,aggregate:null,evidence:[],loading:false};
   const profiles={
     measurable_decision:{
