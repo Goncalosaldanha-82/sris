@@ -115,20 +115,6 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "mi_ai_organization_policies",
         )
 
-        # The contextual-learning columns must be installed transactionally by
-        # Alembic before Railway accepts requests. Runtime GET handlers must
-        # never race to ALTER these tables themselves.
-        if "pilot_learning_packets" in tables:
-            assert "canonical_status" in column_names(
-                database_url,
-                "pilot_learning_packets",
-            )
-        if "pilot_learning_reviews" in tables:
-            assert "applicability" in column_names(
-                database_url,
-                "pilot_learning_reviews",
-            )
-
         run_alembic(
             repo_root,
             "downgrade",
@@ -227,7 +213,7 @@ def test_document_source_migration_repairs_only_automatic_verification() -> None
             engine.dispose()
 
 
-def test_contextual_learning_migration_upgrades_legacy_tables_once() -> None:
+def test_contextual_learning_migration_preserves_hot_legacy_tables() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
     with TemporaryDirectory(prefix="atlas-contextual-learning-") as tmp:
@@ -281,13 +267,14 @@ def test_contextual_learning_migration_upgrades_legacy_tables_once() -> None:
 
         run_alembic(repo_root, "upgrade", "head", database_url=database_url)
 
-        assert "canonical_status" in column_names(
-            database_url,
-            "pilot_learning_packets",
+        # Railway starts a replacement while the previous container is still
+        # reading these tables. Revision 0018 must not request an exclusive
+        # ALTER TABLE lock and block the replacement's healthcheck.
+        assert "canonical_status" not in column_names(
+            database_url, "pilot_learning_packets"
         )
-        assert "applicability" in column_names(
-            database_url,
-            "pilot_learning_reviews",
+        assert "applicability" not in column_names(
+            database_url, "pilot_learning_reviews"
         )
         engine = create_engine(database_url)
         try:
@@ -295,15 +282,15 @@ def test_contextual_learning_migration_upgrades_legacy_tables_once() -> None:
                 reviews = dict(
                     connection.execute(
                         text(
-                            "SELECT id, applicability "
+                            "SELECT id, disposition "
                             "FROM pilot_learning_reviews ORDER BY id"
                         )
                     ).all()
                 )
             assert reviews == {
-                "legacy-invalid-review": "not_applicable",
+                "legacy-invalid-review": "invalidated",
                 "revalidate-review": "requires_revalidation",
-                "reuse-review": "reuse",
+                "reuse-review": "still_valid",
             }
         finally:
             engine.dispose()

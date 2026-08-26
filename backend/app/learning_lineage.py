@@ -71,7 +71,6 @@ def _ensure_schema(db: Session) -> None:
             statement TEXT NOT NULL,
             graph_snapshot_json TEXT NOT NULL,
             lineage_sha256 VARCHAR(64) NOT NULL,
-            canonical_status VARCHAR(40) NOT NULL DEFAULT 'valid',
             created_by_user_id VARCHAR(64) NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -90,7 +89,6 @@ def _ensure_schema(db: Session) -> None:
             target_mission_code VARCHAR(80) NOT NULL,
             learning_packet_id VARCHAR(64) NOT NULL,
             disposition VARCHAR(40) NOT NULL,
-            applicability VARCHAR(40) NOT NULL DEFAULT 'pending',
             rationale TEXT NOT NULL,
             context_change TEXT NOT NULL DEFAULT '',
             reviewed_by_user_id VARCHAR(64) NULL,
@@ -102,16 +100,6 @@ def _ensure_schema(db: Session) -> None:
     db.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_pilot_learning_reviews_target
         ON pilot_learning_reviews (organization_id, target_mission_id, disposition)
-    """))
-    db.execute(text("""
-        UPDATE pilot_learning_reviews
-        SET applicability = CASE disposition
-            WHEN 'still_valid' THEN 'reuse'
-            WHEN 'requires_revalidation' THEN 'requires_revalidation'
-            WHEN 'invalidated' THEN 'not_applicable'
-            ELSE 'pending'
-        END
-        WHERE applicability IS NULL OR applicability = 'pending'
     """))
 
 
@@ -285,7 +273,9 @@ def _packet_view(row) -> dict:
         "source_learning_node_id": row["source_learning_node_id"],
         "title": row["title"],
         "statement": row["statement"],
-        "canonical_status": row.get("canonical_status") or "valid",
+        # A published packet is canonically valid independently from any
+        # target mission's contextual applicability review.
+        "canonical_status": "valid",
         "lineage_sha256": row["lineage_sha256"],
         "lineage": snapshot,
         "created_at": as_iso(row["created_at"]),
@@ -296,12 +286,19 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
     """Return only human-reviewed inheritance that is allowed to alter a future mission."""
     _ensure_schema(db)
     rows = db.execute(text("""
-        SELECT p.*, r.applicability, r.rationale, r.context_change, r.updated_at AS reviewed_at
+        SELECT p.*,
+               CASE r.disposition
+                   WHEN 'still_valid' THEN 'reuse'
+                   WHEN 'requires_revalidation' THEN 'requires_revalidation'
+                   WHEN 'invalidated' THEN 'not_applicable'
+                   ELSE 'pending'
+               END AS applicability,
+               r.rationale, r.context_change, r.updated_at AS reviewed_at
         FROM pilot_learning_packets p
         JOIN pilot_learning_reviews r ON r.learning_packet_id=p.id
         WHERE p.organization_id=:org AND r.organization_id=:org
           AND r.target_mission_id=:target
-          AND r.applicability IN ('reuse','requires_revalidation')
+          AND r.disposition IN ('still_valid','requires_revalidation')
         ORDER BY r.updated_at DESC
     """), {"org": organization_id, "target": target_mission_id}).mappings().all()
     valid, revalidation = [], []
@@ -408,7 +405,13 @@ def learning_candidates(
     target_terms = _tokens(target.title, target.domain, str(target_doc.get("context") or ""), str(target_doc.get("central_question") or ""))
     rows = db.execute(text("""
         SELECT p.*, m.title AS source_title, m.domain AS source_domain,
-               r.applicability, r.rationale, r.context_change, r.updated_at AS reviewed_at
+               CASE r.disposition
+                   WHEN 'still_valid' THEN 'reuse'
+                   WHEN 'requires_revalidation' THEN 'requires_revalidation'
+                   WHEN 'invalidated' THEN 'not_applicable'
+                   ELSE 'pending'
+               END AS applicability,
+               r.rationale, r.context_change, r.updated_at AS reviewed_at
         FROM pilot_learning_packets p
         JOIN mi_missions m ON m.id=p.source_mission_id
         LEFT JOIN pilot_learning_reviews r
@@ -478,17 +481,15 @@ def review_learning_candidate(
     db.execute(text("""
         INSERT INTO pilot_learning_reviews
         (id, organization_id, target_mission_id, target_mission_code, learning_packet_id,
-         disposition, applicability, rationale, context_change, reviewed_by_user_id)
-        VALUES (:id, :org, :target, :code, :packet, :disposition, :applicability, :rationale, :context_change, :user_id)
+         disposition, rationale, context_change, reviewed_by_user_id)
+        VALUES (:id, :org, :target, :code, :packet, :disposition, :rationale, :context_change, :user_id)
         ON CONFLICT (organization_id, target_mission_id, learning_packet_id)
-        DO UPDATE SET disposition=EXCLUDED.disposition, applicability=EXCLUDED.applicability,
-                      rationale=EXCLUDED.rationale,
+        DO UPDATE SET disposition=EXCLUDED.disposition, rationale=EXCLUDED.rationale,
                       context_change=EXCLUDED.context_change, reviewed_by_user_id=EXCLUDED.reviewed_by_user_id,
                       updated_at=CURRENT_TIMESTAMP
     """), {
         "id": review_id, "org": membership.organization_id, "target": target.id,
         "code": target.code, "packet": packet_id, "disposition": legacy_disposition,
-        "applicability": applicability,
         "rationale": payload.rationale, "context_change": payload.context_change,
         "user_id": user.id,
     })
@@ -497,7 +498,7 @@ def review_learning_candidate(
         "status": "reviewed",
         "target_mission_code": target.code,
         "learning_packet_id": packet_id,
-        "canonical_status": packet.get("canonical_status") or "valid",
+        "canonical_status": "valid",
         "applicability": applicability,
         "context_effect": (
             "will_influence_future_ai_context" if applicability == "reuse"
