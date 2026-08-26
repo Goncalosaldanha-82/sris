@@ -826,7 +826,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         headers=headers,
         json={
             "mission_code": mission_payload["code"],
-            "decision": "Adotar o percurso persistente do Pilot V1 com dados real.",
+            "decision": "Adotar o percurso persistente do Pilot V1 com dados reai.",
             "action": "Reabrir a missão depois de uma nova autenticação.",
             "owner": "Pilot Journey",
             "due_date": "2026-09-01",
@@ -862,7 +862,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert completed_cycle.status_code == 200, completed_cycle.text
-    assert completed_cycle.json()["decision"].endswith("dados real.")
+    assert completed_cycle.json()["decision"].endswith("dados reai.")
     materialized = client.post(
         f"/api/pilot/decision-cycles/{decision.json()['id']}/materialize-learning",
         headers=headers,

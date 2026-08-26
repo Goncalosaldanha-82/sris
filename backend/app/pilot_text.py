@@ -4,7 +4,7 @@ import re
 
 
 _GENERATED_TITLE_FIXES = (
-    (re.compile(r"\bdados\s+real\b", re.IGNORECASE), "dados reais"),
+    (re.compile(r"\bdados\s+(?:real|reai)\b", re.IGNORECASE), "dados reais"),
 )
 
 
