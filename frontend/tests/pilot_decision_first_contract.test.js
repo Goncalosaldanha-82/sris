@@ -17,6 +17,7 @@ const loaded={
   workspace:read('mission-workspace-v2.js'),
   graph:read('evidence-graph.js'),
   comparison:read('alternative-matrix-v1.js'),
+  businessCase:read('business-case-v1.js'),
   validation:read('validation-protocol.js'),
   learning:read('learning-lineage.js'),
   decision:read('decision-cycle-v1.js'),
@@ -33,7 +34,7 @@ test('the Pilot has one explicit browser composition',()=>{
   assert.equal((home.match(/rel="stylesheet"/g)||[]).length,1);
   assert.equal((index.match(/rel="stylesheet"/g)||[]).length,1);
   assert.match(home,/pilot\.css\?v=__PILOT_BUILD__/);
-  for(const asset of ['app.js','mission-workspace-v2.js','evidence-graph.js','alternative-matrix-v1.js','validation-protocol.js','learning-lineage.js','decision-cycle-v1.js','admin-accounts.js']){
+  for(const asset of ['app.js','mission-workspace-v2.js','evidence-graph.js','alternative-matrix-v1.js','business-case-v1.js','validation-protocol.js','learning-lineage.js','decision-cycle-v1.js','admin-accounts.js']){
     assert.equal((index.match(new RegExp(asset.replace('.','\\.'),'g'))||[]).length,1);
   }
   for(const obsolete of ['pilot-integration-v3.js','mission-experience-v1.js','release-hardening-v2.js','decision-workbench-v1.js','intelligence-v2.js']){
@@ -57,6 +58,24 @@ test('alternative comparison is multicriteria, persistent and decision-neutral',
   assert.match(loaded.comparison,/if \(addingAlternative\) return/);
   assert.match(loaded.comparison,/alternative_change\?\.created/);
   assert.match(loaded.comparison,/\/alternatives\/\$\{encodeURIComponent\(alternativeId\)\}\/duplicate/);
+});
+
+test('the live business case follows money, time and resources without fake precision',()=>{
+  for(const marker of ['BUSINESS CASE VIVO · CÁLCULO DETERMINÍSTICO','Custo previsto à conclusão','Benefício realizado','ROI projetado','Prazo de recuperação','Horas humanas','Recursos bloqueados','Encargo anual posterior','Financiamento identificado','Conclusão automática auditável','Valor conservador','Valor favorável','Valor unitário × quantidade prevista','Estado operacional','Bloqueio operacional','Origem do valor','Evidência da missão','Confirmar revisão humana']){
+    assert.match(loaded.businessCase,new RegExp(marker));
+  }
+  assert.match(index,/data-open-mission-tab="economics"/);
+  assert.match(index,/business-case-v1\.js\?v=__PILOT_BUILD__/);
+  assert.match(loaded.businessCase,/sris:mission-opened/);
+  assert.match(loaded.businessCase,/loadSequence/);
+  assert.match(loaded.businessCase,/sris:business-case-updated/);
+  assert.match(loaded.businessCase,/A pontuação mede completude e rastreabilidade; não transforma estimativas em factos/);
+  assert.match(loaded.businessCase,/alternative_node_id/);
+  assert.match(loaded.comparison,/Economia e recursos por alternativa/);
+  assert.match(loaded.comparison,/economic_alignment/);
+  assert.match(loaded.app,/live_business_case/);
+  assert.match(loaded.app,/businessCaseReportHtml/);
+  assert.match(loaded.app,/sris\.pilot\.mission-export\.v3/);
 });
 
 test('decision foundation uses the human document title instead of a technical UUID',()=>{

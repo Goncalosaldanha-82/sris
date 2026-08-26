@@ -21,6 +21,7 @@ from app.evidence_graph import (
     _mission,
     _upsert_node,
 )
+from app.pilot_business_case import alternative_economic_comparison
 from app.pilot_serialization import as_iso
 
 
@@ -490,6 +491,8 @@ def _matrix_view(db: Session, row) -> dict | None:
         "weights": weights,
         "content_hash": row["content_hash"],
         "snapshot_version": int(snapshot.get("snapshot_version") or 1),
+        "business_case_revision": int(snapshot.get("business_case_revision") or 0),
+        "business_case_content_hash": str(snapshot.get("business_case_content_hash") or ""),
         "integrity_verified": _matrix_integrity(row, snapshot, weights, score_rows),
         "created_by_user_id": row["created_by_user_id"],
         "reviewed_by_user_id": row["reviewed_by_user_id"],
@@ -628,6 +631,39 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
         mission_id=mission.id,
         node_type="evidence",
     )
+    economics = alternative_economic_comparison(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+    )
+    if not economics["configured"]:
+        economic_alignment = {
+            "status": "not_applicable",
+            "up_to_date": True,
+            "message": "O business case vivo ainda não foi iniciado nesta missão.",
+        }
+    elif matrix is None:
+        economic_alignment = {
+            "status": "not_saved",
+            "up_to_date": False,
+            "message": "Guarde a matriz para fixar a revisão económica usada na comparação.",
+        }
+    else:
+        up_to_date = bool(
+            matrix.get("business_case_content_hash")
+            and matrix["business_case_content_hash"] == economics["business_case_content_hash"]
+        )
+        economic_alignment = {
+            "status": "current" if up_to_date else "changed",
+            "up_to_date": up_to_date,
+            "matrix_business_case_revision": matrix.get("business_case_revision") or None,
+            "current_business_case_revision": economics["business_case_revision"],
+            "message": (
+                "A matriz usa a revisão económica atual."
+                if up_to_date
+                else "O business case mudou após esta matriz; guarde nova revisão antes de decidir."
+            ),
+        }
     return {
         "mission_id": mission.id,
         "mission_code": mission.code,
@@ -635,6 +671,8 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
         "default_weights": DEFAULT_WEIGHTS,
         "alternatives": alternatives,
         "evidence": evidence,
+        "economic_comparison": economics,
+        "economic_alignment": economic_alignment,
         "matrix": matrix,
         "ranking": _ranking(matrix),
         "readiness": matrix_readiness(
@@ -867,6 +905,12 @@ def save_matrix(
             if score.evidence_node_id and score.evidence_node_id not in active_evidence:
                 raise HTTPException(status_code=422, detail="Uma avaliação refere evidência indisponível nesta missão.")
 
+    economics = alternative_economic_comparison(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+    )
+
     revision = int(
         db.execute(
             text("""
@@ -883,6 +927,8 @@ def save_matrix(
         "mission_id": mission.id,
         "mission_code": mission.code,
         "revision": revision,
+        "business_case_revision": economics["business_case_revision"],
+        "business_case_content_hash": economics["business_case_content_hash"],
         "weights": {key: payload.weights[key] for key in CRITERION_KEYS},
         "evaluations": [
             {

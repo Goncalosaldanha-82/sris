@@ -89,6 +89,7 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "/evidence-graph.js",
         "/validation-protocol.js",
         "/alternative-matrix-v1.js",
+        "/business-case-v1.js",
         "/learning-lineage.js",
         "/decision-cycle-v1.js",
         "/admin-accounts.js",
@@ -123,6 +124,7 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "Medição e impacto",
         "Protocolo de validação",
         "Comparar alternativas",
+        "Economia e recursos",
         "Tourism Advance · Eficiência de recursos",
         "Auditoria e histórico persistente",
         "Análise assistida, não centro do produto.",
@@ -165,6 +167,10 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert payload["measurable_validation"] is True
     assert payload["tourism_advance_profile"] is True
     assert payload["baseline_and_result_comparison"] is True
+    assert payload["live_business_case"] is True
+    assert payload["scenario_financial_analysis"] is True
+    assert payload["human_financial_material_resource_tracking"] is True
+    assert payload["post_mission_lifecycle_costs"] is True
     assert payload["billing_mode"] == "disabled"
     public_status = client.get("/api/mission-intelligence/status")
     assert public_status.status_code == 200
@@ -195,6 +201,7 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     evidence_graph = client.get("/evidence-graph.js")
     validation = client.get("/validation-protocol.js")
     comparison = client.get("/alternative-matrix-v1.js")
+    business_case = client.get("/business-case-v1.js")
     decision = client.get("/decision-cycle-v1.js")
     workspace = client.get("/mission-workspace-v2.js")
     assert "window.fetch=" not in learning.text
@@ -218,6 +225,14 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert 'data-open-mission-tab="comparison"' in client.get("/app").text
     assert "comparison:'Comparação'" in client.get("/app.js").text
     assert "window.fetch=" not in comparison.text
+    assert business_case.status_code == 200
+    assert "BUSINESS CASE VIVO · CÁLCULO DETERMINÍSTICO" in business_case.text
+    assert "Custo previsto à conclusão" in business_case.text
+    assert "Benefício realizado" in business_case.text
+    assert "Encargo anual posterior" in business_case.text
+    assert "Confirmar revisão humana" in business_case.text
+    assert "sris:business-case-updated" in business_case.text
+    assert "window.fetch=" not in business_case.text
     assert "MutationObserver" not in decision.text
     assert "sris:evidence-graph-updated" in decision.text
     assert "model_or_system" not in workspace.text
@@ -258,6 +273,10 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/alternative-matrices/missions/{mission_code}/alternatives",
         "/api/pilot/alternative-matrices/missions/{mission_code}/alternatives/{alternative_node_id}/duplicate",
         "/api/pilot/alternative-matrices/missions/{mission_code}/review",
+        "/api/pilot/business-cases/missions/{mission_code}",
+        "/api/pilot/business-cases/missions/{mission_code}/items",
+        "/api/pilot/business-cases/missions/{mission_code}/items/{item_id}",
+        "/api/pilot/business-cases/missions/{mission_code}/review",
         "/api/pilot/learning/missions/{mission_code}/candidates",
         "/api/pilot/learning/missions/{mission_code}/active-context",
         "/api/pilot/workspace-summary",

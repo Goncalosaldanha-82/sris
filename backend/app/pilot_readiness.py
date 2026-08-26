@@ -7,6 +7,7 @@ from app.evidence_graph import _ensure_schema as _ensure_graph_schema
 from app.learning_lineage import _ensure_schema as _ensure_learning_schema
 from app.mission_intelligence.models import MissionAttachment
 from app.pilot_alternative_matrix import matrix_readiness
+from app.pilot_business_case import business_case_readiness
 from app.pilot_decision_cycle import _ensure_schema as _ensure_decision_schema
 from app.pilot_validation import validation_readiness
 
@@ -239,6 +240,14 @@ def mission_completion_readiness(
         mission_id=mission_id,
     )
     checks.extend(validation["checks"])
+    business_case = business_case_readiness(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
+        mission_code=mission_code,
+    )
+    if business_case["required"]:
+        checks.extend(business_case["checks"])
     completed = sum(1 for check in checks if check["passed"])
     return {
         "mission_id": mission_id,
@@ -250,4 +259,5 @@ def mission_completion_readiness(
         "checks": checks,
         "blocking_keys": [check["key"] for check in checks if not check["passed"]],
         "validation": validation,
+        "business_case": business_case,
     }

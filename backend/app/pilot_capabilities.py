@@ -7,7 +7,7 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260826-learning-title-language-v20"
+PILOT_BUILD = "20260826-live-business-case-v21"
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -54,6 +54,10 @@ def pilot_capabilities() -> dict:
         "organizational_memory": True,
         "measurable_validation": True,
         "alternative_comparison_matrix": True,
+        "live_business_case": True,
+        "scenario_financial_analysis": True,
+        "human_financial_material_resource_tracking": True,
+        "post_mission_lifecycle_costs": True,
         "tourism_advance_profile": True,
         "baseline_and_result_comparison": True,
         "hybrid_retrieval": True,
