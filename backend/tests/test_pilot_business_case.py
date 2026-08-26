@@ -100,7 +100,9 @@ def test_live_business_case_tracks_scenarios_resources_review_and_history(monkey
     assert empty.status_code == 200, empty.text
     assert empty.json()["case"]["id"] is None
     assert empty.json()["calculation_policy"] == "deterministic_server_side_no_ai"
+    assert empty.json()["metrics_state"] == "unknown_not_zero"
     assert empty.json()["metrics"]["forecast_roi_pct"] is None
+    assert empty.json()["governed_prefill"]["human_confirmation_required"] is True
 
     configured = client.put(
         base,

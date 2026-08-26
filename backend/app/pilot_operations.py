@@ -182,7 +182,8 @@ def workspace_summary(
         text(
             """
             SELECT mission_code, status, action, owner, due_date, evidence_node_id,
-                   expected_outcome, actual_outcome, learning
+                   expected_outcome, action_started_at, actual_outcome_at,
+                   outcome_evidence_node_id, actual_outcome, learning
             FROM pilot_decision_cycles
             WHERE organization_id=:org
             """
@@ -210,6 +211,7 @@ def workspace_summary(
     mission_cards: list[dict] = []
     total_gaps = 0
     pending_results = 0
+    governance_conflicts = 0
     for mission in mission_rows:
         attachments = attachment_counts.get(mission.id, {})
         source_ready = sum(attachments.get(status, 0) for status in ("ready", "visual_ready", "provider_ready"))
@@ -227,6 +229,9 @@ def workspace_summary(
             incomplete_result = cycle["status"] == "completed" and (
                 not str(cycle["actual_outcome"] or "").strip()
                 or not str(cycle["learning"] or "").strip()
+                or cycle["action_started_at"] is None
+                or cycle["actual_outcome_at"] is None
+                or not str(cycle["outcome_evidence_node_id"] or "").strip()
             )
             overdue = (
                 cycle["due_date"] is not None
@@ -244,12 +249,21 @@ def workspace_summary(
             mission_id=mission.id,
             mission_code=mission.code,
         )
+        governed = readiness.get("governed_state") or {}
+        governed_health = governed.get("health") or {}
+        mission_conflicts = int(governed_health.get("critical_conflicts") or 0) + int(
+            governed_health.get("warnings") or 0
+        )
+        governance_conflicts += mission_conflicts
+        attention += mission_conflicts
         next_action = next(
             (check["label"] for check in readiness["checks"] if not check["passed"]),
             "Missão pronta para conclusão",
         )
         if mission.lifecycle_state == "paused":
             next_action = "Reativar a missão ou arquivá-la com justificação"
+        elif mission.lifecycle_state == "completed" and not readiness["ready"]:
+            next_action = f"Reabrir e reconciliar: {next_action}"
         elif mission.lifecycle_state == "completed":
             next_action = "Aprendizagem preservada; reutilizar quando for relevante"
         elif mission.lifecycle_state == "archived":
@@ -280,6 +294,9 @@ def workspace_summary(
                 "validation_profile": readiness.get("validation", {}).get("profile", "none"),
                 "validation_required": readiness.get("validation", {}).get("required", False),
                 "validation_progress_percent": readiness.get("validation", {}).get("progress_percent", 100),
+                "governed_state_hash": governed.get("state_hash"),
+                "governance_health": governed_health.get("status", "in_progress"),
+                "governance_conflicts": mission_conflicts,
                 "next_action": next_action,
             }
         )
@@ -301,6 +318,7 @@ def workspace_summary(
             "missions_active": sum(1 for row in mission_cards if row["lifecycle_state"] == "active"),
             "missions_attention": attention_missions,
             "evidence_gaps": total_gaps,
+            "governance_conflicts": governance_conflicts,
             "pending_results": pending_results,
             "published_learning": sum(packet_counts.values()),
         },

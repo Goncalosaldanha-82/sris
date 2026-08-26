@@ -97,7 +97,7 @@
     const style = document.createElement("style");
     style.id = "business-case-styles";
     style.textContent = `
-      .business-case-root{display:grid;gap:18px;color:#12352c}.business-case-root *{box-sizing:border-box}.bc-hero{background:linear-gradient(135deg,#092f28,#17644f 68%,#a47822);color:#fff;border-radius:24px;padding:28px;display:flex;justify-content:space-between;gap:22px}.bc-hero h3{font-size:clamp(29px,4vw,46px);line-height:1.02;margin:8px 0}.bc-hero p{max-width:780px;color:#e5f0eb;margin:0}.bc-revision{align-self:flex-start;border:1px solid rgba(255,255,255,.42);border-radius:999px;padding:9px 13px;white-space:nowrap;font-weight:800}.bc-card{background:#fff;border:1px solid #cfdbd6;border-radius:20px;padding:20px}.bc-card h4{margin:0 0 7px}.bc-kpis{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:10px}.bc-kpi{background:#f4f7f5;border:1px solid #d6dfdb;border-radius:16px;padding:14px;min-height:96px}.bc-kpi strong{display:block;font-size:clamp(20px,2.4vw,30px);line-height:1.05;overflow-wrap:anywhere}.bc-kpi span{display:block;color:#5d7169;font-size:12px;margin-top:8px}.bc-status{min-height:23px;color:#536a61}.bc-status.success{color:#176a4d}.bc-status.error{color:#a22b23}.bc-status.warning{color:#8a6515}.bc-warnings{display:grid;gap:8px}.bc-warning{border-left:4px solid #c59639;background:#fff9e9;border-radius:10px;padding:11px 13px}.bc-warning.high{border-left-color:#a64036;background:#fff2f0}.bc-warning.info{border-left-color:#4e7d91;background:#f0f7fa}.bc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.bc-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.bc-field{display:grid;gap:6px}.bc-field.full{grid-column:1/-1}.bc-field label{font-weight:800;font-size:13px}.bc-field small{color:#60746c}.business-case-root input,.business-case-root textarea,.business-case-root select{width:100%;border:1px solid #c9d5d0;border-radius:11px;background:#fff;color:#0b3026;padding:10px 11px;font:inherit;font-size:16px}.business-case-root textarea{min-height:94px;resize:vertical}.bc-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:14px}.bc-scenarios{overflow-x:auto}.bc-table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px}.bc-table th,.bc-table td{padding:11px;border-right:1px solid #d9e1de;border-bottom:1px solid #d9e1de;text-align:right}.bc-table th:first-child,.bc-table td:first-child{text-align:left;border-left:1px solid #d9e1de}.bc-table thead th{background:#f3f6f4;border-top:1px solid #d9e1de}.bc-alt-gaps{display:block;color:#92621b;font-size:11px;margin-top:5px}.bc-ledger{display:grid;gap:10px}.bc-line{border:1px solid #d4dfda;border-radius:15px;padding:14px;display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(100px,.65fr)) auto;gap:11px;align-items:center}.bc-line small{display:block;color:#62766e;margin-top:4px}.bc-line-value strong{display:block}.bc-line-value span{font-size:11px;color:#667970}.bc-line-actions{display:flex;gap:6px;flex-wrap:wrap}.bc-line-actions button{white-space:nowrap}.bc-kind{display:inline-flex;border-radius:999px;background:#e9f2ee;color:#18513f;padding:4px 8px;font-size:11px;font-weight:800}.bc-scope{display:inline-flex;border-radius:999px;background:#fff4d8;color:#755316;padding:4px 8px;font-size:11px;font-weight:800;margin-left:5px}.bc-form-shell{background:#f7f9f8;border:1px solid #d8e1dd;border-radius:17px;padding:16px}.bc-form-shell summary{cursor:pointer;font-weight:900}.bc-form-body{margin-top:15px}.bc-check{display:flex;gap:9px;align-items:flex-start}.bc-check input{width:auto;margin-top:4px}.bc-quality{display:grid;grid-template-columns:150px 1fr;gap:17px;align-items:center}.bc-quality-score{border-radius:50%;width:128px;height:128px;display:grid;place-content:center;background:conic-gradient(#17644f calc(var(--score)*1%),#e1e8e5 0);position:relative}.bc-quality-score:before{content:"";position:absolute;inset:12px;background:#fff;border-radius:50%}.bc-quality-score strong,.bc-quality-score span{position:relative;text-align:center}.bc-quality-score strong{font-size:28px}.bc-readiness{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.bc-check-row{border:1px solid #d9e1de;border-radius:11px;padding:9px;display:flex;gap:8px}.bc-check-row.passed{background:#edf6f1}.bc-history{display:grid;gap:8px}.bc-history-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #e0e7e4;padding-top:9px}.bc-empty{border:1px dashed #b9c8c2;border-radius:14px;padding:17px;color:#5b7068}.bc-danger-confirm{border:1px solid #e2b1aa;background:#fff1ef;border-radius:10px;padding:8px}.bc-muted{color:#62766e}.bc-review{border-color:#d5b56f;background:#fffcf4}.bc-review textarea{min-height:78px}.bc-integrity{font-size:12px;color:#63766f;overflow-wrap:anywhere}.business-case-root button:disabled{opacity:.55;cursor:not-allowed}
+      .business-case-root{display:grid;gap:18px;color:#12352c}.business-case-root *{box-sizing:border-box}.bc-hero{background:linear-gradient(135deg,#092f28,#17644f 68%,#a47822);color:#fff;border-radius:24px;padding:28px;display:flex;justify-content:space-between;gap:22px}.bc-hero h3{font-size:clamp(29px,4vw,46px);line-height:1.02;margin:8px 0;color:#fff!important}.bc-hero .product-index{color:#c9e4da}.bc-hero p{max-width:780px;color:#e5f0eb;margin:0}.bc-revision{align-self:flex-start;border:1px solid rgba(255,255,255,.42);border-radius:999px;padding:9px 13px;white-space:nowrap;font-weight:800}.bc-card{background:#fff;border:1px solid #cfdbd6;border-radius:20px;padding:20px}.bc-card h4{margin:0 0 7px}.bc-kpis{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:10px}.bc-kpi{background:#f4f7f5;border:1px solid #d6dfdb;border-radius:16px;padding:14px;min-height:96px}.bc-kpi strong{display:block;font-size:clamp(20px,2.4vw,30px);line-height:1.05;overflow-wrap:anywhere}.bc-kpi span{display:block;color:#5d7169;font-size:12px;margin-top:8px}.bc-status{min-height:23px;color:#536a61}.bc-status.success{color:#176a4d}.bc-status.error{color:#a22b23}.bc-status.warning{color:#8a6515}.bc-warnings{display:grid;gap:8px}.bc-warning{border-left:4px solid #c59639;background:#fff9e9;border-radius:10px;padding:11px 13px}.bc-warning.high{border-left-color:#a64036;background:#fff2f0}.bc-warning.info{border-left-color:#4e7d91;background:#f0f7fa}.bc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.bc-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.bc-field{display:grid;gap:6px}.bc-field.full{grid-column:1/-1}.bc-field label{font-weight:800;font-size:13px}.bc-field small{color:#60746c}.business-case-root input,.business-case-root textarea,.business-case-root select{width:100%;border:1px solid #c9d5d0;border-radius:11px;background:#fff;color:#0b3026;padding:10px 11px;font:inherit;font-size:16px}.business-case-root textarea{min-height:94px;resize:vertical}.bc-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:14px}.bc-scenarios{overflow-x:auto}.bc-table{width:100%;border-collapse:separate;border-spacing:0;min-width:720px}.bc-table th,.bc-table td{padding:11px;border-right:1px solid #d9e1de;border-bottom:1px solid #d9e1de;text-align:right}.bc-table th:first-child,.bc-table td:first-child{text-align:left;border-left:1px solid #d9e1de}.bc-table thead th{background:#f3f6f4;border-top:1px solid #d9e1de}.bc-alt-gaps{display:block;color:#92621b;font-size:11px;margin-top:5px}.bc-ledger{display:grid;gap:10px}.bc-line{border:1px solid #d4dfda;border-radius:15px;padding:14px;display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(100px,.65fr)) auto;gap:11px;align-items:center}.bc-line small{display:block;color:#62766e;margin-top:4px}.bc-line-value strong{display:block}.bc-line-value span{font-size:11px;color:#667970}.bc-line-actions{display:flex;gap:6px;flex-wrap:wrap}.bc-line-actions button{white-space:nowrap}.bc-kind{display:inline-flex;border-radius:999px;background:#e9f2ee;color:#18513f;padding:4px 8px;font-size:11px;font-weight:800}.bc-scope{display:inline-flex;border-radius:999px;background:#fff4d8;color:#755316;padding:4px 8px;font-size:11px;font-weight:800;margin-left:5px}.bc-form-shell{background:#f7f9f8;border:1px solid #d8e1dd;border-radius:17px;padding:16px}.bc-form-shell summary{cursor:pointer;font-weight:900}.bc-form-body{margin-top:15px}.bc-check{display:flex;gap:9px;align-items:flex-start}.bc-check input{width:auto;margin-top:4px}.bc-quality{display:grid;grid-template-columns:150px 1fr;gap:17px;align-items:center}.bc-quality-score{border-radius:50%;width:128px;height:128px;display:grid;place-content:center;background:conic-gradient(#17644f calc(var(--score)*1%),#e1e8e5 0);position:relative}.bc-quality-score:before{content:"";position:absolute;inset:12px;background:#fff;border-radius:50%}.bc-quality-score strong,.bc-quality-score span{position:relative;text-align:center}.bc-quality-score strong{font-size:28px}.bc-readiness{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.bc-check-row{border:1px solid #d9e1de;border-radius:11px;padding:9px;display:flex;gap:8px}.bc-check-row.passed{background:#edf6f1}.bc-history{display:grid;gap:8px}.bc-history-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #e0e7e4;padding-top:9px}.bc-empty{border:1px dashed #b9c8c2;border-radius:14px;padding:17px;color:#5b7068}.bc-danger-confirm{border:1px solid #e2b1aa;background:#fff1ef;border-radius:10px;padding:8px}.bc-muted{color:#62766e}.bc-review{border-color:#d5b56f;background:#fffcf4}.bc-review textarea{min-height:78px}.bc-integrity{font-size:12px;color:#63766f;overflow-wrap:anywhere}.business-case-root button:disabled{opacity:.55;cursor:not-allowed}
       .business-case-root .bc-conclusion{border-left:5px solid #b98620;background:#fff9e9;border-radius:13px;padding:14px 16px;margin-top:14px;font-size:16px;line-height:1.55}
       @media(max-width:1100px){.bc-kpis{grid-template-columns:repeat(3,1fr)}.bc-line{grid-template-columns:1fr repeat(2,minmax(100px,.55fr))}.bc-line-actions{grid-column:1/-1}}
       @media(max-width:760px){.bc-hero{display:block;padding:22px 18px;border-radius:18px}.bc-revision{display:inline-block;margin-top:15px}.bc-card{padding:15px}.bc-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.bc-grid,.bc-grid.two{grid-template-columns:1fr}.bc-field.full{grid-column:auto}.bc-line{grid-template-columns:1fr 1fr}.bc-line-main,.bc-line-actions{grid-column:1/-1}.bc-quality{grid-template-columns:1fr}.bc-quality-score{margin:auto}.bc-readiness{grid-template-columns:1fr}.bc-history-row{display:grid}.bc-actions .btn{flex:1 1 150px}}
@@ -117,6 +117,14 @@
     if (value === null || value === undefined || value === "") return "—";
     const currency = state?.case?.currency || "EUR";
     return Number(value).toLocaleString("pt-PT", { style: "currency", currency, maximumFractionDigits: 0 });
+  }
+
+  function metricMoney(value) {
+    return state?.metrics_state === "unknown_not_zero" ? "—" : money(value);
+  }
+
+  function metricNumber(value, digits = 1) {
+    return state?.metrics_state === "unknown_not_zero" ? "—" : number(value, digits);
   }
 
   function number(value, digits = 1) {
@@ -181,13 +189,13 @@
         <div class="bc-field"><label for="bc-actual-start">Início real</label><input id="bc-actual-start" name="actual_start_date" type="date" value="${esc(dateValue(item.actual_start_date))}"></div>
         <div class="bc-field"><label for="bc-actual-end">Conclusão real</label><input id="bc-actual-end" name="actual_end_date" type="date" value="${esc(dateValue(item.actual_end_date))}"></div>
         <div class="bc-field"><label for="bc-currency">Moeda</label><input id="bc-currency" name="currency" value="${esc(item.currency || "EUR")}" pattern="[A-Z]{3}" maxlength="3" required></div>
-        <div class="bc-field"><label for="bc-outcome-name">Unidade de resultado</label><input id="bc-outcome-name" name="outcome_name" maxlength="300" value="${esc(item.outcome_name || "")}" placeholder="Ex.: toneladas evitadas"></div>
-        <div class="bc-field"><label for="bc-outcome-unit">Unidade</label><input id="bc-outcome-unit" name="outcome_unit" maxlength="80" value="${esc(item.outcome_unit || "")}" placeholder="Ex.: tCO₂e"></div>
+        <div class="bc-field"><label for="bc-outcome-name">Indicador de resultado</label><input id="bc-outcome-name" name="outcome_name" maxlength="300" value="${esc(item.outcome_name || "")}" placeholder="Ex.: emissões evitadas"></div>
+        <div class="bc-field"><label for="bc-outcome-unit">Unidade de medição</label><input id="bc-outcome-unit" name="outcome_unit" maxlength="80" value="${esc(item.outcome_unit || "")}" placeholder="Ex.: tCO₂e"></div>
         <div class="bc-field"><label for="bc-outcome-plan">Resultado previsto</label><input id="bc-outcome-plan" name="planned_outcome_quantity" type="number" min="0" step="any" value="${esc(inputValue(item.planned_outcome_quantity))}"></div>
         <div class="bc-field"><label for="bc-outcome-actual">Resultado realizado</label><input id="bc-outcome-actual" name="actual_outcome_quantity" type="number" min="0" step="any" value="${esc(inputValue(item.actual_outcome_quantity))}"></div>
         <div class="bc-field full"><label for="bc-notes">Notas e limites</label><textarea id="bc-notes" name="notes" maxlength="8000" placeholder="Dependências, exclusões, limites de inferência e regras de contabilização.">${esc(item.notes || "")}</textarea></div>
       </div>
-      <div class="bc-actions"><button class="btn btn-primary" type="submit" ${saving ? "disabled" : ""}>${item.id ? "Guardar nova revisão" : "Criar business case"}</button><span class="bc-muted">A gravação recalcula todos os indicadores no servidor.</span></div>
+      <div class="bc-actions">${!item.id ? '<button class="btn btn-secondary" type="button" data-bc-apply-prefill>Usar propostas da missão</button>' : ''}<button class="btn btn-primary" type="submit" ${saving ? "disabled" : ""}>${item.id ? "Guardar nova revisão" : "Criar business case"}</button><span class="bc-muted">As propostas nunca são gravadas sem confirmação humana.</span></div>
     </form>`;
   }
 
@@ -284,10 +292,35 @@
     const history = (state.history || []).length
       ? state.history.map((item) => `<div class="bc-history-row"><span><strong>Revisão ${item.revision}</strong> · ${esc(EVENT_LABELS[item.event_type] || item.event_type)}</span><span class="bc-muted">${item.created_at ? new Date(item.created_at).toLocaleString("pt-PT") : ""} · ${esc(String(item.content_hash || "").slice(0, 12))}…</span></div>`).join("")
       : '<div class="bc-muted">Ainda não existem revisões económicas.</div>';
+    const unknown = state.metrics_state === "unknown_not_zero";
+    const roi = unknown || metrics.forecast_roi_pct == null ? "—" : `${number(metrics.forecast_roi_pct, 2)}%`;
+    const payback = unknown || metrics.forecast_payback_months == null ? "—" : `${number(metrics.forecast_payback_months, 0)} meses`;
+    const schedule = unknown || metrics.schedule_variance_days == null ? "—" : `${metrics.schedule_variance_days > 0 ? "+" : ""}${number(metrics.schedule_variance_days, 0)} dias`;
+    const executiveKpis = [
+      kpi("Orçamento base", metricMoney(metrics.budget_base)),
+      kpi("Custo comprometido", metricMoney(metrics.committed_cost)),
+      kpi("Custo realizado", metricMoney(metrics.realized_cost)),
+      kpi("Custo previsto à conclusão", metricMoney(metrics.forecast_cost_at_completion)),
+      kpi("Desvio de custo", metricMoney(metrics.cost_variance), unknown || metrics.cost_variance_pct == null ? "" : `${number(metrics.cost_variance_pct, 1)}%`),
+      kpi("Benefício esperado", metricMoney(metrics.expected_gross_benefit)),
+      kpi("Benefício realizado", metricMoney(metrics.realized_benefit)),
+      kpi("Benefício comprovado", metricMoney(metrics.verified_realized_benefit), unknown ? "ainda não apurado" : "ligado a evidência"),
+      kpi(profitLabel, metricMoney(metrics.forecast_net_benefit)),
+      kpi("ROI projetado", roi),
+      kpi("Prazo de recuperação", payback),
+      kpi("Lacuna para equilíbrio", metricMoney(metrics.break_even_gap)),
+      kpi("Horas humanas", metricNumber(metrics.actual_human_hours, 1), unknown ? "sem dados" : `${number(metrics.planned_human_hours, 1)} previstas`),
+      kpi("Recursos bloqueados", metricNumber(metrics.blocked_resource_count, 0)),
+      kpi("Custo por resultado", metricMoney(metrics.cost_per_actual_outcome ?? metrics.cost_per_planned_outcome), current.outcome_unit || "unidade por definir"),
+      kpi("Desvio de prazo", schedule, unknown || metrics.schedule_variance_pct == null ? "" : `${number(metrics.schedule_variance_pct, 1)}%`),
+      kpi("Encargo anual posterior", metricMoney(metrics.annual_post_mission_burden)),
+      kpi("Financiamento identificado", metricMoney(metrics.funding_available)),
+      kpi("Lacuna de financiamento", metricMoney(metrics.funding_gap)),
+    ].join("");
     node.innerHTML = `
       <section class="bc-hero"><div><span class="product-index">BUSINESS CASE VIVO · CÁLCULO DETERMINÍSTICO</span><h3>Quanto custa. Que valor cria. O que permanece.</h3><p>Custos, benefícios, tempo, pessoas, financiamento e materiais acompanhados antes, durante e depois da missão. Valores não monetizáveis permanecem quantificados sem receber um preço artificial.</p></div><span class="bc-revision">${esc(revision)}</span></section>
       <div id="business-case-status" class="bc-status" role="status" aria-live="polite"></div>
-      <section class="bc-card"><div class="card-head"><div><h4>Leitura executiva</h4><p class="bc-muted">Previsto, comprometido, realizado e projetado não são misturados. Só entram aqui linhas com âmbito Missão.</p></div><span class="pill">${esc(current.currency || "EUR")} · ${Number(current.horizon_months || 60)} meses</span></div><div class="bc-kpis">${kpi("Orçamento base", money(metrics.budget_base))}${kpi("Custo comprometido", money(metrics.committed_cost))}${kpi("Custo realizado", money(metrics.realized_cost))}${kpi("Custo previsto à conclusão", money(metrics.forecast_cost_at_completion))}${kpi("Desvio de custo", money(metrics.cost_variance), metrics.cost_variance_pct == null ? "" : `${number(metrics.cost_variance_pct, 1)}%`)}${kpi("Benefício esperado", money(metrics.expected_gross_benefit))}${kpi("Benefício realizado", money(metrics.realized_benefit))}${kpi("Benefício comprovado", money(metrics.verified_realized_benefit), "ligado a evidência")}${kpi(profitLabel, money(metrics.forecast_net_benefit))}${kpi("ROI projetado", metrics.forecast_roi_pct == null ? "—" : `${number(metrics.forecast_roi_pct, 2)}%`)}${kpi("Prazo de recuperação", metrics.forecast_payback_months == null ? "—" : `${number(metrics.forecast_payback_months, 0)} meses`)}${kpi("Lacuna para equilíbrio", money(metrics.break_even_gap))}${kpi("Horas humanas", number(metrics.actual_human_hours, 1), `${number(metrics.planned_human_hours, 1)} previstas`)}${kpi("Recursos bloqueados", number(metrics.blocked_resource_count, 0))}${kpi("Custo por resultado", money(metrics.cost_per_actual_outcome ?? metrics.cost_per_planned_outcome), current.outcome_unit || "unidade definida")}${kpi("Desvio de prazo", metrics.schedule_variance_days == null ? "—" : `${metrics.schedule_variance_days > 0 ? "+" : ""}${number(metrics.schedule_variance_days, 0)} dias`, metrics.schedule_variance_pct == null ? "" : `${number(metrics.schedule_variance_pct, 1)}%`)}${kpi("Encargo anual posterior", money(metrics.annual_post_mission_burden))}${kpi("Financiamento identificado", money(metrics.funding_available))}${kpi("Lacuna de financiamento", money(metrics.funding_gap))}</div><div class="bc-conclusion"><strong>Conclusão automática auditável</strong><br>${esc(state.executive_conclusion || "Ainda sem dados suficientes.")}</div></section>
+      <section class="bc-card"><div class="card-head"><div><h4>Leitura executiva</h4><p class="bc-muted">Previsto, comprometido, realizado e projetado não são misturados. “—” significa não apurado, nunca zero.</p></div><span class="pill">${esc(current.currency || "EUR")} · ${Number(current.horizon_months || 60)} meses</span></div><div class="bc-kpis">${executiveKpis}</div><div class="bc-conclusion"><strong>Conclusão automática auditável</strong><br>${esc(state.executive_conclusion || "Ainda sem dados suficientes.")}</div></section>
       ${warnings}
       <section class="bc-card"><div class="card-head"><div><h4>Fundação do business case</h4><p class="bc-muted">A situação de partida e o cenário de não agir impedem que qualquer benefício seja atribuído automaticamente à missão.</p></div></div>${caseForm()}</section>
       ${current.id ? `<section class="bc-card"><div class="card-head"><div><h4>Cenários e retorno da missão</h4><p class="bc-muted">O valor base é usado apenas quando uma linha não explicita o cenário conservador ou favorável.</p></div></div>${scenarioTable()}</section><section class="bc-card"><div class="card-head"><div><h4>Economia comparada das alternativas</h4><p class="bc-muted">Custo total, recursos, benefício provável e retorno calculados sob o mesmo horizonte.</p></div><span class="pill">${state.alternative_comparison?.complete_profile_count || 0}/${state.alternative_comparison?.profiles?.length || 0} completos</span></div>${alternativeTable()}</section><section class="bc-card"><div class="card-head"><div><h4>Livro económico e de recursos</h4><p class="bc-muted">Uma linha pode representar dinheiro, esforço humano, materiais, equipamento ou valor não monetizado.</p></div><span class="pill">${state.mission_item_count || 0} missão · ${state.alternative_item_count || 0} alternativas</span></div>${itemForm()}<div style="margin-top:16px">${lineRows()}</div></section><section class="bc-card"><div class="bc-quality"><div class="bc-quality-score" style="--score:${Number(quality.overall_score || 0)}"><strong>${number(quality.overall_score || 0, 0)}%</strong><span>qualidade</span></div><div><h4>Qualidade dos dados económicos da missão</h4><p>Confiança declarada ${number(quality.confidence_score || 0, 0)}% · origem ${number(quality.source_coverage_pct || 0, 0)}% · evidência ${number(quality.evidence_coverage_pct || 0, 0)}%.</p><p class="bc-muted">A pontuação mede completude e rastreabilidade; não transforma estimativas em factos.</p></div></div></section>${reviewCard()}<section class="bc-card"><h4>Histórico económico preservado</h4><div class="bc-history">${history}</div></section>` : ""}
@@ -367,6 +400,27 @@
     render();
     setStatus(message, "success");
     document.dispatchEvent(new CustomEvent("sris:business-case-updated", { detail: state }));
+  }
+
+  function applyGovernedPrefill() {
+    const form = document.querySelector("#bc-case-form");
+    const fields = state?.governed_prefill?.fields || {};
+    if (!form) return;
+    let applied = 0;
+    Object.entries(fields).forEach(([name, proposal]) => {
+      const control = form.elements.namedItem(name);
+      const value = proposal?.value;
+      if (!control || value === null || value === undefined || value === "") return;
+      if (String(control.value || "").trim()) return;
+      control.value = /_date$/.test(name) ? String(value).slice(0, 10) : String(value);
+      applied += 1;
+    });
+    setStatus(
+      applied
+        ? `${applied} proposta${applied === 1 ? "" : "s"} aplicada${applied === 1 ? "" : "s"} ao formulário. Reveja antes de guardar; nada foi persistido.`
+        : "Não existem novas propostas governadas para aplicar. Complete os campos em falta com fontes e pressupostos explícitos.",
+      applied ? "warning" : "",
+    );
   }
 
   async function load(code) {
@@ -453,6 +507,10 @@
   });
 
   document.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-bc-apply-prefill]")) {
+      applyGovernedPrefill();
+      return;
+    }
     const edit = event.target.closest("[data-bc-edit]");
     if (edit) {
       editingItemId = edit.dataset.bcEdit;
@@ -506,6 +564,10 @@
     if (currentMissionCode && document.querySelector(`#mission-tab-${TAB}`)?.classList.contains("active")) {
       void load(currentMissionCode);
     }
+  });
+
+  document.addEventListener("sris:validation-updated", () => {
+    if (currentMissionCode) void load(currentMissionCode);
   });
 
   document.addEventListener("click", (event) => {

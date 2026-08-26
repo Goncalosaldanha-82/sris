@@ -21,6 +21,7 @@ from app.evidence_graph import (
     _mission,
     _upsert_node,
 )
+from app.mission_intelligence.models import CanonicalMission
 from app.pilot_business_case import alternative_economic_comparison
 from app.pilot_serialization import as_iso
 
@@ -98,6 +99,31 @@ DEFAULT_WEIGHTS = {
     "guest_experience": 20,
     "evidence_robustness": 15,
 }
+
+
+def _criteria_for_mission(mission) -> list[dict]:
+    """Keep the stable storage key while presenting a mission-appropriate label."""
+
+    try:
+        document = json.loads(mission.document_json or "{}")
+    except (TypeError, ValueError):
+        document = {}
+    profile = str((document.get("metadata") or {}).get("validation_profile") or "")
+    domain = str(getattr(mission, "domain", "") or "").casefold()
+    tourism_specific = profile == "tourism_advance_resource_efficiency" or any(
+        token in domain for token in ("tourism", "turismo", "hospitality", "hotel")
+    )
+    criteria = [dict(item) for item in CRITERIA]
+    if not tourism_specific:
+        stakeholder = next(item for item in criteria if item["key"] == "guest_experience")
+        stakeholder.update(
+            label="Impacto no utilizador / beneficiário",
+            description=(
+                "Efeito previsível nas pessoas, entidades ou comunidades que recebem o resultado."
+            ),
+            scale_hint="1 = impacto muito negativo · 5 = impacto muito positivo",
+        )
+    return criteria
 
 
 class CriterionAssessment(BaseModel):
@@ -568,13 +594,62 @@ def matrix_readiness(
         score_keys = {item["criterion"] for item in evaluation["scores"] if str(item["rationale"] or "").strip()}
         if evaluation["alternative_node_id"] in active_alternatives and score_keys == set(CRITERION_KEYS):
             complete += 1
+    from app.pilot_mission_state import mission_axis_policy
+
+    mission = db.query(CanonicalMission).filter(
+        CanonicalMission.organization_id == organization_id,
+        CanonicalMission.id == mission_id,
+    ).one()
+    policy = mission_axis_policy(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
+        mission_code=mission.code,
+    )
+    economics = alternative_economic_comparison(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
+    )
+    economic_applicability = policy.get("economics_applicability", "required")
+    economic_required_now = economic_applicability == "required" or (
+        economic_applicability == "optional" and economics["configured"]
+    )
+    economic_current = bool(
+        economics["configured"]
+        and matrix.get("business_case_content_hash")
+        and matrix["business_case_content_hash"] == economics["business_case_content_hash"]
+    )
+    economic_complete = bool(
+        economics["complete_profile_count"] >= len(active_alternatives)
+        and len(active_alternatives) >= 2
+    )
+    economic_passed = (
+        True
+        if economic_applicability == "not_applicable"
+        else economic_current and economic_complete
+        if economic_required_now
+        else True
+    )
+    structurally_ready = bool(
+        matrix["integrity_verified"]
+        and weights_valid
+        and complete >= 2
+        and economic_passed
+    )
     return {
-        "passed": matrix["integrity_verified"] and weights_valid and complete >= 2,
+        "passed": structurally_ready and matrix["status"] == "reviewed",
+        "ready_for_review": structurally_ready,
+        "reviewed": matrix["status"] == "reviewed",
         "count": complete,
         "matrix_id": matrix["id"],
         "revision": matrix["revision"],
         "status": matrix["status"],
         "integrity_verified": matrix["integrity_verified"],
+        "economic_applicability": economic_applicability,
+        "economic_passed": economic_passed,
+        "economic_current": economic_current,
+        "economic_complete_profile_count": economics["complete_profile_count"],
     }
 
 
@@ -636,12 +711,33 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
         organization_id=organization_id,
         mission_id=mission.id,
     )
+    from app.pilot_mission_state import mission_axis_policy
+
+    mission_policy = mission_axis_policy(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+    )
     if not economics["configured"]:
-        economic_alignment = {
-            "status": "not_applicable",
-            "up_to_date": True,
-            "message": "O business case vivo ainda não foi iniciado nesta missão.",
-        }
+        applicability = mission_policy.get("economics_applicability", "required")
+        economic_alignment = (
+            {
+                "status": "not_applicable",
+                "up_to_date": True,
+                "message": "A inaplicabilidade económica foi explicitamente revista para esta missão.",
+            }
+            if applicability == "not_applicable"
+            else {
+                "status": "required_missing" if applicability == "required" else "not_started",
+                "up_to_date": False,
+                "message": (
+                    "O business case é obrigatório e ainda não foi iniciado; a dimensão Custo não está fundamentada."
+                    if applicability == "required"
+                    else "O business case opcional ainda não foi iniciado nesta missão."
+                ),
+            }
+        )
     elif matrix is None:
         economic_alignment = {
             "status": "not_saved",
@@ -667,7 +763,7 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
     return {
         "mission_id": mission.id,
         "mission_code": mission.code,
-        "criteria": CRITERIA,
+        "criteria": _criteria_for_mission(mission),
         "default_weights": DEFAULT_WEIGHTS,
         "alternatives": alternatives,
         "evidence": evidence,
@@ -1037,8 +1133,13 @@ def review_matrix(
         organization_id=membership.organization_id,
         mission_id=mission.id,
     )
-    if not readiness["passed"]:
-        raise HTTPException(status_code=409, detail="A revisão exige pelo menos duas alternativas avaliadas nos seis critérios.")
+    if not readiness.get("ready_for_review", readiness["passed"]):
+        detail = (
+            "Complete e alinhe os perfis económicos de todas as alternativas antes da revisão."
+            if not readiness.get("economic_passed", True)
+            else "A revisão exige pelo menos duas alternativas avaliadas nos seis critérios."
+        )
+        raise HTTPException(status_code=409, detail=detail)
     now = datetime.now(timezone.utc)
     db.execute(
         text("""
@@ -1066,6 +1167,19 @@ def review_matrix(
             "revision": int(latest["revision"]),
             "content_hash": latest["content_hash"],
         },
+    )
+    from app.pilot_mission_state import record_module_review
+
+    record_module_review(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+        module_key="comparison",
+        module_revision=int(latest["revision"]),
+        module_content_hash=str(latest["content_hash"]),
+        rationale="Matriz multicritério revista por uma pessoa sobre as revisões governadas registadas.",
+        user_id=user.id,
     )
     db.commit()
     return _response(db, organization_id=membership.organization_id, mission=mission)

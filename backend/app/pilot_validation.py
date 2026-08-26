@@ -1101,5 +1101,18 @@ def review_validation(
         event_type="attribution_reviewed",
         user_id=user.id,
     )
+    from app.pilot_mission_state import record_module_review
+
+    record_module_review(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+        module_key="validation",
+        module_revision=None,
+        module_content_hash=None,
+        rationale=payload.review_rationale.strip(),
+        user_id=user.id,
+    )
     db.commit()
     return _aggregate(db, organization_id=membership.organization_id, mission=mission)

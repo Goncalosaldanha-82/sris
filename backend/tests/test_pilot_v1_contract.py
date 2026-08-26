@@ -10,6 +10,11 @@ from PIL import Image
 from app.atlas_platform.config import Settings, configured_database_url, validate_security_settings
 from app.main import app
 from app.pilot_capabilities import PILOT_BUILD
+from app.pilot_mission_state import (
+    MODULE_LABELS,
+    REVIEW_UPSTREAMS,
+    _review_bundle,
+)
 
 
 client = TestClient(app)
@@ -17,6 +22,68 @@ client = TestClient(app)
 
 def auth_headers(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}
+
+
+def test_human_review_invalidation_cascades_across_module_views() -> None:
+    hashes = {key: f"{key}-hash-v1" for key in MODULE_LABELS}
+    hashes.update(
+        governance_policy="policy-hash-v1",
+        decision_evidence="decision-evidence-hash-v1",
+    )
+    applicability = {key: "required" for key in MODULE_LABELS}
+    applicability["intelligence"] = "optional"
+    reviews: dict[str, dict] = {}
+
+    def bind_review(module_key: str, dependency_hashes: dict[str, str | None]) -> None:
+        reviews[module_key] = {
+            "module_key": module_key,
+            "module_content_hash": hashes[module_key],
+            "upstream_hashes_json": {
+                key: dependency_hashes.get(key)
+                for key in REVIEW_UPSTREAMS[module_key]
+            },
+            "reviewed_at": "2026-08-26T12:00:00Z",
+            "created_at": "2026-08-26T12:00:00Z",
+            "reviewed_by_user_id": "human-reviewer",
+            "rationale": "Revisão humana ligada ao estado transversal corrente.",
+        }
+
+    _statuses, dependency_hashes = _review_bundle(
+        module_hashes=hashes,
+        reviews=reviews,
+        applicability=applicability,
+    )
+    bind_review("validation", dependency_hashes)
+    _statuses, dependency_hashes = _review_bundle(
+        module_hashes=hashes,
+        reviews=reviews,
+        applicability=applicability,
+    )
+    bind_review("economics", dependency_hashes)
+    _statuses, dependency_hashes = _review_bundle(
+        module_hashes=hashes,
+        reviews=reviews,
+        applicability=applicability,
+    )
+    bind_review("comparison", dependency_hashes)
+    statuses, _dependency_hashes = _review_bundle(
+        module_hashes=hashes,
+        reviews=reviews,
+        applicability=applicability,
+    )
+    assert statuses["validation"]["status"] == "current"
+    assert statuses["economics"]["status"] == "current"
+    assert statuses["comparison"]["status"] == "current"
+
+    hashes["validation"] = "validation-hash-v2"
+    statuses, _dependency_hashes = _review_bundle(
+        module_hashes=hashes,
+        reviews=reviews,
+        applicability=applicability,
+    )
+    assert statuses["validation"]["status"] == "stale"
+    assert statuses["economics"]["status"] == "stale"
+    assert statuses["comparison"]["status"] == "stale"
 
 
 def test_railway_database_fallback_and_sqlite_guard(monkeypatch) -> None:
@@ -86,6 +153,7 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
     assets = (
         "/app.js",
         "/mission-workspace-v2.js",
+        "/mission-state-v1.js",
         "/evidence-graph.js",
         "/validation-protocol.js",
         "/alternative-matrix-v1.js",
@@ -171,6 +239,10 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert payload["scenario_financial_analysis"] is True
     assert payload["human_financial_material_resource_tracking"] is True
     assert payload["post_mission_lifecycle_costs"] is True
+    assert payload["governed_mission_state"] is True
+    assert payload["cross_module_dependencies"] is True
+    assert payload["cross_module_conflict_detection"] is True
+    assert payload["human_governed_ai_context"] is True
     assert payload["billing_mode"] == "disabled"
     public_status = client.get("/api/mission-intelligence/status")
     assert public_status.status_code == 200
@@ -202,6 +274,7 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     validation = client.get("/validation-protocol.js")
     comparison = client.get("/alternative-matrix-v1.js")
     business_case = client.get("/business-case-v1.js")
+    mission_state = client.get("/mission-state-v1.js")
     decision = client.get("/decision-cycle-v1.js")
     workspace = client.get("/mission-workspace-v2.js")
     assert "window.fetch=" not in learning.text
@@ -218,7 +291,7 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "Custo" in comparison.text
     assert "Risco" in comparison.text
     assert "Reversibilidade" in comparison.text
-    assert "Experiência do hóspede" in comparison.text
+    assert "Impacto no utilizador / beneficiário" in comparison.text
     assert "Robustez da evidência" in comparison.text
     assert "sris:alternative-matrix-updated" in comparison.text
     assert "button.dataset.missionTab = TAB" in comparison.text
@@ -233,10 +306,19 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "Confirmar revisão humana" in business_case.text
     assert "sris:business-case-updated" in business_case.text
     assert "window.fetch=" not in business_case.text
+    assert mission_state.status_code == 200
+    assert "ESTADO GOVERNADO ÚNICO" in mission_state.text
+    assert "IA como suporte governado" in mission_state.text
+    assert "não transforma inferência em evidência" in mission_state.text
+    assert "memory:'memory',intelligence:'intelligence'" in mission_state.text
+    assert "sris:memory-updated" in mission_state.text
     assert "MutationObserver" not in decision.text
     assert "sris:evidence-graph-updated" in decision.text
     assert "model_or_system" not in workspace.text
     assert "credit_eur" not in workspace.text
+    assert "sris:memory-updated" in workspace.text
+    assert "janela citada do mesmo estado governado" in workspace.text
+    assert "sris:mission-state-updated" in workspace.text
 
 
 def test_pilot_openapi_exposes_the_operational_scope() -> None:
@@ -277,6 +359,9 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/business-cases/missions/{mission_code}/items",
         "/api/pilot/business-cases/missions/{mission_code}/items/{item_id}",
         "/api/pilot/business-cases/missions/{mission_code}/review",
+        "/api/pilot/mission-state/missions/{mission_code}",
+        "/api/pilot/mission-state/missions/{mission_code}/ai-context",
+        "/api/pilot/mission-state/missions/{mission_code}/policy",
         "/api/pilot/learning/missions/{mission_code}/candidates",
         "/api/pilot/learning/missions/{mission_code}/active-context",
         "/api/pilot/workspace-summary",
@@ -365,6 +450,37 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert mission.status_code == 201, mission.text
     mission_payload = mission.json()
+
+    governance = client.put(
+        f"/api/pilot/mission-state/missions/{mission_payload['code']}/policy",
+        headers=headers,
+        json={
+            "expected_revision": 0,
+            "alternatives_applicability": "required",
+            "economics_applicability": "not_applicable",
+            "measurement_applicability": "optional",
+            "rationale": (
+                "Este percurso testa persistência técnica e não produz um efeito "
+                "económico atribuível; a exceção é limitada a esta missão de teste."
+            ),
+        },
+    )
+    assert governance.status_code == 200, governance.text
+    assert governance.json()["policy"]["source"] == "human_reviewed_override"
+    assert governance.json()["policy"]["economics_applicability"] == "not_applicable"
+    stale_governance = client.put(
+        f"/api/pilot/mission-state/missions/{mission_payload['code']}/policy",
+        headers=headers,
+        json={
+            "expected_revision": 0,
+            "alternatives_applicability": "required",
+            "economics_applicability": "required",
+            "measurement_applicability": "optional",
+            "rationale": "Tentativa concorrente sobre uma revisão já substituída.",
+        },
+    )
+    assert stale_governance.status_code == 409, stale_governance.text
+    assert stale_governance.json()["detail"]["code"] == "mission_governance_revision_conflict"
 
     uploaded = client.post(
         f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['code']}/attachments",
@@ -786,7 +902,8 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert first_matrix_payload["matrix"]["status"] == "draft"
     assert len(first_matrix_payload["matrix"]["content_hash"]) == 64
     assert first_matrix_payload["matrix"]["integrity_verified"] is True
-    assert first_matrix_payload["readiness"]["passed"] is True
+    assert first_matrix_payload["readiness"]["passed"] is False
+    assert first_matrix_payload["readiness"]["ready_for_review"] is True
     assert first_matrix_payload["readiness"]["count"] == 2
     assert first_matrix_payload["ranking"][0]["alternative_node_id"] == second_active_id
     assert first_matrix_payload["ranking"][0]["weighted_score"] == 86.0
@@ -796,6 +913,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     first_review = client.post(f"{matrix_url}/review", headers=headers)
     assert first_review.status_code == 200, first_review.text
     assert first_review.json()["matrix"]["status"] == "reviewed"
+    assert first_review.json()["readiness"]["passed"] is True
     assert first_review.json()["matrix"]["reviewed_by_user_id"] == profile.json()["user"]["id"]
 
     revised_matrix = json.loads(json.dumps(valid_matrix))
@@ -854,6 +972,8 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert decision.status_code == 201, decision.text
+    assert decision.json()["decision_snapshot"]["mission_content_hash"] == mission_payload["content_hash"]
+    assert len(decision.json()["decision_snapshot"]["mission_governance_hash"]) == 64
     # The exact value comes from the source document's original filename. In
     # staging this resolves, for example, to
     # "MIS-002 — Resultado de consumo de água — dados demonstrativos.pdf".
@@ -867,6 +987,51 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert listed_decisions.status_code == 200, listed_decisions.text
     assert listed_decisions.json()[0]["evidence_label"] == expected_foundation_title
+    skipped_governance = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={"status": "completed"},
+    )
+    assert skipped_governance.status_code == 409, skipped_governance.text
+    assert "proposta → compromisso → execução → conclusão" in skipped_governance.json()["detail"]
+    committed_cycle = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={
+            "status": "committed",
+            "action": "Reabrir a missão depois de uma nova autenticação.",
+            "expected_outcome": "A missão reaparece com o mesmo contexto.",
+        },
+    )
+    assert committed_cycle.status_code == 200, committed_cycle.text
+    assert committed_cycle.json()["status"] == "committed"
+    in_progress_cycle = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={
+            "status": "in_progress",
+            "action": "Reabrir a missão depois de uma nova autenticação.",
+            "owner": "Pilot Journey",
+            "due_date": "2026-09-01",
+            "action_started_at": "2026-08-20",
+            "expected_outcome": "A missão reaparece com o mesmo contexto.",
+        },
+    )
+    assert in_progress_cycle.status_code == 200, in_progress_cycle.text
+    assert in_progress_cycle.json()["status"] == "in_progress"
+
+    result_evidence = client.post(
+        f"{graph_base}/nodes",
+        headers=headers,
+        json={
+            "node_type": "evidence",
+            "label": "Verificação posterior da persistência",
+            "body": "Observação humana posterior à ação: missão, documento e grafo reapareceram.",
+            "status": "proposed",
+            "provenance": {"human_authored": True, "observed_after_action": True},
+        },
+    )
+    assert result_evidence.status_code == 201, result_evidence.text
     completed_cycle = client.patch(
         f"/api/pilot/decision-cycles/{decision.json()['id']}",
         headers=headers,
@@ -875,8 +1040,11 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
             "action": "Reabrir a missão depois de uma nova autenticação.",
             "owner": "Pilot Journey",
             "due_date": "2026-09-01",
+            "action_started_at": "2026-08-20",
             "expected_outcome": "A missão reaparece com o mesmo contexto.",
             "actual_outcome": "A missão, o documento e o grafo reapareceram.",
+            "actual_outcome_at": "2026-08-25",
+            "outcome_evidence_node_id": result_evidence.json()["id"],
             "learning": "A continuidade deve ser validada pelo estado persistente e não pelo ecrã.",
         },
     )
@@ -888,6 +1056,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert materialized.status_code == 201, materialized.text
     assert materialized.json()["decision_node_id"] != evidence.json()["id"]
+    assert materialized.json()["action_node_id"]
     learning_node_id = materialized.json()["learning_node_id"]
     lineage_graph = client.get(graph_base, headers=headers)
     assert lineage_graph.status_code == 200, lineage_graph.text
@@ -899,6 +1068,12 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         edge["from_node_id"] == evidence.json()["id"]
         and edge["to_node_id"] == materialized.json()["decision_node_id"]
         and edge["edge_type"] == "informs"
+        for edge in lineage_graph.json()["edges"]
+    )
+    assert any(
+        edge["from_node_id"] == result_evidence.json()["id"]
+        and edge["to_node_id"] == materialized.json()["outcome_node_id"]
+        and edge["edge_type"] == "validates"
         for edge in lineage_graph.json()["edges"]
     )
     accepted = client.patch(
@@ -933,6 +1108,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert any(item["item_type"] == "evidence" for item in memory_items)
     assert any(item["item_type"] == "hypothesis" for item in memory_items)
     assert any(item["item_type"] == "decision" for item in memory_items)
+    assert any(item["item_type"] == "execution" for item in memory_items)
     assert any(item["item_type"] == "outcome" for item in memory_items)
     published_memory = next(
         item for item in memory_items if item["item_type"] == "learning"
@@ -944,10 +1120,63 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     memory_status = client.get(f"{memory_base}/status", headers=headers)
     assert memory_status.status_code == 200, memory_status.text
     assert memory_status.json()["assets"] >= 1
+    state_before_noop_sync = client.get(
+        f"/api/pilot/mission-state/missions/{mission_payload['code']}",
+        headers=headers,
+    )
+    assert state_before_noop_sync.status_code == 200, state_before_noop_sync.text
     repeated_memory_sync = client.post(f"{memory_base}/sync", headers=headers)
     assert repeated_memory_sync.status_code == 200, repeated_memory_sync.text
     assert repeated_memory_sync.json()["created"] == 0
     assert repeated_memory_sync.json()["assets_created"] == 0
+
+    governed_state = client.get(
+        f"/api/pilot/mission-state/missions/{mission_payload['code']}",
+        headers=headers,
+    )
+    assert governed_state.status_code == 200, governed_state.text
+    governed_payload = governed_state.json()
+    assert governed_payload["schema"] == "sris.governed-mission-state.v1"
+    assert governed_payload["state_hash"] == state_before_noop_sync.json()["state_hash"]
+    assert governed_payload["health"]["status"] == "governed"
+    assert governed_payload["health"]["critical_conflicts"] == 0
+    assert governed_payload["conflicts"] == []
+    assert {item["key"] for item in governed_payload["modules"]} >= {
+        "mission", "documents", "evidence", "comparison", "economics",
+        "validation", "decision", "action", "outcome", "learning", "memory",
+    }
+    governed_ai = client.get(
+        f"/api/pilot/mission-state/missions/{mission_payload['code']}/ai-context",
+        headers=headers,
+    )
+    assert governed_ai.status_code == 200, governed_ai.text
+    ai_payload = governed_ai.json()
+    assert ai_payload["schema"] == "sris.governed-ai-context.v1"
+    assert ai_payload["state_hash"] == governed_payload["state_hash"]
+    assert ai_payload["boundary"]["role"] == "assistive_only"
+    assert ai_payload["boundary"]["human_review_required"] is True
+    assert ai_payload["boundary"]["canonical_mutation"] == "prohibited_without_explicit_human_promotion"
+    assert any(item.startswith("DOC:") for item in ai_payload["citation_ids"])
+    assert any(item.startswith("GRAPH:") for item in ai_payload["citation_ids"])
+    assert any(item.startswith("MATRIX:") for item in ai_payload["citation_ids"])
+    assert any(item.startswith("CYCLE:") for item in ai_payload["citation_ids"])
+    assert any(item.startswith("LEARNING:") for item in ai_payload["citation_ids"])
+    assert any(item.startswith("MEMORY:") for item in ai_payload["citation_ids"])
+    governed_objects = {
+        item["citation_id"]: item for item in ai_payload["objects"]
+    }
+    foundation_object = governed_objects[f"GRAPH:{evidence.json()['id']}"]
+    assert foundation_object["attachment_id"] == attachment["id"]
+    assert foundation_object["source_sha256"] == attachment["sha256"]
+    assert foundation_object["source_integrity_verified"] is True
+    assert foundation_object["factual_validation"] == "not_assessed"
+    assert governed_objects[
+        f"GRAPH:{materialized.json()['action_node_id']}"
+    ]["module"] == "action"
+    assert governed_objects[
+        f"GRAPH:{materialized.json()['outcome_node_id']}"
+    ]["module"] == "outcome"
+    assert governed_objects[f"MEMORY:{published_memory['id']}"]["module"] == "memory"
 
     readiness = client.get(
         f"/api/pilot/missions/{mission_payload['code']}/completion-readiness",
@@ -968,6 +1197,13 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert completed_mission.status_code == 200, completed_mission.text
     assert completed_mission.json()["lifecycle_state"] == "completed"
+    completed_state = client.get(
+        f"/api/pilot/mission-state/missions/{mission_payload['code']}",
+        headers=headers,
+    )
+    assert completed_state.status_code == 200, completed_state.text
+    assert completed_state.json()["health"]["status"] == "governed"
+    assert completed_state.json()["health"]["stale_modules"] == []
 
     sub_mission = client.post(
         f"/api/organizations/{organization_id}/mission-intelligence/missions",

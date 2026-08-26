@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260824-source-integrity-v6';
+  const BUILD='20260826-governed-mission-state-v22';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;
@@ -25,6 +25,13 @@
     abandoned:'Abandonada',
   };
   const statusOrder=['proposed','committed','in_progress','completed'];
+  const allowedStatusTransitions={
+    proposed:['proposed','committed','abandoned'],
+    committed:['committed','in_progress','abandoned'],
+    in_progress:['in_progress','completed','abandoned'],
+    completed:['completed'],
+    abandoned:['abandoned'],
+  };
   let installed=false;
   let loading=false;
   let rows=[];
@@ -324,14 +331,17 @@
   function renderCard(row){
     const due=dueInfo(row.due_date,row.status);
     const quality=qualityScore(row);
-    const ready=row.status==='completed'&&Boolean((row.actual_outcome||'').trim())&&Boolean((row.learning||'').trim());
+    const ready=row.status==='completed'&&Boolean((row.actual_outcome||'').trim())&&Boolean((row.learning||'').trim())&&Boolean(row.action_started_at)&&Boolean(row.actual_outcome_at)&&Boolean(row.outcome_evidence_node_id);
+    const materialized=Boolean(row.action_node_id||row.graph_nodes?.action_node_id);
     const learningNotice=ready
-      ? '<div class="dc1-learning">O ciclo está completo. Envie a aprendizagem para revisão no Evidence Graph; só depois poderá ser publicada na memória organizacional.</div>'
+      ? `<div class="dc1-learning">${materialized?'A cadeia Decisão → Ação → Resultado → Aprendizagem já está materializada. Reveja agora a aprendizagem no grafo.':'O ciclo tem cronologia e evidência. Materialize a cadeia antes da revisão da aprendizagem.'}</div>`
       : row.status==='completed'&&!row.learning
         ? '<div class="dc1-learning warn">O resultado está concluído, mas falta explicitar a aprendizagem antes de a enviar para revisão.</div>'
         : '';
     const foundationLabel=row.evidence_label
       ||(row.evidence_node_id?`Evidência indisponível · ${String(row.evidence_node_id).slice(0,12)}…`:"");
+    const outcomeFoundationLabel=row.outcome_evidence_label
+      ||(row.outcome_evidence_node_id?`Evidência indisponível · ${String(row.outcome_evidence_node_id).slice(0,12)}…`:"");
     return `<article class="dc1-card" data-cycle="${esc(row.id)}" data-overdue="${due.overdue?'true':'false'}">
       <div class="dc1-head">
         <div class="dc1-title"><div class="eyebrow">DECISÃO</div><strong>${esc(row.decision)}</strong></div>
@@ -341,24 +351,29 @@
       <div class="dc1-grid">
         ${summaryField('Fundamento',foundationLabel,'Ainda não associado')}
         ${summaryField('Ação',row.action,'Ainda não definida')}
+        ${summaryField('Início real da ação',row.action_started_at?formatDate(row.action_started_at):'','Ainda não registado')}
         ${summaryField('Responsável / prazo',[row.owner,row.due_date?formatDate(row.due_date):null].filter(Boolean).join(' · '),'Ainda não definidos')}
         ${summaryField('Resultado esperado',row.expected_outcome,'Ainda não definido')}
         ${summaryField('Resultado observado',row.actual_outcome,'Ainda não registado')}
+        ${summaryField('Data / evidência do resultado',[row.actual_outcome_at?formatDate(row.actual_outcome_at):null,outcomeFoundationLabel].filter(Boolean).join(' · '),'Ainda não comprovado')}
       </div>
       <div class="dc1-quality"><span>Completude operacional</span><div class="dc1-quality-track"><i style="width:${quality.percent}%"></i></div><b>${quality.complete}/${quality.total}</b></div>
       <details class="dc1-edit" ${row.status==='proposed'?'open':''}>
         <summary>Atualizar decisão e execução</summary>
         <div class="dc1-edit-body">
           <div class="dc1-form-grid">
-            <div class="field"><label>Estado</label><select data-f="status">${statusOptions(row.status)}</select></div>
+            <div class="field"><label>Estado</label><select data-f="status" ${['completed','abandoned'].includes(row.status)?'disabled':''}>${statusOptions(row.status)}</select><div class="note">Sequência governada: proposta → decidida → execução → concluída.</div></div>
             <div class="field"><label>Responsável</label><input data-f="owner" maxlength="200" value="${esc(row.owner||'')}"></div>
             <div class="field"><label>Prazo</label><input data-f="due_date" type="date" value="${esc(row.due_date||'')}"></div>
+            <div class="field"><label>Início real da ação</label><input data-f="action_started_at" type="date" value="${esc(row.action_started_at||'')}"></div>
+            <div class="field"><label>Data do resultado observado</label><input data-f="actual_outcome_at" type="date" value="${esc(row.actual_outcome_at||'')}"></div>
+            <div class="field"><label>Evidência do resultado</label><select data-f="outcome_evidence_node_id">${evidenceOptions(row.outcome_evidence_node_id||'',row.evidence_node_id||'')}</select><div class="note">Tem de observar o efeito depois da ação; não pode ser o fundamento anterior da decisão.</div></div>
           </div>
           <div class="field"><label>Ação executada / próxima ação</label><textarea data-f="action" maxlength="5000">${esc(row.action||'')}</textarea></div>
           <div class="field"><label>Resultado esperado</label><textarea data-f="expected_outcome" maxlength="5000">${esc(row.expected_outcome||'')}</textarea></div>
           <div class="field"><label>Resultado observado</label><textarea data-f="actual_outcome" maxlength="8000" placeholder="Registe o que aconteceu, incluindo efeitos não previstos.">${esc(row.actual_outcome||'')}</textarea></div>
           <div class="field"><label>Aprendizagem</label><textarea data-f="learning" maxlength="8000" placeholder="O que deve ser preservado, revisto ou não repetido numa missão futura?">${esc(row.learning||'')}</textarea></div>
-          <div class="dc1-actions"><button class="btn btn-primary" type="button" data-dc-save="${esc(row.id)}">Guardar evolução</button>${ready?`<button class="btn btn-secondary" type="button" data-dc-materialize="${esc(row.id)}">Enviar aprendizagem para revisão</button>`:''}</div>
+          <div class="dc1-actions"><button class="btn btn-primary" type="button" data-dc-save="${esc(row.id)}">Guardar evolução</button>${ready&&!materialized?`<button class="btn btn-secondary" type="button" data-dc-materialize="${esc(row.id)}">Materializar cadeia e enviar aprendizagem</button>`:''}</div>
           <div class="dc1-inline" role="status" aria-live="polite"></div>
         </div>
       </details>
@@ -380,18 +395,22 @@
   }
 
   function statusOptions(selected){
-    return Object.entries(statusLabels).map(([value,label])=>`<option value="${value}" ${selected===value?'selected':''}>${label}</option>`).join('');
+    return (allowedStatusTransitions[selected]||[selected]).map(value=>`<option value="${value}" ${selected===value?'selected':''}>${statusLabels[value]||value}</option>`).join('');
+  }
+
+  function evidenceOptions(selected='',decisionFoundation=''){
+    return `<option value="">${evidenceNodes.length?'Escolha evidência posterior à ação…':'Registe evidência primeiro'}</option>${evidenceNodes.map(node=>`<option value="${esc(node.id)}" ${selected===node.id?'selected':''} ${decisionFoundation===node.id?'disabled':''}>${esc((node.label||'Evidência').slice(0,100))} · ${decisionFoundation===node.id?'fundamento da decisão':esc(node.status||'proposta')}</option>`).join('')}`;
   }
 
   function qualityScore(row){
-    const values=[row.evidence_node_id,row.action,row.owner,row.due_date,row.expected_outcome,row.actual_outcome,row.learning];
+    const values=[row.evidence_node_id,row.action,row.owner,row.due_date,row.expected_outcome,row.action_started_at,row.actual_outcome,row.actual_outcome_at,row.outcome_evidence_node_id,row.learning];
     return {complete:values.filter(v=>String(v||'').trim()).length,total:values.length,percent:Math.round(values.filter(v=>String(v||'').trim()).length/values.length*100)};
   }
 
   function needsAttention(row){
     if(row.status==='abandoned')return false;
-    if(['committed','in_progress'].includes(row.status)&&(!row.evidence_node_id||!row.action||!row.owner||!row.expected_outcome))return true;
-    if(row.status==='completed'&&(!row.actual_outcome||!row.learning))return true;
+    if(['committed','in_progress'].includes(row.status)&&(!row.evidence_node_id||!row.action||!row.owner||!row.expected_outcome||!row.action_started_at))return true;
+    if(row.status==='completed'&&(!row.actual_outcome||!row.actual_outcome_at||!row.outcome_evidence_node_id||!row.learning))return true;
     return false;
   }
 
@@ -413,6 +432,7 @@
   function collect(card){
     const payload={};
     $$('[data-f]',card).forEach(field=>payload[field.dataset.f]=field.value||null);
+    if(!Object.prototype.hasOwnProperty.call(payload,'status'))payload.status=card.querySelector('.dc1-status')?.dataset.status||null;
     return payload;
   }
 
@@ -421,8 +441,14 @@
     if(['committed','in_progress','completed'].includes(status)&&!String(payload.action||'').trim())return 'Defina a ação antes de avançar o estado da decisão.';
     if(['in_progress','completed'].includes(status)&&!String(payload.owner||'').trim())return 'Identifique o responsável antes de iniciar ou concluir a execução.';
     if(['in_progress','completed'].includes(status)&&!payload.due_date)return 'Defina o prazo antes de iniciar ou concluir a execução.';
+    if(['in_progress','completed'].includes(status)&&!payload.action_started_at)return 'Registe a data real de início da ação.';
     if(['committed','in_progress','completed'].includes(status)&&!String(payload.expected_outcome||'').trim())return 'Defina o resultado esperado para que a decisão possa ser avaliada.';
     if(status==='completed'&&!String(payload.actual_outcome||'').trim())return 'Registe o resultado observado antes de concluir a decisão.';
+    if(status==='completed'&&!payload.actual_outcome_at)return 'Registe a data do resultado observado.';
+    if(status==='completed'&&!payload.outcome_evidence_node_id)return 'Associe evidência própria ao resultado observado.';
+    const cardFoundation=payload._decision_evidence_node_id;
+    if(status==='completed'&&cardFoundation&&payload.outcome_evidence_node_id===cardFoundation)return 'A evidência do resultado tem de ser distinta do fundamento da decisão.';
+    if(status==='completed'&&payload.actual_outcome_at<payload.action_started_at)return 'O resultado observado não pode anteceder o início da ação.';
     if(status==='completed'&&!String(payload.learning||'').trim())return 'Registe a aprendizagem antes de concluir a decisão.';
     return '';
   }
@@ -431,8 +457,10 @@
     const card=$$('[data-cycle]').find(x=>x.dataset.cycle===id);
     if(!card)return;
     const payload=collect(card);
+    payload._decision_evidence_node_id=rows.find(row=>row.id===id)?.evidence_node_id||null;
     const validation=validateUpdate(payload);
     if(validation){inline(card,validation,'error');return;}
+    delete payload._decision_evidence_node_id;
     const button=$('[data-dc-save]',card);
     button?.classList.add('loading');
     inline(card,'A guardar a evolução…');
@@ -489,6 +517,7 @@
     if(graph){
       evidenceNodes=(graph.nodes||[]).filter(node=>node.node_type==='evidence'&&!['rejected','superseded'].includes(node.status));
       renderEvidenceOptions();
+      if(rows.length)render();
     }
     if(!graph?.nodes?.length)return;
     $$('.eg-node[data-type="learning"]').forEach(card=>{

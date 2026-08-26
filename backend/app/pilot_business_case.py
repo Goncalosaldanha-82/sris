@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
@@ -1307,6 +1307,84 @@ def alternative_economic_comparison(
     return _alternative_comparison(case, all_items, alternatives)
 
 
+def _governed_prefill(db: Session, mission) -> dict:
+    """Offer traceable proposals; never persist inferred economics automatically."""
+
+    document = json.loads(mission.document_json or "{}")
+    metadata = document.get("metadata") or {}
+    protocol = None
+    measurements: dict[str, dict] = {}
+    inspector = inspect(db.get_bind())
+    if inspector.has_table("pilot_validation_protocols"):
+        protocol = db.execute(
+            text(
+                """
+                SELECT * FROM pilot_validation_protocols
+                WHERE organization_id=:org AND mission_id=:mission
+                """
+            ),
+            {"org": mission.organization_id, "mission": mission.id},
+        ).mappings().first()
+    if inspector.has_table("pilot_validation_measurements"):
+        rows = db.execute(
+            text(
+                """
+                SELECT * FROM pilot_validation_measurements
+                WHERE organization_id=:org AND mission_id=:mission
+                """
+            ),
+            {"org": mission.organization_id, "mission": mission.id},
+        ).mappings().all()
+        measurements = {str(row["phase"]): dict(row) for row in rows}
+    result = measurements.get("result") or {}
+    return {
+        "human_confirmation_required": True,
+        "canonical_mutation": "none_until_user_saves",
+        "message": (
+            "Propostas derivadas do contexto e da medição já governados. "
+            "Confirme, corrija ou rejeite cada campo antes de guardar."
+        ),
+        "fields": {
+            "decision_context": {
+                "value": document.get("central_question") or "",
+                "source_ids": [f"MISSION:{mission.id}"],
+            },
+            "baseline": {
+                "value": (protocol or {}).get("problem_statement") or document.get("context") or "",
+                "source_ids": [
+                    f"PROTOCOL:{protocol['id']}" if protocol else f"MISSION:{mission.id}"
+                ],
+            },
+            "planned_start_date": {
+                "value": as_iso((protocol or {}).get("intervention_start_date")),
+                "source_ids": [f"PROTOCOL:{protocol['id']}"] if protocol else [],
+            },
+            "planned_end_date": {
+                "value": as_iso((protocol or {}).get("intervention_end_date")),
+                "source_ids": [f"PROTOCOL:{protocol['id']}"] if protocol else [],
+            },
+            "outcome_name": {
+                "value": (protocol or {}).get("indicator_name") or "",
+                "source_ids": [f"PROTOCOL:{protocol['id']}"] if protocol else [],
+            },
+            "outcome_unit": {
+                "value": (protocol or {}).get("indicator_unit") or "",
+                "source_ids": [f"PROTOCOL:{protocol['id']}"] if protocol else [],
+            },
+            "planned_outcome_quantity": {
+                "value": _number((protocol or {}).get("target_value")),
+                "source_ids": [f"PROTOCOL:{protocol['id']}"] if protocol else [],
+            },
+            "actual_outcome_quantity": {
+                "value": _number(result.get("normalized_value")),
+                "source_ids": [f"MEASURE:{result['id']}"] if result else [],
+            },
+        },
+        "unresolved_fields": ["counterfactual", "discount_rate_pct", "economic_line_items"],
+        "mission_horizon": metadata.get("horizon") or "",
+    }
+
+
 def _response(db: Session, *, organization_id: str, mission) -> dict:
     row = _case_row(db, organization_id=organization_id, mission_id=mission.id)
     case = _case_dict(row) if row is not None else _default_case(mission)
@@ -1337,6 +1415,8 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
         "alternative_comparison": _alternative_comparison(case, items, alternatives),
         "history": _history(db, case["id"]) if case.get("id") else [],
         "integrity_verified": _integrity_verified(db, case),
+        "metrics_state": "observed_or_estimated" if case.get("id") else "unknown_not_zero",
+        "governed_prefill": _governed_prefill(db, mission),
         "definitions": {
             "case_kinds": CASE_KIND_DEFINITIONS,
             "item_kinds": ITEM_KIND_DEFINITIONS,
@@ -1876,6 +1956,19 @@ def review_business_case(
         organization_id=membership.organization_id,
         user_id=user.id,
         payload={"mission_code": mission.code, "rationale": payload.rationale.strip()},
+    )
+    from app.pilot_mission_state import record_module_review
+
+    record_module_review(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+        module_key="economics",
+        module_revision=None,
+        module_content_hash=None,
+        rationale=payload.rationale.strip(),
+        user_id=user.id,
     )
     db.commit()
     return _response(db, organization_id=membership.organization_id, mission=mission)

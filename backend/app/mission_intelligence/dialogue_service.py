@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
+from app.pilot_mission_state import governed_ai_context
 
 from .attachments import (
     attachment_chunk_counts,
@@ -547,6 +548,25 @@ def run_interactive_turn(
         )
         for item in turn_attachment_rows
     ]
+    governed_context = governed_ai_context(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+    )
+    result["canonical_mission_hash"] = mission.content_hash
+    result["snapshot_hash"] = governed_context["state_hash"]
+    result["governed_mission_state"] = {
+        "schema": governed_context["schema"],
+        "state_hash": governed_context["state_hash"],
+        "health": governed_context["health"],
+        "policy": governed_context["policy"],
+        "modules": governed_context["modules"],
+        "dependencies": governed_context["dependencies"],
+        "conflicts": governed_context["conflicts"],
+        "object_count": len(governed_context["objects"]),
+        "boundary": governed_context["boundary"],
+    }
 
     if user_role not in {"owner", "admin", "reviewer"}:
         return _governance_block(
@@ -661,6 +681,7 @@ def run_interactive_turn(
         proposal_reviews=proposal_reviews,
         attachments=direct_attachments,
         archive_context=archive_context,
+        governed_state=governed_context,
         max_output_tokens=output_limit,
         max_input_tokens=input_limit,
         research_context=payload.research_context,
@@ -751,6 +772,7 @@ def run_interactive_turn(
                 proposal_reviews=proposal_reviews,
                 attachments=working_attachments,
                 archive_context=archive_context,
+                governed_state=governed_context,
                 prepared_request=prepared,
                 max_input_tokens=input_limit,
                 research_context=payload.research_context,
@@ -830,6 +852,7 @@ def run_interactive_turn(
             "context_manifest": result.get("context_manifest"),
             "context_retry_count": result.get("context_retry_count", 0),
             "confidence_calibration": result.get("confidence_calibration") or [],
+            "governed_mission_state": result.get("governed_mission_state"),
         }
         if result.get("context_dossier"):
             ai_payload["context_dossier"] = result["context_dossier"]
@@ -847,7 +870,7 @@ def run_interactive_turn(
         provider=provenance.get("provider"),
         model=provenance.get("model_or_system"),
         provider_response_id=provenance.get("provider_response_id"),
-        snapshot_hash=mission.content_hash,
+        snapshot_hash=governed_context["state_hash"],
         input_json=_json(payload.model_dump(mode="json")),
         deterministic_json=_json(result["deterministic"]),
         ai_json=_json(ai_payload) if ai_payload else None,
@@ -886,7 +909,9 @@ def run_interactive_turn(
             "mission_code": mission_code,
             "intent": payload.intent.value,
             "ai_status": result["ai_status"],
-            "snapshot_hash": mission.content_hash,
+            "snapshot_hash": governed_context["state_hash"],
+            "canonical_mission_hash": mission.content_hash,
+            "governed_state_schema": governed_context["schema"],
             "canonical_mutation": "none",
             "attachment_ids": payload.attachment_ids,
             "context_profile": (result.get("context_manifest") or {}).get(
@@ -932,6 +957,7 @@ def _turn_view(turn: MissionDialogueTurn) -> dict[str, Any]:
         "context_manifest": ai.get("context_manifest"),
         "context_retry_count": ai.get("context_retry_count", 0),
         "confidence_calibration": ai.get("confidence_calibration") or [],
+        "governed_mission_state": ai.get("governed_mission_state"),
         "deterministic": json.loads(run.deterministic_json),
         "ai_usage": usage_event_view(run.ai_usage_event) if run.ai_usage_event else None,
         "review_status": run.review_status,

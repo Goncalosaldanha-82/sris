@@ -15,6 +15,7 @@ from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, User
 from app.mission_intelligence.models import CanonicalMission
+from app.pilot_mission_state import record_module_review
 from app.pilot_serialization import as_iso
 from app.pilot_text import normalize_generated_title
 
@@ -383,6 +384,20 @@ def publish_learning_packet(
             "statement": learning["body"], "snapshot": canonical, "sha": lineage_sha,
             "user_id": user.id,
         })
+    record_module_review(
+        db,
+        organization_id=membership.organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+        module_key="learning",
+        module_revision=None,
+        module_content_hash=None,
+        rationale=(
+            "Aprendizagem publicada por decisão humana com a cadeia de decisão, "
+            "ação, resultado e evidência preservada."
+        ),
+        user_id=user.id,
+    )
     db.commit()
     row = db.execute(text("SELECT * FROM pilot_learning_packets WHERE id=:id"), {"id": packet_id}).mappings().one()
     return _packet_view(row)

@@ -87,6 +87,9 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "pilot_validation_protocols",
             "pilot_validation_measurements",
             "pilot_validation_events",
+            "pilot_decision_cycles",
+            "pilot_mission_governance_policies",
+            "pilot_mission_module_reviews",
         }
 
         assert expected.issubset(tables)
@@ -113,6 +116,30 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
         assert "enforce_monthly_limits" in column_names(
             database_url,
             "mi_ai_organization_policies",
+        )
+        assert {
+            "action_started_at",
+            "actual_outcome_at",
+            "outcome_evidence_node_id",
+            "mission_revision",
+            "mission_content_hash",
+            "mission_governance_hash",
+            "matrix_revision",
+            "matrix_content_hash",
+            "business_case_revision",
+            "business_case_content_hash",
+            "validation_revision",
+            "validation_content_hash",
+            "decision_node_id",
+            "action_node_id",
+            "outcome_node_id",
+            "learning_node_id",
+        }.issubset(column_names(database_url, "pilot_decision_cycles"))
+        assert {
+            "mission_content_hash",
+            "mission_governance_hash",
+        }.issubset(
+            column_names(database_url, "pilot_mission_governance_policies")
         )
 
         run_alembic(
@@ -209,6 +236,92 @@ def test_document_source_migration_repairs_only_automatic_verification() -> None
             assert automatic_provenance["factual_validation"] == "not_assessed"
             assert automatic_provenance["authoritative_source"] is False
             assert rows["human-reviewed-evidence"]["status"] == "verified"
+        finally:
+            engine.dispose()
+
+
+def test_governed_state_migration_preserves_runtime_decision_cycles() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    with TemporaryDirectory(prefix="atlas-governed-state-") as tmp:
+        database_path = Path(tmp) / "governed-state.db"
+        database_url = f"sqlite+pysqlite:///{database_path.as_posix()}"
+        run_alembic(repo_root, "upgrade", "20260826_0019", database_url=database_url)
+
+        engine = create_engine(database_url)
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """
+                        CREATE TABLE pilot_decision_cycles (
+                            id VARCHAR(64) PRIMARY KEY,
+                            organization_id VARCHAR(64) NOT NULL,
+                            mission_code VARCHAR(80) NOT NULL,
+                            decision TEXT NOT NULL,
+                            action TEXT,
+                            owner VARCHAR(200),
+                            due_date DATE,
+                            status VARCHAR(40) NOT NULL DEFAULT 'proposed',
+                            expected_outcome TEXT,
+                            actual_outcome TEXT,
+                            learning TEXT,
+                            evidence_node_id VARCHAR(64),
+                            created_by_user_id VARCHAR(64),
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )
+                        """
+                    )
+                )
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO pilot_decision_cycles
+                            (id, organization_id, mission_code, decision, status)
+                        VALUES
+                            ('legacy-cycle', 'legacy-org', 'MIS-001',
+                             'Decisão preservada antes da migração.', 'proposed')
+                        """
+                    )
+                )
+        finally:
+            engine.dispose()
+
+        run_alembic(repo_root, "upgrade", "head", database_url=database_url)
+        assert {
+            "action_started_at",
+            "actual_outcome_at",
+            "outcome_evidence_node_id",
+            "mission_content_hash",
+            "mission_governance_hash",
+            "matrix_content_hash",
+            "business_case_content_hash",
+            "validation_content_hash",
+            "decision_node_id",
+            "action_node_id",
+            "outcome_node_id",
+            "learning_node_id",
+        }.issubset(column_names(database_url, "pilot_decision_cycles"))
+
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                preserved = connection.execute(
+                    text(
+                        """
+                        SELECT decision, status, action_started_at,
+                               outcome_evidence_node_id, mission_governance_hash
+                        FROM pilot_decision_cycles
+                        WHERE id='legacy-cycle'
+                        """
+                    )
+                ).mappings().one()
+            assert preserved["decision"] == "Decisão preservada antes da migração."
+            assert preserved["status"] == "proposed"
+            assert preserved["action_started_at"] is None
+            assert preserved["outcome_evidence_node_id"] is None
+            assert preserved["mission_governance_hash"] is None
         finally:
             engine.dispose()
 

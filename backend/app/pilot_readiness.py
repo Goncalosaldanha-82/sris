@@ -9,6 +9,7 @@ from app.mission_intelligence.models import MissionAttachment
 from app.pilot_alternative_matrix import matrix_readiness
 from app.pilot_business_case import business_case_readiness
 from app.pilot_decision_cycle import _ensure_schema as _ensure_decision_schema
+from app.pilot_mission_state import build_mission_state, mission_axis_policy
 from app.pilot_validation import validation_readiness
 
 
@@ -149,8 +150,8 @@ def mission_completion_readiness(
         text(
             """
             SELECT id, status, action, owner, due_date, expected_outcome,
-                   evidence_node_id,
-                   actual_outcome, learning
+                   evidence_node_id, action_started_at, actual_outcome_at,
+                   outcome_evidence_node_id, actual_outcome, learning
             FROM pilot_decision_cycles
             WHERE organization_id=:org AND mission_code=:mission
             """
@@ -166,6 +167,9 @@ def mission_completion_readiness(
         and str(row["owner"] or "").strip()
         and row["due_date"] is not None
         and str(row["expected_outcome"] or "").strip()
+        and row["action_started_at"] is not None
+        and row["actual_outcome_at"] is not None
+        and str(row["outcome_evidence_node_id"] or "").strip()
         and str(row["actual_outcome"] or "").strip()
         and str(row["learning"] or "").strip()
     ]
@@ -190,7 +194,19 @@ def mission_completion_readiness(
             or 0
         )
 
+    policy = mission_axis_policy(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
+        mission_code=mission_code,
+    )
     checks = [
+        {
+            "key": "governance_policy_current",
+            "label": "Aplicabilidade alinhada com a revisão atual da missão",
+            "passed": bool(policy.get("current", True)),
+            "count": 1 if policy.get("current", True) else 0,
+        },
         {
             "key": "document_ready",
             "label": "Fonte recebida e preparada para revisão",
@@ -208,12 +224,6 @@ def mission_completion_readiness(
             "label": "Hipótese com linhagem explícita até à evidência",
             "passed": linked_hypotheses > 0,
             "count": linked_hypotheses,
-        },
-        {
-            "key": "alternatives_compared",
-            "label": "Pelo menos duas alternativas comparadas por critérios",
-            "passed": alternative_matrix["passed"],
-            "count": alternative_matrix["count"],
         },
         {
             "key": "decision_observed",
@@ -234,20 +244,75 @@ def mission_completion_readiness(
             "count": published_learning,
         },
     ]
+    alternatives_applicability = policy.get("alternatives_applicability", "required")
+    if alternatives_applicability == "required" or (
+        alternatives_applicability == "optional" and alternative_matrix.get("matrix_id")
+    ):
+        checks.insert(
+            4,
+            {
+                "key": "alternatives_compared",
+                "label": "Pelo menos duas alternativas comparadas por critérios",
+                "passed": alternative_matrix["passed"],
+                "count": alternative_matrix["count"],
+            },
+        )
     validation = validation_readiness(
         db,
         organization_id=organization_id,
         mission_id=mission_id,
     )
-    checks.extend(validation["checks"])
+    measurement_applicability = policy.get("measurement_applicability", "optional")
+    if measurement_applicability == "required" and not validation["required"]:
+        checks.append(
+            {
+                "key": "validation_required_by_mission",
+                "label": "Protocolo mensurável exigido pela aplicabilidade da missão",
+                "passed": False,
+                "count": 0,
+            }
+        )
+    elif measurement_applicability == "required" or (
+        measurement_applicability == "optional" and validation["required"]
+    ):
+        checks.extend(validation["checks"])
     business_case = business_case_readiness(
         db,
         organization_id=organization_id,
         mission_id=mission_id,
         mission_code=mission_code,
     )
-    if business_case["required"]:
+    economics_applicability = policy.get("economics_applicability", "required")
+    if economics_applicability == "required" and not business_case["required"]:
+        checks.append(
+            {
+                "key": "business_case_required",
+                "label": "Economia e recursos estruturados para a missão",
+                "passed": False,
+                "count": 0,
+            }
+        )
+    elif economics_applicability == "required" or (
+        economics_applicability == "optional" and business_case["required"]
+    ):
         checks.extend(business_case["checks"])
+    governed_state = build_mission_state(
+        db,
+        organization_id=organization_id,
+        mission_id=mission_id,
+        mission_code=mission_code,
+    )
+    critical_conflicts = [
+        item for item in governed_state["conflicts"] if item["severity"] == "critical"
+    ]
+    checks.append(
+        {
+            "key": "cross_module_consistency",
+            "label": "Sem contradições críticas entre os módulos da missão",
+            "passed": not critical_conflicts,
+            "count": len(critical_conflicts),
+        }
+    )
     completed = sum(1 for check in checks if check["passed"])
     return {
         "mission_id": mission_id,
@@ -260,4 +325,10 @@ def mission_completion_readiness(
         "blocking_keys": [check["key"] for check in checks if not check["passed"]],
         "validation": validation,
         "business_case": business_case,
+        "governed_state": {
+            "state_hash": governed_state["state_hash"],
+            "health": governed_state["health"],
+            "policy": governed_state["policy"],
+            "critical_conflicts": critical_conflicts,
+        },
     }

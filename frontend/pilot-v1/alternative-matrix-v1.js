@@ -37,8 +37,8 @@
     },
     guest_experience: {
       key: "guest_experience",
-      label: "Experiência do hóspede",
-      description: "Efeito previsível no conforto, confiança e qualidade percebida.",
+      label: "Impacto no utilizador / beneficiário",
+      description: "Efeito previsível nas pessoas, entidades ou comunidades que recebem o resultado.",
       scale_hint: "1 = impacto muito negativo · 5 = impacto muito positivo",
     },
     evidence_robustness: {
