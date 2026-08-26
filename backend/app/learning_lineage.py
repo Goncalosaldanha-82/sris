@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import current_user
@@ -71,6 +71,7 @@ def _ensure_schema(db: Session) -> None:
             statement TEXT NOT NULL,
             graph_snapshot_json TEXT NOT NULL,
             lineage_sha256 VARCHAR(64) NOT NULL,
+            canonical_status VARCHAR(40) NOT NULL DEFAULT 'valid',
             created_by_user_id VARCHAR(64) NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -89,6 +90,7 @@ def _ensure_schema(db: Session) -> None:
             target_mission_code VARCHAR(80) NOT NULL,
             learning_packet_id VARCHAR(64) NOT NULL,
             disposition VARCHAR(40) NOT NULL,
+            applicability VARCHAR(40) NOT NULL DEFAULT 'pending',
             rationale TEXT NOT NULL,
             context_change TEXT NOT NULL DEFAULT '',
             reviewed_by_user_id VARCHAR(64) NULL,
@@ -101,19 +103,6 @@ def _ensure_schema(db: Session) -> None:
         CREATE INDEX IF NOT EXISTS ix_pilot_learning_reviews_target
         ON pilot_learning_reviews (organization_id, target_mission_id, disposition)
     """))
-    inspector = inspect(db.get_bind())
-    packet_columns = {column["name"] for column in inspector.get_columns("pilot_learning_packets")}
-    if "canonical_status" not in packet_columns:
-        db.execute(text("""
-            ALTER TABLE pilot_learning_packets
-            ADD COLUMN canonical_status VARCHAR(40) NOT NULL DEFAULT 'valid'
-        """))
-    review_columns = {column["name"] for column in inspector.get_columns("pilot_learning_reviews")}
-    if "applicability" not in review_columns:
-        db.execute(text("""
-            ALTER TABLE pilot_learning_reviews
-            ADD COLUMN applicability VARCHAR(40) NOT NULL DEFAULT 'pending'
-        """))
     db.execute(text("""
         UPDATE pilot_learning_reviews
         SET applicability = CASE disposition

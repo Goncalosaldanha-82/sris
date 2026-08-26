@@ -115,6 +115,20 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "mi_ai_organization_policies",
         )
 
+        # The contextual-learning columns must be installed transactionally by
+        # Alembic before Railway accepts requests. Runtime GET handlers must
+        # never race to ALTER these tables themselves.
+        if "pilot_learning_packets" in tables:
+            assert "canonical_status" in column_names(
+                database_url,
+                "pilot_learning_packets",
+            )
+        if "pilot_learning_reviews" in tables:
+            assert "applicability" in column_names(
+                database_url,
+                "pilot_learning_reviews",
+            )
+
         run_alembic(
             repo_root,
             "downgrade",
@@ -211,3 +225,89 @@ def test_document_source_migration_repairs_only_automatic_verification() -> None
             assert rows["human-reviewed-evidence"]["status"] == "verified"
         finally:
             engine.dispose()
+
+
+def test_contextual_learning_migration_upgrades_legacy_tables_once() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    with TemporaryDirectory(prefix="atlas-contextual-learning-") as tmp:
+        database_path = Path(tmp) / "contextual-learning.db"
+        database_url = f"sqlite+pysqlite:///{database_path.as_posix()}"
+
+        run_alembic(
+            repo_root,
+            "upgrade",
+            "20260825_0017",
+            database_url=database_url,
+        )
+        engine = create_engine(database_url)
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """
+                        CREATE TABLE pilot_learning_packets (
+                            id VARCHAR(64) PRIMARY KEY,
+                            organization_id VARCHAR(64) NOT NULL
+                        )
+                        """
+                    )
+                )
+                connection.execute(
+                    text(
+                        """
+                        CREATE TABLE pilot_learning_reviews (
+                            id VARCHAR(64) PRIMARY KEY,
+                            organization_id VARCHAR(64) NOT NULL,
+                            disposition VARCHAR(40) NOT NULL
+                        )
+                        """
+                    )
+                )
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO pilot_learning_reviews
+                            (id, organization_id, disposition)
+                        VALUES
+                            ('reuse-review', 'org', 'still_valid'),
+                            ('revalidate-review', 'org', 'requires_revalidation'),
+                            ('legacy-invalid-review', 'org', 'invalidated')
+                        """
+                    )
+                )
+        finally:
+            engine.dispose()
+
+        run_alembic(repo_root, "upgrade", "head", database_url=database_url)
+
+        assert "canonical_status" in column_names(
+            database_url,
+            "pilot_learning_packets",
+        )
+        assert "applicability" in column_names(
+            database_url,
+            "pilot_learning_reviews",
+        )
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                reviews = dict(
+                    connection.execute(
+                        text(
+                            "SELECT id, applicability "
+                            "FROM pilot_learning_reviews ORDER BY id"
+                        )
+                    ).all()
+                )
+            assert reviews == {
+                "legacy-invalid-review": "not_applicable",
+                "revalidate-review": "requires_revalidation",
+                "reuse-review": "reuse",
+            }
+        finally:
+            engine.dispose()
+
+        # Idempotence is enforced by Alembic's revision ledger: a second
+        # upgrade must be a no-op and preserve the migrated review semantics.
+        run_alembic(repo_root, "upgrade", "head", database_url=database_url)

@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260825-contextual-learning-v14';
+  const BUILD='20260826-contextual-learning-schema-v15';
   const state={mission:null,aggregate:null,evidence:[],loading:false};
   const profiles={
     measurable_decision:{
