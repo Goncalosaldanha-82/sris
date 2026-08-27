@@ -11,7 +11,7 @@ const index=fs.readFileSync(path.join(pilot,'index.html'),'utf8');
 
 test('Decision Loop is syntactically valid and follows the Pilot build token',()=>{
   assert.doesNotThrow(()=>new Function(source));
-  assert.match(source,/20260827-external-pilot-release-gates-v27/);
+  assert.match(source,/20260827-atomic-mission-export-qa-v28/);
   assert.match(index,/decision-cycle-v1\.js\?v=__PILOT_BUILD__/);
   assert.doesNotMatch(index,/decision-workbench-v1\.js/);
   assert.doesNotMatch(source,/new MutationObserver\s*\(/);

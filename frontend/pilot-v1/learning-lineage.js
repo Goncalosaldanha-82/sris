@@ -110,8 +110,8 @@
       if(requestSequence!==loadSequence||code!==missionCode())return;
       render(candidates);
       renderActiveContext(activeContext);
-      const activeCount=(activeContext?.inheritance?.valid||[]).length;
-      const revalidationCount=(activeContext?.inheritance?.requires_revalidation||[]).length;
+      const activeCount=Number(candidates?.summary?.reusable_count||0);
+      const revalidationCount=Number(candidates?.summary?.requires_revalidation_count||0);
       if(status)status.textContent=candidates.candidates.length
         ? `${activeCount} aprendizagem(ns) reutilizável(eis) neste contexto · ${revalidationCount} a revalidar. Reveja as restantes antes de as reutilizar.`
         : 'Esta área mostra apenas aprendizagens publicadas por outras missões. A aprendizagem da missão atual fica na Memória canónica e só aparecerá aqui quando abrir outra missão.';

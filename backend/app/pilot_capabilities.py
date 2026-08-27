@@ -7,7 +7,7 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260827-external-pilot-release-gates-v27"
+PILOT_BUILD = "20260827-atomic-mission-export-qa-v28"
 
 CANONICAL_MISSION_CHAIN = [
     "context",

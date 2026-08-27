@@ -608,6 +608,38 @@ function showMissionMode(mode){
   if(section)section.dataset.mode=mode;
 }
 
+function setMissionContextLoading(active,mission=null){
+  const detail=$('#mission-detail');
+  if(!detail)return;
+  detail.classList.toggle('mission-context-loading-active',Boolean(active));
+  if(active)detail.setAttribute('aria-busy','true');
+  else detail.removeAttribute('aria-busy');
+  const label=$('#mission-context-loading-label');
+  if(label)label.textContent=mission?.code
+    ? `A consolidar exclusivamente ${mission.code} — ${mission.title}.`
+    : 'A preparar exclusivamente os dados da missão selecionada.';
+}
+
+function waitForGovernedMissionContext(code,openSequence,timeoutMs=20000){
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=value=>{
+      if(settled)return;
+      settled=true;
+      window.clearTimeout(timeout);
+      document.removeEventListener('sris:mission-state-updated',onState);
+      resolve(value);
+    };
+    const onState=event=>{
+      if(openSequence!==missionOpenSequence)return finish(false);
+      if(event.detail?.mission?.code===code)finish(true);
+    };
+    const timeout=window.setTimeout(()=>finish(false),timeoutMs);
+    document.addEventListener('sris:mission-state-updated',onState);
+    if(window.SRISGovernedMissionState?.mission?.code===code)finish(true);
+  });
+}
+
 function revealMissionWorkspace(target){
   if(!window.matchMedia('(max-width: 800px)').matches)return;
   requestAnimationFrame(()=>target?.scrollIntoView({behavior:'smooth',block:'start'}));
@@ -895,6 +927,10 @@ document.addEventListener('click',event=>{
 
 async function openMission(id){
   const openSequence=++missionOpenSequence;
+  const targetMission=missions.find(item=>item.id===id)||null;
+  setMissionContextLoading(true,targetMission);
+  setText('#page-title','A mudar de missão…');
+  showMissionMode('detail');
   try{
     const mission=await api(`${miBase()}/missions/${encodeURIComponent(id)}`);
     if(openSequence!==missionOpenSequence)return;
@@ -934,12 +970,16 @@ async function openMission(id){
     showMissionMode('detail');
     revealMissionWorkspace($('#mission-detail'));
     updateCopilotContext();
+    const governedContextReady=waitForGovernedMissionContext(mission.code,openSequence);
     document.dispatchEvent(new CustomEvent('sris:mission-opened',{detail:{mission}}));
     setTimeout(normaliseMissionTabs,0);
-    await Promise.allSettled([loadAttachments(),loadHistory(),loadMissionRevisions(),loadEpistemicCounts(mission.code),loadMissionOperationalState()]);
+    await Promise.allSettled([loadAttachments(),loadHistory(),loadMissionRevisions(),loadEpistemicCounts(mission.code),loadMissionOperationalState(),governedContextReady]);
+    if(openSequence!==missionOpenSequence||selectedMission?.id!==mission.id)return;
     renderMissionOperationalState();
+    setMissionContextLoading(false);
   }catch(error){
     if(openSequence!==missionOpenSequence)return;
+    setMissionContextLoading(false);
     $('#mission-list')?.insertAdjacentHTML('afterbegin',`<div class="alert error">Não foi possível abrir esta missão: ${escapeHtml(error.message)}</div>`);
   }
 }

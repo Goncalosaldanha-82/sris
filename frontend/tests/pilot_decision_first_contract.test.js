@@ -226,9 +226,16 @@ test('mission changes clear every active module before loading the next context'
   assert.match(loaded.workspace,/memoryStateLabels/);
   assert.match(loaded.workspace,/suspended:'Suspenso'/);
   assert.match(loaded.workspace,/A trocar o contexto da missão de forma atómica/);
+  assert.match(loaded.learning,/candidates\?\.summary\?\.reusable_count/);
+  assert.match(loaded.learning,/candidates\?\.summary\?\.requires_revalidation_count/);
   assert.match(loaded.app,/let missionOpenSequence=0/);
   assert.match(loaded.app,/if\(openSequence!==missionOpenSequence\)return/);
   assert.match(loaded.app,/if\(!selectedMission\|\|selectedMission\.id!==missionId\)return/);
+  assert.match(loaded.app,/setMissionContextLoading\(true,targetMission\)/);
+  assert.match(loaded.app,/waitForGovernedMissionContext\(mission\.code,openSequence\)/);
+  assert.match(loaded.app,/event\.detail\?\.mission\?\.code===code/);
+  assert.match(index,/id="mission-context-loading"/);
+  assert.match(css,/mission-context-loading-active>:not\(#mission-context-loading\)/);
   assert.match(loaded.graph,/graphLoadSequence/);
   assert.match(loaded.graph,/sris:mission-opened/);
   assert.match(loaded.comparison,/loadSequence/);
