@@ -270,7 +270,7 @@ def persist_mission(
                 revision=1,
                 document_json=document_json,
                 content_hash=content_hash,
-                change_note="Initial canonical import from the governed demo catalog.",
+                change_note="Importação canónica inicial do catálogo de demonstração governado.",
                 created_by_user_id=user_id,
             )
         )
@@ -287,7 +287,7 @@ def persist_mission(
                 revision=mission.revision,
                 document_json=document_json,
                 content_hash=content_hash,
-                change_note="Analysis input accepted as a new canonical mission revision.",
+                change_note="Entrada de análise aceite como nova revisão canónica da missão.",
                 created_by_user_id=user_id,
             )
         )

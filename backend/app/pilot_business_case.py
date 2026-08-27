@@ -1211,7 +1211,7 @@ def _warnings(case: dict, items: list[dict], metrics: dict, quality: dict, readi
         warnings.append({
             "code": "no_monetary_benefit",
             "severity": "medium",
-            "message": f"Não existe benefício monetário. {roi_note}",
+            "message": f"Não foi registado benefício monetário. {roi_note}",
         })
     if not any(item.get("kind") in RESOURCE_KINDS for item in items):
         warnings.append({"code": "no_resources", "severity": "high", "message": "Ainda não foram identificados recursos humanos, financeiros ou materiais."})

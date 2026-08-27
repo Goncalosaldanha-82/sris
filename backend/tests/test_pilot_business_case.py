@@ -312,6 +312,8 @@ def test_live_business_case_tracks_scenarios_resources_review_and_history(monkey
         for warning in cost.json()["warnings"]
         if warning["code"] == "no_monetary_benefit"
     )
+    assert no_benefit["message"].startswith("Não foi registado benefício monetário.")
+    assert "Não existe benefício monetário" not in no_benefit["message"]
     assert "não é calculável" not in no_benefit["message"]
     assert "apenas os custos monetários" in no_benefit["message"]
 

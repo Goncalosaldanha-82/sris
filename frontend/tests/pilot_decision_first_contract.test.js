@@ -70,6 +70,10 @@ test('the live business case follows money, time and resources without fake prec
   assert.match(loaded.businessCase,/loadSequence/);
   assert.match(loaded.businessCase,/sris:business-case-updated/);
   assert.match(loaded.businessCase,/A pontuação mede completude e rastreabilidade; não transforma estimativas em factos/);
+  assert.match(loaded.businessCase,/Rastreabilidade das linhas monetárias/);
+  assert.match(loaded.businessCase,/Completude estrutural/);
+  assert.match(loaded.businessCase,/Estado de revisão/);
+  assert.match(loaded.businessCase,/metricKnown\(financialGroup\).*row\.roi_pct == null/s);
   assert.match(loaded.businessCase,/alternative_node_id/);
   assert.match(loaded.comparison,/Economia e recursos por alternativa/);
   assert.match(loaded.comparison,/economic_alignment/);
@@ -105,6 +109,8 @@ test('entry page uses the valid institutional sunrise and survives the iPhone ke
   assert.match(css,/\.keyboard-open \.auth-visual\{display:none\}/);
   assert.match(css,/env\(safe-area-inset-bottom\)/);
   assert.match(css,/font-size:16px/);
+  assert.match(css,/\.report-actions button,.mission-tabs button,.attachment-actions button\{min-height:44px;touch-action:manipulation\}/);
+  assert.match(css,/\.mission-tab-navigation\{[^}]*max-width:100vw/);
   assert.match(loaded.auth,/visualViewport/);
   assert.match(loaded.auth,/scrollIntoView/);
   assert.match(loaded.auth,/location\.assign\('\/app'\)/);
@@ -135,6 +141,8 @@ test('documents and auditable report exports are canonical actions',()=>{
   assert.match(loaded.app,/data-download-attachment/);
   assert.match(loaded.app,/function completeReportHtml/);
   assert.match(loaded.app,/function exportReport/);
+  assert.match(loaded.app,/Relatório Markdown gerado/);
+  assert.match(loaded.app,/downloadBlob\(.*30000/s);
   assert.match(loaded.app,/async function reportSnapshot/);
   assert.match(loaded.app,/crypto\.subtle\.digest/);
 });

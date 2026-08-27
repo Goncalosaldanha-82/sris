@@ -7,7 +7,7 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260827-human-governed-ai-mission-path-v24"
+PILOT_BUILD = "20260827-pilot-readiness-repairs-v25"
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -18,10 +18,7 @@ def _flag(name: str, default: bool = False) -> bool:
 
 
 def _password_reset_delivery() -> str:
-    base = os.getenv("SRIS_PUBLIC_BASE_URL", "").strip()
-    sender = os.getenv("SRIS_EMAIL_FROM", "").strip()
-    provider = bool(os.getenv("RESEND_API_KEY", "").strip() or os.getenv("BREVO_API_KEY", "").strip())
-    if base and sender and provider:
+    if auth_email_delivery_ready():
         return "email"
     if _flag("SRIS_PILOT_SHOW_RESET_LINK", False):
         return "pilot-link"

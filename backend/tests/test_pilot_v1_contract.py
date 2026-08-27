@@ -329,6 +329,34 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "sris:mission-state-updated" in workspace.text
 
 
+def test_pilot_capabilities_report_the_authentication_email_transport(monkeypatch) -> None:
+    for name in (
+        "SRIS_SMTP_HOST",
+        "SRIS_SMTP_USERNAME",
+        "SRIS_SMTP_PASSWORD",
+        "SRIS_SMTP_FROM_EMAIL",
+        "SRIS_PUBLIC_BASE_URL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    unavailable = client.get("/api/pilot/capabilities")
+    assert unavailable.status_code == 200
+    assert unavailable.json()["transactional_email_ready"] is False
+    assert unavailable.json()["invitations_enabled"] is False
+    assert unavailable.json()["password_reset_delivery"] == "configuration-required"
+
+    monkeypatch.setenv("SRIS_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("SRIS_SMTP_USERNAME", "sris")
+    monkeypatch.setenv("SRIS_SMTP_PASSWORD", "test-only-password")
+    monkeypatch.setenv("SRIS_SMTP_FROM_EMAIL", "access@example.com")
+    monkeypatch.setenv("SRIS_SMTP_SECURITY", "starttls")
+    monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
+    available = client.get("/api/pilot/capabilities")
+    assert available.status_code == 200
+    assert available.json()["transactional_email_ready"] is True
+    assert available.json()["invitations_enabled"] is True
+    assert available.json()["password_reset_delivery"] == "email"
+
+
 def test_pilot_openapi_exposes_the_operational_scope() -> None:
     spec = client.get("/openapi.json")
     assert spec.status_code == 200

@@ -1048,15 +1048,17 @@ function showMissionMessage(message,type='error'){
   box.className=`alert ${type==='success'?'success':'error'}`;
 }
 
-function downloadBlob(blob,filename){
+function downloadBlob(blob,filename,revokeDelay=30000){
   const url=URL.createObjectURL(blob);
   const anchor=document.createElement('a');
   anchor.href=url;
   anchor.download=filename;
+  anchor.style.display='none';
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  setTimeout(()=>URL.revokeObjectURL(url),revokeDelay);
+  return filename;
 }
 
 async function downloadAttachment(id,filename,button){
@@ -1561,15 +1563,18 @@ async function exportReport(kind,button){
     const snapshot=await reportSnapshot();
     const base=slug(`${snapshot.mission.code}-${snapshot.mission.title}`);
     if(kind==='json'){
-      downloadBlob(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json;charset=utf-8'}),`${base}-arquivo-verificavel.json`);
+      const filename=downloadBlob(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json;charset=utf-8'}),`${base}-arquivo-verificavel.json`);
+      showMissionMessage(`Arquivo verificável gerado: ${filename}`,'success');
       return;
     }
     if(kind==='html'){
-      downloadBlob(new Blob([completeReportHtml(snapshot)],{type:'text/html;charset=utf-8'}),`${base}-relatorio-completo.html`);
+      const filename=downloadBlob(new Blob([completeReportHtml(snapshot)],{type:'text/html;charset=utf-8'}),`${base}-relatorio-completo.html`);
+      showMissionMessage(`Relatório HTML gerado: ${filename}`,'success');
       return;
     }
     if(kind==='md'){
-      downloadBlob(new Blob([reportMarkdown(snapshot)],{type:'text/markdown;charset=utf-8'}),`${base}-relatorio-completo.md`);
+      const filename=downloadBlob(new Blob([reportMarkdown(snapshot)],{type:'text/markdown;charset=utf-8'}),`${base}-relatorio-completo.md`);
+      showMissionMessage(`Relatório Markdown gerado: ${filename}`,'success');
       return;
     }
     const reportWindow=window.open('','_blank');
@@ -1579,6 +1584,7 @@ async function exportReport(kind,button){
     reportWindow.document.write(completeReportHtml(snapshot));
     reportWindow.document.close();
     setTimeout(()=>{reportWindow.focus();reportWindow.print();},250);
+    showMissionMessage('Relatório preparado numa nova janela. Use a opção do navegador para imprimir ou guardar em PDF.','success');
   }catch(error){
     showMissionMessage(`Não foi possível gerar o relatório completo: ${error.message}`);
   }finally{
