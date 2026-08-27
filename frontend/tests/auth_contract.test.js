@@ -83,7 +83,7 @@ test('Mission portfolio UI creates canonical missions and renders hierarchy', ()
   assert.match(html, /data-depth=/);
   assert.match(html, /function missionOrder/);
   assert.match(html, /children\.get\(item\.id\)/);
-  assert.match(html, /\|\| "M-002"/);
+  assert.match(html, /\|\| "M-001"/);
 });
 
 test('institutional sessions renew automatically before retrying protected requests', () => {

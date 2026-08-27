@@ -2060,7 +2060,7 @@
     let publicMissionCatalog = {};
     const institutionalMissionCodes = new Set();
     let canCreateInstitutionalMissions = false;
-    let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-002";
+    let activeMissionId = sessionStorage.getItem(ACTIVE_KEY) || "M-001";
     let modalMissionId = null;
     let missionBuilderEditingId = null;
     let activeOrganizationId = null;
@@ -2380,7 +2380,7 @@
         }catch(err){console.warn("Pacote local ignorado:",err)}
       });
       config.missions={...(config.missions||{}),...localImports};
-      if(!config.missions[activeMissionId]) activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
+      if(!config.missions[activeMissionId]) activeMissionId=config.missions["M-001"]?"M-001":Object.keys(config.missions)[0];
       renderAll();
       updateAIControl();
       const current=qs(".page.active")?.id?.replace("page-","")||"overview";
@@ -3830,7 +3830,7 @@
       activeDialogueSessionId=null;
       latestDialogueTurn=null;
       clearSessionTokens();
-      activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
+      activeMissionId=config.missions["M-001"]?"M-001":Object.keys(config.missions)[0];
       renderAll();
       sessionStorage.setItem("sris_demo","true");openApp({mode:"demo"});
     });
@@ -3844,7 +3844,7 @@
       activeDialogueSessionId=null;
       latestDialogueTurn=null;
       clearInstitutionalMissions();
-      activeMissionId=config.missions["M-002"]?"M-002":Object.keys(config.missions)[0];
+      activeMissionId=config.missions["M-001"]?"M-001":Object.keys(config.missions)[0];
       qs("#usersLink").classList.add("hidden");
       qs("#administrationLabel").classList.add("hidden");
       qs("#newMissionButton").classList.add("hidden");

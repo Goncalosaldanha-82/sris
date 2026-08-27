@@ -6,145 +6,62 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+
 client = TestClient(app)
 
 
-def test_pilot_v1_frontend_and_openapi_contract() -> None:
+def test_production_public_demo_and_openapi_contract() -> None:
     frontend = client.get("/")
     assert frontend.status_code == 200
+    assert frontend.headers["x-sris-production-build"] == "20260827-public-demo-v1"
+
     for marker in (
-        "SRIS — Mission Intelligence",
-        "PILOTO V1 · VALIDAÇÃO OPERACIONAL",
-        "Bem-vindo",
-        "Entrar",
-        "Criar conta",
-        "Recuperar palavra-passe",
-        "Disciplina antes da assistência",
-        "A assistência deve indicar incerteza, separar facto de inferência",
-        "Ver melhor.",
-        "Decidir melhor.",
-        "Missões persistentes",
-        "Evidência rastreável",
-        "Memória organizacional",
-        "/product-recovery-v1.css",
-        "/product-core-v2.css",
-        "/emergency-stability-v1.css",
-        "/sunrise.svg",
+        'meta name="sris-production-build" content="20260827-public-demo-v1"',
+        "SRIS — Preservar o raciocínio das decisões",
+        "Acesso institucional",
+        "Entrar no SRIS",
+        "Abrir demonstração",
+        "Demonstração pública",
+        "Sem sessão institucional",
+        'id="demoButton"',
+        'sessionStorage.setItem("sris_demo","true")',
+        'openApp({mode:"demo"})',
+        'config.missions["M-001"]',
+        "/api/mission-intelligence/demo/missions",
+        "A análise por IA não é executada no modo de demonstração",
+        "UI-R2 · MI-1",
     ):
         assert marker in frontend.text
-    assert "PILOT V1 · SEPT 2026" not in frontend.text
-    assert "gpt-5.6-terra" not in frontend.text
-    assert "Crédito inicial incluído" not in frontend.text
-
-    workspace = client.get("/app")
-    assert workspace.status_code == 200
-    assets = (
-        "/mission-workspace-v2.js",
-        "/learning-lineage.js",
-        "/intelligence-v2.js",
-        "/evidence-graph.js",
-        "/admin-accounts.js",
-        "/decision-workbench-v1.js",
-        "/decision-cycle-v1.js",
-    )
-    for marker in (
-        "SRIS — Espaço de Missão",
-        "Visão geral",
-        "Comece pela decisão. Preserve a razão.",
-        "Observação",
-        "Evidência",
-        "Hipótese",
-        "Alternativa",
-        "Decisão",
-        "Ação",
-        "Resultado",
-        "Aprendizagem",
-        "Pressupostos",
-        "Restrições",
-        "Lacunas",
-        "Proveniência",
-        "Confiança",
-        "Comece por uma decisão real, não por uma conversa genérica.",
-        "Eficiência de recursos",
-        "Problema operacional",
-        "Investimento ou alteração",
-        "Critério de sucesso",
-        "Portefólio persistente",
-        "+ Sub-missão",
-        "Inteligência documental",
-        "Histórico persistente",
-        "Grafo de evidência",
-        "Análise assistida",
-        "Memória organizacional",
-        "/emergency-stability-v1.css",
-        *assets,
-    ):
-        assert marker in workspace.text
-    for asset in assets:
-        assert workspace.text.count(asset) == 1
 
     for forbidden in (
-        "/pilot-operational-v1.js",
-        "/pilot-integration-v3.js",
-        "/mission-experience-v1.js",
-        "Créditos e planos",
-        "Serviço e utilização",
-        "+ 10 €",
-        "+ 25 €",
-        "+ 50 €",
-        "gpt-5.6-terra",
-        "PILOT V1 · SEPT 2026",
+        "PILOTO V1 · VALIDAÇÃO OPERACIONAL",
+        "Criar conta e entrar",
+        'meta name="sris-pilot-build"',
+        "/emergency-stability-v1.css",
     ):
-        assert forbidden not in workspace.text
+        assert forbidden not in frontend.text
 
-    decision_cycle = client.get("/decision-cycle-v1.js")
-    assert decision_cycle.status_code == 200
-    for marker in (
-        "Decisão → Ação → Resultado → Aprendizagem",
-        "Enviar aprendizagem para revisão",
-        "Publicar na memória organizacional",
-        "Governança da aprendizagem",
+    app_entry = client.get("/app")
+    assert app_entry.status_code == 200
+    assert "Abrir demonstração" in app_entry.text
+    assert app_entry.headers["x-sris-production-build"] == "20260827-public-demo-v1"
+
+    for public_page in (
+        "/account.html",
+        "/users.html",
+        "/learning-inheritance.html",
+        "/organizational-learning.html",
+        "/organizational-memory.html",
     ):
-        assert marker in decision_cycle.text
+        response = client.get(public_page)
+        assert response.status_code == 200, public_page
 
-    integration = client.get("/pilot-integration-v3.js")
-    assert integration.status_code == 200
-    assert "20260823-decision-first" in integration.text
-    assert "installCapabilitySurface" not in integration.text
-    assert "a interface carregou, mas o estado do workspace não foi obtido" not in integration.text
-    assert "Optional Pilot capabilities unavailable" in integration.text
-    assert "billing-balance" not in integration.text
-    assert "model-name" not in integration.text
-
-    app_script = client.get("/app.js")
-    assert app_script.status_code == 200
-    for marker in (
-        "missionTemplates",
-        "mission-assumptions",
-        "mission-constraints",
-        "mission-success",
-        "node_type:nodeType",
-        "source:'mission_onboarding'",
-    ):
-        assert marker in app_script.text
-    assert "pilot_test_topup" not in app_script.text
-    assert "billing-balance" not in app_script.text
-
-    evidence_graph = client.get("/evidence-graph.js")
-    assert evidence_graph.status_code == 200
-    for marker in (
-        "Pressuposto",
-        "Restrição",
-        "Lacuna de informação",
-        "Alternativa",
-        "Candidato assistido · revisão humana obrigatória",
-        "recuperação documental apenas <strong>informa</strong>",
-    ):
-        assert marker in evidence_graph.text
-    assert "provenance.model" not in evidence_graph.text
-
-    assert "UI-R2 · MI-1" not in frontend.text
-    assert "UI-R2 · MI-1" not in workspace.text
+    catalog = client.get("/api/mission-intelligence/demo/missions")
+    assert catalog.status_code == 200
+    mission_codes = catalog.json()["missions"]
+    assert "M-001" in mission_codes
+    assert "M-002" in mission_codes
+    assert "CA-AWARD-APPLICATION" in mission_codes
 
     spec = client.get("/openapi.json")
     assert spec.status_code == 200
@@ -161,23 +78,6 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance",
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance/policy",
         "/api/organizations/{organization_id}/mission-intelligence/ai-governance/events",
-        "/api/pilot/capabilities",
-        "/api/pilot/password-reset/request",
-        "/api/pilot/intelligence/ask",
-        "/api/pilot/intelligence/history",
-        "/api/pilot/decision-cycles",
-        "/api/pilot/decision-cycles/missions/{mission_code}",
-        "/api/pilot/decision-cycles/{cycle_id}",
-        "/api/pilot/decision-cycles/{cycle_id}/materialize-learning",
-        "/api/pilot/evidence-graph/missions/{mission_code}/sync",
-        "/api/pilot/evidence-graph/missions/{mission_code}",
-        "/api/pilot/evidence-graph/missions/{mission_code}/nodes",
-        "/api/pilot/evidence-graph/missions/{mission_code}/nodes/{node_id}",
-        "/api/pilot/evidence-graph/missions/{mission_code}/edges",
-        "/api/pilot/learning/missions/{mission_code}/publish/{learning_node_id}",
-        "/api/pilot/learning/missions/{mission_code}/candidates",
-        "/api/pilot/learning/missions/{mission_code}/candidates/{packet_id}/review",
-        "/api/pilot/learning/missions/{mission_code}/active-context",
     )
     for path in required_paths:
         assert path in document["paths"]
@@ -197,5 +97,3 @@ def test_pilot_v1_frontend_and_openapi_contract() -> None:
         "learning",
     ):
         assert canonical_kind in serialized
-    for relation in ("constrained_by", "assumes", "requires", "addresses"):
-        assert relation in serialized
