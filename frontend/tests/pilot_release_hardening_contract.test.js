@@ -46,6 +46,16 @@ test('runtime truth disables unconfigured assistance without blocking missions',
   assert.match(index,/A missão, a evidência, a decisão e a memória permanecem canónicas/);
 });
 
+test('external readiness is evidence-backed and the mission chain is canonical',()=>{
+  assert.match(index,/id="release-readiness-panel"/);
+  assert.match(index,/Contexto<\/span><span>Observação<\/span><span>Evidência/);
+  assert.match(index,/Ação<\/span><span>Medição<\/span><span>Resultado/);
+  assert.match(index,/Aprendizagem<\/span><span>Memória/);
+  assert.match(app,/\/api\/pilot\/release-readiness/);
+  assert.match(app,/source==='human_acceptance'/);
+  assert.match(app,/evidence\.length<10/);
+});
+
 test('mobile mission creation wins the synchronization race and stays actionable',()=>{
   assert.match(app,/const missionSync=section==='mission'&&orgId\(\)/);
   assert.match(app,/await go\('mission'\)/);

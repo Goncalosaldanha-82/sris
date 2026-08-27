@@ -655,7 +655,7 @@ class PilotRateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if path == "/api/pilot/register":
             return (_env_int("SRIS_RATE_LIMIT_SIGNUP_PER_15M", 8), 900, "signup")
-        if path == "/api/pilot/password-reset/request":
+        if path in {"/api/pilot/password-reset/request", "/api/auth/password-reset/request"}:
             return (_env_int("SRIS_RATE_LIMIT_PASSWORD_RESET_PER_15M", 6), 900, "password-reset")
         if path.startswith("/api/pilot/ai") or path.startswith("/api/pilot/intelligence"):
             return (_env_int("SRIS_RATE_LIMIT_AI_PER_MINUTE", 20), 60, "ai")

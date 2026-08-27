@@ -173,7 +173,7 @@
   $('#reset-request-form')?.addEventListener('submit',event=>{
     event.preventDefault();
     submit(event.currentTarget,'A criar pedido…',async()=>{
-      const data=await api('/api/pilot/password-reset/request',{
+      const data=await api('/api/auth/password-reset/request',{
         method:'POST',body:JSON.stringify({email:$('#reset-email').value.trim()}),
       });
       if(data.reset_token){

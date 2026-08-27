@@ -21,6 +21,7 @@ from app.pilot_decision_cycle import router as pilot_decision_cycle_router
 from app.pilot_mission_state import router as pilot_mission_state_router
 from app.pilot_operations import PilotRateLimitMiddleware, router as pilot_operations_router
 from app.pilot_validation import router as pilot_validation_router
+from app.pilot_release_readiness import router as pilot_release_readiness_router
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ASSETS_DIR = PROJECT_ROOT / "frontend" / "assets"
@@ -40,6 +41,7 @@ app.include_router(evidence_graph_router)
 app.include_router(learning_lineage_router)
 app.include_router(pilot_operations_router)
 app.include_router(pilot_validation_router)
+app.include_router(pilot_release_readiness_router)
 app.add_middleware(PilotRateLimitMiddleware)
 
 

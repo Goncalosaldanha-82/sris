@@ -238,6 +238,11 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert payload["measurable_validation"] is True
     assert payload["tourism_advance_profile"] is True
     assert payload["baseline_and_result_comparison"] is True
+    assert payload["canonical_mission_chain"] == [
+        "context", "observation", "evidence", "hypothesis", "alternatives",
+        "decision", "action", "measurement", "outcome", "learning", "memory",
+    ]
+    assert "billing_mode" not in payload
     assert payload["live_business_case"] is True
     assert payload["scenario_financial_analysis"] is True
     assert payload["human_financial_material_resource_tracking"] is True
@@ -246,7 +251,6 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert payload["cross_module_dependencies"] is True
     assert payload["cross_module_conflict_detection"] is True
     assert payload["human_governed_ai_context"] is True
-    assert payload["billing_mode"] == "disabled"
     public_status = client.get("/api/mission-intelligence/status")
     assert public_status.status_code == 200
     assert "ai_model" not in public_status.json()
@@ -374,6 +378,8 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/register",
         "/api/pilot/profile",
         "/api/pilot/capabilities",
+        "/api/pilot/release-readiness",
+        "/api/pilot/release-readiness/checks/{check_key}",
         "/api/pilot/password-reset/request",
         "/api/pilot/password-reset/confirm",
         "/api/pilot/intelligence/ask",

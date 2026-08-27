@@ -216,3 +216,38 @@ class PasswordResetToken(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+
+class PilotReleaseAcceptance(Base):
+    """Build-scoped human evidence for an external-pilot release gate."""
+
+    __tablename__ = "pilot_release_acceptances"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "build",
+            "check_key",
+            name="uq_pilot_release_acceptance_org_build_check",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    build: Mapped[str] = mapped_column(String(120), index=True)
+    check_key: Mapped[str] = mapped_column(String(80), index=True)
+    accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    evidence: Mapped[str] = mapped_column(Text, default="")
+    tested_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    tested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )

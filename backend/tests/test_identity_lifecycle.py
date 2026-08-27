@@ -15,9 +15,24 @@ Base.metadata.create_all(bind=engine)
 client = TestClient(app)
 
 
+def _clear_delivery_environment(monkeypatch) -> None:
+    for name in (
+        "SRIS_EMAIL_PROVIDER",
+        "SRIS_EMAIL_FROM",
+        "RESEND_API_KEY",
+        "BREVO_API_KEY",
+        "SRIS_SMTP_HOST",
+        "SRIS_SMTP_USERNAME",
+        "SRIS_SMTP_PASSWORD",
+        "SRIS_SMTP_FROM_EMAIL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_managed_email_delivery_requires_https_and_transport_security(
     monkeypatch,
 ) -> None:
+    _clear_delivery_environment(monkeypatch)
     monkeypatch.setenv("RAILWAY_ENVIRONMENT_ID", "identity-staging")
     monkeypatch.setenv("SRIS_SMTP_HOST", "smtp.example.com")
     monkeypatch.setenv("SRIS_SMTP_FROM_EMAIL", "access@example.com")
@@ -28,6 +43,60 @@ def test_managed_email_delivery_requires_https_and_transport_security(
     monkeypatch.setenv("SRIS_SMTP_SECURITY", "starttls")
     monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
     assert auth_delivery.smtp_configuration() is not None
+
+
+def test_resend_is_a_first_class_fail_closed_identity_transport(monkeypatch) -> None:
+    _clear_delivery_environment(monkeypatch)
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_ID", "identity-staging")
+    monkeypatch.setenv("SRIS_EMAIL_PROVIDER", "resend")
+    monkeypatch.setenv("SRIS_EMAIL_FROM", "access@example.com")
+    monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    configuration = auth_delivery.auth_delivery_configuration()
+    assert configuration is not None
+    assert configuration.provider == "resend"
+    assert auth_delivery.build_auth_link("reset", "secret").startswith(
+        "https://sris.example.com/account.html#reset="
+    )
+
+    monkeypatch.setenv("BREVO_API_KEY", "another-test-key")
+    monkeypatch.delenv("SRIS_EMAIL_PROVIDER")
+    assert auth_delivery.auth_delivery_configuration() is None
+
+
+def test_resend_delivery_uses_json_api_without_exposing_key(monkeypatch) -> None:
+    _clear_delivery_environment(monkeypatch)
+    monkeypatch.setenv("SRIS_EMAIL_PROVIDER", "resend")
+    monkeypatch.setenv("SRIS_EMAIL_FROM", "access@example.com")
+    monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    captured = {}
+
+    class Response:
+        status = 202
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_urlopen(request, timeout):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(auth_delivery, "urlopen", fake_urlopen)
+    auth_delivery.send_transactional_email(
+        recipient="person@example.com",
+        subject="Ativar acesso",
+        text_body="Texto",
+        html_body="<p>Texto</p>",
+    )
+    request = captured["request"]
+    assert request.full_url == "https://api.resend.com/emails"
+    assert request.get_header("Authorization") == "Bearer test-key"
+    assert b"person@example.com" in request.data
 
 
 def _owner() -> tuple[dict[str, str], str, str]:
@@ -590,7 +659,7 @@ def test_identity_frontend_exposes_invite_and_recovery_flows() -> None:
     )
 
     assert 'id="forgot-link"' in login
-    assert "/api/pilot/password-reset/request" in auth
+    assert "/api/auth/password-reset/request" in auth
     assert "/api/pilot/password-reset/confirm" in auth
     assert "/api/auth/password-reset/request" in account
     assert "/api/auth/password-reset/confirm" in account

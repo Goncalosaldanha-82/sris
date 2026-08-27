@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260827-governed-context-and-memory-v26';
+  const BUILD='20260827-external-pilot-release-gates-v27';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;

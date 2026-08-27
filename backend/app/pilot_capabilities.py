@@ -7,7 +7,30 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260827-governed-context-and-memory-v26"
+PILOT_BUILD = "20260827-external-pilot-release-gates-v27"
+
+CANONICAL_MISSION_CHAIN = [
+    "context",
+    "observation",
+    "evidence",
+    "hypothesis",
+    "alternatives",
+    "decision",
+    "action",
+    "measurement",
+    "outcome",
+    "learning",
+    "memory",
+]
+
+TRANSVERSAL_EPISTEMIC_CONDITIONS = [
+    "assumptions",
+    "constraints",
+    "gaps",
+    "uncertainty",
+    "provenance",
+    "confidence",
+]
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -61,12 +84,13 @@ def pilot_capabilities() -> dict:
         "human_governed_ai_context": True,
         "ai_end_to_end_mission_drafts": True,
         "granular_human_proposal_validation": True,
+        "canonical_mission_chain": CANONICAL_MISSION_CHAIN,
+        "transversal_epistemic_conditions": TRANSVERSAL_EPISTEMIC_CONDITIONS,
         "tourism_advance_profile": True,
         "baseline_and_result_comparison": True,
         "hybrid_retrieval": True,
         "assistance_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
         "assistance_enabled": _flag("SRIS_AI_ENABLED", False),
-        "billing_mode": "disabled",
     }
 
 

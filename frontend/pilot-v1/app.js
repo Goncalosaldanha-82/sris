@@ -10,8 +10,10 @@ let profileAvailable=false;
 let refreshPromise=null;
 let editingMissionId=null;
 let workspaceSummary=null;
+let releaseReadiness=null;
 let missionOpenSequence=0;
 const missionRuntime={attachments:[],graph:null,validation:null,businessCase:null,cycles:[],readiness:null,dialogues:[],memory:[],extraction:null};
+const CANONICAL_MISSION_CHAIN_PT='Contexto → Observação → Evidência → Hipótese → Alternativas → Decisão → Ação → Medição → Resultado → Aprendizagem → Memória';
 
 const titles={
   overview:'Visão geral',
@@ -225,11 +227,11 @@ function setWorkspaceState(label,state='ready'){
   element.dataset.state=state;
 }
 
-function showAppMessage(message,{retry=false}={}){
+function showAppMessage(message,{retry=false,status='error'}={}){
   const box=$('#app-message');
   if(!box)return;
   box.textContent=message;
-  box.className='app-message alert error';
+  box.className=`app-message alert ${status}`;
   if(retry){
     const button=document.createElement('button');
     button.type='button';
@@ -277,7 +279,7 @@ function go(section){
   const missionSync=section==='mission'&&orgId()
     ? loadMissions({openFirst:true})
     : section==='overview'&&orgId()
-      ? loadWorkspaceSummary()
+      ? Promise.allSettled([loadWorkspaceSummary(),loadReleaseReadiness()])
       : Promise.resolve();
   if(section==='copilot')updateCopilotContext();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -414,6 +416,56 @@ async function loadWorkspaceSummary(){
     return null;
   }
 }
+
+function renderReleaseReadiness(payload){
+  releaseReadiness=payload;
+  const panel=$('#release-readiness-panel');
+  const root=$('#release-readiness-checks');
+  if(!panel||!root)return;
+  panel.dataset.ready=payload.ready_for_external_test?'true':'false';
+  setText('#release-readiness-score',payload.ready_for_external_test?'Pronto':`${payload.passed_count}/${payload.total_count}`);
+  setText('#release-readiness-summary',payload.ready_for_external_test
+    ?'Todos os gates deste build têm evidência. O teste externo pode avançar.'
+    :'O build permanece em piloto controlado até todos os gates terem evidência.');
+  root.innerHTML=(payload.checks||[]).map(check=>`<article class="release-gate ${check.passed?'passed':''}" data-release-check="${escapeHtml(check.key)}">
+    <div class="release-gate-head"><div><strong>${escapeHtml(check.label)}</strong><p>${escapeHtml(check.description)}</p></div><span class="release-gate-state">${check.passed?'Comprovado':'Pendente'}</span></div>
+    ${check.evidence?`<div class="release-gate-evidence">${escapeHtml(check.evidence)}</div>`:''}
+    ${payload.can_manage&&check.source==='human_acceptance'?`<textarea class="input release-evidence" aria-label="Evidência para ${escapeHtml(check.label)}" placeholder="Dispositivo/browser, data, percurso e resultado observado…">${escapeHtml(check.evidence||'')}</textarea><div class="release-gate-actions"><button class="btn btn-primary compact" type="button" data-release-accept="true">Registar aceitação</button>${check.passed?'<button class="btn btn-secondary compact" type="button" data-release-accept="false">Retirar aceitação</button>':''}</div>`:''}
+  </article>`).join('');
+}
+
+async function loadReleaseReadiness(){
+  if(!orgId())return null;
+  const root=$('#release-readiness-checks');
+  try{
+    const payload=await api(`/api/pilot/release-readiness?organization_id=${encodeURIComponent(orgId())}`);
+    renderReleaseReadiness(payload);
+    return payload;
+  }catch(error){
+    if(root)root.innerHTML=`<div class="alert error">Não foi possível calcular a prontidão externa: ${escapeHtml(error.message)}</div>`;
+    return null;
+  }
+}
+
+$('#release-readiness-checks')?.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-release-accept]');
+  if(!button)return;
+  const card=button.closest('[data-release-check]');
+  const evidence=card?.querySelector('.release-evidence')?.value.trim()||'';
+  if(evidence.length<10){
+    showAppMessage('Registe evidência concreta do ensaio antes de aceitar este gate.');
+    return;
+  }
+  button.disabled=true;
+  try{
+    const payload=await api(`/api/pilot/release-readiness/checks/${encodeURIComponent(card.dataset.releaseCheck)}?organization_id=${encodeURIComponent(orgId())}`,{
+      method:'PUT',body:JSON.stringify({accepted:button.dataset.releaseAccept==='true',evidence}),
+    });
+    renderReleaseReadiness(payload);
+    showAppMessage('Evidência de aceitação registada no histórico auditável.',{status:'success'});
+  }catch(error){showAppMessage(error.message);}
+  finally{button.disabled=false;}
+});
 
 $('#overview')?.addEventListener('click',async event=>{
   const button=event.target.closest('[data-command-mission]');
@@ -1267,6 +1319,7 @@ async function reportSnapshot(){
     schema:'sris.pilot.mission-export.v3',
     generated_at:new Date().toISOString(),
     human_review_required:true,
+    canonical_mission_chain:['context','observation','evidence','hypothesis','alternatives','decision','action','measurement','outcome','learning','memory'],
     mission,
     attachments:value(attachmentsResult,[]).map(item=>({
       id:item.id,
@@ -1588,18 +1641,20 @@ async function exportReport(kind,button){
   try{
     const snapshot=await reportSnapshot();
     const base=slug(`${snapshot.mission.code}-${snapshot.mission.title}`);
+    const alignedHtml=()=>completeReportHtml(snapshot).replace('</header>',`</header><section><h2>Cadeia canónica da missão</h2><div class="pre">${CANONICAL_MISSION_CHAIN_PT}</div></section>`);
+    const alignedMarkdown=()=>reportMarkdown(snapshot).replace('\n\n## Objetivo',`\n\n## Cadeia canónica da missão\n\n${CANONICAL_MISSION_CHAIN_PT}\n\n## Objetivo`);
     if(kind==='json'){
       const filename=downloadBlob(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json;charset=utf-8'}),`${base}-arquivo-verificavel.json`);
       showMissionMessage(`Arquivo verificável gerado: ${filename}`,'success');
       return;
     }
     if(kind==='html'){
-      const filename=downloadBlob(new Blob([completeReportHtml(snapshot)],{type:'text/html;charset=utf-8'}),`${base}-relatorio-completo.html`);
+      const filename=downloadBlob(new Blob([alignedHtml()],{type:'text/html;charset=utf-8'}),`${base}-relatorio-completo.html`);
       showMissionMessage(`Relatório HTML gerado: ${filename}`,'success');
       return;
     }
     if(kind==='md'){
-      const filename=downloadBlob(new Blob([reportMarkdown(snapshot)],{type:'text/markdown;charset=utf-8'}),`${base}-relatorio-completo.md`);
+      const filename=downloadBlob(new Blob([alignedMarkdown()],{type:'text/markdown;charset=utf-8'}),`${base}-relatorio-completo.md`);
       showMissionMessage(`Relatório Markdown gerado: ${filename}`,'success');
       return;
     }
@@ -1607,7 +1662,7 @@ async function exportReport(kind,button){
     if(!reportWindow){showMissionMessage('O browser bloqueou a janela de impressão. Autorize pop-ups para guardar o relatório em PDF.');return;}
     reportWindow.opener=null;
     reportWindow.document.open();
-    reportWindow.document.write(completeReportHtml(snapshot));
+    reportWindow.document.write(alignedHtml());
     reportWindow.document.close();
     setTimeout(()=>{reportWindow.focus();reportWindow.print();},250);
     showMissionMessage('Relatório preparado numa nova janela. Use a opção do navegador para imprimir ou guardar em PDF.','success');
@@ -1705,6 +1760,6 @@ function refineStaticCopy(){
     renderDegradedProfile();
     showAppMessage(`A sessão foi iniciada, mas o workspace não conseguiu sincronizar: ${error.message}`,{retry:true});
   }
-  if(orgId())await Promise.allSettled([loadMissions(),loadWorkspaceSummary(),loadAccountCapabilities()]);
+  if(orgId())await Promise.allSettled([loadMissions(),loadWorkspaceSummary(),loadReleaseReadiness(),loadAccountCapabilities()]);
   setTimeout(normaliseMissionTabs,500);
 })();
