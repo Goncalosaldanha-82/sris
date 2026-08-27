@@ -323,7 +323,9 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "model_or_system" not in workspace.text
     assert "credit_eur" not in workspace.text
     assert "sris:memory-updated" in workspace.text
-    assert "janela citada do mesmo estado governado" in workspace.text
+    assert "Inteligência governada de ponta a ponta" in workspace.text
+    assert "Estruturar missão completa" in workspace.text
+    assert "data-decision=\"human_validated\"" in workspace.text
     assert "sris:mission-state-updated" in workspace.text
 
 
@@ -1262,7 +1264,9 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     ai_payload = governed_ai.json()
     assert ai_payload["schema"] == "sris.governed-ai-context.v1"
     assert ai_payload["state_hash"] == governed_payload["state_hash"]
-    assert ai_payload["boundary"]["role"] == "assistive_only"
+    assert ai_payload["boundary"]["role"] == "end_to_end_draft_orchestration"
+    assert ai_payload["boundary"]["mission_path"]["ai_may_prepare_all_stages"] is True
+    assert len(ai_payload["boundary"]["mission_path"]["stages"]) == 10
     assert ai_payload["boundary"]["human_review_required"] is True
     assert ai_payload["boundary"]["canonical_mutation"] == "prohibited_without_explicit_human_promotion"
     assert any(item.startswith("DOC:") for item in ai_payload["citation_ids"])

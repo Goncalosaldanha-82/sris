@@ -15,6 +15,39 @@ defeito, limiares auditáveis que não interrompem uma Missão. Uma organizaçã
 pode optar explicitamente por convertê-los em limites rígidos. Um bloqueio da IA
 não elimina a análise determinística.
 
+## Autoridade e percurso integral da missão
+
+A IA pode preparar, numa única execução governada, as dez etapas do percurso:
+evidência, hipóteses, alternativas, economia e recursos, decisão recomendada,
+ação, medição, resultado esperado, aprendizagem candidata e memória candidata.
+Uma etapa sem dados não desaparece: fica `blocked_by_gap`, com a lacuna, a fonte
+necessária e a incerteza explícitas. Etapas posteriores podem ser preparadas
+condicionalmente para acelerar o trabalho, mas nunca são apresentadas como atos
+ou resultados ocorridos.
+
+Cada etapa mantém um `proposal_id`, cita `based_on_ids`, declara confiança,
+pressupostos, incertezas e o gate humano aplicável. O estado inicial é sempre
+`ai_proposal_pending_human_validation`. Um proprietário, administrador ou
+revisor pode rejeitar, adiar, aceitar como rascunho ou validar humanamente cada
+proposta. A validação preserva o modelo, versão do prompt, hash do estado da
+missão, utilizador, data e justificação. Se o estado governado mudar, a proposta
+validada fica desatualizada e regressa a revisão.
+
+Validar uma proposta da IA confirma apenas que uma pessoa a aceita como
+proposta institucional. Não transforma uma hipótese em facto nem uma
+recomendação em decisão executiva. Permanecem gates humanos próprios para:
+
+1. validade factual da evidência;
+2. alternativas e comparação;
+3. business case e recursos;
+4. decisão formal;
+5. autorização de execução;
+6. confirmação do resultado observado;
+7. publicação da aprendizagem e memória;
+8. encerramento da missão.
+
+Assim, a capacidade da IA é transversal; a autoridade continua humana.
+
 ## Gate de execução
 
 Uma execução assistida só chega ao fornecedor quando todas as condições são

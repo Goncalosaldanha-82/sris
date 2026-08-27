@@ -1186,7 +1186,7 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert "Podes criar hipóteses, alternativas, critérios e experiências" in (
         request.instructions
     )
-    assert interactive_ai.INTERACTIVE_PROMPT_VERSION == "sris-mi-interactive-2.7"
+    assert interactive_ai.INTERACTIVE_PROMPT_VERSION == "sris-mi-interactive-2.8"
     assert "ANÁLISE DOCUMENTAL E RELACIONAL" in request.instructions
     assert "«Nascente» significa o ponto cardeal Este" in request.instructions
     assert "não justificam confiança factual moderada ou alta" in request.instructions
@@ -1222,6 +1222,68 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert len(output.experiment_proposals) == 1
     assert output.boundary.facts_added is False
     assert output.boundary.human_review_required is True
+
+
+def test_ai_can_prepare_the_complete_mission_path_but_cannot_validate_it() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    payload = _interactive_output(
+        document,
+        MIInteractionIntent.BUILD_MISSION_PATH,
+    ).model_dump(mode="json")
+    basis = document.records[0].canonical_id
+    output_kinds = {
+        "evidence": "fact_candidate",
+        "hypotheses": "hypothesis",
+        "alternatives": "alternative",
+        "economics": "economic_assumption",
+        "decision": "decision_recommendation",
+        "action": "action_plan",
+        "measurement": "measurement_plan",
+        "outcome": "expected_outcome",
+        "learning": "learning_candidate",
+        "memory": "memory_candidate",
+    }
+    payload["mission_path"] = {
+        stage: {
+            "proposal_id": f"PATH-AI-{index:02d}",
+            "stage": stage,
+            "title": f"Etapa {stage}",
+            "proposal": f"Proposta condicional para {stage}, sujeita a validação humana.",
+            "output_kind": output_kind,
+            "readiness": "ready_for_review" if stage == "evidence" else "conditional",
+            "confidence": "low",
+            "based_on_ids": [basis],
+            "assumptions": ["O fundamento citado permanece atual."],
+            "uncertainties": ["A etapa ainda não foi validada por uma pessoa."],
+            "source_requirements": ["Confirmar a fonte citada."],
+            "human_gate": "Uma pessoa aceita, edita ou rejeita esta proposta.",
+            "epistemic_status": "ai_proposal_pending_human_validation",
+        }
+        for index, (stage, output_kind) in enumerate(output_kinds.items(), start=1)
+    }
+    output = MIInteractiveOutput.model_validate(payload)
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.BUILD_MISSION_PATH,
+        message="Prepara todo o percurso desta missão para validação humana.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+    )
+
+    assert output.mission_path is not None
+    assert output.mission_path.decision.output_kind == "decision_recommendation"
+    assert output.mission_path.outcome.output_kind == "expected_outcome"
+    assert output.boundary.human_review_required is True
+    assert output.boundary.facts_added is False
+    assert request.response_model.model_fields["mission_path"].is_required()
+    assert "A IA pode preparar todo o percurso" in request.instructions
+    assert interactive_ai._quality_failures(
+        output,
+        MIInteractionIntent.BUILD_MISSION_PATH,
+    ) == []
+    interactive_ai._validate_references(output, document)
 
 
 def test_governed_ai_window_preserves_cross_module_sources_and_human_boundary() -> None:
@@ -2495,6 +2557,35 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     assert reviewed.json()["decision"] == "accepted_as_draft"
     assert reviewed.json()["canonical_effect"] == "none"
 
+    validated = client.put(
+        review_url,
+        headers=headers,
+        json={
+            "decision": "human_validated",
+            "comment": "Alternativa validada como proposta humana; não como facto ou decisão.",
+        },
+    )
+    assert validated.status_code == 200, validated.text
+    assert validated.json()["decision"] == "human_validated"
+    assert validated.json()["canonical_effect"] == "human_validated_proposal"
+
+    governed_context = client.get(
+        "/api/pilot/mission-state/missions/M-001/ai-context",
+        headers=headers,
+    )
+    assert governed_context.status_code == 200, governed_context.text
+    validated_object = next(
+        item
+        for item in governed_context.json()["objects"]
+        if item.get("proposal_id") == "ALT-AI-001"
+    )
+    assert validated_object["module"] == "comparison"
+    assert validated_object["human_disposition"] == "human_validated"
+    assert validated_object["epistemic_status"] == (
+        "human_validated_as_proposal_not_as_fact"
+    )
+    assert validated_object["current"] is True
+
     second = client.post(
         endpoint,
         headers=headers,
@@ -2564,7 +2655,7 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     assert len(dialogue.json()["turns"]) == 2
     assert dialogue.json()["turns"][0]["proposal_reviews"][0][
         "canonical_effect"
-    ] == "none"
+    ] == "human_validated_proposal"
 
 
 def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch) -> None:

@@ -179,6 +179,10 @@ def _call_openai(*, message: str, context: str, model: str) -> tuple[str, dict, 
         "Distingue factos confirmados, declarações, inferências, hipóteses, lacunas de evidência, riscos e decisões. "
         "Não inventes factos, fontes ou certezas. Quando usares contexto documental, identifica a fonte pelo nome. "
         "As fontes recuperadas incluem attachment, intervalos de caracteres e hash; preserva essa proveniência quando material. "
+        "Podes preparar propostas para qualquer etapa do percurso — evidência, hipóteses, alternativas, "
+        "economia e recursos, decisão recomendada, ação, medição, resultado esperado, aprendizagem e memória. "
+        "Todas permanecem rascunhos sujeitos a validação humana; nunca declares uma decisão, autorização, "
+        "execução, resultado observado, aprendizagem publicada ou missão encerrada em nome do utilizador. "
         "Termina com próximos passos ordenados por valor decisório."
     )
     if context:

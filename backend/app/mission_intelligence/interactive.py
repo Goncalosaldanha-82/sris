@@ -34,6 +34,7 @@ from .contracts import (
     MIInteractiveOutput,
     MIInteractiveResearchBundle,
     MIInteractionIntent,
+    MIMissionPathPlan,
     MIQuestionAnswer,
     MissionDocumentV13,
     RecordKind,
@@ -44,9 +45,10 @@ from .mission_archive import MissionArchiveContext, lexical_relevance, lexical_t
 logger = logging.getLogger(__name__)
 
 
-INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.7"
-INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.7"
+INTERACTIVE_PROMPT_VERSION = "sris-mi-interactive-2.8"
+INTERACTIVE_RESEARCH_PROMPT_VERSION = "sris-mi-interactive-research-2.8"
 DEFAULT_INTERACTIVE_OUTPUT_TOKENS = 4_500
+DEFAULT_MISSION_PATH_OUTPUT_TOKENS = 6_000
 DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS = 6_000
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_BYTES = 13_000
@@ -163,6 +165,7 @@ INTERACTION_MINIMUMS: dict[MIInteractionIntent, dict[str, int]] = {
     },
     MIInteractionIntent.COMPARE_OPTIONS: {"decision_criteria": 3},
     MIInteractionIntent.SYNTHESIZE: {"recommended_actions": 1},
+    MIInteractionIntent.BUILD_MISSION_PATH: {"recommended_actions": 1},
 }
 
 INTERACTION_MAXIMUMS = {
@@ -238,6 +241,20 @@ COMPORTAMENTO DE INTELIGÊNCIA
   parte do contrato técnico da resposta, não sugestões. Antes de concluir,
   confirma que cada coleção indicada contém pelo menos o número exigido de
   elementos substanciais, distintos e ancorados em based_on_ids.
+
+PERCURSO INTEGRAL DA MISSÃO
+- Quando o intent for build_mission_path, preenche mission_path integralmente:
+  evidência, hipóteses, alternativas, economia, decisão recomendada, ação,
+  medição, resultado esperado, aprendizagem candidata e memória candidata.
+- Não omitas uma etapa por falta de dados. Marca-a blocked_by_gap, explica a
+  lacuna e indica a fonte ou validação necessária. Um vazio honesto governado é
+  melhor do que uma estimativa inventada.
+- Podes preparar etapas posteriores de forma condicional, como cenário de
+  trabalho, mesmo quando uma etapa anterior aguarda revisão. Nunca as
+  apresentes como execução, resultado observado ou decisão institucional.
+- Cada etapa é uma proposta independente, citada e sujeita a validação humana.
+  A IA pode preparar todo o percurso; não pode validar, decidir, autorizar,
+  confirmar resultados, publicar aprendizagem ou encerrar a missão.
 - Usa o orçamento executivo do contrato: devolve exatamente o mínimo pedido em
   cada coleção obrigatória; nas restantes coleções inclui no máximo uma
   proposta, apenas quando for material. Não repitas a mesma ideia em campos
@@ -586,6 +603,9 @@ def _response_model_for(
                 max_length=INTERACTION_MAXIMUMS[field_name],
             ),
         )
+
+    if intent == MIInteractionIntent.BUILD_MISSION_PATH:
+        overrides["mission_path"] = (MIMissionPathPlan, ...)
 
     intent_name = "".join(part.title() for part in intent.value.split("_"))
     output_model = create_model(
@@ -1337,6 +1357,8 @@ def prepare_interactive_request(
     effective_limit = max_output_tokens or (
         DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS
         if research_context
+        else DEFAULT_MISSION_PATH_OUTPUT_TOKENS
+        if intent == MIInteractionIntent.BUILD_MISSION_PATH
         else DEFAULT_INTERACTIVE_OUTPUT_TOKENS
     )
     provider_schema = _compact_provider_schema(
@@ -1668,6 +1690,9 @@ def _quality_failures(
         if len(getattr(output, field)) < minimum:
             failures.append(f"{field} requires at least {minimum} item(s)")
 
+    if intent == MIInteractionIntent.BUILD_MISSION_PATH and output.mission_path is None:
+        failures.append("build_mission_path requires the complete governed mission path")
+
     if intent == MIInteractionIntent.DIAGNOSE and len(
         {item.statement.strip().casefold() for item in output.hypotheses}
     ) < 2:
@@ -1705,6 +1730,9 @@ def _validate_references(
     for group in groups:
         for item in group:
             referenced.update(item.based_on_ids)
+    if output.mission_path:
+        for field_name in type(output.mission_path).model_fields:
+            referenced.update(getattr(output.mission_path, field_name).based_on_ids)
     unknown = referenced - known_ids
     if unknown:
         raise AIUnavailableError(
@@ -1756,6 +1784,10 @@ def _reference_locations(output: MIInteractiveOutput) -> dict[str, list[str]]:
         for item in items:
             identifier = str(getattr(item, identifier_field, "") or "")
             add(item.based_on_ids, f"{label} {identifier}".strip())
+    if output.mission_path:
+        for field_name in type(output.mission_path).model_fields:
+            stage = getattr(output.mission_path, field_name)
+            add(stage.based_on_ids, f"Percurso {field_name} {stage.proposal_id}")
     return locations
 
 
@@ -2001,6 +2033,27 @@ def _unique_generated_ids(intelligence: dict[str, Any]) -> int:
                 suffix = f"_{serial}"
                 candidate = identifier[: 120 - len(suffix)] + suffix
             item[id_field] = candidate
+            seen.add(candidate)
+            changed += 1
+    mission_path = intelligence.get("mission_path")
+    if isinstance(mission_path, dict):
+        for index, item in enumerate(mission_path.values(), start=1):
+            if not isinstance(item, dict):
+                continue
+            identifier = item.get("proposal_id")
+            if not isinstance(identifier, str):
+                continue
+            if identifier not in seen:
+                seen.add(identifier)
+                continue
+            suffix = f"_{index}"
+            candidate = identifier[: 120 - len(suffix)] + suffix
+            serial = index
+            while candidate in seen:
+                serial += 1
+                suffix = f"_{serial}"
+                candidate = identifier[: 120 - len(suffix)] + suffix
+            item["proposal_id"] = candidate
             seen.add(candidate)
             changed += 1
     return changed

@@ -82,6 +82,8 @@ def capability_status() -> dict:
         "interactive_prompt_version": INTERACTIVE_PROMPT_VERSION,
         "interactive_state": "locally_persisted",
         "proposal_review": "granular_human_review",
+        "end_to_end_mission_path": "ai_prepared_human_validated",
+        "mission_path_human_gates": 8,
         "canonical_auto_mutation": False,
         "ai_provider": "openai",
         "ai_configured": is_ai_configured(),

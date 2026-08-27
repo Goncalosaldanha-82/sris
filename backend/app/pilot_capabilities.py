@@ -7,7 +7,7 @@ from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260826-governed-mission-repairs-v23"
+PILOT_BUILD = "20260827-human-governed-ai-mission-path-v24"
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -62,6 +62,8 @@ def pilot_capabilities() -> dict:
         "cross_module_dependencies": True,
         "cross_module_conflict_detection": True,
         "human_governed_ai_context": True,
+        "ai_end_to_end_mission_drafts": True,
+        "granular_human_proposal_validation": True,
         "tourism_advance_profile": True,
         "baseline_and_result_comparison": True,
         "hybrid_retrieval": True,

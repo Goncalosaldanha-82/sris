@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260826-governed-mission-repairs-v23';
+  const BUILD='20260827-human-governed-ai-mission-path-v24';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;

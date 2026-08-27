@@ -40,6 +40,7 @@ from .governance import (
 from .interactive import (
     DEFAULT_INTERACTIVE_OUTPUT_TOKENS,
     DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS,
+    DEFAULT_MISSION_PATH_OUTPUT_TOKENS,
     MIInteractiveExecution,
     analyze_interactively,
     prepare_interactive_request,
@@ -212,7 +213,11 @@ def _proposal_review_view(row: MissionProposalReview) -> dict[str, Any]:
         "reviewed_by_user_id": row.reviewed_by_user_id,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
-        "canonical_effect": "none",
+        "canonical_effect": (
+            "human_validated_proposal"
+            if row.decision == "human_validated"
+            else "none"
+        ),
     }
 
 
@@ -363,14 +368,17 @@ def _apply_execution(
             "origin_type": "ai_model",
             "provider": execution.provider,
             "model_or_system": execution.model,
+            "model": execution.model,
             "version": execution.prompt_version,
+            "prompt_version": execution.prompt_version,
             "provider_response_id": execution.provider_response_id,
             "verification_status": "in_review",
             "web_search_calls": execution.web_search_calls,
             "search_queries": list(execution.search_queries),
             "limitations": (
-                "Saída interativa provisória. Hipóteses, alternativas, critérios e "
-                "experiências são propostas; não constituem factos nem alteram a missão."
+                "Saída interativa provisória. Todo o percurso preparado pela IA permanece "
+                "proposta; não constitui facto, decisão, autorização, resultado observado "
+                "ou encerramento e não altera automaticamente a missão."
             ),
         },
         context_manifest=execution.context_manifest or result.get("context_manifest"),
@@ -741,6 +749,8 @@ def run_interactive_turn(
     requested_output = (
         DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS
         if payload.research_context
+        else DEFAULT_MISSION_PATH_OUTPUT_TOKENS
+        if payload.intent.value == "build_mission_path"
         else DEFAULT_INTERACTIVE_OUTPUT_TOKENS
     )
     output_limit = min(
@@ -1117,11 +1127,18 @@ def _find_proposal(
         "alternative": "alternative_proposals",
         "criterion": "decision_criteria",
         "experiment": "experiment_proposals",
+        "action": "recommended_actions",
     }
     for proposal_type, section in sections.items():
         for item in intelligence.get(section) or []:
-            if item.get("proposal_id") == proposal_id:
+            item_id = item.get("proposal_id") or item.get("action_id")
+            if item_id == proposal_id:
                 return proposal_type, item
+    mission_path = intelligence.get("mission_path") or {}
+    if isinstance(mission_path, dict):
+        for stage, item in mission_path.items():
+            if isinstance(item, dict) and item.get("proposal_id") == proposal_id:
+                return f"mission_path:{stage}", item
     return None
 
 
@@ -1157,7 +1174,7 @@ def review_dialogue_proposal(
             "proposal_not_found",
             "A proposta não foi encontrada neste turno de diálogo.",
         )
-    proposal_type, _proposal = found
+    proposal_type, proposal = found
     review = (
         db.query(MissionProposalReview)
         .filter(
@@ -1197,7 +1214,14 @@ def review_dialogue_proposal(
             "proposal_id": proposal_id,
             "proposal_type": proposal_type,
             "decision": payload.decision,
-            "canonical_effect": "none",
+            "canonical_effect": (
+                "human_validated_proposal"
+                if payload.decision == "human_validated"
+                else "none"
+            ),
+            "mission_revision": turn.session.mission.revision,
+            "mission_content_hash": turn.session.mission.content_hash,
+            "proposal_snapshot": proposal,
         },
     )
     db.commit()

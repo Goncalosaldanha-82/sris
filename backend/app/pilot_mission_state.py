@@ -1532,9 +1532,35 @@ def build_mission_state(
         "dependencies": dependencies,
         "conflicts": conflicts,
         "ai_governance": {
-            "role": "assistive_only",
+            "role": "end_to_end_draft_orchestration",
             "canonical_mutation": "prohibited_without_explicit_human_promotion",
             "human_review_required": True,
+            "mission_path": {
+                "ai_may_prepare_all_stages": True,
+                "stages": [
+                    "evidence",
+                    "hypotheses",
+                    "alternatives",
+                    "economics",
+                    "decision",
+                    "action",
+                    "measurement",
+                    "outcome",
+                    "learning",
+                    "memory",
+                ],
+                "downstream_drafts_may_be_conditional": True,
+                "human_gates": [
+                    "factual_evidence",
+                    "alternatives_and_comparison",
+                    "economic_and_resource_case",
+                    "formal_decision",
+                    "execution_authorization",
+                    "observed_result",
+                    "learning_publication",
+                    "mission_closure",
+                ],
+            },
             "source_rule": (
                 "A IA cita objetos governados e fontes recuperadas; integridade da fonte "
                 "não é tratada automaticamente como veracidade factual."
@@ -1547,10 +1573,16 @@ def build_mission_state(
                 "deteção de contradições e lacunas",
                 "comparação",
                 "síntese para revisão humana",
+                "preparação integral e condicional do percurso da missão",
+                "planos de ação, medição, resultado, aprendizagem e memória em rascunho",
             ],
             "prohibited": [
                 "decidir",
                 "aprovar",
+                "autorizar execução",
+                "confirmar resultado observado",
+                "publicar aprendizagem ou memória sem validação",
+                "encerrar a missão",
                 "ocultar incerteza",
                 "converter inferência em evidência",
                 "reescrever histórico",
@@ -1836,6 +1868,123 @@ def governed_ai_context(
             content_hash=row.get("source_content_hash"),
             epistemic_status="organizational_memory_for_contextual_review",
         )
+
+    if all(
+        _table_exists(db, table_name)
+        for table_name in (
+            "mi_proposal_reviews",
+            "mi_dialogue_turns",
+            "mi_dialogue_sessions",
+            "mi_intelligence_runs",
+        )
+    ):
+        reviewed_proposals = db.execute(
+            text(
+                """
+                SELECT review.id, review.proposal_id, review.proposal_type,
+                       review.decision, review.comment, review.reviewed_by_user_id,
+                       review.updated_at, turn.sequence, run.ai_json, run.model,
+                       run.engine_version, run.snapshot_hash
+                FROM mi_proposal_reviews review
+                JOIN mi_dialogue_turns turn ON turn.id=review.turn_id
+                JOIN mi_dialogue_sessions session ON session.id=turn.session_id
+                JOIN mi_intelligence_runs run ON run.id=turn.intelligence_run_id
+                WHERE review.organization_id=:org AND session.mission_id=:mission
+                  AND review.decision IN ('accepted_as_draft', 'human_validated')
+                ORDER BY review.updated_at DESC
+                LIMIT 300
+                """
+            ),
+            {"org": organization_id, "mission": mission_id},
+        ).mappings().all()
+
+        def proposal_snapshot(ai_json: str | None, proposal_id: str) -> dict[str, Any]:
+            payload = _loads(ai_json, {})
+            intelligence = payload.get("intelligence") or {}
+            for section, id_field in (
+                ("hypotheses", "proposal_id"),
+                ("alternative_proposals", "proposal_id"),
+                ("decision_criteria", "proposal_id"),
+                ("experiment_proposals", "proposal_id"),
+                ("recommended_actions", "action_id"),
+            ):
+                for candidate in intelligence.get(section) or []:
+                    if candidate.get(id_field) == proposal_id:
+                        return candidate
+            for candidate in (intelligence.get("mission_path") or {}).values():
+                if isinstance(candidate, dict) and candidate.get("proposal_id") == proposal_id:
+                    return candidate
+            return {"proposal_id": proposal_id, "content_unavailable": True}
+
+        for row in reviewed_proposals:
+            ai_payload = _loads(row.get("ai_json"), {})
+            ai_provenance = ai_payload.get("provenance") or {}
+            snapshot = proposal_snapshot(row.get("ai_json"), row["proposal_id"])
+            proposal_type = str(row.get("proposal_type") or "proposal")
+            path_stage = (
+                proposal_type.split(":", 1)[1]
+                if proposal_type.startswith("mission_path:")
+                else None
+            )
+            module = (
+                {
+                    "evidence": "evidence",
+                    "hypotheses": "evidence",
+                    "alternatives": "comparison",
+                    "economics": "economics",
+                    "decision": "decision",
+                    "action": "action",
+                    "measurement": "validation",
+                    "outcome": "outcome",
+                    "learning": "learning",
+                    "memory": "memory",
+                }.get(path_stage, "intelligence")
+                if path_stage
+                else {
+                    "hypothesis": "evidence",
+                    "alternative": "comparison",
+                    "criterion": "comparison",
+                    "experiment": "validation",
+                    "action": "action",
+                }.get(proposal_type, "intelligence")
+            )
+            proposal_current = row.get("snapshot_hash") == state["state_hash"]
+            add(
+                f"AIPROP:{row['id']}",
+                module,
+                "human_validated_ai_proposal"
+                if row["decision"] == "human_validated"
+                else "ai_draft_accepted_for_development",
+                snapshot.get("title")
+                or snapshot.get("statement")
+                or snapshot.get("name")
+                or snapshot.get("action")
+                or f"Proposta {row['proposal_id']}",
+                snapshot,
+                proposal_id=row["proposal_id"],
+                proposal_type=proposal_type,
+                human_disposition=row["decision"],
+                human_comment=row.get("comment") or "",
+                reviewed_by_user_id=row.get("reviewed_by_user_id"),
+                reviewed_at=as_iso(row.get("updated_at")),
+                model=ai_provenance.get("model_or_system") or row.get("model"),
+                prompt_version=ai_provenance.get("version") or row.get("engine_version"),
+                provider_response_id=ai_provenance.get("provider_response_id"),
+                source_state_hash=row.get("snapshot_hash"),
+                current=proposal_current,
+                stale_reason=(
+                    None
+                    if proposal_current
+                    else "O estado governado da missão mudou após a geração ou validação desta proposta."
+                ),
+                epistemic_status=(
+                    "human_validated_proposal_stale"
+                    if not proposal_current
+                    else "human_validated_as_proposal_not_as_fact"
+                    if row["decision"] == "human_validated"
+                    else "accepted_ai_draft"
+                ),
+            )
 
     return {
         "schema": AI_CONTEXT_SCHEMA,
