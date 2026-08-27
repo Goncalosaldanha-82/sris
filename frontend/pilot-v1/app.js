@@ -14,6 +14,19 @@ let releaseReadiness=null;
 let missionOpenSequence=0;
 const missionRuntime={attachments:[],graph:null,validation:null,businessCase:null,cycles:[],readiness:null,dialogues:[],memory:[],extraction:null};
 const CANONICAL_MISSION_CHAIN_PT='Contexto → Observação → Evidência → Hipótese → Alternativas → Decisão → Ação → Medição → Resultado → Aprendizagem → Memória';
+const MISSION_CYCLE_STEPS=[
+  {label:'Contexto',description:'Definir o problema, o objetivo e as condições em que a decisão existe.',tab:'summary'},
+  {label:'Observação',description:'Registar o que foi diretamente observado, sem o converter ainda numa explicação.',tab:'graph'},
+  {label:'Evidência',description:'Ligar fontes verificáveis ao que pode ser sustentado.',tab:'graph'},
+  {label:'Hipótese',description:'Explicitar explicações provisórias que ainda precisam de teste.',tab:'graph'},
+  {label:'Alternativas',description:'Comparar caminhos reais, incluindo a opção de não agir.',tab:'comparison'},
+  {label:'Decisão',description:'Registar a escolha humana, os fundamentos e os limites.',tab:'cycle'},
+  {label:'Ação',description:'Converter a decisão em execução, responsabilidade e prazo.',tab:'cycle'},
+  {label:'Medição',description:'Definir baseline, indicador, método e critério de sucesso.',tab:'validation'},
+  {label:'Resultado',description:'Registar o que aconteceu, separado do que era esperado.',tab:'cycle'},
+  {label:'Aprendizagem',description:'Extrair uma conclusão condicionada pela evidência e pelo contexto.',tab:'learning'},
+  {label:'Memória',description:'Preservar conhecimento reutilizável, sujeito a validade e revalidação.',tab:'memory'},
+];
 
 const titles={
   overview:'Visão geral',
@@ -182,7 +195,14 @@ function displayChangeNote(value){
   const legacyTranslations={
     'Analysis input accepted as a new canonical mission revision.':'Entrada de análise aceite como nova revisão canónica da missão.',
   };
-  return legacyTranslations[note]||note||'Revisão canónica preservada.';
+  if(legacyTranslations[note])return legacyTranslations[note];
+  const lifecycleChange=note.match(/^Estado alterado de (active|paused|completed|archived) para (active|paused|completed|archived)(?: no Pilot V1)?\.?$/i);
+  if(lifecycleChange){
+    const previous=lifecycleLabels[lifecycleChange[1].toLowerCase()]||lifecycleChange[1];
+    const next=lifecycleLabels[lifecycleChange[2].toLowerCase()]||lifecycleChange[2];
+    return `Estado alterado de ${previous.toLocaleLowerCase('pt-PT')} para ${next.toLocaleLowerCase('pt-PT')}.`;
+  }
+  return note||'Revisão canónica preservada.';
 }
 
 function initials(name){
@@ -819,6 +839,62 @@ function activateMissionTab(name){
   return true;
 }
 
+function installDecisionCycleNavigator(){
+  const shell=$('#decision-cycle-navigator');
+  const panel=$('#cycle-step-panel');
+  if(!shell||!panel||shell.dataset.installed==='true')return;
+  const tabs=$$('[data-cycle-step]',shell);
+  if(tabs.length!==MISSION_CYCLE_STEPS.length)return;
+  shell.dataset.installed='true';
+  let activeIndex=0;
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  const selectStep=(requested,{focus=false,scroll=true}={})=>{
+    activeIndex=(Number(requested)+MISSION_CYCLE_STEPS.length)%MISSION_CYCLE_STEPS.length;
+    const step=MISSION_CYCLE_STEPS[activeIndex];
+    tabs.forEach((button,index)=>{
+      const active=index===activeIndex;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-selected',active?'true':'false');
+      button.tabIndex=active?0:-1;
+      if(!button.id)button.id=`cycle-step-tab-${index}`;
+    });
+    panel.setAttribute('aria-labelledby',tabs[activeIndex].id);
+    setText('#cycle-position',`ETAPA ${activeIndex+1} DE ${MISSION_CYCLE_STEPS.length}`);
+    setText('#cycle-title',step.label);
+    setText('#cycle-description',step.description);
+    const open=$('#cycle-open-step');
+    if(open){
+      open.textContent=`Abrir ${step.label}`;
+      open.setAttribute('aria-label',`Abrir a etapa ${step.label} na missão selecionada`);
+    }
+    if(scroll)tabs[activeIndex].scrollIntoView({block:'nearest',inline:'center',behavior:reducedMotion.matches?'auto':'smooth'});
+    if(focus)tabs[activeIndex].focus({preventScroll:true});
+  };
+
+  tabs.forEach((button,index)=>button.addEventListener('click',()=>selectStep(index)));
+  $('#cycle-prev')?.addEventListener('click',()=>selectStep(activeIndex-1,{focus:true}));
+  $('#cycle-next')?.addEventListener('click',()=>selectStep(activeIndex+1,{focus:true}));
+  $('.decision-chain',shell)?.addEventListener('keydown',event=>{
+    const keys={ArrowLeft:activeIndex-1,ArrowRight:activeIndex+1,Home:0,End:MISSION_CYCLE_STEPS.length-1};
+    if(!(event.key in keys))return;
+    event.preventDefault();
+    selectStep(keys[event.key],{focus:true});
+  });
+  $('#cycle-open-step')?.addEventListener('click',async()=>{
+    const step=MISSION_CYCLE_STEPS[activeIndex];
+    await go('mission');
+    if(!selectedMission){
+      showAppMessage('Crie ou abra uma missão para trabalhar esta etapa.');
+      return;
+    }
+    activateMissionTab(step.tab);
+    setText('#page-title',`${step.label} · ${selectedMission.code}`);
+    $('#mission-detail')?.scrollIntoView({block:'start',behavior:reducedMotion.matches?'auto':'smooth'});
+  });
+  selectStep(0,{scroll:false});
+}
+
 function renderMissionLifecycleBoundary(mission){
   const detail=$('#mission-detail');
   const banner=$('#mission-lock-banner');
@@ -875,7 +951,11 @@ function renderMissionOperationalState(){
   setText('#mission-next-action',next?next.label:'Missão pronta para conclusão e reutilização.');
   setValue('#mission-lifecycle',selectedMission.lifecycle_state||'active');
   const hash=String(selectedMission.content_hash||'');
-  setText('#mission-integrity',`Revisão ${Number(selectedMission.revision||1)} · hash ${hash?hash.slice(0,16)+'…':'a sincronizar'}`);
+  const integrity=$('#mission-integrity');
+  const integritySummary=$('summary',integrity);
+  if(integritySummary)integritySummary.textContent=`Revisão ${Number(selectedMission.revision||1)} · ${hash?'integridade verificada':'integridade a sincronizar'}`;
+  const integrityProof=$('#mission-integrity-proof');
+  if(integrityProof)integrityProof.innerHTML=hash?`<code>SHA-256 ${escapeHtml(hash)}</code>`:'Identificador técnico ainda não disponível.';
 }
 
 async function loadMissionOperationalState(){
@@ -964,7 +1044,7 @@ async function openMission(id){
     if(meta)meta.innerHTML=`<span>${mission.mission_kind==='program'?'Programa':'Missão'}</span><span>${escapeHtml(priorityLabels[mission.priority]||mission.priority||'Estratégica')}</span><span>Rev. ${Number(mission.revision||1)}</span><span>${escapeHtml(lifecycleLabels[mission.lifecycle_state]||mission.lifecycle_state||'Ativa')}</span>`;
     setValue('#mission-lifecycle',mission.lifecycle_state||'active');
     const revisionRoot=$('#mission-revision-history');
-    if(revisionRoot)revisionRoot.innerHTML=`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão canónica ${Number(mission.revision||1)}</strong><div class="note">${mission.updated_at?new Date(mission.updated_at).toLocaleString('pt-PT'):''} · hash ${escapeHtml(String(mission.content_hash||'').slice(0,16))}…</div></div></div>`;
+    if(revisionRoot)revisionRoot.innerHTML=`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão canónica ${Number(mission.revision||1)}</strong><div class="note">${mission.updated_at?new Date(mission.updated_at).toLocaleString('pt-PT'):''} · ${mission.content_hash?'integridade verificada':'integridade a sincronizar'}</div></div></div>`;
     const answer=$('#mission-answer');
     if(answer){answer.textContent='A análise assistida é opcional. A missão e a evidência permanecem canónicas independentemente da sua utilização.';answer.classList.add('empty');}
     showMissionMode('detail');
@@ -1078,7 +1158,7 @@ $('#mission-form')?.addEventListener('submit',async event=>{
       $('#mission-editor')?.classList.remove('editing');
       await loadMissions();
       await openMission(updated.id);
-      showMissionMessage(`Missão revista. Revisão ${updated.revision} preservada com hash canónico.`,'success');
+      showMissionMessage(`Missão revista. Revisão ${updated.revision} preservada com integridade verificada.`,'success');
       await loadWorkspaceSummary();
       return;
     }
@@ -1130,7 +1210,7 @@ $('#save-lifecycle-btn')?.addEventListener('click',async event=>{
       body:JSON.stringify({
         expected_revision:Number(selectedMission.revision||1),
         lifecycle_state:next,
-        change_note:`Estado alterado de ${selectedMission.lifecycle_state||'active'} para ${next} no Pilot V1.`,
+        change_note:`Estado alterado de ${(lifecycleLabels[selectedMission.lifecycle_state||'active']||'Ativa').toLocaleLowerCase('pt-PT')} para ${(lifecycleLabels[next]||next).toLocaleLowerCase('pt-PT')}.`,
       }),
     });
     await loadMissions();
@@ -1231,7 +1311,11 @@ async function loadAttachmentExtraction(attachmentId,button){
     const source=data.attachment||{};
     const filename=source.filename||'Documento';
     const fragments=data.fragments||[];
-    panel.innerHTML=`<div class="document-extraction-head"><div><div class="eyebrow">EXTRAÇÃO DOCUMENTAL · SEM IA</div><h4>${escapeHtml(filename)}</h4><p>${Number(data.total_fragments||0)} excerto(s) indexado(s) · SHA-256 ${escapeHtml(String(data.source_sha256||'').slice(0,16))}…</p><p class="note"><strong>Integridade da fonte ≠ validade factual.</strong> Registar o excerto preserva a origem e o hash; o conteúdo permanece por validar.</p></div><button type="button" class="inline-link" id="close-extraction">Fechar</button></div><div class="document-fragments">${fragments.length?fragments.map(fragment=>`<article class="document-fragment"><div class="document-fragment-head"><div><strong>Excerto ${Number(fragment.ordinal||0)}</strong><small>${escapeHtml(fragment.location||`caracteres ${fragment.char_start}–${fragment.char_end}`)} · hash ${escapeHtml(String(fragment.content_sha256||'').slice(0,12))}…</small></div><button class="btn btn-secondary compact" type="button" data-promote-document-evidence="${escapeHtml(fragment.id)}">Registar fonte no grafo</button></div><pre>${escapeHtml(fragment.excerpt||'')}</pre></article>`).join(''):`<form id="visual-evidence-form" class="visual-evidence-form"><div><strong>Fonte sem texto extraível</strong><p>A fonte original está preservada. Abra-a, descreva apenas o que observou diretamente e registe essa observação com proveniência visual.</p></div><div class="field"><label for="visual-evidence-body">Observação humana sobre a fonte *</label><textarea id="visual-evidence-body" required maxlength="10000" placeholder="Descreva o elemento observável, sem o converter automaticamente numa conclusão."></textarea></div><button class="btn btn-primary" type="submit">Registar fonte visual no grafo</button><div class="note" id="visual-evidence-status"></div></form>`}</div>`;
+    const sourceHash=String(data.source_sha256||'');
+    const technicalProof=sourceHash||fragments.some(fragment=>fragment.content_sha256)
+      ? `<details class="technical-integrity"><summary>Prova técnica de integridade da fonte</summary><div class="technical-proof">${sourceHash?`<code>Fonte · SHA-256 ${escapeHtml(sourceHash)}</code>`:''}${fragments.filter(fragment=>fragment.content_sha256).map(fragment=>`<code>Excerto ${Number(fragment.ordinal||0)} · SHA-256 ${escapeHtml(fragment.content_sha256)}</code>`).join('')}</div></details>`
+      : '';
+    panel.innerHTML=`<div class="document-extraction-head"><div><div class="eyebrow">EXTRAÇÃO DOCUMENTAL · SEM IA</div><h4>${escapeHtml(filename)}</h4><p>${Number(data.total_fragments||0)} excerto(s) indexado(s) · integridade da fonte preservada</p><p class="note"><strong>Integridade da fonte ≠ validade factual.</strong> Registar o excerto preserva a origem e a prova técnica; o conteúdo permanece por validar.</p>${technicalProof}</div><button type="button" class="inline-link" id="close-extraction">Fechar</button></div><div class="document-fragments">${fragments.length?fragments.map(fragment=>`<article class="document-fragment"><div class="document-fragment-head"><div><strong>Excerto ${Number(fragment.ordinal||0)}</strong><small>${escapeHtml(fragment.location||`caracteres ${fragment.char_start}–${fragment.char_end}`)} · integridade preservada</small></div><button class="btn btn-secondary compact" type="button" data-promote-document-evidence="${escapeHtml(fragment.id)}">Registar fonte no grafo</button></div><pre>${escapeHtml(fragment.excerpt||'')}</pre></article>`).join(''):`<form id="visual-evidence-form" class="visual-evidence-form"><div><strong>Fonte sem texto extraível</strong><p>A fonte original está preservada. Abra-a, descreva apenas o que observou diretamente e registe essa observação com proveniência visual.</p></div><div class="field"><label for="visual-evidence-body">Observação humana sobre a fonte *</label><textarea id="visual-evidence-body" required maxlength="10000" placeholder="Descreva o elemento observável, sem o converter automaticamente numa conclusão."></textarea></div><button class="btn btn-primary" type="submit">Registar fonte visual no grafo</button><div class="note" id="visual-evidence-status"></div></form>`}</div>`;
     $('#close-extraction',panel)?.addEventListener('click',()=>{panel.classList.add('hidden');panel.innerHTML='';});
     $$('[data-promote-document-evidence]',panel).forEach(promote=>promote.addEventListener('click',()=>promoteDocumentEvidence(promote.dataset.promoteDocumentEvidence,promote)));
     $('#visual-evidence-form',panel)?.addEventListener('submit',event=>promoteVisualEvidence(source.id,event));
@@ -1251,7 +1335,7 @@ async function promoteVisualEvidence(attachmentId,event){
   if(!body){if(status)status.textContent='Descreva primeiro a observação feita sobre a fonte.';return;}
   const button=$('button[type="submit"]',form);
   button?.classList.add('loading');
-  if(status)status.textContent='A preservar a fonte, a autoria humana e o hash…';
+  if(status)status.textContent='A preservar a fonte, a autoria humana e a prova de integridade…';
   try{
     await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(selectedMission.code)}/document-evidence`,{method:'POST',body:JSON.stringify({attachment_id:attachmentId,body})});
     if(status)status.textContent='Fonte visual registada com proveniência; validade factual por avaliar.';
@@ -1270,7 +1354,7 @@ async function promoteDocumentEvidence(chunkId,button){
     button.textContent='Fonte registada ✓';
     button.disabled=true;
     await Promise.allSettled([loadMissionOperationalState(),loadWorkspaceSummary()]);
-    showMissionMessage('O excerto foi preservado com fonte, posição e hashes. A validade factual permanece por avaliar.','success');
+    showMissionMessage('O excerto foi preservado com fonte, posição e prova de integridade. A validade factual permanece por avaliar.','success');
   }catch(error){
     showMissionMessage(`Não foi possível registar a evidência: ${error.message}`);
   }finally{button?.classList.remove('loading');}
@@ -1776,7 +1860,10 @@ async function loadMissionRevisions(){
   try{
     const rows=await api(`${miBase()}/missions/${encodeURIComponent(missionId)}/revisions`);
     if(!selectedMission||selectedMission.id!==missionId)return;
-    root.innerHTML=rows.length?rows.map(row=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão ${Number(row.revision||1)}</strong><div>${escapeHtml(displayChangeNote(row.change_note))}</div><div class="note">${row.created_at?new Date(row.created_at).toLocaleString('pt-PT'):''} · hash ${escapeHtml(String(row.content_hash||'').slice(0,16))}…</div></div></div>`).join(''):'<div class="note">Sem revisões disponíveis.</div>';
+    if(!rows.length){root.innerHTML='<div class="note">Sem revisões disponíveis.</div>';return;}
+    const timeline=rows.map(row=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão ${Number(row.revision||1)}</strong><div>${escapeHtml(displayChangeNote(row.change_note))}</div><div class="note">${row.created_at?new Date(row.created_at).toLocaleString('pt-PT'):''} · ${row.content_hash?'integridade verificada':'integridade a sincronizar'}</div></div></div>`).join('');
+    const proof=rows.some(row=>row.content_hash)?`<details class="technical-integrity"><summary>Prova técnica das revisões</summary><div class="technical-proof">${rows.filter(row=>row.content_hash).map(row=>`<code>Revisão ${Number(row.revision||1)} · SHA-256 ${escapeHtml(row.content_hash)}</code>`).join('')}</div></details>`:'';
+    root.innerHTML=timeline+proof;
   }catch(error){
     if(!selectedMission||selectedMission.id!==missionId)return;
     root.innerHTML=`<div class="note">Não foi possível carregar as revisões: ${escapeHtml(error.message)}</div>`;
@@ -1785,6 +1872,7 @@ async function loadMissionRevisions(){
 
 function refineStaticCopy(){
   installCopilotActions();
+  installDecisionCycleNavigator();
   updateMissionCTA();
 }
 

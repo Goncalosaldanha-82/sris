@@ -189,7 +189,10 @@
     const protocol=state.aggregate?.protocol;
     const history=state.aggregate?.history||[];
     if(!protocol)return'';
-    return `<details class="vp-history"><summary>Integridade e revisões preservadas</summary><div class="vp-hash"><span>Revisão atual ${Number(protocol.revision||1)}</span><code>SHA-256 ${esc(protocol.content_hash||'a sincronizar')}</code></div>${history.length?history.map(item=>`<div class="vp-history-row"><span>r${Number(item.revision||1)}</span><div><strong>${esc(eventLabels[item.event_type]||item.event_type)}</strong><small>${item.created_at?new Date(item.created_at).toLocaleString('pt-PT'):''}</small></div><code>${esc(String(item.content_hash||'').slice(0,16))}…</code></div>`).join(''):'<div class="note">Sem eventos registados.</div>'}</details>`;
+    const events=history.length?history.map(item=>`<div class="vp-history-row"><span>r${Number(item.revision||1)}</span><div><strong>${esc(eventLabels[item.event_type]||item.event_type)}</strong><small>${item.created_at?new Date(item.created_at).toLocaleString('pt-PT'):''}</small></div><small>${item.content_hash?'Integridade verificada':'Integridade por confirmar'}</small></div>`).join(''):'<div class="note">Sem eventos registados.</div>';
+    const proof=[{revision:protocol.revision,content_hash:protocol.content_hash},...history].filter(item=>item.content_hash);
+    const technical=proof.length?`<details class="technical-integrity"><summary>Prova técnica das revisões</summary><div class="technical-proof">${proof.map(item=>`<code>Revisão ${Number(item.revision||1)} · SHA-256 ${esc(item.content_hash)}</code>`).join('')}</div></details>`:'';
+    return `<details class="vp-history"><summary>Integridade e revisões preservadas</summary><div class="vp-hash"><span>Revisão atual ${Number(protocol.revision||1)}</span><strong>${protocol.content_hash?'Integridade verificada':'Integridade a sincronizar'}</strong></div>${events}${technical}</details>`;
   }
 
   function render(){

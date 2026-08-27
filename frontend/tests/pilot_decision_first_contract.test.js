@@ -109,6 +109,10 @@ test('Mission Workspace remains the product centre and assistance is secondary',
 test('entry page uses the valid institutional sunrise and survives the iPhone keyboard',()=>{
   assert.match(home,/class="auth-photo"/);
   assert.match(home,/territory-sunrise\.webp\?v=__PILOT_BUILD__/);
+  assert.match(home,/data-mode="register">Criar conta<\/button>/);
+  assert.match(home,/linha de decisão reconstruível/);
+  assert.match(home,/Decisões reconstruíveis/);
+  assert.match(home,/Memória revalidável/);
   assert.match(home,/PILOTO V1 · VALIDAÇÃO OPERACIONAL/);
   assert.match(home,/id="login-submit"/);
   assert.match(css,/\.keyboard-open \.auth-visual\{display:none\}/);
@@ -119,6 +123,31 @@ test('entry page uses the valid institutional sunrise and survives the iPhone ke
   assert.match(loaded.auth,/visualViewport/);
   assert.match(loaded.auth,/scrollIntoView/);
   assert.match(loaded.auth,/location\.assign\('\/app'\)/);
+});
+
+test('overview exposes an accessible and actionable canonical cycle navigator',()=>{
+  assert.equal((index.match(/data-cycle-step="\d+"/g)||[]).length,11);
+  assert.match(index,/role="tablist" aria-label="Etapas da cadeia canónica/);
+  assert.match(index,/id="cycle-prev"/);
+  assert.match(index,/id="cycle-next"/);
+  assert.match(index,/id="cycle-open-step"/);
+  assert.match(loaded.app,/function installDecisionCycleNavigator\(\)/);
+  assert.match(loaded.app,/ArrowLeft:activeIndex-1/);
+  assert.match(loaded.app,/ArrowRight:activeIndex\+1/);
+  assert.match(loaded.app,/activateMissionTab\(step\.tab\)/);
+  assert.match(loaded.app,/installDecisionCycleNavigator\(\)/);
+});
+
+test('technical identifiers stay behind explicit integrity details',()=>{
+  assert.doesNotMatch(loaded.missionState,/críticos · SHA/);
+  assert.match(loaded.missionState,/Integridade verificada · supervisão humana obrigatória/);
+  assert.match(loaded.missionState,/Prova|SHA-256/);
+  assert.doesNotMatch(loaded.workspace,/\$\{health\} · \$\{hash\}/);
+  assert.match(index,/class="mission-integrity"/);
+  assert.match(loaded.app,/Prova técnica das revisões/);
+  assert.match(loaded.app,/integridade verificada/);
+  assert.match(loaded.app,/lifecycleChange=note\.match/);
+  assert.match(loaded.app,/toLocaleLowerCase\('pt-PT'\)/);
 });
 
 test('sessions refresh once before protected work is abandoned',()=>{

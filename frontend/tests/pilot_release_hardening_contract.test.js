@@ -48,9 +48,13 @@ test('runtime truth disables unconfigured assistance without blocking missions',
 
 test('external readiness is evidence-backed and the mission chain is canonical',()=>{
   assert.match(index,/id="release-readiness-panel"/);
-  assert.match(index,/Contexto<\/span><span>Observação<\/span><span>Evidência/);
-  assert.match(index,/Ação<\/span><span>Medição<\/span><span>Resultado/);
-  assert.match(index,/Aprendizagem<\/span><span>Memória/);
+  assert.match(index,/data-cycle-step="0">Contexto<\/button>/);
+  assert.match(index,/data-cycle-step="7">Medição<\/button>/);
+  assert.match(index,/data-cycle-step="10">Memória<\/button>/);
+  assert.match(index,/Memória → revalidação → novo Contexto/);
+  assert.match(index,/Condições transversais de validade/);
+  assert.match(index,/id="cycle-prev"/);
+  assert.match(index,/id="cycle-next"/);
   assert.match(app,/\/api\/pilot\/release-readiness/);
   assert.match(app,/source==='human_acceptance'/);
   assert.match(app,/evidence\.length<10/);

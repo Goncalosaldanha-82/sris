@@ -66,10 +66,33 @@
         </article>
       </div>
 
-      <details class="how-it-works">
+      <details class="how-it-works" open>
         <summary>Como o SRIS fecha um ciclo de decisão</summary>
-        <div class="decision-chain" aria-label="Cadeia canónica de missão do SRIS"><span>Contexto</span><span>Observação</span><span>Evidência</span><span>Hipótese</span><span>Alternativas</span><span>Decisão</span><span>Ação</span><span>Medição</span><span>Resultado</span><span>Aprendizagem</span><span>Memória</span></div>
-        <div class="epistemic-chips"><span>Pressupostos</span><span>Restrições</span><span>Lacunas</span><span>Incerteza</span><span>Proveniência</span><span>Confiança</span></div>
+        <div class="decision-cycle-shell" id="decision-cycle-navigator">
+          <div class="cycle-controls">
+            <button class="cycle-arrow" id="cycle-prev" type="button" aria-label="Selecionar etapa anterior">←</button>
+            <div class="decision-chain" role="tablist" aria-label="Etapas da cadeia canónica de missão do SRIS">
+              <button class="active" type="button" role="tab" aria-selected="true" aria-controls="cycle-step-panel" tabindex="0" data-cycle-step="0">Contexto</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="1">Observação</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="2">Evidência</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="3">Hipótese</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="4">Alternativas</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="5">Decisão</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="6">Ação</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="7">Medição</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="8">Resultado</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="9">Aprendizagem</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="10">Memória</button>
+            </div>
+            <button class="cycle-arrow" id="cycle-next" type="button" aria-label="Selecionar etapa seguinte">→</button>
+          </div>
+          <div class="cycle-step-panel" id="cycle-step-panel" role="tabpanel" tabindex="0" aria-live="polite">
+            <div class="cycle-step-copy"><span class="product-index" id="cycle-position">ETAPA 1 DE 11</span><h3 id="cycle-title">Contexto</h3><p id="cycle-description">Definir o problema, o objetivo e as condições em que a decisão existe.</p></div>
+            <button class="btn btn-secondary compact" id="cycle-open-step" type="button">Abrir esta etapa</button>
+          </div>
+          <div class="cycle-return"><span aria-hidden="true">↻</span><strong>Memória → revalidação → novo Contexto</strong><small>A aprendizagem só volta a ser usada quando as suas condições continuam válidas.</small></div>
+        </div>
+        <div class="epistemic-band"><strong>Condições transversais de validade</strong><div class="epistemic-chips"><span>Pressupostos</span><span>Restrições</span><span>Lacunas</span><span>Incerteza</span><span>Proveniência</span><span>Confiança</span></div></div>
       </details>
 
       <details class="release-readiness" id="release-readiness-panel">
@@ -204,7 +227,7 @@
               <div class="mission-governance">
                 <div class="field"><label for="mission-lifecycle">Estado da missão</label><select id="mission-lifecycle"><option value="active">Ativa</option><option value="paused">Pausada</option><option value="completed">Concluída</option><option value="archived">Arquivada</option></select></div>
                 <button class="btn btn-secondary" id="save-lifecycle-btn" type="button">Guardar estado</button>
-                <span class="note" id="mission-integrity">Revisão e hash a sincronizar.</span>
+                <details class="mission-integrity" id="mission-integrity"><summary>Integridade da revisão a sincronizar</summary><div class="technical-proof" id="mission-integrity-proof"></div></details>
               </div>
             </div>
             <div class="mission-tab" id="mission-tab-documents">

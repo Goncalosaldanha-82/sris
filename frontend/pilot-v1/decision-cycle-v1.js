@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260827-atomic-mission-export-qa-v28';
+  const BUILD='20260827-presentation-ready-ux-v29';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;

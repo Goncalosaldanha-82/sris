@@ -311,7 +311,6 @@
     const provenance=node.provenance||{};
     if(node.source_kind==='document_chunk'){
       const filename=provenance.filename||node.label||'Documento';
-      const hash=(node.source_sha256||provenance.content_sha256||'').slice(0,12);
       const ranks=[
         provenance.lexical_rank?`lexical #${provenance.lexical_rank}`:null,
         provenance.semantic_rank?`semântico #${provenance.semantic_rank}`:null,
@@ -319,7 +318,7 @@
       ].filter(Boolean).join(' · ');
       const integrity=provenance.source_integrity_verified?'integridade da fonte verificada':'integridade da fonte não confirmada';
       const factual=provenance.factual_validation==='verified'?'conteúdo revisto factual':'validade factual não avaliada';
-      return `${esc(filename)} · ${integrity} · ${factual} · posição ${node.char_start??'—'}–${node.char_end??'—'}${hash?` · hash ${esc(hash)}…`:''}${ranks?` · ${esc(ranks)}`:''}`;
+      return `${esc(filename)} · ${integrity} · ${factual} · posição ${node.char_start??'—'}–${node.char_end??'—'}${ranks?` · ${esc(ranks)}`:''}`;
     }
     if(node.source_kind==='visual_document'){
       const integrity=provenance.source_integrity_verified?'integridade da fonte verificada':'integridade da fonte não confirmada';
