@@ -326,6 +326,72 @@ def test_governed_state_migration_preserves_runtime_decision_cycles() -> None:
             engine.dispose()
 
 
+def test_semantic_repair_separates_targets_from_observed_outcomes() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    with TemporaryDirectory(prefix="atlas-semantic-repair-") as tmp:
+        database_path = Path(tmp) / "semantic-repair.db"
+        database_url = f"sqlite+pysqlite:///{database_path.as_posix()}"
+        run_alembic(repo_root, "upgrade", "20260826_0020", database_url=database_url)
+
+        engine = create_engine(database_url)
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """
+                        CREATE TABLE pilot_evidence_graph_nodes (
+                            id VARCHAR(64) PRIMARY KEY,
+                            node_type VARCHAR(40) NOT NULL,
+                            label VARCHAR(300) NOT NULL,
+                            source_kind VARCHAR(80),
+                            provenance_json TEXT NOT NULL DEFAULT '{}',
+                            updated_at DATETIME
+                        )
+                        """
+                    )
+                )
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO pilot_evidence_graph_nodes
+                            (id, node_type, label, source_kind, provenance_json)
+                        VALUES
+                            ('criterion', 'outcome', 'Critério de sucesso', 'human_entry', :criterion),
+                            ('observed', 'outcome', 'Resultado observado', 'decision_cycle', :observed)
+                        """
+                    ),
+                    {
+                        "criterion": json.dumps(
+                            {"source": "mission_onboarding", "canonical_kind": "outcome"}
+                        ),
+                        "observed": json.dumps(
+                            {"source": "decision_cycle", "canonical_kind": "outcome"}
+                        ),
+                    },
+                )
+        finally:
+            engine.dispose()
+
+        run_alembic(repo_root, "upgrade", "head", database_url=database_url)
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                rows = {
+                    row["id"]: row
+                    for row in connection.execute(
+                        text(
+                            "SELECT id, node_type, provenance_json FROM pilot_evidence_graph_nodes"
+                        )
+                    ).mappings()
+                }
+            assert rows["criterion"]["node_type"] == "target"
+            assert json.loads(rows["criterion"]["provenance_json"])["canonical_kind"] == "target"
+            assert rows["observed"]["node_type"] == "outcome"
+        finally:
+            engine.dispose()
+
+
 def test_contextual_learning_migration_preserves_hot_legacy_tables() -> None:
     repo_root = Path(__file__).resolve().parents[2]
 

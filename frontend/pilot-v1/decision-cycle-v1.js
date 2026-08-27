@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260826-governed-mission-state-v22';
+  const BUILD='20260826-governed-mission-repairs-v23';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;
@@ -16,6 +16,7 @@
     const parts=raw.split('/').map(x=>x.trim()).filter(Boolean);
     return parts[parts.length-1]||raw;
   };
+  const missionLocked=()=>['completed','archived'].includes(window.__srisMissionWorkspace?.mission?.lifecycle_state);
 
   const statusLabels={
     proposed:'Proposta',
@@ -78,8 +79,8 @@
       .dc1-stage{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:13px 0 11px}.dc1-stage span{position:relative;padding:7px 5px;border-radius:9px;background:#f0f3f1;color:#7b8983;text-align:center;font-size:8px;font-weight:850;letter-spacing:.05em;text-transform:uppercase}.dc1-stage span.done{background:#e6f1eb;color:#2e6551}.dc1-stage span.current{outline:1px solid #c49a4c;background:#fbf3e4;color:#805f24}.dc1-stage.abandoned span{opacity:.5}.dc1-stage.abandoned span:last-child{opacity:1;background:#efefec;color:#616964}
       .dc1-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.dc1-field{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fafcfb}.dc1-field strong{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}.dc1-field p{margin:0;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.dc1-field.missing{border-style:dashed;background:#fffdf8}.dc1-field.missing p{color:#8a7550}
       .dc1-quality{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;margin-top:10px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#f8faf9}.dc1-quality span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.dc1-quality-track{height:6px;border-radius:999px;background:#e4eae6;overflow:hidden}.dc1-quality-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#b78d3e,#2c6c55)}.dc1-quality b{font-size:10px;color:#47655a}
-      .dc1-edit{margin-top:11px;border:1px solid var(--line);border-radius:12px;background:#fbfcfb;overflow:hidden}.dc1-edit summary{cursor:pointer;list-style:none;padding:11px 12px;font-size:10px;font-weight:850;color:#49675c}.dc1-edit summary::-webkit-details-marker{display:none}.dc1-edit summary:after{content:'+';float:right;font-size:16px;font-weight:500}.dc1-edit[open] summary:after{content:'−'}.dc1-edit-body{padding:0 12px 12px}.dc1-form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.dc1-edit textarea{min-height:76px}.dc1-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.dc1-inline{min-height:18px;margin-top:7px;font-size:10px;color:var(--muted)}.dc1-inline.error{color:#a33f3f}.dc1-inline.success{color:#276349}.dc1-learning{margin-top:9px;padding:10px;border:1px solid #d9e5df;border-radius:11px;background:#f5faf7;font-size:11px;line-height:1.5}.dc1-learning.warn{border-color:#ead7ad;background:#fff9ed;color:#715a2e}
-      .dc1-review{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}.dc1-review-note{font-size:9px;color:var(--muted);width:100%}.dc1-empty{padding:25px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}
+      .dc1-edit{margin-top:11px;border:1px solid var(--line);border-radius:12px;background:#fbfcfb;overflow:hidden}.dc1-edit summary{cursor:pointer;list-style:none;padding:11px 12px;font-size:10px;font-weight:850;color:#49675c}.dc1-edit summary::-webkit-details-marker{display:none}.dc1-edit summary:after{content:'+';float:right;font-size:16px;font-weight:500}.dc1-edit[open] summary:after{content:'−'}.dc1-edit-body{padding:0 12px 12px}.dc1-terminal-fields{border:0;padding:0;margin:0;min-width:0}.dc1-terminal-fields:disabled{opacity:.72}.dc1-form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.dc1-edit textarea{min-height:76px}.dc1-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.dc1-inline{min-height:18px;margin-top:7px;font-size:10px;color:var(--muted)}.dc1-inline.error{color:#a33f3f}.dc1-inline.success{color:#276349}.dc1-learning{margin-top:9px;padding:10px;border:1px solid #d9e5df;border-radius:11px;background:#f5faf7;font-size:11px;line-height:1.5}.dc1-learning.warn{border-color:#ead7ad;background:#fff9ed;color:#715a2e}
+      .dc1-review{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}.dc1-review-note{font-size:9px;color:var(--muted);width:100%}.dc1-reopen{margin-top:10px;padding:11px;border:1px solid #ead7ad;border-radius:11px;background:#fff9ed}.dc1-reopen label{display:block;font-size:9px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;color:#715a2e;margin-bottom:6px}.dc1-reopen textarea{min-height:68px;background:#fff}.dc1-empty{padding:25px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}
       @media(max-width:900px){.dc1-kpis{grid-template-columns:repeat(3,1fr)}.dc1-form-grid{grid-template-columns:1fr 1fr}.dc1-editor-grid{grid-template-columns:1fr}}
       @media(max-width:650px){.dc1-toolbar{display:grid}.dc1-toolbar .btn{width:100%}.dc1-kpis{grid-template-columns:repeat(2,1fr)}.dc1-grid,.dc1-form-grid{grid-template-columns:1fr}.dc1-stage{grid-template-columns:repeat(2,1fr)}.dc1-head{display:grid}.dc1-head-meta{justify-content:flex-start}.dc1-editor-actions{display:grid}.dc1-editor-actions .btn,.dc1-actions .btn{width:100%}}
     `;
@@ -115,7 +116,7 @@
             <div>
               <div class="eyebrow">DECISION LOOP</div>
               <h3>Decisão → Ação → Resultado → Aprendizagem</h3>
-              <div class="note">Registe uma decisão concreta, acompanhe a execução e compare o resultado observado com o esperado. A aprendizagem só entra na memória depois de revisão humana.</div>
+              <div class="note">Registe uma decisão concreta, acompanhe a execução e compare o resultado observado com o esperado. A aprendizagem só entra na memória depois de revisão humana obrigatória.</div>
             </div>
             <button class="btn btn-primary" id="dc1-new" type="button">Registar decisão</button>
           </div>
@@ -127,7 +128,7 @@
             </div>
             <form id="dc1-create-form">
               <div class="field"><label for="dc1-decision">Decisão *</label><textarea id="dc1-decision" required maxlength="5000" placeholder="Que decisão foi ou será tomada?"></textarea></div>
-              <div class="field"><label for="dc1-evidence-node">Fundamento da decisão *</label><select id="dc1-evidence-node" required><option value="">A carregar evidência da missão…</option></select><div class="note">Selecione a fonte ou evidência que fundamenta esta decisão. A ligação ficará preservada no grafo.</div></div>
+              <div class="field"><label for="dc1-evidence-node">Fundamento da decisão *</label><select id="dc1-evidence-node" required><option value="">A carregar evidência da missão…</option></select><div class="note">Pode preparar a proposta com qualquer evidência ativa; o compromisso exige que um revisor a aceite ou verifique no grafo.</div></div>
               <div class="dc1-editor-grid">
                 <div class="field"><label for="dc1-owner">Responsável</label><input id="dc1-owner" maxlength="200" placeholder="Pessoa ou função responsável"></div>
                 <div class="field"><label for="dc1-due">Prazo</label><input id="dc1-due" type="date"></div>
@@ -305,9 +306,15 @@
     renderKPIs();
     const list=$('#dc1-list');
     if(!list)return;
+    const createButton=$('#dc1-new');
+    if(createButton){
+      createButton.disabled=missionLocked();
+      createButton.title=missionLocked()?'Reative a missão antes de registar uma nova decisão.':'';
+    }
     list.innerHTML=rows.length?rows.map(renderCard).join(''):'<div class="dc1-empty">Ainda não existem decisões em acompanhamento. Registe a primeira decisão desta missão.</div>';
     $$('[data-dc-save]',list).forEach(button=>button.addEventListener('click',()=>save(button.dataset.dcSave)));
     $$('[data-dc-materialize]',list).forEach(button=>button.addEventListener('click',()=>materialize(button.dataset.dcMaterialize)));
+    $$('[data-dc-reopen]',list).forEach(button=>button.addEventListener('click',()=>reopen(button.dataset.dcReopen)));
     document.dispatchEvent(new CustomEvent('sris:decision-cycles-updated',{detail:{mission_code:missionCode(),cycles:rows}}));
   }
 
@@ -331,17 +338,23 @@
   function renderCard(row){
     const due=dueInfo(row.due_date,row.status);
     const quality=qualityScore(row);
-    const ready=row.status==='completed'&&Boolean((row.actual_outcome||'').trim())&&Boolean((row.learning||'').trim())&&Boolean(row.action_started_at)&&Boolean(row.actual_outcome_at)&&Boolean(row.outcome_evidence_node_id);
+    const terminal=['completed','abandoned'].includes(row.status);
+    const locked=missionLocked();
+    const ready=row.status==='completed'&&quality.complete===quality.total;
     const materialized=Boolean(row.action_node_id||row.graph_nodes?.action_node_id);
     const learningNotice=ready
       ? `<div class="dc1-learning">${materialized?'A cadeia Decisão → Ação → Resultado → Aprendizagem já está materializada. Reveja agora a aprendizagem no grafo.':'O ciclo tem cronologia e evidência. Materialize a cadeia antes da revisão da aprendizagem.'}</div>`
-      : row.status==='completed'&&!row.learning
-        ? '<div class="dc1-learning warn">O resultado está concluído, mas falta explicitar a aprendizagem antes de a enviar para revisão.</div>'
+      : row.status==='completed'
+        ? `<div class="dc1-learning warn">Este ciclo foi concluído com ${quality.total-quality.complete} elemento${quality.total-quality.complete===1?'':'s'} obrigatório${quality.total-quality.complete===1?'':'s'} em falta. Reabra-o, complete a cadeia e volte a concluir sob o contrato atual.</div>`
         : '';
     const foundationLabel=row.evidence_label
       ||(row.evidence_node_id?`Evidência indisponível · ${String(row.evidence_node_id).slice(0,12)}…`:"");
-    const outcomeFoundationLabel=row.outcome_evidence_label
-      ||(row.outcome_evidence_node_id?`Evidência indisponível · ${String(row.outcome_evidence_node_id).slice(0,12)}…`:"");
+    const foundationReview=row.evidence_node_id
+      ?statusLabels[row.evidence_status]||row.evidence_status||'Estado desconhecido'
+      :'';
+    const outcomeFoundationLabel=(row.outcome_evidence_label
+      ||(row.outcome_evidence_node_id?`Evidência indisponível · ${String(row.outcome_evidence_node_id).slice(0,12)}…`:""))
+      +(row.outcome_evidence_node_id?` · ${statusLabels[row.outcome_evidence_status]||row.outcome_evidence_status||'estado desconhecido'}`:'');
     return `<article class="dc1-card" data-cycle="${esc(row.id)}" data-overdue="${due.overdue?'true':'false'}">
       <div class="dc1-head">
         <div class="dc1-title"><div class="eyebrow">DECISÃO</div><strong>${esc(row.decision)}</strong></div>
@@ -350,6 +363,7 @@
       ${renderStage(row.status)}
       <div class="dc1-grid">
         ${summaryField('Fundamento',foundationLabel,'Ainda não associado')}
+        ${summaryField('Revisão do fundamento',foundationReview,'Ainda não revista')}
         ${summaryField('Ação',row.action,'Ainda não definida')}
         ${summaryField('Início real da ação',row.action_started_at?formatDate(row.action_started_at):'','Ainda não registado')}
         ${summaryField('Responsável / prazo',[row.owner,row.due_date?formatDate(row.due_date):null].filter(Boolean).join(' · '),'Ainda não definidos')}
@@ -359,21 +373,24 @@
       </div>
       <div class="dc1-quality"><span>Completude operacional</span><div class="dc1-quality-track"><i style="width:${quality.percent}%"></i></div><b>${quality.complete}/${quality.total}</b></div>
       <details class="dc1-edit" ${row.status==='proposed'?'open':''}>
-        <summary>Atualizar decisão e execução</summary>
+        <summary>${terminal?'Consultar versão terminal ou reabrir':'Atualizar decisão e execução'}</summary>
         <div class="dc1-edit-body">
+          <fieldset class="dc1-terminal-fields" ${terminal?'disabled':''}>
           <div class="dc1-form-grid">
             <div class="field"><label>Estado</label><select data-f="status" ${['completed','abandoned'].includes(row.status)?'disabled':''}>${statusOptions(row.status)}</select><div class="note">Sequência governada: proposta → decidida → execução → concluída.</div></div>
             <div class="field"><label>Responsável</label><input data-f="owner" maxlength="200" value="${esc(row.owner||'')}"></div>
             <div class="field"><label>Prazo</label><input data-f="due_date" type="date" value="${esc(row.due_date||'')}"></div>
             <div class="field"><label>Início real da ação</label><input data-f="action_started_at" type="date" value="${esc(row.action_started_at||'')}"></div>
             <div class="field"><label>Data do resultado observado</label><input data-f="actual_outcome_at" type="date" value="${esc(row.actual_outcome_at||'')}"></div>
-            <div class="field"><label>Evidência do resultado</label><select data-f="outcome_evidence_node_id">${evidenceOptions(row.outcome_evidence_node_id||'',row.evidence_node_id||'')}</select><div class="note">Tem de observar o efeito depois da ação; não pode ser o fundamento anterior da decisão.</div></div>
+            <div class="field"><label>Evidência do resultado</label><select data-f="outcome_evidence_node_id">${evidenceOptions(row.outcome_evidence_node_id||'',row.evidence_node_id||'')}</select><div class="note">Tem de observar o efeito depois da ação, ser distinta do fundamento e estar aceite ou verificada antes da conclusão.</div></div>
           </div>
           <div class="field"><label>Ação executada / próxima ação</label><textarea data-f="action" maxlength="5000">${esc(row.action||'')}</textarea></div>
           <div class="field"><label>Resultado esperado</label><textarea data-f="expected_outcome" maxlength="5000">${esc(row.expected_outcome||'')}</textarea></div>
           <div class="field"><label>Resultado observado</label><textarea data-f="actual_outcome" maxlength="8000" placeholder="Registe o que aconteceu, incluindo efeitos não previstos.">${esc(row.actual_outcome||'')}</textarea></div>
           <div class="field"><label>Aprendizagem</label><textarea data-f="learning" maxlength="8000" placeholder="O que deve ser preservado, revisto ou não repetido numa missão futura?">${esc(row.learning||'')}</textarea></div>
-          <div class="dc1-actions"><button class="btn btn-primary" type="button" data-dc-save="${esc(row.id)}">Guardar evolução</button>${ready&&!materialized?`<button class="btn btn-secondary" type="button" data-dc-materialize="${esc(row.id)}">Materializar cadeia e enviar aprendizagem</button>`:''}</div>
+          </fieldset>
+          <div class="dc1-actions">${!terminal?`<button class="btn btn-primary" type="button" data-dc-save="${esc(row.id)}">Guardar evolução</button>`:''}${ready&&!materialized?`<button class="btn btn-secondary" type="button" data-dc-materialize="${esc(row.id)}">Materializar cadeia e enviar aprendizagem</button>`:''}</div>
+          ${terminal?`<div class="dc1-reopen"><label>Reabrir com justificação auditável</label><textarea data-dc-reopen-rationale maxlength="5000" placeholder="Explique o que precisa de ser corrigido e porquê." ${locked?'disabled':''}></textarea>${locked?'<div class="note">Reative primeiro a missão no Resumo; a versão encerrada permanece imutável.</div>':''}<div class="dc1-actions"><button class="btn btn-secondary" type="button" data-dc-reopen="${esc(row.id)}" ${locked?'disabled':''}>Reabrir para correção</button></div></div>`:''}
           <div class="dc1-inline" role="status" aria-live="polite"></div>
         </div>
       </details>
@@ -403,14 +420,19 @@
   }
 
   function qualityScore(row){
-    const values=[row.evidence_node_id,row.action,row.owner,row.due_date,row.expected_outcome,row.action_started_at,row.actual_outcome,row.actual_outcome_at,row.outcome_evidence_node_id,row.learning];
+    const values=[row.evidence_node_id,['accepted','verified'].includes(row.evidence_status),row.action,row.owner,row.due_date,row.expected_outcome,row.action_started_at,row.actual_outcome,row.actual_outcome_at,row.outcome_evidence_node_id,['accepted','verified'].includes(row.outcome_evidence_status),row.learning];
     return {complete:values.filter(v=>String(v||'').trim()).length,total:values.length,percent:Math.round(values.filter(v=>String(v||'').trim()).length/values.length*100)};
   }
 
   function needsAttention(row){
     if(row.status==='abandoned')return false;
-    if(['committed','in_progress'].includes(row.status)&&(!row.evidence_node_id||!row.action||!row.owner||!row.expected_outcome||!row.action_started_at))return true;
-    if(row.status==='completed'&&(!row.actual_outcome||!row.actual_outcome_at||!row.outcome_evidence_node_id||!row.learning))return true;
+    if(row.status==='proposed')return true;
+    if(row.status==='committed'&&(!row.evidence_node_id||!row.action||!row.expected_outcome))return true;
+    if(row.status==='in_progress'&&(!row.evidence_node_id||!row.action||!row.owner||!row.due_date||!row.expected_outcome||!row.action_started_at))return true;
+    if(row.status==='completed'){
+      const quality=qualityScore(row);
+      return quality.complete<quality.total;
+    }
     return false;
   }
 
@@ -439,6 +461,7 @@
   function validateUpdate(payload){
     const status=payload.status;
     if(['committed','in_progress','completed'].includes(status)&&!String(payload.action||'').trim())return 'Defina a ação antes de avançar o estado da decisão.';
+    if(['committed','in_progress','completed'].includes(status)&&!['accepted','verified'].includes(payload._decision_evidence_status))return 'A evidência que fundamenta a decisão tem de ser aceite ou verificada por revisão humana.';
     if(['in_progress','completed'].includes(status)&&!String(payload.owner||'').trim())return 'Identifique o responsável antes de iniciar ou concluir a execução.';
     if(['in_progress','completed'].includes(status)&&!payload.due_date)return 'Defina o prazo antes de iniciar ou concluir a execução.';
     if(['in_progress','completed'].includes(status)&&!payload.action_started_at)return 'Registe a data real de início da ação.';
@@ -446,6 +469,7 @@
     if(status==='completed'&&!String(payload.actual_outcome||'').trim())return 'Registe o resultado observado antes de concluir a decisão.';
     if(status==='completed'&&!payload.actual_outcome_at)return 'Registe a data do resultado observado.';
     if(status==='completed'&&!payload.outcome_evidence_node_id)return 'Associe evidência própria ao resultado observado.';
+    if(status==='completed'&&!['accepted','verified'].includes(payload._outcome_evidence_status))return 'A evidência do resultado tem de ser aceite ou verificada por revisão humana.';
     const cardFoundation=payload._decision_evidence_node_id;
     if(status==='completed'&&cardFoundation&&payload.outcome_evidence_node_id===cardFoundation)return 'A evidência do resultado tem de ser distinta do fundamento da decisão.';
     if(status==='completed'&&payload.actual_outcome_at<payload.action_started_at)return 'O resultado observado não pode anteceder o início da ação.';
@@ -457,10 +481,16 @@
     const card=$$('[data-cycle]').find(x=>x.dataset.cycle===id);
     if(!card)return;
     const payload=collect(card);
-    payload._decision_evidence_node_id=rows.find(row=>row.id===id)?.evidence_node_id||null;
+    const row=rows.find(item=>item.id===id)||{};
+    payload._decision_evidence_node_id=row.evidence_node_id||null;
+    payload._decision_evidence_status=row.evidence_status||null;
+    const selectedOutcome=evidenceNodes.find(node=>node.id===payload.outcome_evidence_node_id);
+    payload._outcome_evidence_status=selectedOutcome?.status||(payload.outcome_evidence_node_id===row.outcome_evidence_node_id?row.outcome_evidence_status:null);
     const validation=validateUpdate(payload);
     if(validation){inline(card,validation,'error');return;}
     delete payload._decision_evidence_node_id;
+    delete payload._decision_evidence_status;
+    delete payload._outcome_evidence_status;
     const button=$('[data-dc-save]',card);
     button?.classList.add('loading');
     inline(card,'A guardar a evolução…');
@@ -472,6 +502,30 @@
     }catch(err){
       inline(card,err.message,'error');
       announce(`Não foi possível atualizar a decisão: ${err.message}`,'error');
+    }finally{
+      button?.classList.remove('loading');
+    }
+  }
+
+  async function reopen(id){
+    const card=$$('[data-cycle]').find(x=>x.dataset.cycle===id);
+    if(!card)return;
+    const rationale=($('[data-dc-reopen-rationale]',card)?.value||'').trim();
+    if(rationale.length<10){
+      inline(card,'Explique em pelo menos 10 caracteres por que motivo o ciclo tem de ser reaberto.','error');
+      return;
+    }
+    const button=$('[data-dc-reopen]',card);
+    button?.classList.add('loading');
+    inline(card,'A reabrir o ciclo e a preservar a versão anterior no histórico…');
+    try{
+      await api(`/api/pilot/decision-cycles/${encodeURIComponent(id)}/reopen`,{method:'POST',body:JSON.stringify({rationale})});
+      announce('Ciclo reaberto para correção. Os nós anteriores ficaram preservados como versões substituídas. Se a missão estiver concluída, altere-a para Ativa no Resumo.','success');
+      document.dispatchEvent(new CustomEvent('sris:canonical-mission-refresh',{detail:{mission_code:missionCode(),source:'decision_cycle_reopened'}}));
+      await load(true);
+    }catch(err){
+      inline(card,err.message,'error');
+      announce(`Não foi possível reabrir o ciclo: ${err.message}`,'error');
     }finally{
       button?.classList.remove('loading');
     }
@@ -533,7 +587,7 @@
       const publishButton=['accepted','verified'].includes(node.status)
         ? `<button class="btn btn-primary" type="button" data-learning-publish="${esc(node.id)}">Publicar na memória organizacional</button>`
         : '';
-      wrap.innerHTML=`<div class="dc1-review-note">Governança da aprendizagem: revisão humana obrigatória antes de reutilização noutras missões.</div>${reviewButtons}${publishButton}<div class="dc1-inline"></div>`;
+      wrap.innerHTML=`<div class="dc1-review-note">Governança da aprendizagem: proprietário, administrador ou revisor confirma antes da reutilização noutras missões.</div>${reviewButtons}${publishButton}<div class="dc1-inline"></div>`;
       card.appendChild(wrap);
       $('[data-learning-accept]',wrap)?.addEventListener('click',()=>reviewNode(node.id,'accepted',wrap));
       $('[data-learning-reject]',wrap)?.addEventListener('click',()=>reviewNode(node.id,'rejected',wrap));

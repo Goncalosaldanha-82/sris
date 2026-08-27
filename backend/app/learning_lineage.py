@@ -12,9 +12,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import current_user
+from app.atlas_platform.audit import record_audit
 from app.atlas_platform.database import get_db
-from app.atlas_platform.models import Membership, User
+from app.atlas_platform.models import Membership, Role, User
 from app.mission_intelligence.models import CanonicalMission
+from app.evidence_graph import _require_mission_mutable
 from app.pilot_mission_state import record_module_review
 from app.pilot_serialization import as_iso
 from app.pilot_text import normalize_generated_title
@@ -23,6 +25,7 @@ router = APIRouter(prefix="/api/pilot/learning", tags=["pilot-learning-lineage"]
 
 Applicability = Literal["reuse", "requires_revalidation", "not_applicable"]
 LegacyDisposition = Literal["still_valid", "requires_revalidation", "invalidated"]
+REVIEWER_ROLES = {Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value}
 
 
 class LearningReviewRequest(BaseModel):
@@ -59,6 +62,14 @@ def _membership(db: Session, user_id: str) -> Membership | None:
         .order_by(Membership.created_at.asc())
         .first()
     )
+
+
+def _require_reviewer(membership: Membership) -> None:
+    if membership.role not in REVIEWER_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="A publicação e revisão de aprendizagem exigem a função de revisor ou administrador.",
+        )
 
 
 def _ensure_schema(db: Session) -> None:
@@ -266,6 +277,12 @@ def _graph_snapshot(db: Session, *, organization_id: str, mission_id: str, learn
 
 def _packet_view(row) -> dict:
     snapshot = json.loads(row["graph_snapshot_json"] or "{}")
+    source_node_status = row.get("source_node_status") if hasattr(row, "get") else None
+    canonical_status = (
+        "valid"
+        if source_node_status in {"accepted", "verified"}
+        else "superseded"
+    )
     return {
         "id": row["id"],
         "source_mission": {
@@ -275,9 +292,10 @@ def _packet_view(row) -> dict:
         "source_learning_node_id": row["source_learning_node_id"],
         "title": normalize_generated_title(row["title"]),
         "statement": row["statement"],
-        # A published packet is canonically valid independently from any
-        # target mission's contextual applicability review.
-        "canonical_status": "valid",
+        # Applicability in a target mission remains a separate human decision,
+        # but a superseded source lineage cannot keep influencing new missions.
+        "canonical_status": canonical_status,
+        "source_node_status": source_node_status,
         "lineage_sha256": row["lineage_sha256"],
         "lineage": snapshot,
         "created_at": as_iso(row["created_at"]),
@@ -297,10 +315,15 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
                END AS applicability,
                r.rationale, r.context_change, r.updated_at AS reviewed_at
         FROM pilot_learning_packets p
+        JOIN pilot_evidence_graph_nodes source_node
+          ON source_node.id=p.source_learning_node_id
+         AND source_node.organization_id=p.organization_id
+         AND source_node.mission_id=p.source_mission_id
         JOIN pilot_learning_reviews r ON r.learning_packet_id=p.id
         WHERE p.organization_id=:org AND r.organization_id=:org
           AND r.target_mission_id=:target
           AND r.disposition IN ('still_valid','requires_revalidation')
+          AND source_node.status IN ('accepted','verified')
         ORDER BY r.updated_at DESC
     """), {"org": organization_id, "target": target_mission_id}).mappings().all()
     valid, revalidation = [], []
@@ -344,8 +367,10 @@ def publish_learning_packet(
     membership = _membership(db, user.id)
     if membership is None:
         raise HTTPException(status_code=403, detail="A conta não tem um workspace associado.")
+    _require_reviewer(membership)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     snapshot = _graph_snapshot(
         db,
         organization_id=membership.organization_id,
@@ -398,8 +423,30 @@ def publish_learning_packet(
         ),
         user_id=user.id,
     )
+    record_audit(
+        db,
+        action="pilot.learning.published",
+        resource_type="learning_packet",
+        resource_id=packet_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "mission_id": mission.id,
+            "mission_code": mission.code,
+            "learning_node_id": learning_node_id,
+            "lineage_sha256": lineage_sha,
+        },
+    )
     db.commit()
-    row = db.execute(text("SELECT * FROM pilot_learning_packets WHERE id=:id"), {"id": packet_id}).mappings().one()
+    row = db.execute(text("""
+        SELECT p.*, source_node.status AS source_node_status
+        FROM pilot_learning_packets p
+        JOIN pilot_evidence_graph_nodes source_node
+          ON source_node.id=p.source_learning_node_id
+         AND source_node.organization_id=p.organization_id
+         AND source_node.mission_id=p.source_mission_id
+        WHERE p.id=:id
+    """), {"id": packet_id}).mappings().one()
     return _packet_view(row)
 
 
@@ -421,6 +468,7 @@ def learning_candidates(
     target_terms = _tokens(target.title, target.domain, str(target_doc.get("context") or ""), str(target_doc.get("central_question") or ""))
     rows = db.execute(text("""
         SELECT p.*, m.title AS source_title, m.domain AS source_domain,
+               source_node.status AS source_node_status,
                CASE r.disposition
                    WHEN 'still_valid' THEN 'reuse'
                    WHEN 'requires_revalidation' THEN 'requires_revalidation'
@@ -430,6 +478,10 @@ def learning_candidates(
                r.rationale, r.context_change, r.updated_at AS reviewed_at
         FROM pilot_learning_packets p
         JOIN mi_missions m ON m.id=p.source_mission_id
+        LEFT JOIN pilot_evidence_graph_nodes source_node
+          ON source_node.id=p.source_learning_node_id
+         AND source_node.organization_id=p.organization_id
+         AND source_node.mission_id=p.source_mission_id
         LEFT JOIN pilot_learning_reviews r
           ON r.learning_packet_id=p.id AND r.target_mission_id=:target
              AND r.organization_id=:org
@@ -480,13 +532,26 @@ def review_learning_candidate(
     membership = _membership(db, user.id)
     if membership is None:
         raise HTTPException(status_code=403, detail="A conta não tem um workspace associado.")
+    _require_reviewer(membership)
     _ensure_schema(db)
     target = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(target)
     packet = db.execute(text("""
-        SELECT * FROM pilot_learning_packets WHERE id=:id AND organization_id=:org LIMIT 1
+        SELECT p.*, source_node.status AS source_node_status
+        FROM pilot_learning_packets p
+        LEFT JOIN pilot_evidence_graph_nodes source_node
+          ON source_node.id=p.source_learning_node_id
+         AND source_node.organization_id=p.organization_id
+         AND source_node.mission_id=p.source_mission_id
+        WHERE p.id=:id AND p.organization_id=:org LIMIT 1
     """), {"id": packet_id, "org": membership.organization_id}).mappings().first()
     if packet is None or packet["source_mission_id"] == target.id:
         raise HTTPException(status_code=404, detail="A aprendizagem candidata não existe para esta missão.")
+    if packet.get("source_node_status") not in {"accepted", "verified"}:
+        raise HTTPException(
+            status_code=409,
+            detail="A aprendizagem de origem já não tem uma revisão humana válida e não pode ser reutilizada.",
+        )
     applicability = payload.effective_applicability
     legacy_disposition = {
         "reuse": "still_valid",
@@ -509,6 +574,23 @@ def review_learning_candidate(
         "rationale": payload.rationale, "context_change": payload.context_change,
         "user_id": user.id,
     })
+    record_audit(
+        db,
+        action="pilot.learning.applicability_reviewed",
+        resource_type="learning_packet",
+        resource_id=packet_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "target_mission_id": target.id,
+            "target_mission_code": target.code,
+            "source_mission_id": packet["source_mission_id"],
+            "source_mission_code": packet["source_mission_code"],
+            "applicability": applicability,
+            "rationale": payload.rationale.strip(),
+            "context_change": payload.context_change.strip(),
+        },
+    )
     db.commit()
     return {
         "status": "reviewed",

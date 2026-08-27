@@ -178,6 +178,13 @@
     return Number(value).toLocaleString("pt-PT", { style: "currency", currency, maximumFractionDigits: 0 });
   }
 
+  function economicStateValue(value, valueState, formatter = economicMoney) {
+    if (!valueState || valueState === "unknown_not_zero") return "—";
+    const rendered = formatter(value);
+    if (rendered === "—") return rendered;
+    return valueState === "partial_observed_or_estimated" ? `Parcial · ${rendered}` : rendered;
+  }
+
   function economicComparisonTable() {
     const economics = state?.economic_comparison || {};
     if (!economics.configured) {
@@ -188,14 +195,24 @@
       return '<div class="alternative-matrix-empty">Ainda não existem alternativas económicas para comparar.</div>';
     }
     const rows = profiles.map((profile) => {
+      const metricStates = profile.metric_states || {};
+      const financialState = metricStates.scenario_base_financial || metricStates.financial;
+      const costsState = metricStates.scenario_base_costs || metricStates.costs;
+      const benefitsState = metricStates.scenario_base_benefits || metricStates.benefits;
+      const resourcesState = metricStates.resources;
       const resources = profile.resources || {};
+      const plannedHoursState = metricStates.planned_human_hours || "unknown_not_zero";
       const resourceText = [
-        resources.planned_human_hours ? `${Number(resources.planned_human_hours).toLocaleString("pt-PT")} h` : "",
+        resources.human_roles ? `${resources.human_roles} ${resources.human_roles === 1 ? "função" : "funções"} · ${economicStateValue(resources.planned_human_hours,plannedHoursState,value=>Number(value).toLocaleString("pt-PT",{maximumFractionDigits:1}))} h previstas` : "",
         resources.material_lines ? `${resources.material_lines} materiais` : "",
         resources.equipment_lines ? `${resources.equipment_lines} equipamentos` : "",
+        resources.funding_lines ? `${resources.funding_lines} fontes de financiamento` : "",
       ].filter(Boolean).join(" · ") || "—";
       const gaps = profile.gaps?.length ? `<span class="alternative-matrix-economic-gaps">Falta: ${esc(profile.gaps.join(", "))}</span>` : "";
-      return `<tr><th scope="row"><strong>${esc(profile.alternative_label)}</strong>${gaps}</th><td>${economicMoney(profile.total_cost)}</td><td>${esc(resourceText)}</td><td>${economicMoney(profile.probable_gross_benefit)}</td><td>${economicMoney(profile.probable_net_benefit)}</td><td>${profile.roi_pct == null ? "—" : `${Number(profile.roi_pct).toLocaleString("pt-PT", { maximumFractionDigits: 2 })}%`}</td><td>${profile.payback_months == null ? "—" : `${Number(profile.payback_months).toLocaleString("pt-PT")} meses`}</td><td>${Number(profile.quality?.overall_score || 0).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}%</td></tr>`;
+      const qualityKnown = Number(profile.quality?.monetary_line_count || 0) > 0;
+      const percent = value => Number(value).toLocaleString("pt-PT", { maximumFractionDigits: 2 });
+      const months = value => Number(value).toLocaleString("pt-PT", { maximumFractionDigits: 0 });
+      return `<tr><th scope="row"><strong>${esc(profile.alternative_label)}</strong>${gaps}</th><td>${economicStateValue(profile.total_cost,costsState)}</td><td>${economicStateValue(resourceText,resourcesState,value=>esc(value))}</td><td>${economicStateValue(profile.probable_gross_benefit,benefitsState)}</td><td>${economicStateValue(profile.probable_net_benefit,financialState)}</td><td>${!financialState||financialState==="unknown_not_zero"||profile.roi_pct == null?"—":`${economicStateValue(profile.roi_pct,financialState,percent)}%`}</td><td>${!financialState||financialState==="unknown_not_zero"||profile.payback_months == null?"—":`${economicStateValue(profile.payback_months,financialState,months)} meses`}</td><td>${qualityKnown?`${Number(profile.quality?.overall_score || 0).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}%`:"—"}</td></tr>`;
     }).join("");
     return `<div class="alternative-matrix-scroller"><table class="alternative-matrix-table"><thead><tr><th>Alternativa</th><th>Custo total</th><th>Recursos</th><th>Benefício provável</th><th>Benefício líquido</th><th>ROI</th><th>Payback</th><th>Qualidade</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
@@ -206,8 +223,9 @@
     const criterionList = criteria();
     const alternatives = state.alternatives || [];
     const existing = assessmentIndex();
+    const matrixStale = Boolean(state.matrix?.status === "reviewed" && !state.readiness?.passed);
     const revision = state.matrix
-      ? `Revisão ${state.matrix.revision} · ${state.matrix.status === "reviewed" ? "revista" : "rascunho"}${state.matrix.integrity_verified ? "" : " · integridade inválida"}`
+      ? `Revisão ${state.matrix.revision} · ${state.matrix.status === "reviewed" ? (matrixStale ? "revista · desatualizada" : "revista e atual") : "rascunho"}${state.matrix.integrity_verified ? "" : " · integridade inválida"}`
       : "Sem revisão guardada";
     const tableHead = alternatives.map((alternative) => {
       const duplicateControl = alternative.duplicate_of_id
@@ -242,12 +260,12 @@
     const economicAlignmentTone = economicAlignment.up_to_date ? "current" : "";
     node.innerHTML = `
       <section class="alternative-matrix-hero"><div><span class="product-index">COMPARAÇÃO MULTICRITÉRIO · SEM IA</span><h3>Comparar antes de decidir.</h3><p>Seis critérios canónicos, pesos explícitos, justificação humana e evidência por avaliação. O cálculo é reproduzível e a decisão continua a pertencer à pessoa responsável.</p></div><span class="alternative-matrix-revision">${esc(revision)}</span></section>
-      <div id="alternative-matrix-status" class="alternative-matrix-status ${state.matrix && !state.matrix.integrity_verified ? "error" : ""}" role="status" aria-live="polite">${state.matrix && !state.matrix.integrity_verified ? "A revisão persistida não coincide com o respetivo snapshot e hash. A ordenação foi bloqueada; guarde uma nova revisão íntegra." : ""}</div>
+      <div id="alternative-matrix-status" class="alternative-matrix-status ${state.matrix && !state.matrix.integrity_verified ? "error" : matrixStale ? "warning" : ""}" role="status" aria-live="polite">${state.matrix && !state.matrix.integrity_verified ? "A revisão persistida não coincide com o respetivo snapshot e hash. A ordenação foi bloqueada; guarde uma nova revisão íntegra." : matrixStale ? "A revisão humana permanece no histórico, mas os seus fundamentos já não estão atuais. Guarde e reveja uma nova revisão antes de decidir." : ""}</div>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Alternativas da missão</h4><p class="note">As alternativas pertencem ao grafo canónico da missão; não são cópias locais da matriz. Duplicados exatos podem ser retirados sem apagar o histórico.</p></div><span class="pill">${alternatives.length} disponíveis</span></div><form id="alternative-matrix-add" class="alternative-matrix-add"><div class="field"><label for="acm-new-title">Título</label><input id="acm-new-title" required minlength="3" placeholder="Ex.: Redutores de caudal reguláveis"></div><div class="field"><label for="acm-new-body">Descrição</label><input id="acm-new-body" required minlength="5" placeholder="Âmbito, diferença material e condição de aplicação"></div><button id="alternative-matrix-add-submit" class="btn btn-secondary" type="submit" ${addingAlternative ? "disabled" : ""}>${addingAlternative ? "A adicionar…" : "Adicionar alternativa"}</button></form></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Economia e recursos por alternativa</h4><p class="note">Valores vivos do business case: custo total, recursos necessários, benefício provável e retorno. Não substituem a avaliação multicritério.</p></div><span class="pill">${state.economic_comparison?.complete_profile_count || 0}/${state.economic_comparison?.profiles?.length || 0} completos</span></div>${economicComparisonTable()}<div class="alternative-matrix-economic-status ${economicAlignmentTone}">${esc(economicAlignment.message || "A sincronizar a revisão económica usada pela matriz.")}</div><div class="alternative-matrix-controls" style="margin-top:12px"><button class="btn btn-secondary" type="button" data-open-mission-tab="economics">Abrir Business Case Vivo</button></div></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Pesos da decisão</h4><p class="note">A soma tem de ser 100%. Os pesos fazem parte de cada revisão e ficam sujeitos a auditoria.</p></div><span id="alternative-matrix-weight-total" class="alternative-matrix-weight-total"></span></div><div class="alternative-matrix-weights">${weightEditors}</div></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Matriz de pontuação</h4><p class="note">Escala 1–5 orientada para valor. Em custo e risco, 5 representa a condição mais favorável.</p></div><span class="pill">20–100 pontos</span></div>${alternatives.length ? `<div class="alternative-matrix-scroller"><table class="alternative-matrix-table"><thead><tr><th scope="col">Critério</th>${tableHead}</tr></thead><tbody>${tableRows}<tr class="alternative-matrix-total-row"><th scope="row">Pontuação total</th>${totalCells}</tr></tbody></table></div><div class="alternative-matrix-rationales">${rationaleEditors}</div>` : '<div class="alternative-matrix-empty">Adicione pelo menos duas alternativas para iniciar a comparação.</div>'}<div class="alternative-matrix-explanation">Fórmula: soma(pontuação × peso) ÷ 5. Como a escala começa em 1, o resultado final varia entre 20 e 100 pontos. Desempate: robustez da evidência, eficácia e título. Nenhuma alternativa é selecionada automaticamente.</div><div class="alternative-matrix-controls" style="margin-top:14px"><button id="alternative-matrix-save" class="btn btn-primary" type="button" ${alternatives.length < 2 ? "disabled" : ""}>Guardar nova revisão</button><button id="alternative-matrix-review" class="btn btn-secondary" type="button" ${!state.matrix || !state.readiness?.passed || state.matrix.status === "reviewed" ? "disabled" : ""}>Confirmar revisão humana</button></div></section>
-      <section class="alternative-matrix-card"><div class="card-head"><div><h4>Ordenação transparente</h4><p class="note">Resultado da última revisão guardada.</p></div><span class="pill">${state.readiness?.passed ? "comparação completa" : "incompleta"}</span></div><div class="alternative-matrix-ranking">${ranking}</div></section>
+      <section class="alternative-matrix-card"><div class="card-head"><div><h4>Ordenação transparente</h4><p class="note">Resultado da última revisão guardada${matrixStale?"; não deve fundamentar uma nova decisão até ser atualizada":""}.</p></div><span class="pill">${state.readiness?.passed ? "comparação atual" : matrixStale ? "desatualizada" : "incompleta"}</span></div><div class="alternative-matrix-ranking">${ranking}</div></section>
       <details class="alternative-matrix-card"><summary><strong>Histórico imutável e hashes</strong></summary><div class="alternative-matrix-history" style="margin-top:14px">${history}</div></details>
     `;
     bind();

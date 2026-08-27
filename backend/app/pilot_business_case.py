@@ -20,6 +20,7 @@ from app.evidence_graph import (
     _ensure_schema as _ensure_graph_schema,
     _membership,
     _mission,
+    _require_mission_mutable,
 )
 from app.pilot_serialization import as_iso
 
@@ -197,7 +198,7 @@ class LineItemCreate(BaseModel):
         ):
             raise ValueError("Registe pelo menos um valor monetário para esta linha.")
         if self.kind == "non_monetary_benefit" and self.planned_quantity is None and self.actual_quantity is None:
-            raise ValueError("Quantifique o benefício não monetizado ou registe a unidade observada.")
+            raise ValueError("Registe uma quantidade prevista ou realizada para o benefício não monetizado.")
         if self.amount_basis == "per_unit" and self.planned_quantity is None:
             raise ValueError("Um valor por unidade exige uma quantidade prevista.")
         if self.operational_status == "blocked" and not self.blocker.strip():
@@ -397,6 +398,7 @@ def _active_item_rows(db: Session, case_id: str) -> list:
     return db.execute(
         text("""
             SELECT item.*, evidence.label AS evidence_label,
+                   evidence.status AS evidence_status,
                    attachment.original_filename AS evidence_document_title,
                    alternative.label AS alternative_label,
                    alternative.body AS alternative_body
@@ -511,6 +513,7 @@ def _item_dict(row) -> dict:
         "source_label": row["source_label"] or "",
         "evidence_node_id": row["evidence_node_id"],
         "evidence_label": row.get("evidence_document_title") or row.get("evidence_label"),
+        "evidence_status": row.get("evidence_status"),
         "alternative_node_id": row["alternative_node_id"],
         "alternative_label": row.get("alternative_label"),
         "alternative_body": row.get("alternative_body"),
@@ -604,6 +607,41 @@ def _scenario_summary(items: list[dict], *, scenario: str, horizon: int, discoun
     }
 
 
+def _forecast_item_total(item: dict, horizon: int) -> float:
+    raw_amount = (
+        item.get("forecast_amount")
+        if item.get("forecast_amount") is not None
+        else item.get("base_amount")
+    )
+    unit_amount = float(raw_amount or 0)
+    if item.get("amount_basis") == "per_unit":
+        unit_amount *= float(item.get("planned_quantity") or 0)
+    projected = unit_amount * len(_occurrence_months(item, horizon))
+    live_floor = float(item.get("realized_amount") or 0) + float(
+        item.get("committed_amount") or 0
+    )
+    return max(projected, live_floor)
+
+
+def _funding_item_total(item: dict, horizon: int) -> float:
+    """Funding stages describe the same envelope, not additive expenditure."""
+
+    raw_amount = (
+        item.get("forecast_amount")
+        if item.get("forecast_amount") is not None
+        else item.get("base_amount")
+    )
+    unit_amount = float(raw_amount or 0)
+    if item.get("amount_basis") == "per_unit":
+        unit_amount *= float(item.get("planned_quantity") or 0)
+    projected = unit_amount * len(_occurrence_months(item, horizon))
+    return max(
+        projected,
+        float(item.get("committed_amount") or 0),
+        float(item.get("realized_amount") or 0),
+    )
+
+
 def _forecast_summary(items: list[dict], *, horizon: int, discount_rate: float) -> dict:
     cashflows = [0.0 for _ in range(horizon)]
     total_cost = 0.0
@@ -615,9 +653,7 @@ def _forecast_summary(items: list[dict], *, horizon: int, discount_rate: float) 
         unit_amount = float(item.get("forecast_amount") if item.get("forecast_amount") is not None else item.get("base_amount") or 0)
         if item.get("amount_basis") == "per_unit":
             unit_amount *= float(item.get("planned_quantity") or 0)
-        projected = unit_amount * len(months)
-        live_floor = float(item.get("realized_amount") or 0) + float(item.get("committed_amount") or 0)
-        total = max(projected, live_floor)
+        total = _forecast_item_total(item, horizon)
         direction = -1 if item["financial_treatment"] == "cost" else 1
         if direction < 0:
             total_cost += total
@@ -679,15 +715,31 @@ def _live_metrics(case: dict, items: list[dict]) -> dict:
         for item in items
         if item.get("include_in_totals") and item.get("financial_treatment") == "benefit"
     )
-    verified_realized_benefit = sum(
+    evidence_linked_realized_benefit = sum(
         float(item.get("realized_amount") or 0)
         for item in items
         if item.get("include_in_totals")
         and item.get("financial_treatment") == "benefit"
         and item.get("evidence_node_id")
     )
+    reviewed_evidence_realized_benefit = sum(
+        float(item.get("realized_amount") or 0)
+        for item in items
+        if item.get("include_in_totals")
+        and item.get("financial_treatment") == "benefit"
+        and item.get("evidence_node_id")
+        and item.get("evidence_status") in {"accepted", "verified"}
+    )
+    verified_realized_benefit = sum(
+        float(item.get("realized_amount") or 0)
+        for item in items
+        if item.get("include_in_totals")
+        and item.get("financial_treatment") == "benefit"
+        and item.get("evidence_node_id")
+        and item.get("evidence_status") == "verified"
+    )
     funding = sum(
-        _scenario_unit_amount(item, "base") * len(_occurrence_months(item, horizon))
+        _funding_item_total(item, horizon)
         for item in items
         if item.get("kind") == "financial_resource"
     )
@@ -739,6 +791,8 @@ def _live_metrics(case: dict, items: list[dict]) -> dict:
         "expected_gross_benefit": round(expected_benefit, 2),
         "committed_benefit": round(committed_benefit, 2),
         "realized_benefit": round(realized_benefit, 2),
+        "evidence_linked_realized_benefit": round(evidence_linked_realized_benefit, 2),
+        "reviewed_evidence_realized_benefit": round(reviewed_evidence_realized_benefit, 2),
         "verified_realized_benefit": round(verified_realized_benefit, 2),
         "unverified_realized_benefit": round(max(realized_benefit - verified_realized_benefit, 0), 2),
         "forecast_gross_benefit": forecast["gross_benefit"],
@@ -775,6 +829,199 @@ def _live_metrics(case: dict, items: list[dict]) -> dict:
             else None
         ),
         "scenarios": scenarios,
+    }
+
+
+def _metric_states(case: dict, items: list[dict]) -> dict[str, str]:
+    """Distinguish a calculated zero from a dimension with no source records."""
+
+    known = "observed_or_estimated"
+    partial = "partial_observed_or_estimated"
+    unknown = "unknown_not_zero"
+
+    def coverage(rows: list[dict], predicate) -> str:
+        if not rows:
+            return unknown
+        covered = sum(1 for row in rows if predicate(row))
+        if covered == 0:
+            return unknown
+        return known if covered == len(rows) else partial
+
+    def combine(*states: str) -> str:
+        if any(state == unknown for state in states):
+            return unknown
+        if any(state == partial for state in states):
+            return partial
+        return known
+
+    def amount_declared(item: dict, *fields: str) -> bool:
+        return any(item.get(field) is not None for field in fields)
+
+    def forecast_declared(item: dict) -> bool:
+        return amount_declared(
+            item,
+            "forecast_amount",
+            "base_amount",
+            "committed_amount",
+            "realized_amount",
+        )
+
+    included_costs = [
+        item for item in items
+        if item.get("include_in_totals") and item.get("financial_treatment") == "cost"
+    ]
+    included_benefits = [
+        item for item in items
+        if item.get("include_in_totals") and item.get("financial_treatment") == "benefit"
+    ]
+    resources = [item for item in items if item.get("kind") in RESOURCE_KINDS]
+    human_hour_lines = [
+        item for item in items
+        if item.get("kind") == "human_resource"
+        and str(item.get("unit") or "").strip().casefold()
+        in {"hora", "horas", "h", "hour", "hours"}
+    ]
+    funding_lines = [item for item in items if item.get("kind") == "financial_resource"]
+    post_mission_costs = [
+        item for item in included_costs if item.get("phase") == "post_mission"
+    ]
+    schedule_known = bool(
+        case.get("planned_start_date")
+        and case.get("planned_end_date")
+        and (case.get("forecast_end_date") or case.get("actual_end_date"))
+    )
+    outcome_known = bool(
+        case.get("planned_outcome_quantity") is not None
+        or case.get("actual_outcome_quantity") is not None
+    )
+    budget_state = coverage(included_costs, lambda item: item.get("base_amount") is not None)
+    committed_cost_state = coverage(
+        included_costs, lambda item: item.get("committed_amount") is not None
+    )
+    realized_cost_state = coverage(
+        included_costs, lambda item: item.get("realized_amount") is not None
+    )
+    forecast_cost_state = coverage(included_costs, forecast_declared)
+    expected_benefit_state = coverage(
+        included_benefits, lambda item: item.get("base_amount") is not None
+    )
+    committed_benefit_state = coverage(
+        included_benefits, lambda item: item.get("committed_amount") is not None
+    )
+    realized_benefit_state = coverage(
+        included_benefits, lambda item: item.get("realized_amount") is not None
+    )
+    forecast_benefit_state = coverage(included_benefits, forecast_declared)
+    forecast_financial_state = combine(
+        forecast_cost_state,
+        forecast_benefit_state,
+    )
+    realized_financial_state = combine(
+        realized_cost_state,
+        realized_benefit_state,
+    )
+    planned_hours_state = coverage(
+        human_hour_lines, lambda item: item.get("planned_quantity") is not None
+    )
+    actual_hours_state = coverage(
+        human_hour_lines, lambda item: item.get("actual_quantity") is not None
+    )
+    funding_state = coverage(funding_lines, forecast_declared)
+    post_mission_state = coverage(
+        post_mission_costs,
+        lambda item: amount_declared(item, "forecast_amount", "base_amount"),
+    )
+    planned_outcome_state = known if case.get("planned_outcome_quantity") is not None else unknown
+    actual_outcome_state = known if case.get("actual_outcome_quantity") is not None else unknown
+    chosen_cost_per_outcome_state = (
+        combine(realized_cost_state, actual_outcome_state)
+        if case.get("actual_outcome_quantity") is not None
+        else combine(forecast_cost_state, planned_outcome_state)
+    )
+    scenario_states: dict[str, str] = {}
+    for scenario in ("conservative", "base", "favorable"):
+        field = f"{scenario}_amount"
+        cost_state = coverage(
+            included_costs,
+            lambda item, field=field: item.get(field) is not None
+            or (scenario != "base" and item.get("base_amount") is not None),
+        )
+        benefit_state = coverage(
+            included_benefits,
+            lambda item, field=field: item.get(field) is not None
+            or (scenario != "base" and item.get("base_amount") is not None),
+        )
+        financial_state = combine(cost_state, benefit_state)
+        scenario_states.update(
+            {
+                f"scenario_{scenario}_costs": cost_state,
+                f"scenario_{scenario}_benefits": benefit_state,
+                f"scenario_{scenario}_financial": financial_state,
+            }
+        )
+    return {
+        "any_lines": known if items else unknown,
+        "financial": forecast_financial_state,
+        "costs": known if included_costs else unknown,
+        "benefits": known if included_benefits else unknown,
+        "resources": known if resources else unknown,
+        "human_hours": (
+            known
+            if planned_hours_state == known and actual_hours_state == known
+            else unknown
+            if planned_hours_state == unknown and actual_hours_state == unknown
+            else partial
+        ),
+        "planned_human_hours": planned_hours_state,
+        "actual_human_hours": actual_hours_state,
+        "budget_base": budget_state,
+        "committed_cost": committed_cost_state,
+        "realized_cost": realized_cost_state,
+        "forecast_cost": forecast_cost_state,
+        "cost_variance": combine(budget_state, forecast_cost_state),
+        "expected_benefit": expected_benefit_state,
+        "committed_benefit": committed_benefit_state,
+        "realized_benefit": realized_benefit_state,
+        "evidence_linked_realized_benefit": coverage(
+            included_benefits,
+            lambda item: item.get("realized_amount") is not None
+            and bool(item.get("evidence_node_id")),
+        ),
+        "reviewed_evidence_realized_benefit": coverage(
+            included_benefits,
+            lambda item: item.get("realized_amount") is not None
+            and bool(item.get("evidence_node_id"))
+            and item.get("evidence_status") in {"accepted", "verified"},
+        ),
+        "verified_realized_benefit": coverage(
+            included_benefits,
+            lambda item: item.get("realized_amount") is not None
+            and bool(item.get("evidence_node_id"))
+            and item.get("evidence_status") == "verified",
+        ),
+        "realized_financial": realized_financial_state,
+        "forecast_benefit": forecast_benefit_state,
+        "forecast_financial": forecast_financial_state,
+        "remaining_cost": combine(
+            forecast_cost_state,
+            committed_cost_state,
+            realized_cost_state,
+        ),
+        "break_even_required_benefit": scenario_states["scenario_base_costs"],
+        "break_even_gap": scenario_states["scenario_base_financial"],
+        "forecast_profit": forecast_financial_state,
+        "forecast_margin": forecast_financial_state,
+        "funding": funding_state,
+        "funding_gap": combine(funding_state, forecast_cost_state),
+        "post_mission_costs": post_mission_state,
+        "schedule": known if schedule_known else unknown,
+        "outcome": known if outcome_known else unknown,
+        "planned_outcome": planned_outcome_state,
+        "actual_outcome": actual_outcome_state,
+        "cost_per_planned_outcome": combine(forecast_cost_state, planned_outcome_state),
+        "cost_per_actual_outcome": combine(realized_cost_state, actual_outcome_state),
+        "cost_per_outcome": chosen_cost_per_outcome_state,
+        **scenario_states,
     }
 
 
@@ -817,6 +1064,21 @@ def _quality(case: dict, items: list[dict]) -> dict:
         for item in items
         if item.get("include_in_totals") and item.get("financial_treatment") in {"cost", "benefit"}
     ]
+    if not monetary:
+        return {
+            "state": "not_evaluable",
+            "monetary_line_count": 0,
+            "evidence_linked_count": 0,
+            "source_declared_count": 0,
+            "scenario_explicit_count": 0,
+            "actual_value_count": 0,
+            "evidence_coverage_pct": None,
+            "source_coverage_pct": None,
+            "confidence_score": None,
+            "overall_score": None,
+            "overall_label": "not_evaluable",
+            "case_reviewed": case.get("status") == "reviewed",
+        }
     evidence_count = sum(1 for item in monetary if item.get("evidence_node_id"))
     source_count = sum(1 for item in monetary if item.get("source_label") or item.get("evidence_node_id"))
     confidence_score = (
@@ -841,6 +1103,7 @@ def _quality(case: dict, items: list[dict]) -> dict:
     )
     label = "high" if overall >= 80 else "moderate" if overall >= 50 else "low"
     return {
+        "state": "assessed",
         "monetary_line_count": len(monetary),
         "evidence_linked_count": evidence_count,
         "source_declared_count": source_count,
@@ -937,21 +1200,35 @@ def _warnings(case: dict, items: list[dict], metrics: dict, quality: dict, readi
         }]
     if not any(item.get("financial_treatment") == "cost" and item.get("include_in_totals") for item in items):
         warnings.append({"code": "no_cost", "severity": "high", "message": "Não existe qualquer custo incluído no cálculo."})
+    has_cost = float(metrics.get("forecast_cost_at_completion") or 0) > 0
     if not any(item.get("financial_treatment") == "benefit" and item.get("include_in_totals") for item in items):
+        roi_note = (
+            "O ROI financeiro reflete apenas os custos monetários registados; "
+            "benefícios públicos ou não monetizados permanecem fora desse indicador."
+            if has_cost
+            else "O ROI financeiro ainda não é calculável porque também não existe um custo positivo incluído."
+        )
         warnings.append({
             "code": "no_monetary_benefit",
             "severity": "medium",
-            "message": "Não existe benefício monetário; o ROI financeiro não é calculável, embora possa existir valor público ou custo-eficácia.",
+            "message": f"Não existe benefício monetário. {roi_note}",
         })
     if not any(item.get("kind") in RESOURCE_KINDS for item in items):
         warnings.append({"code": "no_resources", "severity": "high", "message": "Ainda não foram identificados recursos humanos, financeiros ou materiais."})
-    if quality["source_coverage_pct"] < 100 and quality["monetary_line_count"]:
+    if quality["monetary_line_count"] and quality["source_coverage_pct"] < 100:
         warnings.append({"code": "source_gap", "severity": "high", "message": "Há valores monetários sem origem declarada; os indicadores não devem ser usados como prova."})
-    if quality["evidence_coverage_pct"] < 100 and quality["monetary_line_count"]:
+    if quality["monetary_line_count"] and quality["evidence_coverage_pct"] < 100:
         warnings.append({"code": "evidence_gap", "severity": "medium", "message": "Nem todos os valores estão ligados a evidência documental da missão."})
     if quality["scenario_explicit_count"] < quality["monetary_line_count"] and quality["monetary_line_count"]:
         warnings.append({"code": "scenario_fallback", "severity": "medium", "message": "Algumas linhas reutilizam o valor base nos cenários conservador ou favorável."})
-    if metrics["planned_human_hours"] == 0 and any(item.get("kind") == "human_resource" for item in items):
+    planned_hours_declared = any(
+        item.get("kind") == "human_resource"
+        and str(item.get("unit") or "").strip().casefold()
+        in {"hora", "horas", "h", "hour", "hours"}
+        and item.get("planned_quantity") is not None
+        for item in items
+    )
+    if not planned_hours_declared and any(item.get("kind") == "human_resource" for item in items):
         warnings.append({"code": "hours_missing", "severity": "medium", "message": "Existem recursos humanos, mas o esforço planeado não está registado em horas."})
     blocked = [
         item for item in items
@@ -969,7 +1246,7 @@ def _warnings(case: dict, items: list[dict], metrics: dict, quality: dict, readi
     if case.get("status") == "reviewed" and readiness["blocking_keys"]:
         warnings.append({"code": "review_invalidated", "severity": "high", "message": "A revisão guardada já não satisfaz os requisitos mínimos atuais."})
     if metrics["forecast_roi_pct"] is None:
-        warnings.append({"code": "roi_not_calculable", "severity": "info", "message": "ROI não calculável: falta custo incluído ou benefício monetário projetado."})
+        warnings.append({"code": "roi_not_calculable", "severity": "info", "message": "ROI não calculável: falta um custo monetário positivo incluído no cálculo."})
     return warnings
 
 
@@ -987,22 +1264,60 @@ def _display_money(value: float | int | None, currency: str) -> str:
     return f"{amount} €" if currency == "EUR" else f"{amount} {currency}"
 
 
-def _executive_conclusion(case: dict, metrics: dict) -> str:
+def _executive_conclusion(
+    case: dict,
+    metrics: dict,
+    metric_states: dict[str, str],
+) -> str:
     if not case.get("id"):
         return "O business case vivo ainda não foi iniciado nesta missão."
     currency = str(metrics.get("currency") or case.get("currency") or "EUR")
     statements: list[str] = []
+
+    def state_sentence(sentence: str, *keys: str) -> str:
+        partial = any(
+            metric_states.get(key) == "partial_observed_or_estimated"
+            for key in keys
+        )
+        if not partial:
+            return sentence
+        return "Com dados parciais, " + sentence[:1].lower() + sentence[1:]
+
     hours = float(metrics.get("actual_human_hours") or 0)
     realized_cost = float(metrics.get("realized_cost") or 0)
-    if hours > 0 or realized_cost > 0:
+    actual_hours_known = metric_states["actual_human_hours"] != "unknown_not_zero"
+    realized_cost_known = metric_states["realized_cost"] != "unknown_not_zero"
+    if hours > 0 and actual_hours_known and realized_cost_known:
         statements.append(
-            "A missão registou "
-            f"{_display_number(hours, 1)} horas de trabalho e "
-            f"{_display_money(realized_cost, currency)} de custo realizado."
+            state_sentence(
+                "A missão registou "
+                f"{_display_number(hours, 1)} horas de trabalho e "
+                f"{_display_money(realized_cost, currency)} de custo realizado.",
+                "actual_human_hours",
+                "realized_cost",
+            )
+        )
+    elif hours > 0 and actual_hours_known:
+        statements.append(
+            state_sentence(
+                f"A missão registou {_display_number(hours, 1)} horas de trabalho; "
+                "o custo monetário continua por determinar.",
+                "actual_human_hours",
+            )
+        )
+    elif realized_cost > 0:
+        statements.append(
+            state_sentence(
+                f"A missão registou {_display_money(realized_cost, currency)} de custo realizado.",
+                "realized_cost",
+            )
         )
     forecast_cost = metrics.get("forecast_cost_at_completion")
     variance_pct = metrics.get("cost_variance_pct")
-    if forecast_cost is not None:
+    if (
+        forecast_cost is not None
+        and metric_states["forecast_cost"] != "unknown_not_zero"
+    ):
         if variance_pct is None or abs(float(variance_pct)) < 0.005:
             variance = "em linha com o orçamento base"
         elif float(variance_pct) < 0:
@@ -1010,22 +1325,59 @@ def _executive_conclusion(case: dict, metrics: dict) -> str:
         else:
             variance = f"{_display_number(float(variance_pct), 1)}% acima do orçamento base"
         statements.append(
-            f"O custo previsto à conclusão é {_display_money(forecast_cost, currency)}, {variance}."
+            state_sentence(
+                f"O custo previsto à conclusão é {_display_money(forecast_cost, currency)}, {variance}.",
+                "forecast_cost",
+                "cost_variance",
+            )
         )
+    evidence_linked = float(metrics.get("evidence_linked_realized_benefit") or 0)
+    reviewed_evidence = float(metrics.get("reviewed_evidence_realized_benefit") or 0)
     verified = float(metrics.get("verified_realized_benefit") or 0)
     realized = float(metrics.get("realized_benefit") or 0)
-    if verified > 0:
+    if verified > 0 and metric_states["verified_realized_benefit"] != "unknown_not_zero":
         statements.append(
-            f"O benefício realizado ligado a evidência é {_display_money(verified, currency)}."
+            state_sentence(
+                f"O benefício realizado com evidência verificada é {_display_money(verified, currency)}.",
+                "verified_realized_benefit",
+            )
         )
-    elif realized > 0:
+    elif (
+        reviewed_evidence > 0
+        and metric_states["reviewed_evidence_realized_benefit"]
+        != "unknown_not_zero"
+    ):
         statements.append(
-            f"Foram registados {_display_money(realized, currency)} de benefício realizado, ainda sem evidência ligada."
+            state_sentence(
+                f"O benefício realizado com evidência revista é {_display_money(reviewed_evidence, currency)}.",
+                "reviewed_evidence_realized_benefit",
+            )
+        )
+    elif (
+        evidence_linked > 0
+        and metric_states["evidence_linked_realized_benefit"]
+        != "unknown_not_zero"
+    ):
+        statements.append(
+            state_sentence(
+                f"Foram registados {_display_money(evidence_linked, currency)} de benefício realizado com fonte ligada, ainda por rever.",
+                "evidence_linked_realized_benefit",
+            )
+        )
+    elif realized > 0 and metric_states["realized_benefit"] != "unknown_not_zero":
+        statements.append(
+            state_sentence(
+                f"Foram registados {_display_money(realized, currency)} de benefício realizado, ainda sem evidência ligada.",
+                "realized_benefit",
+            )
         )
     projected_net = metrics.get("forecast_net_benefit")
     roi = metrics.get("forecast_roi_pct")
     payback = metrics.get("forecast_payback_months")
-    if projected_net is not None:
+    if (
+        projected_net is not None
+        and metric_states["forecast_financial"] != "unknown_not_zero"
+    ):
         return_part = f"O benefício líquido projetado é {_display_money(projected_net, currency)}"
         if roi is not None:
             return_part += f", com ROI de {_display_number(roi, 1)}%"
@@ -1033,11 +1385,14 @@ def _executive_conclusion(case: dict, metrics: dict) -> str:
             return_part += f" e recuperação no mês {_display_number(payback, 0)}"
         elif roi is not None and float(roi) <= 0:
             return_part += " e sem recuperação dentro do horizonte analisado"
-        statements.append(return_part + ".")
+        statements.append(state_sentence(return_part + ".", "forecast_financial"))
     annual_burden = float(metrics.get("annual_post_mission_burden") or 0)
-    if annual_burden > 0:
+    if annual_burden > 0 and metric_states["post_mission_costs"] != "unknown_not_zero":
         statements.append(
-            f"Após a missão, permanece um encargo anual de {_display_money(annual_burden, currency)}."
+            state_sentence(
+                f"Após a missão, permanece um encargo anual de {_display_money(annual_burden, currency)}.",
+                "post_mission_costs",
+            )
         )
     return " ".join(statements) or "O modelo existe, mas ainda não contém valores suficientes para uma conclusão económica."
 
@@ -1212,18 +1567,26 @@ def _alternative_profile(case: dict, alternative: dict, items: list[dict]) -> di
         )
     ]
     resource_items = [item for item in items if item.get("kind") in RESOURCE_KINDS]
+    metric_states = _metric_states(case, items)
+    cost_modelled = metric_states["scenario_base_costs"] == "observed_or_estimated"
+    value_modelled = (
+        metric_states["scenario_base_benefits"] == "observed_or_estimated"
+        or any(item.get("kind") == "non_monetary_benefit" for item in value_items)
+    )
     base = metrics["scenarios"]["base"]
     return {
         "alternative_node_id": alternative["id"],
         "alternative_label": alternative["label"],
         "alternative_body": alternative.get("body") or "",
         "line_count": len(items),
-        "complete": bool(cost_items and value_items and resource_items),
+        "metrics_state": "observed_or_estimated" if items else "unknown_not_zero",
+        "metric_states": metric_states,
+        "complete": bool(cost_modelled and value_modelled and resource_items),
         "gaps": [
             label
             for present, label in (
-                (cost_items, "custo total"),
-                (value_items, "benefício ou resultado"),
+                (cost_modelled, "custo total base"),
+                (value_modelled, "benefício ou resultado base"),
                 (resource_items, "recursos necessários"),
             )
             if not present
@@ -1396,6 +1759,7 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
         mission_id=mission.id,
     )
     metrics = _live_metrics(case, mission_items)
+    metric_states = _metric_states(case, mission_items)
     quality = _quality(case, mission_items)
     readiness = _readiness(case, mission_items)
     return {
@@ -1409,13 +1773,17 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
         "quality": quality,
         "readiness": readiness,
         "warnings": _warnings(case, mission_items, metrics, quality, readiness),
-        "executive_conclusion": _executive_conclusion(case, metrics),
+        "executive_conclusion": _executive_conclusion(case, metrics, metric_states),
         "evidence": _evidence_options(db, organization_id=organization_id, mission_id=mission.id),
         "alternatives": alternatives,
         "alternative_comparison": _alternative_comparison(case, items, alternatives),
         "history": _history(db, case["id"]) if case.get("id") else [],
         "integrity_verified": _integrity_verified(db, case),
-        "metrics_state": "observed_or_estimated" if case.get("id") else "unknown_not_zero",
+        # Creating the foundation does not assert that every economic value is
+        # zero.  Until at least one mission-level line exists, the calculated
+        # zeroes are placeholders and must be rendered as unknown.
+        "metrics_state": metric_states["any_lines"],
+        "metric_states": metric_states,
         "governed_prefill": _governed_prefill(db, mission),
         "definitions": {
             "case_kinds": CASE_KIND_DEFINITIONS,
@@ -1429,6 +1797,29 @@ def _response(db: Session, *, organization_id: str, mission) -> dict:
                 "planning": "Planeamento",
                 "execution": "Execução",
                 "post_mission": "Após a missão",
+            },
+            "recurrence": {
+                "one_off": "Única",
+                "monthly": "Mensal",
+                "quarterly": "Trimestral",
+                "annual": "Anual",
+            },
+            "operational_status": {
+                "planned": "Planeado",
+                "committed": "Comprometido",
+                "active": "Em curso",
+                "completed": "Concluído",
+                "blocked": "Bloqueado",
+            },
+            "confidence": {
+                "low": "Baixa",
+                "moderate": "Moderada",
+                "high": "Alta",
+            },
+            "metric_states": {
+                "unknown_not_zero": "Por determinar — ausência de dados não significa zero",
+                "partial_observed_or_estimated": "Parcial — apenas parte das linhas tem valor declarado",
+                "observed_or_estimated": "Apurado — existe estimativa ou observação para todas as linhas aplicáveis",
             },
         },
     }
@@ -1564,6 +1955,7 @@ def upsert_business_case(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     current = _case_row(db, organization_id=membership.organization_id, mission_id=mission.id)
     values = _sql_values(payload.model_dump(exclude={"expected_revision"}))
     if current is None:
@@ -1646,6 +2038,7 @@ def create_line_item(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     case = _case_row(db, organization_id=membership.organization_id, mission_id=mission.id)
     if case is None:
         raise HTTPException(status_code=409, detail="Guarde primeiro a configuração do business case.")
@@ -1770,6 +2163,7 @@ def update_line_item(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     case = _case_row(db, organization_id=membership.organization_id, mission_id=mission.id)
     if case is None:
         raise HTTPException(status_code=404, detail="O business case ainda não existe.")
@@ -1848,6 +2242,7 @@ def retire_line_item(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     case = _case_row(db, organization_id=membership.organization_id, mission_id=mission.id)
     if case is None:
         raise HTTPException(status_code=404, detail="O business case ainda não existe.")
@@ -1907,6 +2302,7 @@ def review_business_case(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     case_row = _case_row(db, organization_id=membership.organization_id, mission_id=mission.id)
     if case_row is None:
         raise HTTPException(status_code=404, detail="O business case ainda não existe.")

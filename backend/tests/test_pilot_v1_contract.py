@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from PIL import Image
+from sqlalchemy import text
 
 from app.atlas_platform.config import Settings, configured_database_url, validate_security_settings
+from app.atlas_platform.database import SessionLocal
 from app.main import app
 from app.pilot_capabilities import PILOT_BUILD
 from app.pilot_mission_state import (
@@ -265,6 +268,8 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
         "sris:mission-opened",
         "missionTemplates",
         "source:'mission_onboarding'",
+        "createGraphNode(mission.code,'target','Critério de sucesso'",
+        "metrics_state==='observed_or_estimated'",
     ):
         assert marker in app_script.text
     assert "billing-balance" not in app_script.text
@@ -314,6 +319,7 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert "sris:memory-updated" in mission_state.text
     assert "MutationObserver" not in decision.text
     assert "sris:evidence-graph-updated" in decision.text
+    assert "Reabrir para correção" in decision.text
     assert "model_or_system" not in workspace.text
     assert "credit_eur" not in workspace.text
     assert "sris:memory-updated" in workspace.text
@@ -342,6 +348,7 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/password-reset/confirm",
         "/api/pilot/intelligence/ask",
         "/api/pilot/decision-cycles",
+        "/api/pilot/decision-cycles/{cycle_id}/reopen",
         "/api/pilot/evidence-graph/missions/{mission_code}",
         "/api/pilot/evidence-graph/missions/{mission_code}/document-evidence",
         "/api/pilot/evidence-graph/missions/{mission_code}/edges/{edge_id}",
@@ -365,6 +372,7 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/learning/missions/{mission_code}/candidates",
         "/api/pilot/learning/missions/{mission_code}/active-context",
         "/api/pilot/workspace-summary",
+        "/api/pilot/audit/missions/{mission_code}",
         "/api/pilot/missions/{mission_code}/completion-readiness",
         "/api/pilot/admin/audit",
         "/api/organizations/{organization_id}/invitations",
@@ -381,6 +389,7 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "constraint",
         "gap",
         "hypothesis",
+        "target",
         "alternative",
         "decision",
         "action",
@@ -404,6 +413,29 @@ def test_pilot_account_activation_surface_uses_pilot_session_contract() -> None:
         "location.replace('/app')",
     ):
         assert marker in response.text
+
+
+def test_business_case_successful_save_reenables_rendered_controls() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    source = (repo_root / "frontend" / "pilot-v1" / "business-case-v1.js").read_text(
+        encoding="utf-8"
+    )
+    accept_response = source.split("function acceptResponse", 1)[1].split(
+        "function applyGovernedPrefill", 1
+    )[0]
+
+    assert accept_response.index("saving = false;") < accept_response.index("render();")
+
+
+def test_report_numbers_keep_unknown_distinct_from_zero() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    source = (repo_root / "frontend" / "pilot-v1" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    implementation = source.split("function reportNumber", 1)[1].split(
+        "function validationReportHtml", 1
+    )[0]
+    assert "value===null||value===undefined||value===''" in implementation
 
 
 def test_account_to_persistent_mission_journey(monkeypatch) -> None:
@@ -509,6 +541,10 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert fragment["char_end"] == len(fragment["excerpt"])
 
     graph_base = f"/api/pilot/evidence-graph/missions/{mission_payload['code']}"
+    synchronized_graph = client.post(f"{graph_base}/sync", headers=headers)
+    assert synchronized_graph.status_code == 200, synchronized_graph.text
+    assert synchronized_graph.json()["status"] == "synced"
+    assert synchronized_graph.json()["interactions_scanned"] == 0
     evidence = client.post(
         f"{graph_base}/document-evidence",
         headers=headers,
@@ -801,8 +837,24 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         for event in relation_audit.json()["events"]
         if event["resource_id"] == linked.json()["id"]
     }
+    assert "pilot.evidence_graph.edge_created" in relation_actions
     assert "pilot.evidence_graph.edge_reversed" in relation_actions
     assert "pilot.evidence_graph.edge_deleted" in relation_actions
+    assert any(
+        event["action"] == "pilot.evidence_graph.node_created"
+        and event["resource_id"] == hypothesis.json()["id"]
+        for event in relation_audit.json()["events"]
+    )
+    assert any(
+        event["action"] == "pilot.evidence_graph.document_evidence_promoted"
+        and event["resource_id"] == evidence.json()["id"]
+        for event in relation_audit.json()["events"]
+    )
+    assert any(
+        event["action"] == "pilot.evidence_graph.synchronized"
+        and event["resource_id"] == mission_payload["code"]
+        for event in relation_audit.json()["events"]
+    )
 
     restored_link = client.post(
         f"{graph_base}/edges",
@@ -938,6 +990,14 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert second_matrix_payload["history"][1]["status"] == "reviewed"
     assert all(item["integrity_verified"] is True for item in second_matrix_payload["history"])
 
+    accepted_foundation = client.patch(
+        f"{graph_base}/nodes/{evidence.json()['id']}",
+        headers=headers,
+        json={"status": "accepted"},
+    )
+    assert accepted_foundation.status_code == 200, accepted_foundation.text
+    assert accepted_foundation.json()["status"] == "accepted"
+
     second_review = client.post(f"{matrix_url}/review", headers=headers)
     assert second_review.status_code == 200, second_review.text
     assert second_review.json()["matrix"]["revision"] == 2
@@ -1032,6 +1092,26 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         },
     )
     assert result_evidence.status_code == 201, result_evidence.text
+    blocked_unreviewed_outcome = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={
+            "status": "completed",
+            "actual_outcome": "A missão, o documento e o grafo reapareceram.",
+            "actual_outcome_at": "2026-08-25",
+            "outcome_evidence_node_id": result_evidence.json()["id"],
+            "learning": "A continuidade deve ser validada pelo estado persistente e não pelo ecrã.",
+        },
+    )
+    assert blocked_unreviewed_outcome.status_code == 409, blocked_unreviewed_outcome.text
+    assert "revista humanamente" in blocked_unreviewed_outcome.json()["detail"]
+    accepted_result_evidence = client.patch(
+        f"{graph_base}/nodes/{result_evidence.json()['id']}",
+        headers=headers,
+        json={"status": "accepted"},
+    )
+    assert accepted_result_evidence.status_code == 200, accepted_result_evidence.text
+    assert accepted_result_evidence.json()["status"] == "accepted"
     completed_cycle = client.patch(
         f"/api/pilot/decision-cycles/{decision.json()['id']}",
         headers=headers,
@@ -1055,6 +1135,7 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         headers=headers,
     )
     assert materialized.status_code == 201, materialized.text
+    assert materialized.json()["already_materialized"] is False
     assert materialized.json()["decision_node_id"] != evidence.json()["id"]
     assert materialized.json()["action_node_id"]
     learning_node_id = materialized.json()["learning_node_id"]
@@ -1063,7 +1144,21 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     materialized_learning = next(
         node for node in lineage_graph.json()["nodes"] if node["id"] == learning_node_id
     )
+    materialized_outcome = next(
+        node
+        for node in lineage_graph.json()["nodes"]
+        if node["id"] == materialized.json()["outcome_node_id"]
+    )
     assert materialized_learning["label"].endswith("dados reais.")
+    assert materialized_outcome["status"] == "accepted"
+    assert materialized_outcome["provenance"]["outcome_evidence_status"] == "accepted"
+    repeated_materialization = client.post(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}/materialize-learning",
+        headers=headers,
+    )
+    assert repeated_materialization.status_code == 201, repeated_materialization.text
+    assert repeated_materialization.json()["already_materialized"] is True
+    assert repeated_materialization.json()["learning_node_id"] == learning_node_id
     assert any(
         edge["from_node_id"] == evidence.json()["id"]
         and edge["to_node_id"] == materialized.json()["decision_node_id"]
@@ -1076,12 +1171,26 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
         and edge["edge_type"] == "validates"
         for edge in lineage_graph.json()["edges"]
     )
+    refused_nullification = client.patch(
+        f"{graph_base}/nodes/{learning_node_id}",
+        headers=headers,
+        json={"body": None},
+    )
+    assert refused_nullification.status_code == 422, refused_nullification.text
     accepted = client.patch(
         f"{graph_base}/nodes/{learning_node_id}",
         headers=headers,
         json={"status": "accepted"},
     )
     assert accepted.status_code == 200, accepted.text
+    node_update_audit = client.get("/api/pilot/admin/audit?limit=100", headers=headers)
+    assert node_update_audit.status_code == 200, node_update_audit.text
+    assert any(
+        event["action"] == "pilot.evidence_graph.node_updated"
+        and event["resource_id"] == learning_node_id
+        and event["payload"]["changed_fields"] == ["status"]
+        for event in node_update_audit.json()["events"]
+    )
     published = client.post(
         f"/api/pilot/learning/missions/{mission_payload['code']}/publish/{learning_node_id}",
         headers=headers,
@@ -1185,6 +1294,42 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert readiness.status_code == 200, readiness.text
     assert readiness.json()["ready"] is True
     assert all(check["passed"] for check in readiness.json()["checks"])
+
+    unresolved_cycle = client.post(
+        "/api/pilot/decision-cycles",
+        headers=headers,
+        json={
+            "mission_code": mission_payload["code"],
+            "decision": "Proposta adicional ainda sem compromisso humano.",
+            "evidence_node_id": evidence.json()["id"],
+        },
+    )
+    assert unresolved_cycle.status_code == 201, unresolved_cycle.text
+    blocked_by_open_cycle = client.patch(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",
+        headers=headers,
+        json={
+            "expected_revision": mission_payload["revision"],
+            "lifecycle_state": "completed",
+            "change_note": "Tentativa com uma proposta de decisão ainda aberta.",
+        },
+    )
+    assert blocked_by_open_cycle.status_code == 409, blocked_by_open_cycle.text
+    blocking_keys = blocked_by_open_cycle.json()["detail"]["readiness"]["blocking_keys"]
+    assert "decision_cycles_resolved" in blocking_keys
+    # Restore the exact precondition for the remainder of this long journey.
+    # The focused assertion above verifies the runtime guard; direct cleanup
+    # avoids turning the temporary test proposal into governed mission history.
+    with SessionLocal() as db:
+        db.execute(
+            text("DELETE FROM pilot_decision_cycles WHERE id=:id"),
+            {"id": unresolved_cycle.json()["id"]},
+        )
+        db.execute(
+            text("DELETE FROM audit_events WHERE resource_id=:id"),
+            {"id": unresolved_cycle.json()["id"]},
+        )
+        db.commit()
 
     completed_mission = client.patch(
         f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",
@@ -1320,6 +1465,198 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     )
     assert revisions.status_code == 200, revisions.text
     assert [row["revision"] for row in revisions.json()] == [2, 1]
+    mission_audit = client.get(
+        f"/api/pilot/audit/missions/{mission_payload['code']}?limit=300",
+        headers=headers,
+    )
+    assert mission_audit.status_code == 200, mission_audit.text
+    audited_actions = {row["action"] for row in mission_audit.json()["events"]}
+    assert "mission_intelligence.mission_revised" in audited_actions
+    assert "pilot.decision_cycle.lineage_materialized" in audited_actions
+    assert "pilot.learning.published" in audited_actions
+    assert "pilot.learning.applicability_reviewed" in audited_actions
+    assert "pilot.mission_state.policy_reviewed" in audited_actions
+
+    blocked_terminal_edit = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={"learning": "Uma decisão terminal não pode ser reescrita silenciosamente."},
+    )
+    assert blocked_terminal_edit.status_code == 409, blocked_terminal_edit.text
+    assert "Reabra explicitamente" in blocked_terminal_edit.json()["detail"]
+
+    blocked_graph_edit = client.patch(
+        f"{graph_base}/nodes/{evidence.json()['id']}",
+        headers=headers,
+        json={"body": "Uma versão encerrada não pode ser alterada sem reativação."},
+    )
+    assert blocked_graph_edit.status_code == 409, blocked_graph_edit.text
+    assert blocked_graph_edit.json()["detail"]["code"] == "mission_reactivation_required"
+
+    blocked_document_upload = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['code']}/attachments",
+        headers=headers,
+        files={"file": ("late.txt", b"late terminal mutation", "text/plain")},
+    )
+    assert blocked_document_upload.status_code == 409, blocked_document_upload.text
+    assert blocked_document_upload.json()["detail"]["code"] == "mission_reactivation_required"
+
+    terminal_document_download = client.get(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['code']}/attachments/{attachment['id']}/download",
+        headers=headers,
+    )
+    assert terminal_document_download.status_code == 200, terminal_document_download.text
+
+    blocked_document_delete = client.delete(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['code']}/attachments/{attachment['id']}",
+        headers=headers,
+    )
+    assert blocked_document_delete.status_code == 409, blocked_document_delete.text
+    assert blocked_document_delete.json()["detail"]["code"] == "mission_reactivation_required"
+
+    blocked_reopen = client.post(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}/reopen",
+        headers=headers,
+        json={
+            "rationale": "A missão tem de ser reativada antes de corrigir a cadeia terminal."
+        },
+    )
+    assert blocked_reopen.status_code == 409, blocked_reopen.text
+    assert blocked_reopen.json()["detail"]["code"] == "mission_reactivation_required"
+
+    blocked_mission_rewrite = client.patch(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",
+        headers=headers,
+        json={
+            "expected_revision": completed_mission.json()["revision"],
+            "title": "Título que não pode reescrever uma missão concluída",
+            "change_note": "Tentativa deliberada de reescrita terminal.",
+        },
+    )
+    assert blocked_mission_rewrite.status_code == 409, blocked_mission_rewrite.text
+    assert blocked_mission_rewrite.json()["detail"]["code"] == "mission_reactivation_required"
+
+    reactivated_mission = client.patch(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions/{mission_payload['id']}",
+        headers=headers,
+        json={
+            "expected_revision": completed_mission.json()["revision"],
+            "lifecycle_state": "active",
+            "change_note": "Missão reativada explicitamente para corrigir a cadeia preservada.",
+        },
+    )
+    assert reactivated_mission.status_code == 200, reactivated_mission.text
+    assert reactivated_mission.json()["lifecycle_state"] == "active"
+
+    reopened = client.post(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}/reopen",
+        headers=headers,
+        json={
+            "rationale": "O contrato atual exige reabrir e confirmar novamente toda a cadeia operacional."
+        },
+    )
+    assert reopened.status_code == 200, reopened.text
+    assert reopened.json()["status"] == "proposed"
+    assert all(value is None for value in reopened.json()["graph_nodes"].values())
+    graph_after_reopen = client.get(graph_base, headers=headers)
+    assert graph_after_reopen.status_code == 200, graph_after_reopen.text
+    superseded_ids = {
+        node["id"]
+        for node in graph_after_reopen.json()["nodes"]
+        if node["status"] == "superseded"
+    }
+    assert {
+        materialized.json()["decision_node_id"],
+        materialized.json()["action_node_id"],
+        materialized.json()["outcome_node_id"],
+        materialized.json()["learning_node_id"],
+    }.issubset(superseded_ids)
+    superseded_candidates = client.get(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates",
+        headers=headers,
+    )
+    assert superseded_candidates.status_code == 200, superseded_candidates.text
+    superseded_packet = next(
+        row for row in superseded_candidates.json()["candidates"] if row["id"] == packet["id"]
+    )
+    assert superseded_packet["canonical_status"] == "superseded"
+    blocked_reuse = client.post(
+        f"/api/pilot/learning/missions/{sub_mission.json()['code']}/candidates/{packet['id']}/review",
+        headers=headers,
+        json={
+            "applicability": "reuse",
+            "rationale": "Tentativa de reutilizar uma linhagem entretanto substituída.",
+            "context_change": "",
+        },
+    )
+    assert blocked_reuse.status_code == 409, blocked_reuse.text
+
+    invalidated_memory_sync = client.post(f"{memory_base}/sync", headers=headers)
+    assert invalidated_memory_sync.status_code == 200, invalidated_memory_sync.text
+    memory_after_reopen = client.get(f"{memory_base}/items?limit=500", headers=headers)
+    invalidated_learning = next(
+        item
+        for item in memory_after_reopen.json()
+        if item["canonical_record_id"] == f"PILOT-{learning_node_id}"
+    )
+    assert invalidated_learning["state"] == "superseded"
+    assert invalidated_learning["metadata"]["source_graph_state"] == "superseded"
+
+    summary_after_reopen = client.get("/api/pilot/workspace-summary", headers=headers)
+    reopened_mission_summary = next(
+        row
+        for row in summary_after_reopen.json()["missions"]
+        if row["id"] == mission_payload["id"]
+    )
+    assert reopened_mission_summary["published_learning"] == 0
+    assert reopened_mission_summary["attention"] > 0
+    assert summary_after_reopen.json()["metrics"]["missions_attention"] >= 1
+
+    recommitted = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={"status": "committed"},
+    )
+    assert recommitted.status_code == 200, recommitted.text
+    restarted = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={"status": "in_progress"},
+    )
+    assert restarted.status_code == 200, restarted.text
+    recompleted = client.patch(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}",
+        headers=headers,
+        json={"status": "completed"},
+    )
+    assert recompleted.status_code == 200, recompleted.text
+    rematerialized = client.post(
+        f"/api/pilot/decision-cycles/{decision.json()['id']}/materialize-learning",
+        headers=headers,
+    )
+    assert rematerialized.status_code == 201, rematerialized.text
+    assert rematerialized.json()["already_materialized"] is False
+    old_lineage_ids = {
+        materialized.json()["decision_node_id"],
+        materialized.json()["action_node_id"],
+        materialized.json()["outcome_node_id"],
+        materialized.json()["learning_node_id"],
+    }
+    new_lineage_ids = {
+        rematerialized.json()["decision_node_id"],
+        rematerialized.json()["action_node_id"],
+        rematerialized.json()["outcome_node_id"],
+        rematerialized.json()["learning_node_id"],
+    }
+    assert old_lineage_ids.isdisjoint(new_lineage_ids)
+    graph_after_rematerialization = client.get(graph_base, headers=headers)
+    active_graph_ids = {
+        node["id"]
+        for node in graph_after_rematerialization.json()["nodes"]
+        if node["status"] not in {"rejected", "superseded"}
+    }
+    assert new_lineage_ids.issubset(active_graph_ids)
+    assert old_lineage_ids.isdisjoint(active_graph_ids)
 
     logged_in = client.post(
         "/api/auth/login",

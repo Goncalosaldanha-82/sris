@@ -14,18 +14,22 @@ from app.atlas_platform.audit import record_audit
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Role, User
 from app.evidence_graph import (
+    GraphNodeUpdate,
     _edge_view,
     _ensure_schema,
     _membership,
     _mission,
+    _require_mission_mutable,
     _node_view,
     _upsert_edge,
     _upsert_node,
     get_mission_graph as legacy_get_mission_graph,
     router as legacy_router,
+    sync_mission_graph as legacy_sync_mission_graph,
 )
 from app.mission_intelligence.mission_archive import _decrypt_chunk
 from app.mission_intelligence.models import MissionArchiveChunk, MissionAttachment
+from app.pilot_intelligence import _ensure_interaction_schema
 
 
 NodeType = Literal[
@@ -36,6 +40,7 @@ NodeType = Literal[
     "constraint",
     "gap",
     "hypothesis",
+    "target",
     "alternative",
     "decision",
     "action",
@@ -69,6 +74,7 @@ NODE_TYPES: list[str] = [
     "constraint",
     "gap",
     "hypothesis",
+    "target",
     "alternative",
     "decision",
     "action",
@@ -98,11 +104,24 @@ WRITER_ROLES = {
     Role.REVIEWER.value,
     Role.CONTRIBUTOR.value,
 }
+REVIEWER_ROLES = {
+    Role.OWNER.value,
+    Role.ADMIN.value,
+    Role.REVIEWER.value,
+}
 
 
 def _require_writer(membership) -> None:
     if membership.role not in WRITER_ROLES:
         raise HTTPException(status_code=403, detail="A sua função permite consultar, mas não alterar evidência.")
+
+
+def _require_reviewer(membership) -> None:
+    if membership.role not in REVIEWER_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Aceitar, verificar, rejeitar ou substituir um objeto exige a função de revisor ou administrador.",
+        )
 
 
 class GraphNodeCreate(BaseModel):
@@ -115,6 +134,9 @@ class GraphNodeCreate(BaseModel):
 
     @model_validator(mode="after")
     def require_meaningful_content(self) -> "GraphNodeCreate":
+        self.label = " ".join(self.label.split())
+        if len(str(self.label or "").strip()) < 2:
+            raise ValueError("Identifique este objeto com um rótulo legível.")
         if len(str(self.body or "").strip()) < 2:
             raise ValueError("Descreva o conteúdo deste objeto antes de o guardar.")
         return self
@@ -137,18 +159,24 @@ class DocumentEvidenceCreate(BaseModel):
     def require_source(self) -> "DocumentEvidenceCreate":
         if not self.chunk_id and not self.attachment_id:
             raise ValueError("Indique um excerto extraído ou uma fonte visual.")
+        if self.label is not None and len(self.label.strip()) < 2:
+            raise ValueError("Identifique a evidência com um rótulo legível.")
+        if self.label is not None:
+            self.label = " ".join(self.label.split())
         if not self.chunk_id and not str(self.body or "").strip():
             raise ValueError("Descreva a observação humana feita sobre a fonte visual.")
         return self
 
 
-# Reuse every mature Evidence Graph route except the three operations whose
+# Reuse every mature Evidence Graph route except the operations whose
 # public contract is extended below. This avoids duplicate runtime routes while
 # preserving synchronization, review and update behavior already in production.
 router = APIRouter(tags=["pilot-evidence-graph"])
 _replaced = {
+    ("/api/pilot/evidence-graph/missions/{mission_code}/sync", "POST"),
     ("/api/pilot/evidence-graph/missions/{mission_code}", "GET"),
     ("/api/pilot/evidence-graph/missions/{mission_code}/nodes", "POST"),
+    ("/api/pilot/evidence-graph/missions/{mission_code}/nodes/{node_id}", "PATCH"),
     ("/api/pilot/evidence-graph/missions/{mission_code}/edges", "POST"),
 }
 for route in legacy_router.routes:
@@ -173,6 +201,7 @@ def get_mission_graph(
             "observation",
             "evidence",
             "hypothesis",
+            "target",
             "alternative",
             "decision",
             "action",
@@ -188,6 +217,41 @@ def get_mission_graph(
         ],
     }
     return document
+
+
+@router.post("/api/pilot/evidence-graph/missions/{mission_code}/sync")
+def sync_mission_graph(
+    mission_code: str,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Materialize AI candidates only after an authorized human requests it."""
+
+    membership = _membership(db, user.id)
+    if membership is None:
+        raise HTTPException(status_code=403, detail="A conta não tem um workspace associado.")
+    _require_writer(membership)
+    mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
+    _ensure_interaction_schema(db)
+    result = legacy_sync_mission_graph(mission_code=mission_code, user=user, db=db)
+    record_audit(
+        db,
+        action="pilot.evidence_graph.synchronized",
+        resource_type="mission_evidence_graph",
+        resource_id=str(result.get("mission_code") or mission_code),
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "mission_code": str(result.get("mission_code") or mission_code),
+            "interactions_scanned": int(result.get("interactions_scanned") or 0),
+            "nodes_created": int(result.get("nodes_created") or 0),
+            "edges_created": int(result.get("edges_created") or 0),
+            "human_initiated": True,
+        },
+    )
+    db.commit()
+    return result
 
 
 @router.post(
@@ -206,6 +270,9 @@ def create_graph_node(
     _require_writer(membership)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
+    if payload.status != "proposed":
+        _require_reviewer(membership)
     node_id = _upsert_node(
         db,
         organization_id=membership.organization_id,
@@ -228,12 +295,149 @@ def create_graph_node(
         },
         user_id=user.id,
     )
+    record_audit(
+        db,
+        action="pilot.evidence_graph.node_created",
+        resource_type="evidence_graph_node",
+        resource_id=node_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "mission_code": mission.code,
+            "node_type": payload.node_type,
+            "status": payload.status,
+            "label": payload.label,
+            "source_kind": "human_entry",
+        },
+    )
     db.commit()
     row = db.execute(
         text("SELECT * FROM pilot_evidence_graph_nodes WHERE id=:id"),
         {"id": node_id},
     ).mappings().one()
     return _node_view(row)
+
+
+@router.patch("/api/pilot/evidence-graph/missions/{mission_code}/nodes/{node_id}")
+def update_graph_node(
+    mission_code: str,
+    node_id: str,
+    payload: GraphNodeUpdate,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    membership = _membership(db, user.id)
+    if membership is None:
+        raise HTTPException(status_code=403, detail="A conta não tem um workspace associado.")
+    _require_writer(membership)
+    _ensure_schema(db)
+    mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
+    row = db.execute(
+        text(
+            """
+            SELECT * FROM pilot_evidence_graph_nodes
+            WHERE id=:id AND organization_id=:org AND mission_id=:mission
+            """
+        ),
+        {"id": node_id, "org": membership.organization_id, "mission": mission.id},
+    ).mappings().one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Nó não encontrado.")
+    values = payload.model_dump(exclude_unset=True)
+    if not values:
+        return _node_view(row)
+    if "status" in values and values["status"] != row["status"]:
+        _require_reviewer(membership)
+        allowed_status_transitions = {
+            "proposed": {"accepted", "verified", "rejected", "superseded"},
+            "accepted": {"proposed", "verified", "rejected", "superseded"},
+            "verified": {"proposed", "accepted", "rejected", "superseded"},
+            "rejected": set(),
+            "superseded": set(),
+        }
+        if values["status"] not in allowed_status_transitions.get(row["status"], set()):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "terminal_evidence_state",
+                    "message": (
+                        "Um objeto rejeitado ou substituído permanece histórico. "
+                        "Crie uma nova proposta para voltar a trabalhar esse conteúdo."
+                    ),
+                },
+            )
+    content_fields = {"label", "body", "confidence"} & set(values)
+    if content_fields and row["status"] != "proposed":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "reviewed_node_version_required",
+                "message": (
+                    "O conteúdo revisto é imutável. Substitua esta versão e crie "
+                    "uma nova proposta para preservar a história da revisão."
+                ),
+            },
+        )
+    null_forbidden = [
+        field for field in ("label", "body", "status")
+        if field in values and values[field] is None
+    ]
+    if null_forbidden:
+        raise HTTPException(
+            status_code=422,
+            detail="Rótulo, conteúdo e estado não podem ser apagados com um valor nulo.",
+        )
+    if "label" in values and len(str(values["label"] or "").strip()) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Identifique este objeto com um rótulo legível.",
+        )
+    if "label" in values:
+        values["label"] = " ".join(str(values["label"]).split())
+    if "body" in values and len(str(values["body"] or "").strip()) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Descreva o conteúdo deste objeto antes de o guardar.",
+        )
+
+    before = _node_view(row)
+    assignments = [f"{key}=:{key}" for key in values]
+    assignments.append("updated_at=CURRENT_TIMESTAMP")
+    db.execute(
+        text(f"UPDATE pilot_evidence_graph_nodes SET {', '.join(assignments)} WHERE id=:id"),
+        {"id": node_id, **values},
+    )
+    updated = db.execute(
+        text("SELECT * FROM pilot_evidence_graph_nodes WHERE id=:id"),
+        {"id": node_id},
+    ).mappings().one()
+    after = _node_view(updated)
+    def audit_view(item: dict) -> dict:
+        return {
+            "label": item.get("label"),
+            "status": item.get("status"),
+            "confidence": item.get("confidence"),
+            "body_sha256": hashlib.sha256(
+                str(item.get("body") or "").encode("utf-8")
+            ).hexdigest(),
+        }
+    record_audit(
+        db,
+        action="pilot.evidence_graph.node_updated",
+        resource_type="evidence_graph_node",
+        resource_id=node_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "mission_code": mission.code,
+            "changed_fields": sorted(values),
+            "before": audit_view(before),
+            "after": audit_view(after),
+        },
+    )
+    db.commit()
+    return after
 
 
 @router.post(
@@ -254,6 +458,7 @@ def promote_document_evidence(
     _require_writer(membership)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     chunk = None
     if payload.chunk_id:
         chunk = (
@@ -345,6 +550,24 @@ def promote_document_evidence(
         },
         user_id=user.id,
     )
+    record_audit(
+        db,
+        action="pilot.evidence_graph.document_evidence_promoted",
+        resource_type="evidence_graph_node",
+        resource_id=node_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "mission_code": mission.code,
+            "node_type": "evidence",
+            "status": "proposed",
+            "label": label,
+            "attachment_id": attachment.id,
+            "chunk_id": chunk.id if chunk is not None else None,
+            "source_kind": source_kind,
+            "factual_validation": "not_assessed",
+        },
+    )
     db.commit()
     row = db.execute(
         text("SELECT * FROM pilot_evidence_graph_nodes WHERE id=:id"),
@@ -369,6 +592,7 @@ def create_graph_edge(
     _require_writer(membership)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     if payload.from_node_id == payload.to_node_id:
         raise HTTPException(
             status_code=422,
@@ -421,6 +645,21 @@ def create_graph_edge(
         provenance={**payload.provenance, "human_curated": True},
         user_id=user.id,
     )
+    if existing_edge_id is None:
+        record_audit(
+            db,
+            action="pilot.evidence_graph.edge_created",
+            resource_type="evidence_graph_edge",
+            resource_id=edge_id,
+            organization_id=membership.organization_id,
+            user_id=user.id,
+            payload={
+                "mission_code": mission.code,
+                "from_node_id": payload.from_node_id,
+                "to_node_id": payload.to_node_id,
+                "edge_type": payload.edge_type,
+            },
+        )
     db.commit()
     row = db.execute(
         text("SELECT * FROM pilot_evidence_graph_edges WHERE id=:id"),
@@ -467,6 +706,7 @@ def reverse_graph_edge(
     _require_writer(membership)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     row = _scoped_edge_row(
         db,
         organization_id=membership.organization_id,
@@ -547,6 +787,7 @@ def delete_graph_edge(
     _require_writer(membership)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     row = _scoped_edge_row(
         db,
         organization_id=membership.organization_id,

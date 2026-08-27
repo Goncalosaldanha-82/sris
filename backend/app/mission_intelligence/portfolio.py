@@ -424,6 +424,30 @@ def update_mission(
             },
         )
 
+    if row.lifecycle_state in {"completed", "archived"}:
+        substantive_fields = payload.model_fields_set - {
+            "expected_revision",
+            "lifecycle_state",
+            "change_note",
+        }
+        lifecycle_changes = (
+            payload.lifecycle_state is not None
+            and payload.lifecycle_state != row.lifecycle_state
+        )
+        if substantive_fields or not lifecycle_changes:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "mission_reactivation_required",
+                    "message": (
+                        "Reative primeiro a missão numa alteração própria. A versão "
+                        "concluída ou arquivada não pode ser reescrita juntamente com "
+                        "conteúdo novo."
+                    ),
+                    "lifecycle_state": row.lifecycle_state,
+                },
+            )
+
     if payload.lifecycle_state == "completed" and row.lifecycle_state != "completed":
         readiness = mission_completion_readiness(
             db,

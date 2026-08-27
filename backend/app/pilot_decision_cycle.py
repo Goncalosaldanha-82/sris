@@ -14,7 +14,13 @@ from app.atlas_platform.audit import record_audit
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role, User
 from app.mission_intelligence.models import CanonicalMission
-from app.evidence_graph import _ensure_schema as _ensure_graph_schema, _mission as _graph_mission, _upsert_edge, _upsert_node
+from app.evidence_graph import (
+    _ensure_schema as _ensure_graph_schema,
+    _mission as _graph_mission,
+    _require_mission_mutable,
+    _upsert_edge,
+    _upsert_node,
+)
 from app.pilot_serialization import as_iso
 from app.pilot_text import normalize_generated_title
 
@@ -37,6 +43,7 @@ CYCLE_WITH_FOUNDATION_SELECT = """
            attachment.original_filename AS evidence_document_title,
            foundation.source_kind AS evidence_source_kind,
            foundation.source_sha256 AS evidence_source_sha256,
+           foundation.status AS evidence_status,
            COALESCE(
              NULLIF(TRIM(outcome_attachment.original_filename), ''),
              NULLIF(TRIM(outcome_foundation.label), '')
@@ -44,7 +51,8 @@ CYCLE_WITH_FOUNDATION_SELECT = """
            outcome_foundation.label AS outcome_evidence_node_label,
            outcome_attachment.original_filename AS outcome_evidence_document_title,
            outcome_foundation.source_kind AS outcome_evidence_source_kind,
-           outcome_foundation.source_sha256 AS outcome_evidence_source_sha256
+           outcome_foundation.source_sha256 AS outcome_evidence_source_sha256,
+           outcome_foundation.status AS outcome_evidence_status
     FROM pilot_decision_cycles cycle
     LEFT JOIN pilot_evidence_graph_nodes foundation
       ON foundation.id=cycle.evidence_node_id
@@ -87,6 +95,10 @@ class DecisionCycleUpdate(BaseModel):
     action_started_at: date | None = None
     actual_outcome_at: date | None = None
     outcome_evidence_node_id: str | None = Field(default=None, min_length=8, max_length=64)
+
+
+class DecisionCycleReopen(BaseModel):
+    rationale: str = Field(min_length=10, max_length=5000)
 
 
 def _membership(db: Session, user_id: str) -> Membership:
@@ -375,12 +387,14 @@ def _row(row) -> dict:
         "evidence_document_title": row.get("evidence_document_title"),
         "evidence_source_kind": row.get("evidence_source_kind"),
         "evidence_source_sha256": row.get("evidence_source_sha256"),
+        "evidence_status": row.get("evidence_status"),
         "outcome_evidence_node_id": row.get("outcome_evidence_node_id"),
         "outcome_evidence_label": row.get("outcome_evidence_label"),
         "outcome_evidence_node_label": row.get("outcome_evidence_node_label"),
         "outcome_evidence_document_title": row.get("outcome_evidence_document_title"),
         "outcome_evidence_source_kind": row.get("outcome_evidence_source_kind"),
         "outcome_evidence_source_sha256": row.get("outcome_evidence_source_sha256"),
+        "outcome_evidence_status": row.get("outcome_evidence_status"),
         "decision_snapshot": {
             "mission_revision": row.get("mission_revision"),
             "mission_content_hash": row.get("mission_content_hash"),
@@ -418,6 +432,7 @@ def create_cycle(payload: DecisionCycleCreate, user: User = Depends(current_user
         CanonicalMission.code == payload.mission_code,
     ).one_or_none()
     if mission is None: raise HTTPException(status_code=404, detail="A missão indicada não existe neste workspace.")
+    _require_mission_mutable(mission)
     foundation = db.execute(text("""
         SELECT id FROM pilot_evidence_graph_nodes
         WHERE id=:node AND organization_id=:org AND mission_id=:mission
@@ -472,6 +487,11 @@ def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depen
     if current is None: raise HTTPException(status_code=404, detail="Ciclo de decisão não encontrado.")
     values = payload.model_dump(exclude_unset=True)
     if not values: return _row(current)
+    if current["status"] in {"completed", "abandoned"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Reabra explicitamente o ciclo antes de alterar uma decisão concluída ou abandonada.",
+        )
     candidate = dict(current)
     candidate.update(values)
     target_status = str(candidate.get("status") or current["status"])
@@ -493,10 +513,29 @@ def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depen
         CanonicalMission.organization_id == membership.organization_id,
         CanonicalMission.code == current["mission_code"],
     ).one()
+    _require_mission_mutable(mission)
+    if target_status in {"committed", "in_progress", "completed"}:
+        foundation = db.execute(text("""
+            SELECT id, status FROM pilot_evidence_graph_nodes
+            WHERE id=:node AND organization_id=:org AND mission_id=:mission
+              AND node_type='evidence'
+              AND status NOT IN ('rejected', 'superseded')
+        """), {
+            "node": candidate.get("evidence_node_id"),
+            "org": membership.organization_id,
+            "mission": mission.id,
+        }).mappings().first()
+        if foundation is None:
+            raise HTTPException(status_code=409, detail="A evidência de fundamento já não está disponível nesta missão.")
+        if foundation["status"] not in {"accepted", "verified"}:
+            raise HTTPException(
+                status_code=409,
+                detail="A evidência que fundamenta a decisão tem de ser revista humanamente antes do compromisso.",
+            )
     outcome_evidence_id = str(candidate.get("outcome_evidence_node_id") or "").strip()
     if outcome_evidence_id:
         outcome_foundation = db.execute(text("""
-            SELECT id FROM pilot_evidence_graph_nodes
+            SELECT id, status FROM pilot_evidence_graph_nodes
             WHERE id=:node AND organization_id=:org AND mission_id=:mission
               AND node_type='evidence'
               AND status NOT IN ('rejected', 'superseded')
@@ -504,9 +543,14 @@ def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depen
             "node": outcome_evidence_id,
             "org": membership.organization_id,
             "mission": mission.id,
-        }).scalar_one_or_none()
+        }).mappings().first()
         if outcome_foundation is None:
             raise HTTPException(status_code=422, detail="Escolha uma evidência ativa da própria missão para comprovar o resultado.")
+        if target_status == "completed" and outcome_foundation["status"] not in {"accepted", "verified"}:
+            raise HTTPException(
+                status_code=409,
+                detail="A evidência do resultado tem de ser revista humanamente antes da conclusão.",
+            )
     _validate_operational_state(candidate)
     if target_status == "completed" and values.get("status") == "completed":
         _mark_outcome_evidence(
@@ -528,8 +572,13 @@ def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depen
         values.get("status") in {"committed", "in_progress", "completed"}
         and current["status"] == "proposed"
     )
-    if entering_governed_execution:
+    advancing_governed_execution = (
+        values.get("status") in {"committed", "in_progress", "completed"}
+        and values.get("status") != current["status"]
+    )
+    if advancing_governed_execution:
         _assert_governed_decision_foundation(db, mission)
+    if entering_governed_execution:
         dependency = _dependency_snapshot(db, mission)
         for key, value in dependency.items():
             parts.append(f"{key}=:{key}")
@@ -574,6 +623,124 @@ def update_cycle(cycle_id: str, payload: DecisionCycleUpdate, user: User = Depen
     db.commit(); row = db.execute(text(CYCLE_WITH_FOUNDATION_SELECT + " WHERE cycle.id=:id"), {"id": cycle_id}).mappings().one(); return _row(row)
 
 
+@router.post("/{cycle_id}/reopen")
+def reopen_cycle(
+    cycle_id: str,
+    payload: DecisionCycleReopen,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Explicitly reopen a terminal cycle while preserving its prior lineage."""
+
+    membership = _membership(db, user.id)
+    if membership.role not in {Role.OWNER.value, Role.ADMIN.value, Role.REVIEWER.value}:
+        raise HTTPException(
+            status_code=403,
+            detail="A reabertura de uma decisão concluída exige proprietário, administrador ou revisor.",
+        )
+    _ensure_schema(db)
+    _ensure_graph_schema(db)
+    current = db.execute(
+        text(
+            CYCLE_WITH_FOUNDATION_SELECT
+            + " WHERE cycle.id=:id AND cycle.organization_id=:org"
+        ),
+        {"id": cycle_id, "org": membership.organization_id},
+    ).mappings().first()
+    if current is None:
+        raise HTTPException(status_code=404, detail="Ciclo de decisão não encontrado.")
+    if current["status"] not in {"completed", "abandoned"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Apenas decisões concluídas ou abandonadas precisam de reabertura explícita.",
+        )
+
+    mission = db.query(CanonicalMission).filter(
+        CanonicalMission.organization_id == membership.organization_id,
+        CanonicalMission.code == current["mission_code"],
+    ).one()
+    _require_mission_mutable(mission)
+    graph_node_ids = [
+        str(node_id)
+        for node_id in (
+            current.get("decision_node_id"),
+            current.get("action_node_id"),
+            current.get("outcome_node_id"),
+            current.get("learning_node_id"),
+        )
+        if node_id
+    ]
+    if graph_node_ids:
+        placeholders = ", ".join(
+            f":node_{index}" for index in range(len(graph_node_ids))
+        )
+        db.execute(
+            text(
+                f"""
+                UPDATE pilot_evidence_graph_nodes
+                SET status='superseded', updated_at=CURRENT_TIMESTAMP
+                WHERE organization_id=:org AND mission_id=:mission
+                  AND source_kind='decision_cycle' AND id IN ({placeholders})
+                """
+            ),
+            {
+                "org": membership.organization_id,
+                "mission": mission.id,
+                **{
+                    f"node_{index}": value
+                    for index, value in enumerate(graph_node_ids)
+                },
+            },
+        )
+    db.execute(
+        text(
+            """
+            UPDATE pilot_decision_cycles
+            SET status='proposed',
+                mission_revision=NULL, mission_content_hash=NULL,
+                mission_governance_hash=NULL,
+                matrix_revision=NULL, matrix_content_hash=NULL,
+                business_case_revision=NULL, business_case_content_hash=NULL,
+                validation_revision=NULL, validation_content_hash=NULL,
+                decision_node_id=NULL, action_node_id=NULL,
+                outcome_node_id=NULL, learning_node_id=NULL,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=:id AND organization_id=:org
+            """
+        ),
+        {"id": cycle_id, "org": membership.organization_id},
+    )
+    record_audit(
+        db,
+        action="pilot.decision_cycle.reopened",
+        resource_type="decision_cycle",
+        resource_id=cycle_id,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        payload={
+            "mission_code": mission.code,
+            "previous_status": current["status"],
+            "status": "proposed",
+            "rationale": payload.rationale.strip(),
+            "superseded_graph_node_ids": [
+                current.get("decision_node_id"),
+                current.get("action_node_id"),
+                current.get("outcome_node_id"),
+                current.get("learning_node_id"),
+            ],
+        },
+    )
+    db.commit()
+    row = db.execute(
+        text(
+            CYCLE_WITH_FOUNDATION_SELECT
+            + " WHERE cycle.id=:id AND cycle.organization_id=:org"
+        ),
+        {"id": cycle_id, "org": membership.organization_id},
+    ).mappings().one()
+    return _row(row)
+
+
 @router.post("/{cycle_id}/materialize-learning", status_code=201)
 def materialize_learning(cycle_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
     """Convert an observed completed decision cycle into reviewable graph lineage.
@@ -593,8 +760,9 @@ def materialize_learning(cycle_id: str, user: User = Depends(current_user), db: 
     if not (cycle["actual_outcome"] or "").strip(): raise HTTPException(status_code=409, detail="Registe o resultado observado antes de materializar a aprendizagem.")
     if not (cycle["learning"] or "").strip(): raise HTTPException(status_code=409, detail="Registe a aprendizagem antes de a enviar para revisão.")
     mission = _graph_mission(db, membership.organization_id, cycle["mission_code"])
-    foundation_exists = db.execute(text("""
-        SELECT id FROM pilot_evidence_graph_nodes
+    _require_mission_mutable(mission)
+    foundation = db.execute(text("""
+        SELECT id, status FROM pilot_evidence_graph_nodes
         WHERE id=:node AND organization_id=:org AND mission_id=:mission
           AND node_type='evidence'
           AND status NOT IN ('rejected', 'superseded')
@@ -602,10 +770,12 @@ def materialize_learning(cycle_id: str, user: User = Depends(current_user), db: 
         "node": cycle["evidence_node_id"],
         "org": membership.organization_id,
         "mission": mission.id,
-    }).scalar_one_or_none()
-    if foundation_exists is None: raise HTTPException(status_code=409, detail="A evidência de fundamento já não está disponível nesta missão.")
-    outcome_foundation_exists = db.execute(text("""
-        SELECT id FROM pilot_evidence_graph_nodes
+    }).mappings().first()
+    if foundation is None: raise HTTPException(status_code=409, detail="A evidência de fundamento já não está disponível nesta missão.")
+    if foundation["status"] not in {"accepted", "verified"}:
+        raise HTTPException(status_code=409, detail="A evidência de fundamento ainda não foi revista humanamente.")
+    outcome_foundation = db.execute(text("""
+        SELECT id, status FROM pilot_evidence_graph_nodes
         WHERE id=:node AND organization_id=:org AND mission_id=:mission
           AND node_type='evidence'
           AND status NOT IN ('rejected', 'superseded')
@@ -613,11 +783,74 @@ def materialize_learning(cycle_id: str, user: User = Depends(current_user), db: 
         "node": cycle["outcome_evidence_node_id"],
         "org": membership.organization_id,
         "mission": mission.id,
-    }).scalar_one_or_none()
-    if outcome_foundation_exists is None: raise HTTPException(status_code=409, detail="A evidência do resultado já não está disponível nesta missão.")
+    }).mappings().first()
+    if outcome_foundation is None: raise HTTPException(status_code=409, detail="A evidência do resultado já não está disponível nesta missão.")
+    if outcome_foundation["status"] not in {"accepted", "verified"}:
+        raise HTTPException(status_code=409, detail="A evidência do resultado ainda não foi revista humanamente.")
+    existing_graph_ids = {
+        "decision_node_id": cycle.get("decision_node_id"),
+        "action_node_id": cycle.get("action_node_id"),
+        "outcome_node_id": cycle.get("outcome_node_id"),
+        "learning_node_id": cycle.get("learning_node_id"),
+    }
+    if any(existing_graph_ids.values()):
+        if not all(existing_graph_ids.values()):
+            raise HTTPException(
+                status_code=409,
+                detail="A materialização anterior está incompleta. Reabra o ciclo antes de a reconstruir.",
+            )
+        node_ids = list(existing_graph_ids.values())
+        placeholders = ", ".join(f":node_{index}" for index in range(len(node_ids)))
+        active_nodes = db.execute(
+            text(
+                f"""
+                SELECT id, node_type, status
+                FROM pilot_evidence_graph_nodes
+                WHERE organization_id=:org AND mission_id=:mission
+                  AND id IN ({placeholders})
+                  AND status NOT IN ('rejected','superseded')
+                """
+            ),
+            {
+                "org": membership.organization_id,
+                "mission": mission.id,
+                **{f"node_{index}": value for index, value in enumerate(node_ids)},
+            },
+        ).mappings().all()
+        nodes_by_id = {str(row["id"]): row for row in active_nodes}
+        expected_types = {
+            "decision_node_id": "decision",
+            "action_node_id": "action",
+            "outcome_node_id": "outcome",
+            "learning_node_id": "learning",
+        }
+        materialization_valid = len(nodes_by_id) == 4 and all(
+            nodes_by_id.get(str(existing_graph_ids[field]), {}).get("node_type")
+            == expected_type
+            for field, expected_type in expected_types.items()
+        )
+        if not materialization_valid:
+            raise HTTPException(
+                status_code=409,
+                detail="A linhagem materializada foi substituída. Reabra o ciclo antes de criar uma nova versão.",
+            )
+        learning_status = nodes_by_id[str(cycle["learning_node_id"])]["status"]
+        return {
+            "cycle_id": cycle_id,
+            "mission_code": mission.code,
+            **existing_graph_ids,
+            "learning_status": learning_status,
+            "publish_ready": learning_status in {"accepted", "verified"},
+            "already_materialized": True,
+            "next_step": (
+                "A aprendizagem já foi materializada; consulte a versão governada existente."
+            ),
+        }
+    materialization_id = str(uuid4())
     provenance={
         "source":"decision_cycle",
         "cycle_id":cycle_id,
+        "materialization_id":materialization_id,
         "human_entered":True,
         "expected_outcome":cycle["expected_outcome"],
         "owner":cycle["owner"],
@@ -638,11 +871,12 @@ def materialize_learning(cycle_id: str, user: User = Depends(current_user), db: 
     }
     foundation_id = cycle["evidence_node_id"]
     outcome_foundation_id = cycle["outcome_evidence_node_id"]
+    outcome_status = "verified" if outcome_foundation["status"] == "verified" else "accepted"
     decision_title = normalize_generated_title(cycle["decision"] or "Decisão")
-    decision_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="decision", label=decision_title[:300], body=cycle["decision"] or "", status="accepted", confidence=None, source_kind="decision_cycle", source_id=f"decision:{cycle_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"committed_decision","foundation_node_id":foundation_id}, user_id=user.id)
-    action_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="action", label=f"Ação · {decision_title[:260]}", body=cycle["action"] or "", status="accepted", confidence=None, source_kind="decision_cycle", source_id=f"action:{cycle_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"executed_action"}, user_id=user.id)
-    outcome_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="outcome", label=f"Resultado observado · {decision_title[:240]}", body=cycle["actual_outcome"] or "", status="verified", confidence=None, source_kind="decision_cycle", source_id=f"outcome:{cycle_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"observed_outcome","outcome_evidence_node_id":outcome_foundation_id}, user_id=user.id)
-    learning_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="learning", label=f"Aprendizagem · {decision_title[:250]}", body=cycle["learning"] or "", status="proposed", confidence=None, source_kind="decision_cycle", source_id=f"learning:{cycle_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"learning_candidate","human_review_required":True}, user_id=user.id)
+    decision_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="decision", label=decision_title[:300], body=cycle["decision"] or "", status="accepted", confidence=None, source_kind="decision_cycle", source_id=f"decision:{cycle_id}:{materialization_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"committed_decision","foundation_node_id":foundation_id}, user_id=user.id)
+    action_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="action", label=f"Ação · {decision_title[:260]}", body=cycle["action"] or "", status="accepted", confidence=None, source_kind="decision_cycle", source_id=f"action:{cycle_id}:{materialization_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"executed_action"}, user_id=user.id)
+    outcome_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="outcome", label=f"Resultado observado · {decision_title[:240]}", body=cycle["actual_outcome"] or "", status=outcome_status, confidence=None, source_kind="decision_cycle", source_id=f"outcome:{cycle_id}:{materialization_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"observed_outcome","outcome_evidence_node_id":outcome_foundation_id,"outcome_evidence_status":outcome_foundation["status"]}, user_id=user.id)
+    learning_id = _upsert_node(db, organization_id=membership.organization_id, mission=mission, node_type="learning", label=f"Aprendizagem · {decision_title[:250]}", body=cycle["learning"] or "", status="proposed", confidence=None, source_kind="decision_cycle", source_id=f"learning:{cycle_id}:{materialization_id}", attachment_id=None, char_start=None, char_end=None, source_sha256=None, provenance={**provenance,"role":"learning_candidate","human_review_required":True}, user_id=user.id)
     _upsert_edge(db, organization_id=membership.organization_id, mission=mission, from_node_id=foundation_id, to_node_id=decision_id, edge_type="informs", provenance={"cycle_id":cycle_id,"explicit":True,"meaning":"human_selected_decision_foundation"}, user_id=user.id)
     _upsert_edge(db, organization_id=membership.organization_id, mission=mission, from_node_id=decision_id, to_node_id=action_id, edge_type="leads_to", provenance={"cycle_id":cycle_id,"explicit":True,"meaning":"decision_authorizes_action"}, user_id=user.id)
     _upsert_edge(db, organization_id=membership.organization_id, mission=mission, from_node_id=action_id, to_node_id=outcome_id, edge_type="leads_to", provenance={"cycle_id":cycle_id,"explicit":True,"meaning":"action_precedes_observed_outcome"}, user_id=user.id)
@@ -676,7 +910,8 @@ def materialize_learning(cycle_id: str, user: User = Depends(current_user), db: 
             "outcome_node_id": outcome_id,
             "learning_node_id": learning_id,
             "outcome_evidence_node_id": outcome_foundation_id,
+            "materialization_id": materialization_id,
         },
     )
     db.commit()
-    return {"cycle_id":cycle_id,"mission_code":mission.code,"decision_node_id":decision_id,"action_node_id":action_id,"outcome_node_id":outcome_id,"learning_node_id":learning_id,"learning_status":"proposed","publish_ready":False,"next_step":"Rever e aceitar/verificar a aprendizagem no Evidence Graph antes de a publicar na memória organizacional."}
+    return {"cycle_id":cycle_id,"mission_code":mission.code,"decision_node_id":decision_id,"action_node_id":action_id,"outcome_node_id":outcome_id,"learning_node_id":learning_id,"learning_status":"proposed","publish_ready":False,"already_materialized":False,"next_step":"Rever e aceitar/verificar a aprendizagem no Evidence Graph antes de a publicar na memória organizacional."}

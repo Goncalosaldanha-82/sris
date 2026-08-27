@@ -49,7 +49,8 @@
       <div class="command-metrics" id="command-metrics" aria-label="Indicadores operacionais">
         <article class="command-metric"><span>Missões ativas</span><strong id="metric-active">—</strong><small>em trabalho</small></article>
         <article class="command-metric attention"><span>Requerem atenção</span><strong id="metric-attention">—</strong><small>próximo passo incompleto</small></article>
-        <article class="command-metric"><span>Lacunas explícitas</span><strong id="metric-gaps">—</strong><small>evidência por obter</small></article>
+        <article class="command-metric"><span>Lacunas formalizadas</span><strong id="metric-gaps">—</strong><small>objetos de lacuna no grafo</small></article>
+        <article class="command-metric attention"><span>Conflitos governativos</span><strong id="metric-conflicts">—</strong><small>entre módulos da missão</small></article>
         <article class="command-metric"><span>Resultados pendentes</span><strong id="metric-results">—</strong><small>decisões em acompanhamento</small></article>
         <article class="command-metric"><span>Aprendizagens publicadas</span><strong id="metric-learning">—</strong><small>com linhagem reutilizável</small></article>
       </div>
@@ -168,6 +169,7 @@
               </div>
             </div>
             <div id="detail-message" class="alert hidden" role="status" aria-live="polite"></div>
+            <div id="mission-lock-banner" class="alert warning hidden" role="status">Versão encerrada em modo de leitura. Para corrigir qualquer módulo, reative primeiro a missão no separador Resumo.</div>
             <div id="detail-meta" class="meta-row"></div>
             <div class="detail-grid"><article><h3>Objetivo</h3><p id="detail-objective">Ainda não definido</p></article><article><h3>Pergunta central</h3><p id="detail-question">Ainda não definida</p></article></div>
             <article><h3>Contexto</h3><p id="detail-context">Ainda não existe contexto registado.</p></article>
@@ -179,7 +181,10 @@
 
             <div class="button-row"><button class="btn btn-secondary" id="detail-analyze-btn">Abrir análise assistida</button><button class="btn btn-secondary" id="create-submission-btn">+ Sub-missão</button></div>
             <div class="answer-box empty" id="mission-answer">A análise assistida é opcional. A missão, a evidência, a decisão e a memória permanecem canónicas independentemente da sua utilização.</div>
-            <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="summary">Resumo</button><button type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="validation">Medição</button><button type="button" data-mission-tab="history">Auditoria</button></div>
+            <nav class="mission-tab-navigation" aria-label="Navegação da missão">
+              <div class="mission-tab-context" aria-live="polite"><span id="mission-tab-code">MISSÃO</span><strong id="mission-tab-title">Missão</strong></div>
+              <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="summary">Resumo</button><button type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="validation">Medição</button><button type="button" data-mission-tab="history">Auditoria</button></div>
+            </nav>
             <div class="mission-tab active" id="mission-tab-summary">
               <div class="mission-command-head"><div><div class="eyebrow">ESTADO OPERACIONAL</div><h3>Do contexto à aprendizagem</h3><p class="note">O progresso é calculado a partir dos registos persistentes, não de uma conclusão automática.</p></div><div class="mission-progress"><strong id="mission-progress-value">0%</strong><span>percurso completo</span></div></div>
               <div class="mission-summary-kpis" id="mission-summary-kpis"></div>

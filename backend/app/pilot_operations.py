@@ -197,10 +197,15 @@ def workspace_summary(
     packet_rows = db.execute(
         text(
             """
-            SELECT source_mission_id, COUNT(*) AS total
-            FROM pilot_learning_packets
-            WHERE organization_id=:org
-            GROUP BY source_mission_id
+            SELECT packet.source_mission_id, COUNT(*) AS total
+            FROM pilot_learning_packets packet
+            JOIN pilot_evidence_graph_nodes source_node
+              ON source_node.id=packet.source_learning_node_id
+             AND source_node.organization_id=packet.organization_id
+             AND source_node.mission_id=packet.source_mission_id
+            WHERE packet.organization_id=:org
+              AND source_node.status IN ('accepted','verified')
+            GROUP BY packet.source_mission_id
             """
         ),
         {"org": org_id},
@@ -221,13 +226,19 @@ def workspace_summary(
 
         attention = 0
         for cycle in cycles:
+            pending_human_decision = cycle["status"] == "proposed"
             incomplete_execution = cycle["status"] in {"committed", "in_progress"} and (
                 not str(cycle["action"] or "").strip()
                 or not str(cycle["owner"] or "").strip()
                 or not str(cycle["expected_outcome"] or "").strip()
             )
             incomplete_result = cycle["status"] == "completed" and (
-                not str(cycle["actual_outcome"] or "").strip()
+                not str(cycle["evidence_node_id"] or "").strip()
+                or not str(cycle["action"] or "").strip()
+                or not str(cycle["owner"] or "").strip()
+                or cycle["due_date"] is None
+                or not str(cycle["expected_outcome"] or "").strip()
+                or not str(cycle["actual_outcome"] or "").strip()
                 or not str(cycle["learning"] or "").strip()
                 or cycle["action_started_at"] is None
                 or cycle["actual_outcome_at"] is None
@@ -238,7 +249,7 @@ def workspace_summary(
                 and str(cycle["due_date"]) < now.isoformat()
                 and cycle["status"] not in {"completed", "abandoned"}
             )
-            if incomplete_execution or incomplete_result or overdue:
+            if pending_human_decision or incomplete_execution or incomplete_result or overdue:
                 attention += 1
             if cycle["status"] in {"committed", "in_progress"} or incomplete_result:
                 pending_results += 1
@@ -301,11 +312,11 @@ def workspace_summary(
             }
         )
 
-    active_states = {"active", "paused"}
+    attention_states = {"active", "paused", "completed"}
     attention_missions = sum(
         1
         for mission in mission_cards
-        if mission["lifecycle_state"] in active_states
+        if mission["lifecycle_state"] in attention_states
         and (mission["attention"] > 0 or mission["progress_percent"] < 100)
     )
     db.commit()
@@ -385,6 +396,90 @@ def list_audit_events(
             }
         )
     return {"events": events, "count": len(events)}
+
+
+@router.get("/audit/missions/{mission_code}")
+def mission_audit_events(
+    mission_code: str,
+    limit: int = Query(default=200, ge=1, le=500),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Return a mission-scoped audit timeline to every workspace member.
+
+    Historical events were produced by several modules and therefore do not
+    all share one resource type.  The filter deliberately accepts only
+    explicit mission identifiers in governed payload fields; free text is
+    never searched or inferred.
+    """
+
+    membership = _membership(db, user.id)
+    mission = db.query(CanonicalMission).filter(
+        CanonicalMission.organization_id == membership.organization_id,
+        CanonicalMission.code == mission_code,
+    ).one_or_none()
+    if mission is None:
+        raise HTTPException(status_code=404, detail="A missão indicada não existe neste workspace.")
+
+    scan_limit = max(limit, 2000)
+    rows = (
+        db.query(AuditEvent)
+        .filter(AuditEvent.organization_id == membership.organization_id)
+        .order_by(AuditEvent.created_at.desc())
+        .limit(scan_limit)
+        .all()
+    )
+    actor_ids = {row.user_id for row in rows if row.user_id}
+    actors = {
+        account.id: account.full_name or account.email
+        for account in db.query(User).filter(User.id.in_(actor_ids)).all()
+    } if actor_ids else {}
+    explicit_keys = {
+        "mission_id", "mission_code", "source_mission_id", "source_mission_code",
+        "target_mission_id", "target_mission_code",
+    }
+
+    def references_mission(value) -> bool:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                if key in explicit_keys and str(nested) in {mission.id, mission.code}:
+                    return True
+                if isinstance(nested, (dict, list)) and references_mission(nested):
+                    return True
+        elif isinstance(value, list):
+            return any(references_mission(item) for item in value)
+        return False
+
+    events = []
+    for row in rows:
+        try:
+            payload = json.loads(row.payload_json or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        direct_match = str(row.resource_id or "") in {mission.id, mission.code}
+        if not direct_match and not references_mission(payload):
+            continue
+        events.append(
+            {
+                "id": row.id,
+                "action": row.action,
+                "resource_type": row.resource_type,
+                "resource_id": row.resource_id,
+                "user_id": row.user_id,
+                "actor": actors.get(row.user_id) if row.user_id else "Sistema",
+                "payload": payload,
+                "created_at": as_iso(row.created_at),
+            }
+        )
+        if len(events) >= limit:
+            break
+    return {
+        "mission_id": mission.id,
+        "mission_code": mission.code,
+        "events": events,
+        "count": len(events),
+        "scope_complete": len(rows) < scan_limit,
+    }
 
 
 @router.get("/admin/accounts")

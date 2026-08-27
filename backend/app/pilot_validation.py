@@ -16,7 +16,10 @@ from app.atlas_platform.audit import record_audit
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role, User
-from app.evidence_graph import _ensure_schema as _ensure_graph_schema
+from app.evidence_graph import (
+    _ensure_schema as _ensure_graph_schema,
+    _require_mission_mutable,
+)
 from app.mission_intelligence.models import CanonicalMission
 from app.pilot_serialization import as_iso
 
@@ -831,6 +834,7 @@ def upsert_protocol(
     membership = _membership(db, user.id)
     _require_writer(membership)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     row = _protocol_row(db, membership.organization_id, mission.id)
     _assert_revision(row, payload.expected_revision)
     if row is not None:
@@ -945,6 +949,7 @@ def upsert_measurement(
     membership = _membership(db, user.id)
     _require_writer(membership)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     protocol_row = _protocol_row(db, membership.organization_id, mission.id)
     if protocol_row is None:
         raise HTTPException(status_code=409, detail="Configure primeiro o protocolo de validação da missão.")
@@ -1056,6 +1061,7 @@ def review_validation(
     membership = _membership(db, user.id)
     _require_reviewer(membership)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     protocol_row = _protocol_row(db, membership.organization_id, mission.id)
     if protocol_row is None:
         raise HTTPException(status_code=409, detail="Configure primeiro o protocolo de validação.")

@@ -389,30 +389,220 @@ def test_admin_cannot_invite_another_admin(monkeypatch) -> None:
     assert forbidden.status_code == 403
 
 
+def test_observer_cannot_mutate_or_materialize_the_mission_graph(monkeypatch) -> None:
+    captured = _capture_auth_links(monkeypatch)
+    owner_headers, organization_id, _ = _owner()
+    mission = client.post(
+        f"/api/organizations/{organization_id}/mission-intelligence/missions",
+        headers=owner_headers,
+        json={
+            "title": "Validar permissões do grafo",
+            "objective": "Confirmar que observadores apenas consultam o estado governado.",
+            "central_question": "Um observador consegue alterar ou materializar o grafo?",
+            "context": "Teste institucional de separação de funções.",
+            "mission_kind": "mission",
+            "domain": "access_governance",
+            "priority": "standard",
+            "stakeholders": [],
+        },
+    )
+    assert mission.status_code == 201, mission.text
+    code = mission.json()["code"]
+    graph_base = f"/api/pilot/evidence-graph/missions/{code}"
+    source = client.post(
+        f"{graph_base}/nodes",
+        headers=owner_headers,
+        json={
+            "node_type": "evidence",
+            "label": "Fonte governada",
+            "body": "Registo criado pelo proprietário para validar as permissões.",
+            "status": "proposed",
+        },
+    )
+    assert source.status_code == 201, source.text
+    proposed_cycle = client.post(
+        "/api/pilot/decision-cycles",
+        headers=owner_headers,
+        json={
+            "mission_code": code,
+            "decision": "Usar a proposta como fundamento sem a promover automaticamente.",
+            "action": "Validar o controlo de revisão factual.",
+            "expected_outcome": "O compromisso é recusado enquanto a evidência for apenas proposta.",
+            "evidence_node_id": source.json()["id"],
+        },
+    )
+    assert proposed_cycle.status_code == 201, proposed_cycle.text
+    blocked_unreviewed_foundation = client.patch(
+        f"/api/pilot/decision-cycles/{proposed_cycle.json()['id']}",
+        headers=owner_headers,
+        json={"status": "committed"},
+    )
+    assert blocked_unreviewed_foundation.status_code == 409, blocked_unreviewed_foundation.text
+    assert "revista humanamente" in blocked_unreviewed_foundation.json()["detail"]
+    reviewed_learning = client.post(
+        f"{graph_base}/nodes",
+        headers=owner_headers,
+        json={
+            "node_type": "learning",
+            "label": "Aprendizagem revista",
+            "body": "Uma aprendizagem institucional só pode ser publicada por quem revê.",
+            "status": "accepted",
+        },
+    )
+    assert reviewed_learning.status_code == 201, reviewed_learning.text
+    blocked_reviewed_rewrite = client.patch(
+        f"{graph_base}/nodes/{reviewed_learning.json()['id']}",
+        headers=owner_headers,
+        json={"body": "Uma revisão aceite não pode ser reescrita no mesmo objeto."},
+    )
+    assert blocked_reviewed_rewrite.status_code == 409, blocked_reviewed_rewrite.text
+    assert (
+        blocked_reviewed_rewrite.json()["detail"]["code"]
+        == "reviewed_node_version_required"
+    )
+
+    contributor_email = f"graph-contributor-{uuid4().hex[:10]}@example.com"
+    contributor_invite = client.post(
+        f"/api/organizations/{organization_id}/invitations",
+        headers=owner_headers,
+        json={
+            "email": contributor_email,
+            "full_name": "Graph Contributor",
+            "role": "contributor",
+        },
+    )
+    assert contributor_invite.status_code == 201, contributor_invite.text
+    contributor_acceptance = client.post(
+        "/api/auth/invitations/accept",
+        json={
+            "token": captured[-1][1],
+            "password": "contributor-password-123",
+        },
+    )
+    assert contributor_acceptance.status_code == 200, contributor_acceptance.text
+    contributor_headers = {
+        "Authorization": f"Bearer {contributor_acceptance.json()['access_token']}"
+    }
+    contributor_proposal = client.post(
+        f"{graph_base}/nodes",
+        headers=contributor_headers,
+        json={
+            "node_type": "claim",
+            "label": "Proposta do colaborador",
+            "body": "Um colaborador pode estruturar conteúdo sem o validar.",
+            "status": "proposed",
+        },
+    )
+    assert contributor_proposal.status_code == 201, contributor_proposal.text
+    forbidden_contributor_review = client.patch(
+        f"{graph_base}/nodes/{contributor_proposal.json()['id']}",
+        headers=contributor_headers,
+        json={"status": "accepted"},
+    )
+    assert forbidden_contributor_review.status_code == 403, forbidden_contributor_review.text
+    assert "revisor" in forbidden_contributor_review.json()["detail"]
+    forbidden_preaccepted_create = client.post(
+        f"{graph_base}/nodes",
+        headers=contributor_headers,
+        json={
+            "node_type": "claim",
+            "label": "Validação indevida",
+            "body": "Um objeto novo não pode contornar a revisão humana.",
+            "status": "accepted",
+        },
+    )
+    assert forbidden_preaccepted_create.status_code == 403, forbidden_preaccepted_create.text
+
+    observer_email = f"observer-{uuid4().hex[:10]}@example.com"
+    invited = client.post(
+        f"/api/organizations/{organization_id}/invitations",
+        headers=owner_headers,
+        json={
+            "email": observer_email,
+            "full_name": "Graph Observer",
+            "role": "observer",
+        },
+    )
+    assert invited.status_code == 201, invited.text
+    accepted = client.post(
+        "/api/auth/invitations/accept",
+        json={
+            "token": captured[-1][1],
+            "password": "observer-password-123",
+        },
+    )
+    assert accepted.status_code == 200, accepted.text
+    observer_headers = {
+        "Authorization": f"Bearer {accepted.json()['access_token']}"
+    }
+
+    assert client.get(graph_base, headers=observer_headers).status_code == 200
+    forbidden_create = client.post(
+        f"{graph_base}/nodes",
+        headers=observer_headers,
+        json={
+            "node_type": "claim",
+            "label": "Alteração indevida",
+            "body": "Este objeto não deve ser criado por um observador.",
+        },
+    )
+    forbidden_update = client.patch(
+        f"{graph_base}/nodes/{source.json()['id']}",
+        headers=observer_headers,
+        json={"status": "accepted"},
+    )
+    forbidden_sync = client.post(f"{graph_base}/sync", headers=observer_headers)
+    for response in (forbidden_create, forbidden_update, forbidden_sync):
+        assert response.status_code == 403, response.text
+        assert "consultar" in response.json()["detail"]
+
+    candidates = client.get(
+        f"/api/pilot/learning/missions/{code}/candidates",
+        headers=observer_headers,
+    )
+    assert candidates.status_code == 200, candidates.text
+    forbidden_publish = client.post(
+        f"/api/pilot/learning/missions/{code}/publish/{reviewed_learning.json()['id']}",
+        headers=observer_headers,
+    )
+    assert forbidden_publish.status_code == 403, forbidden_publish.text
+    assert "revisor" in forbidden_publish.json()["detail"]
+
+
 def test_identity_frontend_exposes_invite_and_recovery_flows() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    login = (repo_root / "frontend" / "atlas-os" / "index.html").read_text(
+    login = (repo_root / "frontend" / "pilot-v1" / "home.html").read_text(
+        encoding="utf-8"
+    )
+    auth = (repo_root / "frontend" / "pilot-v1" / "auth.js").read_text(
         encoding="utf-8"
     )
     account = (
-        repo_root / "frontend" / "atlas-os" / "account.html"
+        repo_root / "frontend" / "pilot-v1" / "account.html"
     ).read_text(encoding="utf-8")
-    users = (repo_root / "frontend" / "atlas-os" / "users.html").read_text(
+    workspace = (repo_root / "frontend" / "pilot-v1" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    administration = (
+        repo_root / "frontend" / "pilot-v1" / "admin-accounts.js"
+    ).read_text(
         encoding="utf-8"
     )
 
-    assert "/account.html?mode=forgot" in login
-    assert 'id="usersLink"' in login
+    assert 'id="forgot-link"' in login
+    assert "/api/pilot/password-reset/request" in auth
+    assert "/api/pilot/password-reset/confirm" in auth
     assert "/api/auth/password-reset/request" in account
     assert "/api/auth/password-reset/confirm" in account
     assert "/api/auth/invitations/accept" in account
-    assert "/invitations" in users
-    assert "/memberships" in users
+    assert "/invitations" in administration
+    assert "/admin/accounts" in administration
+    assert "/admin-accounts.js" in workspace
 
     account_response = client.get("/account.html")
-    users_response = client.get("/users.html")
+    workspace_response = client.get("/app")
     assert account_response.status_code == 200
-    assert users_response.status_code == 200
+    assert workspace_response.status_code == 200
     assert "frame-ancestors 'none'" in account_response.headers[
         "content-security-policy"
     ]

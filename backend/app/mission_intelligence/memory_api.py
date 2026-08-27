@@ -20,6 +20,7 @@ from app.pilot_text import normalize_generated_title
 from .contracts import MissionDocumentV13
 from .memory_models import EvidenceAsset, MemoryItem, MemoryLink
 from .models import CanonicalMission, MissionAttachment
+from .lifecycle import require_mutable_mission
 
 router = APIRouter(
     prefix="/api/organizations/{organization_id}/mission-intelligence/memory",
@@ -28,7 +29,7 @@ router = APIRouter(
 
 INDEXABLE_KINDS = {
     "observation", "evidence", "hypothesis", "assumption", "alternative",
-    "constraint", "decision", "execution", "outcome", "learning",
+    "constraint", "target", "decision", "execution", "outcome", "learning",
 }
 
 PILOT_MEMORY_KIND = {
@@ -200,7 +201,9 @@ def _sync_pilot_memory(
         publication = publications.get((mission.id, str(node["id"])))
         # Learning becomes organizational memory only after explicit human
         # acceptance and publication with a verifiable lineage snapshot.
-        if node["node_type"] == "learning" and publication is None:
+        if node["node_type"] == "learning" and (
+            publication is None or node["status"] not in {"accepted", "verified"}
+        ):
             continue
         kind = PILOT_MEMORY_KIND.get(str(node["node_type"]), str(node["node_type"]))
         if kind not in INDEXABLE_KINDS:
@@ -260,7 +263,7 @@ def _sync_pilot_memory(
             db.add(item)
             db.flush()
             created += 1
-        elif item.source_content_hash != source_hash:
+        elif item.source_content_hash != source_hash or item.state != node["status"]:
             item.item_type = kind
             item.title = display_title
             item.summary = node["body"] or ""
@@ -277,6 +280,36 @@ def _sync_pilot_memory(
             updated += 1
         pilot_indexed[(mission.id, str(node["id"]))] = item
         indexed[(mission.id, record_id)] = item
+
+    active_record_ids = {
+        item.canonical_record_id for item in pilot_indexed.values()
+    }
+    stale_items = db.query(MemoryItem).filter(
+        MemoryItem.organization_id == organization_id,
+        MemoryItem.canonical_record_id.like("PILOT-%"),
+        MemoryItem.state != "superseded",
+    ).all()
+    for item in stale_items:
+        if item.canonical_record_id in active_record_ids:
+            continue
+        metadata = _load(item.metadata_json, {})
+        metadata.update(
+            source_graph_state="superseded",
+            invalidation_reason="A fonte governada foi rejeitada ou substituída.",
+            invalidated_at=_now().isoformat(),
+        )
+        item.state = "superseded"
+        item.source_content_hash = hashlib.sha256(
+            _dump(
+                {
+                    "canonical_record_id": item.canonical_record_id,
+                    "prior_source_content_hash": item.source_content_hash,
+                    "state": "superseded",
+                }
+            ).encode("utf-8")
+        ).hexdigest()
+        item.metadata_json = _dump(metadata)
+        updated += 1
 
     if inspector.has_table("pilot_evidence_graph_edges"):
         edges = db.execute(text("""
@@ -640,12 +673,13 @@ def register_asset(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     if payload.mission_id:
-        exists = db.query(CanonicalMission.id).filter(
+        mission = db.query(CanonicalMission).filter(
             CanonicalMission.id == payload.mission_id,
             CanonicalMission.organization_id == organization_id,
-        ).first()
-        if not exists:
+        ).one_or_none()
+        if mission is None:
             raise HTTPException(status_code=404, detail="Mission not found")
+        require_mutable_mission(mission)
     sha = payload.sha256.lower()
     existing = db.query(EvidenceAsset).filter(
         EvidenceAsset.organization_id == organization_id,

@@ -19,6 +19,7 @@ from app.evidence_graph import (
     _ensure_schema as _ensure_graph_schema,
     _membership,
     _mission,
+    _require_mission_mutable,
     _upsert_node,
 )
 from app.mission_intelligence.models import CanonicalMission
@@ -799,6 +800,7 @@ def add_alternative(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     active = _active_nodes(
         db,
         organization_id=membership.organization_id,
@@ -873,6 +875,7 @@ def retire_duplicate_alternative(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     alternatives = _active_nodes(
         db,
         organization_id=membership.organization_id,
@@ -969,6 +972,7 @@ def save_matrix(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
 
     active_alternatives = {
         item["id"]: item
@@ -1123,6 +1127,7 @@ def review_matrix(
     _ensure_graph_schema(db)
     _ensure_schema(db)
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     latest = _latest_matrix_row(db, organization_id=membership.organization_id, mission_id=mission.id)
     if latest is None:
         raise HTTPException(status_code=409, detail="Guarde primeiro uma revisão completa da matriz.")

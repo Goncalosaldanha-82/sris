@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.pilot_business_case import _live_metrics
+from app.pilot_business_case import _executive_conclusion, _live_metrics, _metric_states
 
 
 client = TestClient(app)
@@ -45,6 +45,155 @@ def _line(**overrides) -> dict:
     }
     payload.update(overrides)
     return payload
+
+
+def test_resource_only_values_never_become_zero_costs() -> None:
+    case = {
+        "id": "case-resource-only",
+        "currency": "EUR",
+        "horizon_months": 12,
+    }
+    resources = [
+        _line(
+            kind="human_resource",
+            financial_treatment="none",
+            include_in_totals=False,
+            unit="horas",
+            planned_quantity=80,
+            actual_quantity=12,
+            conservative_amount=None,
+            base_amount=None,
+            favorable_amount=None,
+            committed_amount=None,
+            realized_amount=None,
+            forecast_amount=None,
+        )
+    ]
+
+    metrics = _live_metrics(case, resources)
+    states = _metric_states(case, resources)
+
+    assert states["resources"] == "observed_or_estimated"
+    assert states["human_hours"] == "observed_or_estimated"
+    assert states["planned_human_hours"] == "observed_or_estimated"
+    assert states["actual_human_hours"] == "observed_or_estimated"
+    assert states["costs"] == "unknown_not_zero"
+    assert states["benefits"] == "unknown_not_zero"
+    assert states["financial"] == "unknown_not_zero"
+    assert "custo monetário continua por determinar" in _executive_conclusion(
+        case,
+        metrics,
+        states,
+    )
+    assert "0 €" not in _executive_conclusion(case, metrics, states)
+
+    funding_without_value = [
+        _line(
+            kind="financial_resource",
+            financial_treatment="none",
+            include_in_totals=False,
+            conservative_amount=None,
+            base_amount=None,
+            favorable_amount=None,
+            committed_amount=None,
+            realized_amount=None,
+            forecast_amount=None,
+        )
+    ]
+    assert _metric_states(case, funding_without_value)["funding"] == "unknown_not_zero"
+
+    base_only_cost = _line(
+        conservative_amount=None,
+        base_amount=125,
+        favorable_amount=None,
+        committed_amount=None,
+        realized_amount=None,
+        forecast_amount=None,
+    )
+    base_only_states = _metric_states(case, [base_only_cost])
+    assert base_only_states["budget_base"] == "observed_or_estimated"
+    assert base_only_states["forecast_cost"] == "observed_or_estimated"
+    assert base_only_states["committed_cost"] == "unknown_not_zero"
+    assert base_only_states["realized_cost"] == "unknown_not_zero"
+    assert base_only_states["forecast_financial"] == "unknown_not_zero"
+
+    explicit_zero_benefit = _line(
+        kind="monetary_benefit",
+        financial_treatment="benefit",
+        category="avoided_cost",
+        conservative_amount=None,
+        base_amount=0,
+        favorable_amount=None,
+        committed_amount=None,
+        realized_amount=None,
+        forecast_amount=None,
+    )
+    zero_is_known = _metric_states(case, [base_only_cost, explicit_zero_benefit])
+    assert zero_is_known["expected_benefit"] == "observed_or_estimated"
+    assert zero_is_known["forecast_financial"] == "observed_or_estimated"
+
+    partial_commitment = _metric_states(
+        case,
+        [
+            _line(committed_amount=50),
+            _line(label="Second cost", committed_amount=None),
+        ],
+    )
+    assert partial_commitment["committed_cost"] == "partial_observed_or_estimated"
+    partially_realized_costs = [
+        _line(realized_amount=50),
+        _line(label="Cost without an actual", realized_amount=None),
+    ]
+    partial_realized_states = _metric_states(case, partially_realized_costs)
+    assert partial_realized_states["realized_cost"] == "partial_observed_or_estimated"
+    assert "Com dados parciais" in _executive_conclusion(
+        case,
+        _live_metrics(case, partially_realized_costs),
+        partial_realized_states,
+    )
+
+    committed_funding = _line(
+        kind="financial_resource",
+        financial_treatment="none",
+        include_in_totals=False,
+        conservative_amount=None,
+        base_amount=None,
+        favorable_amount=None,
+        committed_amount=75,
+        realized_amount=None,
+        forecast_amount=None,
+    )
+    assert _metric_states(case, [committed_funding])["funding"] == "observed_or_estimated"
+    assert _live_metrics(case, [committed_funding])["funding_available"] == 75.0
+
+    realized_without_evidence = _line(
+        kind="monetary_benefit",
+        financial_treatment="benefit",
+        realized_amount=40,
+        evidence_node_id=None,
+    )
+    assert (
+        _metric_states(case, [realized_without_evidence])["verified_realized_benefit"]
+        == "unknown_not_zero"
+    )
+    realized_without_evidence["evidence_node_id"] = "evidence-1"
+    assert (
+        _metric_states(case, [realized_without_evidence])["evidence_linked_realized_benefit"]
+        == "observed_or_estimated"
+    )
+    assert (
+        _metric_states(case, [realized_without_evidence])["reviewed_evidence_realized_benefit"]
+        == "unknown_not_zero"
+    )
+    realized_without_evidence["evidence_status"] = "accepted"
+    assert (
+        _metric_states(case, [realized_without_evidence])["reviewed_evidence_realized_benefit"]
+        == "observed_or_estimated"
+    )
+    assert (
+        _metric_states(case, [realized_without_evidence])["verified_realized_benefit"]
+        == "unknown_not_zero"
+    )
 
 
 def test_live_business_case_tracks_scenarios_resources_review_and_history(monkeypatch) -> None:
@@ -95,6 +244,12 @@ def test_live_business_case_tracks_scenarios_resources_review_and_history(monkey
         },
     )
     assert benefit_evidence.status_code == 201, benefit_evidence.text
+    reviewed_benefit_evidence = client.patch(
+        f"{graph_base}/nodes/{benefit_evidence.json()['id']}",
+        headers=headers,
+        json={"status": "accepted"},
+    )
+    assert reviewed_benefit_evidence.status_code == 200, reviewed_benefit_evidence.text
 
     empty = client.get(base, headers=headers)
     assert empty.status_code == 200, empty.text
@@ -132,6 +287,7 @@ def test_live_business_case_tracks_scenarios_resources_review_and_history(monkey
     case = configured.json()["case"]
     assert case["revision"] == 1
     assert configured.json()["integrity_verified"] is True
+    assert configured.json()["metrics_state"] == "unknown_not_zero"
 
     conflict = client.put(
         base,
@@ -150,6 +306,14 @@ def test_live_business_case_tracks_scenarios_resources_review_and_history(monkey
     cost = client.post(f"{base}/items", headers=headers, json=cost_payload)
     assert cost.status_code == 201, cost.text
     assert cost.json()["case"]["revision"] == 2
+    assert cost.json()["metrics"]["forecast_roi_pct"] == -100.0
+    no_benefit = next(
+        warning
+        for warning in cost.json()["warnings"]
+        if warning["code"] == "no_monetary_benefit"
+    )
+    assert "não é calculável" not in no_benefit["message"]
+    assert "apenas os custos monetários" in no_benefit["message"]
 
     benefit = client.post(
         f"{base}/items",
@@ -259,10 +423,12 @@ def test_live_business_case_tracks_scenarios_resources_review_and_history(monkey
     assert metrics["schedule_variance_days"] == 30
     assert "ROI de 8,3%" in payload["executive_conclusion"]
     assert "encargo anual de 1 200 €" in payload["executive_conclusion"]
-    assert metrics["verified_realized_benefit"] == 10000.0
-    assert metrics["unverified_realized_benefit"] == 0.0
+    assert metrics["evidence_linked_realized_benefit"] == 10000.0
+    assert metrics["reviewed_evidence_realized_benefit"] == 10000.0
+    assert metrics["verified_realized_benefit"] == 0.0
+    assert metrics["unverified_realized_benefit"] == 10000.0
     assert "A missão registou 120,0 horas de trabalho" in payload["executive_conclusion"]
-    assert "benefício realizado ligado a evidência é 10 000 €" in payload["executive_conclusion"]
+    assert "benefício realizado com evidência revista é 10 000 €" in payload["executive_conclusion"]
     assert "encargo anual de 1 200 €" in payload["executive_conclusion"]
     assert payload["readiness"]["ready_for_review"] is True
     assert payload["quality"]["source_coverage_pct"] == 100.0
@@ -286,6 +452,11 @@ def test_live_business_case_tracks_scenarios_resources_review_and_history(monkey
         )
         assert created.status_code == 201, created.text
         alternatives.append(created.json())
+
+    unmodelled = client.get(base, headers=headers)
+    assert unmodelled.status_code == 200, unmodelled.text
+    unmodelled_profiles = unmodelled.json()["alternative_comparison"]["profiles"]
+    assert all(profile["metrics_state"] == "unknown_not_zero" for profile in unmodelled_profiles)
 
     revision = payload["case"]["revision"]
     scoped_lines = (

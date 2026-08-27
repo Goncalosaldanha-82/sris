@@ -13,11 +13,14 @@ from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, User
 from app.mission_intelligence.models import CanonicalMission, MissionAttachment
+from app.mission_intelligence.lifecycle import (
+    require_mutable_mission as _require_mission_mutable,
+)
 from app.pilot_serialization import as_iso
 
 router = APIRouter(prefix="/api/pilot/evidence-graph", tags=["pilot-evidence-graph"])
 
-NodeType = Literal["evidence", "claim", "hypothesis", "decision", "outcome", "learning"]
+NodeType = Literal["evidence", "claim", "hypothesis", "target", "decision", "outcome", "learning"]
 NodeStatus = Literal["proposed", "verified", "accepted", "rejected", "superseded"]
 EdgeType = Literal[
     "supports",
@@ -464,7 +467,7 @@ def get_mission_graph(
         "edges": [_edge_view(row) for row in edges],
         "counts": counts,
         "contract": {
-            "node_types": ["evidence", "claim", "hypothesis", "decision", "outcome", "learning"],
+            "node_types": ["evidence", "claim", "hypothesis", "target", "decision", "outcome", "learning"],
             "edge_types": ["supports", "contradicts", "informs", "derived_from", "tests", "leads_to", "validates", "invalidates", "supersedes", "learned_from"],
             "retrieval_is_not_support": True,
             "vector_index_is_not_source_of_truth": True,

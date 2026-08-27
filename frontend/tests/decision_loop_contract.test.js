@@ -11,7 +11,7 @@ const index=fs.readFileSync(path.join(pilot,'index.html'),'utf8');
 
 test('Decision Loop is syntactically valid and follows the Pilot build token',()=>{
   assert.doesNotThrow(()=>new Function(source));
-  assert.match(source,/20260824-source-integrity-v6/);
+  assert.match(source,/20260826-governed-mission-repairs-v23/);
   assert.match(index,/decision-cycle-v1\.js\?v=__PILOT_BUILD__/);
   assert.doesNotMatch(index,/decision-workbench-v1\.js/);
   assert.doesNotMatch(source,/new MutationObserver\s*\(/);
@@ -29,6 +29,8 @@ test('Decision Loop uses governed forms instead of browser prompts',()=>{
   assert.match(source,/Selecione a evidência que fundamenta a decisão/);
   assert.match(source,/Defina a ação antes de avançar o estado da decisão/);
   assert.match(source,/Registe o resultado observado antes de concluir a decisão/);
+  assert.match(source,/evidência que fundamenta a decisão tem de ser aceite ou verificada/);
+  assert.match(source,/evidência do resultado tem de ser aceite ou verificada/);
 });
 
 test('outcomes remain reviewed before organizational reuse',()=>{

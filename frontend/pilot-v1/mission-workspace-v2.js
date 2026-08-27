@@ -51,7 +51,41 @@
   function questionInput(q){const id=esc(q.question_id);const label=`<label>${esc(q.question)}</label><div class="note" style="margin-bottom:5px">${esc(q.why_it_matters||'')}</div>`;if(q.answer_type==='single_choice')return `<div class="mw2-question" data-qid="${id}">${label}<select>${(q.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('')}<option value="__other__">Outra resposta…</option></select><textarea class="hidden" placeholder="Escreva outra resposta"></textarea></div>`;if(q.answer_type==='multi_choice')return `<div class="mw2-question" data-qid="${id}">${label}${(q.options||[]).map(o=>`<label style="font-weight:400"><input type="checkbox" value="${esc(o)}"> ${esc(o)}</label>`).join('')}<textarea placeholder="Pode acrescentar contexto ou outra resposta"></textarea></div>`;if(q.answer_type==='yes_no')return `<div class="mw2-question" data-qid="${id}">${label}<select><option>Sim</option><option>Não</option><option>Não sei</option></select><textarea placeholder="Contexto adicional (opcional)"></textarea></div>`;return `<div class="mw2-question" data-qid="${id}">${label}<textarea placeholder="Resposta livre"></textarea></div>`;}
   document.addEventListener('change',e=>{const q=e.target.closest?.('.mw2-question');if(!q||e.target.tagName!=='SELECT')return;const ta=q.querySelector('textarea');if(ta&&e.target.value==='__other__')ta.classList.remove('hidden');else if(ta&&q.querySelector('select option[value="__other__"]'))ta.classList.add('hidden');});
   function collectAnswers(){return [...document.querySelectorAll('#mw2-answers .mw2-question')].map(q=>{const id=q.dataset.qid;const select=q.querySelector('select'),checks=[...q.querySelectorAll('input[type="checkbox"]:checked')],ta=q.querySelector('textarea');let answer='';if(checks.length)answer=checks.map(x=>x.value).join('; ')+(ta?.value.trim()?`; ${ta.value.trim()}`:'');else if(select)answer=select.value==='__other__'?(ta?.value.trim()||''):select.value+(ta?.value.trim()&&!ta.classList.contains('hidden')?` — ${ta.value.trim()}`:'');else answer=ta?.value.trim()||'';return answer?{question_id:id,answer}:null;}).filter(Boolean);}
-  async function sendTurn(){const code=missionCode(),message=document.querySelector('#mw2-message')?.value.trim();if(!code||!message)return;const btn=document.querySelector('#mw2-send'),status=document.querySelector('#mw2-message-status');btn.classList.add('loading');status.textContent='A recuperar contexto relevante, documentos, memória e proveniência…';const attachment_ids=[...document.querySelectorAll('#mw2-attachments input:checked')].map(x=>x.value);const payload={session_id:state.sessionId||null,intent:document.querySelector('#mw2-intent').value,message,answers:collectAnswers(),attachment_ids,mission_input:{},research_context:document.querySelector('#mw2-research').checked};try{const data=await api(`${miBase()}/missions/${encodeURIComponent(code)}/interact`,{method:'POST',body:JSON.stringify(payload)});state.sessionId=data.session_id||state.sessionId;document.querySelector('#mw2-message').value='';status.textContent=data.ai_status==='completed'?'Turno persistido. A resposta mantém proveniência e requer revisão humana.':`Turno registado · estado IA: ${data.ai_status||'registado'}`;await Promise.all([loadDialogue(),loadAttachments()]);try{await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}/sync`,{method:'POST'});}catch{} }catch(err){status.textContent=`Não foi possível continuar: ${err.message}`;status.parentElement.classList.add('mw2-error');}finally{btn.classList.remove('loading');}}
+  async function sendTurn(){
+    const code=missionCode(),message=document.querySelector('#mw2-message')?.value.trim();
+    if(!code||!message)return;
+    const btn=document.querySelector('#mw2-send'),status=document.querySelector('#mw2-message-status');
+    btn.classList.add('loading');
+    status.parentElement.classList.remove('mw2-error');
+    status.textContent='A recuperar contexto relevante, documentos, memória e proveniência…';
+    const attachment_ids=[...document.querySelectorAll('#mw2-attachments input:checked')].map(x=>x.value);
+    const payload={session_id:state.sessionId||null,intent:document.querySelector('#mw2-intent').value,message,answers:collectAnswers(),attachment_ids,mission_input:{},research_context:document.querySelector('#mw2-research').checked};
+    try{
+      const data=await api(`${miBase()}/missions/${encodeURIComponent(code)}/interact`,{method:'POST',body:JSON.stringify(payload)});
+      const persisted=data.ai_status==='completed'&&data.turn_persisted!==false;
+      if(persisted){
+        state.sessionId=data.session_id||state.sessionId;
+        document.querySelector('#mw2-message').value='';
+        status.textContent='Turno persistido. A resposta mantém proveniência e requer revisão humana.';
+        await Promise.all([loadDialogue(),loadAttachments()]);
+        try{await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}/sync`,{method:'POST'});}catch{}
+        document.dispatchEvent(new CustomEvent('sris:canonical-mission-refresh',{detail:{mission_code:code}}));
+        return;
+      }
+      const reason=data.ai_governance?.code||data.ai_status||'unavailable';
+      const messages={
+        provider_not_configured:'A IA ainda não está configurada. Nenhum turno, sessão ou revisão da missão foi criado.',
+        context_research_not_configured:'A pesquisa externa governada não está configurada. Nenhum turno foi criado; desative essa opção ou configure o serviço.',
+        organization_not_authorized:'Este workspace ainda não está autorizado para o piloto de IA. Nenhum turno foi criado.',
+        role_not_allowed:'A sua função não pode utilizar o orçamento de IA. Nenhum turno foi criado.',
+      };
+      status.textContent=messages[reason]||`A assistência não executou este turno (${data.ai_status||'indisponível'}); nenhum resultado foi promovido.`;
+      await Promise.all([loadDialogue(),loadAttachments()]);
+    }catch(err){
+      status.textContent=`Não foi possível continuar: ${err.message}`;
+      status.parentElement.classList.add('mw2-error');
+    }finally{btn.classList.remove('loading');}
+  }
   async function loadMemory(sync){if(!orgId()||!state.missionId)await resolveMission();const status=document.querySelector('#mw2-memory-status');if(!state.missionId){status.textContent='Abra primeiro uma missão.';return;}try{if(sync){status.textContent='A sincronizar o backbone canónico com memória de longo prazo…';await api(`${miBase()}/memory/sync`,{method:'POST'});}const [meta,items]=await Promise.all([api(`${miBase()}/memory/status`),api(`${miBase()}/memory/items?limit=500`)]);const mine=(items||[]).filter(x=>x.mission_id===state.missionId);document.querySelector('#mw2-memory-stats').innerHTML=`<div class="mw2-stat"><strong>${mine.length}</strong><span>itens desta missão</span></div><div class="mw2-stat"><strong>${meta.links||0}</strong><span>relações organizacionais</span></div><div class="mw2-stat"><strong>${meta.assets||0}</strong><span>ativos de evidência</span></div><div class="mw2-stat"><strong>${meta.superseded_items||0}</strong><span>itens substituídos</span></div>`;document.querySelector('#mw2-memory-list').innerHTML=mine.length?mine.map(x=>`<article class="mw2-memory"><div class="mw2-memory-head"><div><span class="mw2-pill">${esc(x.item_type)}</span><strong style="display:block;margin-top:6px">${esc(x.title)}</strong></div><span class="pill">${esc(x.state)}</span></div><p>${esc(x.summary||'')}</p><div class="mw2-memory-meta">confiança ${esc(x.confidence||'—')} · revisão fonte ${esc(x.source_revision||'—')} · hash ${esc(String(x.source_content_hash||'').slice(0,12))}…</div></article>`).join(''):'<div class="mw2-empty">Ainda não existem itens canónicos indexáveis nesta missão. O diálogo pode propor hipóteses e decisões, mas estas só entram na memória durável após promoção/revisão humana.</div>';status.textContent=`Memória independente do modelo · ${meta.items||0} item(ns) na organização · política append/supersede/archive.`;if(sync)document.dispatchEvent(new CustomEvent('sris:memory-updated',{detail:{mission_id:state.missionId,items:mine}}));}catch(err){status.textContent=`Memória indisponível: ${err.message}`;}}
   if(!install())document.addEventListener('DOMContentLoaded',install,{once:true});
 })();

@@ -379,14 +379,15 @@ function renderWorkspaceSummary(summary){
   setText('#metric-active',metrics.missions_active??0);
   setText('#metric-attention',metrics.missions_attention??0);
   setText('#metric-gaps',metrics.evidence_gaps??0);
+  setText('#metric-conflicts',metrics.governance_conflicts??0);
   setText('#metric-results',metrics.pending_results??0);
   setText('#metric-learning',metrics.published_learning??0);
   const rows=Array.isArray(summary?.missions)?summary.missions:[];
   const recent=$('#command-missions');
   if(recent)recent.innerHTML=rows.length?rows.slice(0,5).map(row=>commandMissionRow(row)).join(''):'<div class="command-empty"><strong>Ainda não existem missões.</strong><span>Crie a primeira missão a partir de uma decisão real.</span></div>';
-  const attentionRows=rows.filter(row=>['active','paused'].includes(row.lifecycle_state)&&(row.attention>0||row.progress_percent<100)).sort((a,b)=>(b.attention-a.attention)||(a.progress_percent-b.progress_percent));
+  const attentionRows=rows.filter(row=>['active','paused','completed'].includes(row.lifecycle_state)&&(row.attention>0||row.progress_percent<100)).sort((a,b)=>(b.attention-a.attention)||(a.progress_percent-b.progress_percent));
   const attentionRoot=$('#command-attention');
-  if(attentionRoot)attentionRoot.innerHTML=attentionRows.length?attentionRows.slice(0,6).map(row=>commandMissionRow(row,{attention:true})).join(''):'<div class="command-empty success"><strong>Sem bloqueios operacionais.</strong><span>As missões ativas não apresentam ações pendentes.</span></div>';
+  if(attentionRoot)attentionRoot.innerHTML=attentionRows.length?attentionRows.slice(0,6).map(row=>commandMissionRow(row,{attention:true})).join(''):'<div class="command-empty success"><strong>Sem bloqueios operacionais.</strong><span>As missões em curso ou concluídas não apresentam reconciliações pendentes.</span></div>';
 }
 
 async function loadWorkspaceSummary(){
@@ -719,6 +720,19 @@ function activateMissionTab(name){
   return true;
 }
 
+function renderMissionLifecycleBoundary(mission){
+  const detail=$('#mission-detail');
+  const banner=$('#mission-lock-banner');
+  const lifecycle=mission?.lifecycle_state||'active';
+  if(detail)detail.dataset.lifecycle=lifecycle;
+  if(!banner)return;
+  const terminal=['completed','archived'].includes(lifecycle);
+  banner.classList.toggle('hidden',!terminal);
+  banner.textContent=terminal
+    ? `Missão ${lifecycle==='archived'?'arquivada':'concluída'}: versão encerrada em modo de leitura. Para corrigir qualquer módulo, reative primeiro a missão no separador Resumo.`
+    : '';
+}
+
 function renderMissionOperationalState(){
   if(!selectedMission)return;
   const graph=missionRuntime.graph||{};
@@ -727,6 +741,15 @@ function renderMissionOperationalState(){
   const validation=missionRuntime.validation||{};
   const businessCase=missionRuntime.businessCase||{};
   const economics=businessCase.metrics||{};
+  const economicStates=businessCase.metric_states||{};
+  const semanticValue=(value,state,formatter)=>{
+    if(!state||state==='unknown_not_zero'||value===null||value===undefined)return'—';
+    const rendered=formatter(value);
+    return state==='partial_observed_or_estimated'?`Parcial · ${rendered}`:rendered;
+  };
+  const economicMoney=value=>Number(value).toLocaleString('pt-PT',{style:'currency',currency:businessCase.case?.currency||'EUR',maximumFractionDigits:0});
+  const forecastCostState=economicStates.forecast_cost||economicStates.costs;
+  const forecastFinancialState=economicStates.forecast_financial||economicStates.financial;
   const readiness=missionRuntime.readiness||{};
   const attachments=missionRuntime.attachments||[];
   const readyDocuments=attachments.filter(item=>['ready','visual_ready','provider_ready'].includes(item.extraction_status)).length;
@@ -742,8 +765,8 @@ function renderMissionOperationalState(){
     <div><strong>${completedCycles}</strong><span>resultados</span></div>
     <div><strong>${reviewedLearning}</strong><span>aprendizagens revistas</span></div>
     <div><strong>${validation.required?`${Number(validation.readiness?.completed_checks||0)}/${Number(validation.readiness?.total_checks||0)}`:'—'}</strong><span>validação mensurável</span></div>
-    <div><strong>${businessCase.case?.id?Number(economics.forecast_cost_at_completion||0).toLocaleString('pt-PT',{style:'currency',currency:businessCase.case.currency||'EUR',maximumFractionDigits:0}):'—'}</strong><span>custo projetado</span></div>
-    <div><strong>${economics.forecast_roi_pct===null||economics.forecast_roi_pct===undefined?'—':`${Number(economics.forecast_roi_pct).toLocaleString('pt-PT',{maximumFractionDigits:1})}%`}</strong><span>ROI projetado</span></div>`;
+    <div><strong>${semanticValue(economics.forecast_cost_at_completion,forecastCostState,economicMoney)}</strong><span>custo projetado</span></div>
+    <div><strong>${!forecastFinancialState||forecastFinancialState==='unknown_not_zero'||economics.forecast_roi_pct===null||economics.forecast_roi_pct===undefined?'—':`${semanticValue(economics.forecast_roi_pct,forecastFinancialState,value=>Number(value).toLocaleString('pt-PT',{maximumFractionDigits:1}))}%`}</strong><span>ROI projetado</span></div>`;
   const progress=Number(readiness.progress_percent||0);
   setText('#mission-progress-value',`${progress}%`);
   const checks=Array.isArray(readiness.checks)?readiness.checks:[];
@@ -797,6 +820,7 @@ document.addEventListener('click',event=>{
   if(tab){
     $$('.mission-tabs [data-mission-tab]').forEach(item=>item.classList.toggle('active',item===tab));
     $$('.mission-tab').forEach(panel=>panel.classList.toggle('active',panel.id===`mission-tab-${tab.dataset.missionTab}`));
+    tab.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'nearest',inline:'center'});
   }
   const opener=event.target.closest('[data-open-mission-tab]');
   if(opener)activateMissionTab(opener.dataset.openMissionTab);
@@ -805,6 +829,8 @@ document.addEventListener('click',event=>{
 async function openMission(id){
   try{
     const mission=await api(`${miBase()}/missions/${encodeURIComponent(id)}`);
+    const detailMessage=$('#detail-message');
+    if(detailMessage){detailMessage.className='alert hidden';detailMessage.textContent='';}
     selectedMission=mission;
     rememberMission(mission.id);
     missionRuntime.attachments=[];
@@ -823,6 +849,9 @@ async function openMission(id){
     renderMissionList();
     setText('#detail-code',mission.path_codes?.join(' / ')||mission.code);
     setText('#detail-title',mission.title);
+    setText('#mission-tab-code',mission.path_codes?.join(' / ')||mission.code);
+    setText('#mission-tab-title',mission.title);
+    renderMissionLifecycleBoundary(mission);
     setText('#detail-objective',mission.objective||'Ainda não definido');
     setText('#detail-question',mission.central_question||'Ainda não definida');
     setText('#detail-context',mission.context||'Ainda não existe contexto registado.');
@@ -844,6 +873,36 @@ async function openMission(id){
     $('#mission-list')?.insertAdjacentHTML('afterbegin',`<div class="alert error">Não foi possível abrir esta missão: ${escapeHtml(error.message)}</div>`);
   }
 }
+
+async function refreshSelectedMissionRecord(){
+  const currentId=selectedMission?.id;
+  if(!currentId)return null;
+  const latest=await api(`${miBase()}/missions/${encodeURIComponent(currentId)}`);
+  if(!selectedMission||selectedMission.id!==currentId)return latest;
+  selectedMission=latest;
+  missions=missions.map(item=>item.id===latest.id?latest:item);
+  if(window.__srisMissionWorkspace){
+    window.__srisMissionWorkspace.missionId=latest.id;
+    window.__srisMissionWorkspace.mission=latest;
+  }
+  setText('#detail-code',latest.path_codes?.join(' / ')||latest.code);
+  setText('#detail-title',latest.title);
+  setText('#mission-tab-code',latest.path_codes?.join(' / ')||latest.code);
+  setText('#mission-tab-title',latest.title);
+  renderMissionLifecycleBoundary(latest);
+  setText('#detail-objective',latest.objective||'Ainda não definido');
+  setText('#detail-question',latest.central_question||'Ainda não definida');
+  setText('#detail-context',latest.context||'Ainda não existe contexto registado.');
+  const meta=$('#detail-meta');
+  if(meta)meta.innerHTML=`<span>${latest.mission_kind==='program'?'Programa':'Missão'}</span><span>${escapeHtml(priorityLabels[latest.priority]||latest.priority||'Estratégica')}</span><span>Rev. ${Number(latest.revision||1)}</span><span>${escapeHtml(lifecycleLabels[latest.lifecycle_state]||latest.lifecycle_state||'Ativa')}</span>`;
+  renderMissionList();
+  renderMissionOperationalState();
+  return latest;
+}
+
+document.addEventListener('sris:canonical-mission-refresh',()=>{
+  void refreshSelectedMissionRecord().catch(error=>console.warn('Não foi possível atualizar a revisão canónica:',error.message));
+});
 
 function epistemicPayload(){
   return {
@@ -871,7 +930,7 @@ async function bootstrapEpistemicNodes(mission,epistemic){
   const jobs=[];
   if(epistemic.assumptions)jobs.push(createGraphNode(mission.code,'assumption','Pressupostos declarados',epistemic.assumptions));
   if(epistemic.constraints)jobs.push(createGraphNode(mission.code,'constraint','Restrições conhecidas',epistemic.constraints));
-  if(epistemic.success)jobs.push(createGraphNode(mission.code,'outcome','Critério de sucesso',epistemic.success));
+  if(epistemic.success)jobs.push(createGraphNode(mission.code,'target','Critério de sucesso',epistemic.success));
   if(!jobs.length)return{created:0,failed:0};
   const results=await Promise.allSettled(jobs);
   return {created:results.filter(result=>result.status==='fulfilled').length,failed:results.filter(result=>result.status==='rejected').length};
@@ -1153,9 +1212,16 @@ async function sha256(value){
 
 async function reportSnapshot(){
   if(!selectedMission)return null;
-  const mission={...selectedMission};
+  // Reports must be built from the current canonical row, not from the copy
+  // that happened to be selected when the screen was first opened.
+  const latest=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.id)}`);
+  if(selectedMission?.id===latest.id){
+    selectedMission=latest;
+    missions=missions.map(item=>item.id===latest.id?latest:item);
+  }
+  const mission={...latest};
   const code=mission.code;
-  const [attachmentsResult,graphResult,cyclesResult,dialoguesResult,validationResult,businessCaseResult,readinessResult,memoryResult,revisionsResult]=await Promise.allSettled([
+  const [attachmentsResult,graphResult,cyclesResult,dialoguesResult,validationResult,businessCaseResult,readinessResult,memoryResult,revisionsResult,auditResult]=await Promise.allSettled([
     api(`${miBase()}/missions/${encodeURIComponent(code)}/attachments`),
     api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`),
     api(`/api/pilot/decision-cycles/missions/${encodeURIComponent(code)}`),
@@ -1165,6 +1231,7 @@ async function reportSnapshot(){
     api(`/api/pilot/missions/${encodeURIComponent(code)}/completion-readiness`),
     api(`${miBase()}/memory/items?limit=500`),
     api(`${miBase()}/missions/${encodeURIComponent(mission.id)}/revisions`),
+    api(`/api/pilot/audit/missions/${encodeURIComponent(code)}?limit=500`),
   ]);
   const value=(result,fallback)=>result.status==='fulfilled'?result.value:fallback;
   const memory=value(memoryResult,[]);
@@ -1190,6 +1257,7 @@ async function reportSnapshot(){
     live_business_case:value(businessCaseResult,{case:{id:null},items:[],metrics:{scenarios:{}},quality:{},readiness:{checks:[]},warnings:[]}),
     mission_memory:(Array.isArray(memory)?memory:memory.items||[]).filter(item=>item.mission_id===mission.id),
     mission_revisions:value(revisionsResult,[]),
+    mission_audit:value(auditResult,{events:[],count:0,scope_complete:false}),
     completion_readiness:value(readinessResult,{ready:false,checks:[]}),
   };
   archive.integrity={
@@ -1203,19 +1271,25 @@ async function reportSnapshot(){
 }
 
 function reportNumber(value,maximumFractionDigits=4){
+  if(value===null||value===undefined||value==='')return'—';
   const number=Number(value);
   return Number.isFinite(number)?number.toLocaleString('pt-PT',{maximumFractionDigits}):'—';
 }
 
-function validationReportHtml(validation){
-  if(!validation?.required)return'<p class="muted">Esta missão não exige um protocolo quantitativo.</p>';
+function validationReportHtml(validation,policy={}){
+  if(!validation?.required){
+    const applicability=policy.measurement_applicability||'optional';
+    if(applicability==='required')return'<p class="muted">A medição é obrigatória nesta missão, mas o protocolo quantitativo ainda não foi iniciado.</p>';
+    if(applicability==='not_applicable')return'<p class="muted">A medição foi marcada como não aplicável numa revisão humana da política da missão.</p>';
+    return'<p class="muted">A medição é opcional nesta missão e o protocolo quantitativo ainda não foi iniciado.</p>';
+  }
   const protocol=validation.protocol||{};
   const baseline=validation.baseline||{};
   const result=validation.result||{};
   const analysis=validation.analysis||{};
   const targetLabels={met:'Meta atingida',missed:'Meta não atingida',indeterminate:'Não comparável',not_configured:'Meta não configurada'};
-  const measurement=(label,row)=>`<li><strong>${escapeHtml(label)}</strong><div>${escapeHtml(row.period_start||'—')} → ${escapeHtml(row.period_end||'—')} · bruto ${reportNumber(row.numerator_value)}${row.denominator_value!==null&&row.denominator_value!==undefined?` / atividade ${reportNumber(row.denominator_value)}`:''} · normalizado ${reportNumber(row.normalized_value)} ${escapeHtml(analysis.normalized_unit||'')}</div><small>Evidência ${escapeHtml(row.evidence_node_id||'não associada')} · qualidade ${escapeHtml(row.data_quality||'—')}</small></li>`;
-  return `<p><strong>${escapeHtml(validation.profile_definition?.label||validation.profile||'Validação mensurável')}</strong></p><dl class="measure"><div><dt>Unidade observada</dt><dd>${escapeHtml(protocol.subject||'—')}</dd></div><div><dt>Indicador</dt><dd>${escapeHtml(protocol.indicator_name||'—')} · ${escapeHtml(protocol.indicator_unit||'—')}</dd></div><div><dt>Normalização</dt><dd>${escapeHtml(protocol.denominator_name||'Sem denominador')} · ${escapeHtml(protocol.denominator_unit||'—')}</dd></div><div><dt>Intervenção</dt><dd>${escapeHtml(protocol.intervention_description||'—')}</dd></div><div><dt>Meta</dt><dd>${reportNumber(protocol.target_value)} · ${escapeHtml(protocol.target_description||'—')}</dd></div></dl><ol>${measurement('Baseline',baseline)}${measurement('Resultado',result)}</ol><p><strong>Comparação determinística:</strong> ${analysis.comparable?`${reportNumber(analysis.absolute_change)} ${escapeHtml(analysis.normalized_unit||'')} · ${reportNumber(analysis.percent_change,2)}% · ${escapeHtml(targetLabels[analysis.target_status]||analysis.target_status||'—')}`:'Os períodos ainda não são comparáveis.'}</p><p><strong>Revisão humana de atribuição:</strong> ${escapeHtml(protocol.attribution_confidence||'pendente')}<br>${escapeHtml(protocol.review_rationale||'Sem racional revisto.')}<br><strong>Limitações:</strong> ${escapeHtml(protocol.limitations||'Ainda não revistas.')}</p><small>Revisão ${Number(protocol.revision||1)} · SHA-256 ${escapeHtml(protocol.content_hash||'a sincronizar')}</small>`;
+  const measurement=(label,row)=>`<li><strong>${escapeHtml(label)}</strong><div>${escapeHtml(row.period_start||'—')} → ${escapeHtml(row.period_end||'—')} · bruto ${reportNumber(row.numerator_value)}${row.denominator_value!==null&&row.denominator_value!==undefined?` / atividade ${reportNumber(row.denominator_value)}`:''} · normalizado ${reportNumber(row.normalized_value)} ${escapeHtml(analysis.normalized_unit||'')}</div><small>Evidência ${escapeHtml(row.evidence_node_id||'não associada')} · qualidade ${escapeHtml(reportLabel('data_quality',row.data_quality))}</small></li>`;
+  return `<p><strong>${escapeHtml(validation.profile_definition?.label||validation.profile||'Validação mensurável')}</strong></p><dl class="measure"><div><dt>Unidade observada</dt><dd>${escapeHtml(protocol.subject||'—')}</dd></div><div><dt>Indicador</dt><dd>${escapeHtml(protocol.indicator_name||'—')} · ${escapeHtml(protocol.indicator_unit||'—')}</dd></div><div><dt>Normalização</dt><dd>${escapeHtml(protocol.denominator_name||'Sem denominador')} · ${escapeHtml(protocol.denominator_unit||'—')}</dd></div><div><dt>Intervenção</dt><dd>${escapeHtml(protocol.intervention_description||'—')}</dd></div><div><dt>Meta</dt><dd>${reportNumber(protocol.target_value)} · ${escapeHtml(protocol.target_description||'—')}</dd></div></dl><ol>${measurement('Baseline',baseline)}${measurement('Resultado',result)}</ol><p><strong>Comparação determinística:</strong> ${analysis.comparable?`${reportNumber(analysis.absolute_change)} ${escapeHtml(analysis.normalized_unit||'')} · ${reportNumber(analysis.percent_change,2)}% · ${escapeHtml(targetLabels[analysis.target_status]||analysis.target_status||'—')}`:'Os períodos ainda não são comparáveis.'}</p><p><strong>Revisão humana de atribuição:</strong> ${escapeHtml(protocol.attribution_confidence?reportLabel('confidence',protocol.attribution_confidence):'Pendente')}<br>${escapeHtml(protocol.review_rationale||'Sem racional revisto.')}<br><strong>Limitações:</strong> ${escapeHtml(protocol.limitations||'Ainda não revistas.')}</p><small>Revisão ${Number(protocol.revision||1)} · SHA-256 ${escapeHtml(protocol.content_hash||'a sincronizar')}</small>`;
 }
 
 function reportMoney(value,currency='EUR'){
@@ -1224,33 +1298,185 @@ function reportMoney(value,currency='EUR'){
   return Number.isFinite(number)?number.toLocaleString('pt-PT',{style:'currency',currency,maximumFractionDigits:2}):'—';
 }
 
-function businessCaseReportHtml(businessCase){
-  if(!businessCase?.case?.id)return'<p class="muted">O business case vivo ainda não foi iniciado nesta missão.</p>';
+const REPORT_LABELS={
+  lifecycle:{active:'Ativa',paused:'Pausada',completed:'Concluída',archived:'Arquivada'},
+  node_type:{observation:'Observação',evidence:'Evidência',assumption:'Pressuposto',constraint:'Restrição',gap:'Lacuna',hypothesis:'Hipótese',target:'Critério ou meta',alternative:'Alternativa',decision:'Decisão',action:'Ação',outcome:'Resultado observado',learning:'Aprendizagem',claim:'Afirmação'},
+  node_status:{active:'Ativo',proposed:'Proposto',verified:'Verificado',accepted:'Aceite',rejected:'Rejeitado',superseded:'Substituído'},
+  source_kind:{human_entry:'Registo humano',document_chunk:'Excerto documental',visual_document:'Documento visual',decision_cycle:'Ciclo de decisão',mission_onboarding:'Configuração da missão'},
+  cycle_status:{proposed:'Proposta',committed:'Decidida',in_progress:'Em execução',completed:'Concluída',abandoned:'Abandonada'},
+  item_kind:{monetary_cost:'Custo monetário',monetary_benefit:'Benefício monetário',non_monetary_benefit:'Benefício não monetizado',human_resource:'Recurso humano',material_resource:'Material ou consumível',equipment_resource:'Equipamento ou capacidade',financial_resource:'Financiamento disponível'},
+  phase:{planning:'Planeamento',execution:'Execução',post_mission:'Após a missão'},
+  recurrence:{one_off:'Única',monthly:'Mensal',quarterly:'Trimestral',annual:'Anual'},
+  operational_status:{planned:'Planeado',committed:'Comprometido',active:'Em curso',completed:'Concluído',blocked:'Bloqueado'},
+  confidence:{low:'Baixa',moderate:'Moderada',high:'Alta',not_evaluable:'Não avaliável'},
+  data_quality:{low:'Baixa',moderate:'Moderada',high:'Alta',verified:'Verificada',demonstrative:'Demonstrativa'},
+  target_status:{met:'Meta atingida',missed:'Meta não atingida',indeterminate:'Não comparável',not_configured:'Meta não configurada'},
+  extraction_status:{pending:'Pendente',processing:'Em processamento',ready:'Preparado',visual_ready:'Preparado visualmente',provider_ready:'Preparado pelo fornecedor',error:'Erro'},
+};
+
+const AUDIT_ACTION_LABELS={
+  'mission_intelligence.mission_created':'Missão criada',
+  'mission_intelligence.mission_revised':'Missão revista',
+  'mission_intelligence.attachment_uploaded':'Documento recebido',
+  'mission_intelligence.attachment_deleted':'Documento retirado',
+  'mission_intelligence.dialogue_started':'Sessão assistida iniciada',
+  'mission_intelligence.dialogue_turn_executed':'Turno assistido executado',
+  'mission_intelligence.evidence_asset_registered':'Ativo de evidência registado',
+  'mission_intelligence.learning_created':'Aprendizagem institucional criada',
+  'mission_intelligence.memory_synchronized':'Memória sincronizada',
+  'mission_intelligence.memory_item_superseded':'Item de memória substituído',
+  'mission_intelligence.learning_inheritance_reviewed':'Aprendizagem contextual revista',
+  'mission_intelligence.proposal_reviewed':'Proposta da IA revista por uma pessoa',
+  'pilot.alternative.created':'Alternativa criada',
+  'pilot.alternative.duplicate_retired':'Alternativa duplicada substituída',
+  'pilot.alternative_matrix.revision_created':'Revisão da matriz criada',
+  'pilot.alternative_matrix.reviewed':'Matriz revista por uma pessoa',
+  'pilot.business_case.item_created':'Linha económica criada',
+  'pilot.business_case.item_updated':'Linha económica atualizada',
+  'pilot.business_case.item_retired':'Linha económica substituída',
+  'pilot.business_case.case_created':'Fundação económica criada',
+  'pilot.business_case.case_updated':'Fundação económica atualizada',
+  'pilot.business_case.reviewed':'Business case revisto por uma pessoa',
+  'pilot.decision_cycle.created':'Ciclo de decisão criado',
+  'pilot.decision_cycle.updated':'Ciclo de decisão atualizado',
+  'pilot.decision_cycle.lineage_materialized':'Cadeia operacional materializada',
+  'pilot.decision_cycle.reopened':'Ciclo reaberto para correção',
+  'pilot.evidence_graph.node_created':'Objeto governado criado',
+  'pilot.evidence_graph.node_updated':'Objeto governado atualizado',
+  'pilot.evidence_graph.document_evidence_promoted':'Fonte documental promovida a evidência proposta',
+  'pilot.evidence_graph.edge_created':'Relação do grafo criada',
+  'pilot.evidence_graph.edge_deleted':'Relação do grafo retirada',
+  'pilot.evidence_graph.edge_reversed':'Relação do grafo invertida',
+  'pilot.evidence_graph.synchronized':'Candidatos da IA sincronizados no grafo',
+  'pilot.learning.published':'Aprendizagem publicada com linhagem',
+  'pilot.learning.applicability_reviewed':'Aplicabilidade da aprendizagem revista',
+  'pilot.mission_state.policy_reviewed':'Aplicabilidade dos módulos revista',
+  'pilot.validation.protocol_seeded':'Protocolo de validação proposto',
+  'pilot.validation.protocol_created':'Protocolo de validação criado',
+  'pilot.validation.protocol_updated':'Protocolo de validação atualizado',
+  'pilot.validation.baseline_recorded':'Baseline registada',
+  'pilot.validation.result_recorded':'Resultado medido registado',
+  'pilot.validation.attribution_reviewed':'Atribuição revista por uma pessoa',
+};
+
+function reportLabel(group,value){
+  if(value===null||value===undefined||value==='')return'—';
+  return REPORT_LABELS[group]?.[value]||String(value).replaceAll('_',' ');
+}
+
+function businessDefinitionLabel(businessCase,group,value){
+  const defined=businessCase?.definitions?.[group]?.[value];
+  if(typeof defined==='string')return defined;
+  if(defined?.label)return defined.label;
+  const fallbacks={item_kinds:'item_kind',phases:'phase'};
+  return reportLabel(fallbacks[group]||group,value);
+}
+
+function businessCaseReportHtml(businessCase,policy={}){
+  if(!businessCase?.case?.id){
+    const applicability=policy.economics_applicability||'required';
+    if(applicability==='required')return'<p class="muted">Economia e recursos são obrigatórios nesta missão, mas o business case vivo ainda não foi iniciado.</p>';
+    if(applicability==='not_applicable')return'<p class="muted">Economia e recursos foram marcados como não aplicáveis numa revisão humana da política da missão.</p>';
+    return'<p class="muted">Economia e recursos são opcionais nesta missão e o business case vivo ainda não foi iniciado.</p>';
+  }
   const item=businessCase.case||{};
   const metrics=businessCase.metrics||{};
   const currency=item.currency||'EUR';
+  const metricsKnown=businessCase.metrics_state==='observed_or_estimated';
+  const metricStates=businessCase.metric_states||{};
+  const stateOf=(key,fallback)=>metricStates[key]||metricStates[fallback]||'unknown_not_zero';
+  const stateAvailable=state=>state!=='unknown_not_zero';
+  const stateValue=(value,state,formatter)=>{
+    if(!stateAvailable(state)||value===null||value===undefined)return'—';
+    const rendered=formatter(value);
+    return state==='partial_observed_or_estimated'?`Parcial · ${rendered}`:rendered;
+  };
+  const metricMoney=(value,key='forecast_financial',fallback='financial')=>stateValue(value,stateOf(key,fallback),amount=>reportMoney(amount,currency));
+  const metricNumber=(value,digits=2,key='any_lines',fallback)=>stateValue(value,stateOf(key,fallback),amount=>reportNumber(amount,digits));
+  const hasPartial=Object.values(metricStates).includes('partial_observed_or_estimated');
   const scenarioLabels={conservative:'Conservador',base:'Base',favorable:'Favorável'};
-  const scenarios=Object.entries(metrics.scenarios||{}).map(([key,row])=>`<tr><td>${escapeHtml(scenarioLabels[key]||key)}</td><td>${reportMoney(row.total_cost,currency)}</td><td>${reportMoney(row.gross_benefit,currency)}</td><td>${reportMoney(row.net_benefit,currency)}</td><td>${row.roi_pct==null?'—':`${reportNumber(row.roi_pct,2)}%`}</td><td>${row.payback_months==null?'—':`${reportNumber(row.payback_months,0)} meses`}</td><td>${reportMoney(row.npv,currency)}</td></tr>`).join('');
-  const lines=(businessCase.items||[]).length?`<ol>${businessCase.items.map(row=>{const scope=row.alternative_node_id?`Alternativa · ${row.alternative_label||'indisponível'}`:'Missão';const basis=row.amount_basis==='per_unit'?`valor unitário × ${reportNumber(row.planned_quantity)} ${row.unit||'unidades'}`:'valor total por ocorrência';const blocked=row.operational_status==='blocked'?` · BLOQUEADO: ${row.blocker||'sem motivo descrito'}`:'';return`<li><strong>${escapeHtml(row.label)} · ${escapeHtml(row.kind)}</strong><div>${escapeHtml(scope)} · ${escapeHtml(row.phase)} · ${escapeHtml(row.recurrence)} · ${escapeHtml(basis)} · base ${reportMoney(row.base_amount,currency)} · comprometido ${reportMoney(row.committed_amount,currency)} · realizado ${reportMoney(row.realized_amount,currency)} · projeção ${reportMoney(row.forecast_amount,currency)}</div><small>Quantidade ${reportNumber(row.planned_quantity)} → ${reportNumber(row.actual_quantity)} ${escapeHtml(row.unit||'')} · estado ${escapeHtml(row.operational_status||'planned')}${escapeHtml(blocked)} · confiança ${escapeHtml(row.confidence)} · origem ${escapeHtml(row.source_label||row.evidence_label||'não declarada')}</small></li>`;}).join('')}</ol>`:'<p class="muted">Sem linhas económicas ou de recursos.</p>';
-  const alternativeRows=(businessCase.alternative_comparison?.profiles||[]).map(row=>`<tr><td>${escapeHtml(row.alternative_label)}</td><td>${reportMoney(row.total_cost,currency)}</td><td>${reportNumber(row.resources?.planned_human_hours)} h · ${Number(row.resources?.material_lines||0)} materiais · ${Number(row.resources?.equipment_lines||0)} equipamentos</td><td>${reportMoney(row.probable_gross_benefit,currency)}</td><td>${reportMoney(row.probable_net_benefit,currency)}</td><td>${row.roi_pct==null?'—':`${reportNumber(row.roi_pct,2)}%`}</td><td>${row.payback_months==null?'—':`${reportNumber(row.payback_months,0)} meses`}</td></tr>`).join('');
+  const scenarios=Object.entries(metrics.scenarios||{}).map(([key,row])=>{
+    const financialState=stateOf(`scenario_${key}_financial`,'financial');
+    const ratio=(value,digits,suffix)=>value==null?'—':`${stateValue(value,financialState,amount=>reportNumber(amount,digits))}${suffix}`;
+    return`<tr><td>${escapeHtml(scenarioLabels[key]||key)}</td><td>${metricMoney(row.total_cost,`scenario_${key}_costs`,'costs')}</td><td>${metricMoney(row.gross_benefit,`scenario_${key}_benefits`,'benefits')}</td><td>${metricMoney(row.net_benefit,`scenario_${key}_financial`,'financial')}</td><td>${stateAvailable(financialState)?ratio(row.roi_pct,2,'%'):'—'}</td><td>${stateAvailable(financialState)?ratio(row.payback_months,0,' meses'):'—'}</td><td>${metricMoney(row.npv,`scenario_${key}_financial`,'financial')}</td></tr>`;
+  }).join('');
+  const lines=(businessCase.items||[]).length?`<ol>${businessCase.items.map(row=>{
+    const scope=row.alternative_node_id?`Alternativa · ${row.alternative_label||'indisponível'}`:'Missão';
+    const basis=row.amount_basis==='per_unit'?`valor unitário × ${reportNumber(row.planned_quantity)} ${row.unit||'unidades'}`:'valor total por ocorrência';
+    const blocked=row.operational_status==='blocked'?` · BLOQUEADO: ${row.blocker||'sem motivo descrito'}`:'';
+    return`<li><strong>${escapeHtml(row.label)} · ${escapeHtml(businessDefinitionLabel(businessCase,'item_kinds',row.kind))}</strong><div>${escapeHtml(scope)} · ${escapeHtml(businessDefinitionLabel(businessCase,'phases',row.phase))} · ${escapeHtml(reportLabel('recurrence',row.recurrence))} · ${escapeHtml(basis)} · base ${reportMoney(row.base_amount,currency)} · comprometido ${reportMoney(row.committed_amount,currency)} · realizado ${reportMoney(row.realized_amount,currency)} · projeção ${reportMoney(row.forecast_amount,currency)}</div><small>Quantidade ${reportNumber(row.planned_quantity)} → ${reportNumber(row.actual_quantity)} ${escapeHtml(row.unit||'')} · estado ${escapeHtml(reportLabel('operational_status',row.operational_status||'planned'))}${escapeHtml(blocked)} · confiança ${escapeHtml(reportLabel('confidence',row.confidence))} · origem ${escapeHtml(row.source_label||row.evidence_label||'não declarada')}</small></li>`;
+  }).join('')}</ol>`:'<p class="muted">Sem linhas económicas ou de recursos.</p>';
+  const alternativeRows=(businessCase.alternative_comparison?.profiles||[]).map(row=>{
+    const states=row.metric_states||{};
+    const profileState=(key,fallback=key)=>states[key]||states[fallback]||'unknown_not_zero';
+    const costsState=profileState('scenario_base_costs','costs');
+    const benefitsState=profileState('scenario_base_benefits','benefits');
+    const financialState=profileState('scenario_base_financial','financial');
+    const profileValue=(value,valueState,formatter)=>stateValue(value,valueState,formatter);
+    const plannedHoursState=profileState('planned_human_hours');
+    const resourceText=[
+      row.resources?.human_roles?`${row.resources.human_roles} ${row.resources.human_roles===1?'função':'funções'} · ${profileValue(row.resources?.planned_human_hours,plannedHoursState,value=>reportNumber(value,1))} h previstas`:null,
+      row.resources?.material_lines?`${Number(row.resources.material_lines)} materiais`:null,
+      row.resources?.equipment_lines?`${Number(row.resources.equipment_lines)} equipamentos`:null,
+      row.resources?.funding_lines?`${Number(row.resources.funding_lines)} fontes de financiamento`:null,
+    ].filter(Boolean).join(' · ')||'Recurso identificado';
+    const resources=profileValue(resourceText,profileState('resources'),value=>escapeHtml(value));
+    return`<tr><td>${escapeHtml(row.alternative_label)}</td><td>${profileValue(row.total_cost,costsState,value=>reportMoney(value,currency))}</td><td>${resources}</td><td>${profileValue(row.probable_gross_benefit,benefitsState,value=>reportMoney(value,currency))}</td><td>${profileValue(row.probable_net_benefit,financialState,value=>reportMoney(value,currency))}</td><td>${!stateAvailable(financialState)||row.roi_pct==null?'—':`${profileValue(row.roi_pct,financialState,value=>reportNumber(value,2))}%`}</td><td>${!stateAvailable(financialState)||row.payback_months==null?'—':`${profileValue(row.payback_months,financialState,value=>reportNumber(value,0))} meses`}</td></tr>`;
+  }).join('');
   const warnings=(businessCase.warnings||[]).length?`<ul>${businessCase.warnings.map(row=>`<li>${escapeHtml(row.message)}</li>`).join('')}</ul>`:'<p class="muted">Sem alertas materiais registados.</p>';
-  return `<p><strong>${escapeHtml(businessCase.definitions?.case_kinds?.[item.case_kind]?.label||item.case_kind)}</strong> · horizonte ${Number(item.horizon_months||0)} meses · taxa de desconto ${reportNumber(item.discount_rate_pct,2)}%</p><p><strong>Conclusão automática auditável:</strong> ${escapeHtml(businessCase.executive_conclusion||'Ainda sem dados suficientes.')}</p><dl class="measure"><div><dt>Orçamento / custo projetado</dt><dd>${reportMoney(metrics.budget_base,currency)} · ${reportMoney(metrics.forecast_cost_at_completion,currency)}</dd></div><div><dt>Custo realizado</dt><dd>${reportMoney(metrics.realized_cost,currency)}</dd></div><div><dt>Benefício esperado</dt><dd>${reportMoney(metrics.expected_gross_benefit,currency)}</dd></div><div><dt>Benefício realizado / comprovado</dt><dd>${reportMoney(metrics.realized_benefit,currency)} · ${reportMoney(metrics.verified_realized_benefit,currency)}</dd></div><div><dt>Benefício líquido projetado</dt><dd>${reportMoney(metrics.forecast_net_benefit,currency)}</dd></div><div><dt>ROI / payback</dt><dd>${metrics.forecast_roi_pct==null?'—':`${reportNumber(metrics.forecast_roi_pct,2)}%`} · ${metrics.forecast_payback_months==null?'—':`${reportNumber(metrics.forecast_payback_months,0)} meses`}</dd></div><div><dt>Esforço / bloqueios</dt><dd>${reportNumber(metrics.actual_human_hours,2)} h realizadas · ${reportNumber(metrics.planned_human_hours,2)} h previstas · ${Number(metrics.blocked_resource_count||0)} recursos bloqueados</dd></div><div><dt>Encargo anual posterior</dt><dd>${reportMoney(metrics.annual_post_mission_burden,currency)}</dd></div><div><dt>Financiamento / lacuna</dt><dd>${reportMoney(metrics.funding_available,currency)} · ${reportMoney(metrics.funding_gap,currency)}</dd></div></dl><h3>Cenários</h3><div style="overflow-x:auto"><table><thead><tr><th>Cenário</th><th>Custo</th><th>Benefício</th><th>Líquido</th><th>ROI</th><th>Payback</th><th>VAL</th></tr></thead><tbody>${scenarios}</tbody></table></div>${alternativeRows?`<h3>Alternativas · economia e recursos</h3><div style="overflow-x:auto"><table><thead><tr><th>Alternativa</th><th>Custo</th><th>Recursos</th><th>Benefício provável</th><th>Líquido</th><th>ROI</th><th>Payback</th></tr></thead><tbody>${alternativeRows}</tbody></table></div>`:''}<h3>Custos, benefícios e recursos</h3>${lines}<h3>Alertas e limites</h3>${warnings}<small>Revisão ${Number(item.revision||0)} · estado ${escapeHtml(item.status||'')} · qualidade ${reportNumber(businessCase.quality?.overall_score,1)}% · SHA-256 ${escapeHtml(item.content_hash||'a sincronizar')}</small>`;
+  const qualityKnown=Number(businessCase.quality?.monetary_line_count||0)>0;
+  const qualityLabel=qualityKnown?`${reportNumber(businessCase.quality?.overall_score,1)}%`:'— · ainda não avaliável';
+  const valuesStatus=!metricsKnown
+    ?'Por determinar — ausência de linhas não significa zero'
+    :hasPartial
+      ?'Existem valores parciais; “—” identifica o que continua por determinar'
+      :'Existem estimativas ou observações; cada indicador sem fonte permanece “—”';
+  const forecastFinancialState=stateOf('forecast_financial','financial');
+  const roi=!stateAvailable(forecastFinancialState)||metrics.forecast_roi_pct==null
+    ?'—'
+    :`${stateValue(metrics.forecast_roi_pct,forecastFinancialState,value=>reportNumber(value,2))}%`;
+  const payback=!stateAvailable(forecastFinancialState)||metrics.forecast_payback_months==null
+    ?'—'
+    :`${stateValue(metrics.forecast_payback_months,forecastFinancialState,value=>reportNumber(value,0))} meses`;
+  return [
+    `<p><strong>${escapeHtml(businessCase.definitions?.case_kinds?.[item.case_kind]?.label||item.case_kind)}</strong> · horizonte ${Number(item.horizon_months||0)} meses · taxa de desconto ${reportNumber(item.discount_rate_pct,2)}%</p>`,
+    `<p><strong>Estado dos valores:</strong> ${valuesStatus}</p>`,
+    `<p><strong>Conclusão automática auditável:</strong> ${escapeHtml(businessCase.executive_conclusion||'Ainda sem dados suficientes.')}</p>`,
+    '<dl class="measure">',
+    `<div><dt>Orçamento / custo projetado</dt><dd>${metricMoney(metrics.budget_base,'budget_base','costs')} · ${metricMoney(metrics.forecast_cost_at_completion,'forecast_cost','costs')}</dd></div>`,
+    `<div><dt>Custo comprometido / realizado</dt><dd>${metricMoney(metrics.committed_cost,'committed_cost','costs')} · ${metricMoney(metrics.realized_cost,'realized_cost','costs')}</dd></div>`,
+    `<div><dt>Benefício esperado</dt><dd>${metricMoney(metrics.expected_gross_benefit,'expected_benefit','benefits')}</dd></div>`,
+    `<div><dt>Benefício realizado / com evidência revista</dt><dd>${metricMoney(metrics.realized_benefit,'realized_benefit','benefits')} · ${metricMoney(metrics.reviewed_evidence_realized_benefit,'reviewed_evidence_realized_benefit','benefits')}</dd></div>`,
+    `<div><dt>Benefício líquido projetado</dt><dd>${metricMoney(metrics.forecast_net_benefit,'forecast_financial','financial')}</dd></div>`,
+    `<div><dt>ROI / payback</dt><dd>${roi} · ${payback}</dd></div>`,
+    `<div><dt>Esforço / bloqueios</dt><dd>${metricNumber(metrics.actual_human_hours,2,'actual_human_hours','human_hours')} h realizadas · ${metricNumber(metrics.planned_human_hours,2,'planned_human_hours','human_hours')} h previstas · ${metricNumber(metrics.blocked_resource_count,0,'resources')} recursos bloqueados</dd></div>`,
+    `<div><dt>Encargo anual posterior</dt><dd>${metricMoney(metrics.annual_post_mission_burden,'post_mission_costs')}</dd></div>`,
+    `<div><dt>Financiamento / lacuna</dt><dd>${metricMoney(metrics.funding_available,'funding')} · ${metricMoney(metrics.funding_gap,'funding_gap')}</dd></div>`,
+    '</dl>',
+    `<h3>Cenários</h3><div style="overflow-x:auto"><table><thead><tr><th>Cenário</th><th>Custo</th><th>Benefício</th><th>Líquido</th><th>ROI</th><th>Payback</th><th>VAL</th></tr></thead><tbody>${scenarios}</tbody></table></div>`,
+    alternativeRows?`<h3>Alternativas · economia e recursos</h3><div style="overflow-x:auto"><table><thead><tr><th>Alternativa</th><th>Custo</th><th>Recursos</th><th>Benefício provável</th><th>Líquido</th><th>ROI</th><th>Payback</th></tr></thead><tbody>${alternativeRows}</tbody></table></div>`:'',
+    `<h3>Custos, benefícios e recursos</h3>${lines}<h3>Alertas e limites</h3>${warnings}`,
+    `<small>Revisão ${Number(item.revision||0)} · estado ${escapeHtml(item.status||'')} · qualidade ${qualityLabel} · SHA-256 ${escapeHtml(item.content_hash||'a sincronizar')}</small>`,
+  ].join('');
 }
 
 function completeReportHtml(snapshot){
   const mission=snapshot.mission||{};
+  const governedPolicy=snapshot.completion_readiness?.governed_state?.policy||{};
   const graph=snapshot.evidence_graph||{};
   const nodes=graph.nodes||[];
   const cycles=snapshot.decision_cycles||[];
   const section=(heading,content)=>`<section><h2>${escapeHtml(heading)}</h2>${content}</section>`;
   const text=value=>`<div class="pre">${escapeHtml(value||'Não registado')}</div>`;
   const list=(rows,renderer,empty='Sem registos.')=>rows.length?`<ol>${rows.map(renderer).join('')}</ol>`:`<p class="muted">${escapeHtml(empty)}</p>`;
-  const evidence=list(nodes,node=>`<li><strong>${escapeHtml(node.node_type)} · ${escapeHtml(node.label)}</strong><div>${escapeHtml(node.body||'')}</div><small>${escapeHtml(node.status||'')} · ${escapeHtml(node.source_kind||'')} ${node.source_sha256?`· hash ${escapeHtml(String(node.source_sha256).slice(0,16))}…`:''}</small></li>`,'Sem objetos no Evidence Graph.');
-  const decisions=list(cycles,cycle=>`<li><strong>${escapeHtml(cycle.decision)}</strong><div>Ação: ${escapeHtml(cycle.action||'não definida')}<br>Responsável/prazo: ${escapeHtml(cycle.owner||'—')} · ${escapeHtml(cycle.due_date||'—')}<br>Esperado: ${escapeHtml(cycle.expected_outcome||'—')}<br>Observado: ${escapeHtml(cycle.actual_outcome||'—')}<br>Aprendizagem: ${escapeHtml(cycle.learning||'—')}</div><small>Estado: ${escapeHtml(cycle.status||'')}</small></li>`,'Sem ciclos de decisão.');
+  const evidence=list(nodes,node=>`<li><strong>${escapeHtml(reportLabel('node_type',node.node_type))} · ${escapeHtml(node.label)}</strong><div>${escapeHtml(node.body||'')}</div><small>${escapeHtml(reportLabel('node_status',node.status))} · ${escapeHtml(reportLabel('source_kind',node.source_kind))} ${node.source_sha256?`· hash ${escapeHtml(String(node.source_sha256).slice(0,16))}…`:''}</small></li>`,'Sem objetos no Evidence Graph.');
+  const decisions=list(cycles,cycle=>`<li><strong>${escapeHtml(cycle.decision)}</strong><div>Ação: ${escapeHtml(cycle.action||'não definida')}<br>Responsável/prazo: ${escapeHtml(cycle.owner||'—')} · ${escapeHtml(cycle.due_date||'—')}<br>Esperado: ${escapeHtml(cycle.expected_outcome||'—')}<br>Observado: ${escapeHtml(cycle.actual_outcome||'—')}<br>Aprendizagem: ${escapeHtml(cycle.learning||'—')}</div><small>Estado: ${escapeHtml(reportLabel('cycle_status',cycle.status))}</small></li>`,'Sem ciclos de decisão.');
   const documents=list(snapshot.attachments||[],item=>`<li><strong>${escapeHtml(item.filename||'Documento')}</strong><div>${escapeHtml(item.extraction_status||'registado')} · ${Number(item.byte_size||0)} bytes</div><small>SHA-256 ${escapeHtml(item.sha256||'não disponível')}</small></li>`,'Sem documentos.');
   const checks=list(snapshot.completion_readiness?.checks||[],check=>`<li><strong>${check.passed?'✓':'○'} ${escapeHtml(check.label)}</strong><small>${Number(check.count||0)} registo(s)</small></li>`,'Prontidão não calculada.');
+  const audit=list(snapshot.mission_audit?.events||[],event=>`<li><strong>${escapeHtml(AUDIT_ACTION_LABELS[event.action]||String(event.action||'Alteração auditada').replaceAll('_',' ').replaceAll('.',' · '))}</strong><div>${escapeHtml(event.payload?.rationale||'')}</div><small>${escapeHtml(event.actor||'Sistema')}${event.created_at?` · ${escapeHtml(new Date(event.created_at).toLocaleString('pt-PT'))}`:''}</small></li>`,'Sem eventos auditáveis nesta janela.');
+  const auditScope=snapshot.mission_audit?.scope_complete===false?'<p class="muted">A cronologia contém a janela mais recente; podem existir eventos anteriores no arquivo do workspace.</p>':'';
   const generated=new Date(snapshot.generated_at).toLocaleString('pt-PT');
-  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(mission.code)} — ${escapeHtml(mission.title)}</title><style>body{margin:0;background:#f6f3ea;color:#10231d;font:15px/1.65 Arial,sans-serif}main{max-width:940px;margin:auto;padding:54px}header{padding-bottom:28px;border-bottom:2px solid #c99a43}.brand{font-weight:800;letter-spacing:.13em;color:#103d32}h1,h2{font-family:Georgia,serif;font-weight:500}h1{font-size:42px;line-height:1.05;margin:20px 0 8px}h2{font-size:24px;margin:28px 0 9px}section{padding-bottom:18px;border-bottom:1px solid #d8dfda}.pre{white-space:pre-wrap}li{margin:0 0 14px}li small,.muted,.meta,.stamp{color:#687971}.measure{display:grid;gap:1px;border:1px solid #d8dfda;background:#d8dfda}.measure div{display:grid;grid-template-columns:180px 1fr;gap:16px;background:#fff;padding:9px}.measure dt{color:#687971}.measure dd{margin:0;font-weight:700}table{width:100%;border-collapse:collapse}th,td{padding:7px;border:1px solid #d8dfda;text-align:right}th:first-child,td:first-child{text-align:left}.stamp{margin-top:34px;font-size:12px;overflow-wrap:anywhere}@media print{body{background:#fff}main{padding:16mm}}</style></head><body><main><header><div class="brand">SRIS · MISSION INTELLIGENCE</div><h1>${escapeHtml(mission.title)}</h1><div class="meta">${escapeHtml(mission.code)} · revisão ${Number(mission.revision||1)} · ${escapeHtml(mission.lifecycle_state||'active')}</div></header>${section('Objetivo',text(mission.objective))}${section('Pergunta central',text(mission.central_question))}${section('Contexto',text(mission.context))}${section('Documentos e integridade',documents)}${section('Evidência, hipóteses e alternativas',evidence)}${section('Baseline → intervenção → resultado',validationReportHtml(snapshot.validation_protocol))}${section('Business case vivo · economia e recursos',businessCaseReportHtml(snapshot.live_business_case))}${section('Decisão → ação → resultado → aprendizagem',decisions)}${section('Prontidão para conclusão',checks)}${section('Memória da missão',list(snapshot.mission_memory||[],item=>`<li><strong>${escapeHtml(item.title||item.item_type||'Memória')}</strong><div>${escapeHtml(item.summary||'')}</div></li>`,'Sem itens de memória canónica.'))}${section('Revisões preservadas',list(snapshot.mission_revisions||[],item=>`<li><strong>Revisão ${Number(item.revision||1)}</strong><div>${escapeHtml(item.change_note||'')}</div><small>SHA-256 ${escapeHtml(item.content_hash||'')}</small></li>`,'Sem revisões.'))}<div class="stamp">Gerado em ${escapeHtml(generated)} · arquivo ${escapeHtml(snapshot.integrity.digest)} · hash canónico da missão ${escapeHtml(snapshot.integrity.mission_content_hash||'não disponível')}. Documento de trabalho sujeito a revisão humana.</div></main></body></html>`;
+  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(mission.code)} — ${escapeHtml(mission.title)}</title><style>body{margin:0;background:#f6f3ea;color:#10231d;font:15px/1.65 Arial,sans-serif}main{max-width:940px;margin:auto;padding:54px}header{padding-bottom:28px;border-bottom:2px solid #c99a43}.brand{font-weight:800;letter-spacing:.13em;color:#103d32}h1,h2{font-family:Georgia,serif;font-weight:500}h1{font-size:42px;line-height:1.05;margin:20px 0 8px}h2{font-size:24px;margin:28px 0 9px}section{padding-bottom:18px;border-bottom:1px solid #d8dfda}.pre{white-space:pre-wrap}li{margin:0 0 14px}li small,.muted,.meta,.stamp{color:#687971}.measure{display:grid;gap:1px;border:1px solid #d8dfda;background:#d8dfda}.measure div{display:grid;grid-template-columns:180px 1fr;gap:16px;background:#fff;padding:9px}.measure dt{color:#687971}.measure dd{margin:0;font-weight:700}table{width:100%;border-collapse:collapse}th,td{padding:7px;border:1px solid #d8dfda;text-align:right}th:first-child,td:first-child{text-align:left}.stamp{margin-top:34px;font-size:12px;overflow-wrap:anywhere}@media(max-width:680px){main{padding:24px 16px}.measure div{grid-template-columns:1fr;gap:3px}h1{font-size:32px}}@media print{body{background:#fff}main{padding:16mm}}</style></head><body><main><header><div class="brand">SRIS · MISSION INTELLIGENCE</div><h1>${escapeHtml(mission.title)}</h1><div class="meta">${escapeHtml(mission.code)} · revisão ${Number(mission.revision||1)} · ${escapeHtml(reportLabel('lifecycle',mission.lifecycle_state||'active'))}</div></header>${section('Objetivo',text(mission.objective))}${section('Pergunta central',text(mission.central_question))}${section('Contexto',text(mission.context))}${section('Documentos e integridade',documents)}${section('Evidência, hipóteses e alternativas',evidence)}${section('Baseline → intervenção → resultado',validationReportHtml(snapshot.validation_protocol,governedPolicy))}${section('Business case vivo · economia e recursos',businessCaseReportHtml(snapshot.live_business_case,governedPolicy))}${section('Decisão → ação → resultado → aprendizagem',decisions)}${section('Prontidão para conclusão',checks)}${section('Memória da missão',list(snapshot.mission_memory||[],item=>`<li><strong>${escapeHtml(item.title||reportLabel('node_type',item.item_type)||'Memória')}</strong><div>${escapeHtml(item.summary||'')}</div><small>${escapeHtml(reportLabel('node_status',item.state))}</small></li>`,'Sem itens de memória canónica.'))}${section('Revisões preservadas',list(snapshot.mission_revisions||[],item=>`<li><strong>Revisão ${Number(item.revision||1)}</strong><div>${escapeHtml(item.change_note||'')}</div><small>SHA-256 ${escapeHtml(item.content_hash||'')}</small></li>`,'Sem revisões.'))}${section('Histórico auditável',audit+auditScope)}<div class="stamp">Gerado em ${escapeHtml(generated)} · arquivo ${escapeHtml(snapshot.integrity.digest)} · hash canónico da missão ${escapeHtml(snapshot.integrity.mission_content_hash||'não disponível')}. Documento de trabalho sujeito a revisão humana.</div></main></body></html>`;
 }
 
 function reportMarkdown(snapshot){
@@ -1261,12 +1487,70 @@ function reportMarkdown(snapshot){
   const protocol=validation.protocol||{};
   const analysis=validation.analysis||{};
   const businessCase=snapshot.live_business_case||{};
+  const governedPolicy=snapshot.completion_readiness?.governed_state?.policy||{};
   const economic=businessCase.metrics||{};
   const economicCase=businessCase.case||{};
-  const measurement=(label,row)=>row?[`- **${label}:** ${row.period_start} → ${row.period_end}`,`  - Valor bruto: ${reportNumber(row.numerator_value)}`,`  - Atividade: ${reportNumber(row.denominator_value)}`,`  - Normalizado: ${reportNumber(row.normalized_value)} ${analysis.normalized_unit||''}`,`  - Evidência: ${row.evidence_node_id||'—'} · qualidade ${row.data_quality||'—'}`]:[`- **${label}:** não registada`];
-  const validationLines=validation.required?[`- **Perfil:** ${validation.profile_definition?.label||validation.profile}`,`- **Unidade observada:** ${protocol.subject||'—'}`,`- **Indicador:** ${protocol.indicator_name||'—'} · ${protocol.indicator_unit||'—'}`,`- **Normalização:** ${protocol.denominator_name||'sem denominador'} · ${protocol.denominator_unit||'—'}`,`- **Intervenção:** ${protocol.intervention_description||'—'}`,`- **Meta:** ${reportNumber(protocol.target_value)} · ${protocol.target_description||'—'}`,...measurement('Baseline',validation.baseline),...measurement('Resultado',validation.result),`- **Comparação determinística:** ${analysis.comparable?`${reportNumber(analysis.absolute_change)} ${analysis.normalized_unit||''} · ${reportNumber(analysis.percent_change,2)}% · ${analysis.target_status}`:'períodos ainda não comparáveis'}`,`- **Atribuição revista:** ${protocol.attribution_confidence||'pendente'}`,`- **Racional:** ${protocol.review_rationale||'—'}`,`- **Limitações:** ${protocol.limitations||'—'}`,`- **Integridade do protocolo:** revisão ${protocol.revision||1} · SHA-256 ${protocol.content_hash||'—'}`]:['- Esta missão não exige um protocolo quantitativo.'];
-  const businessLines=economicCase.id?[`- **Modelo:** ${businessCase.definitions?.case_kinds?.[economicCase.case_kind]?.label||economicCase.case_kind}`,`- **Conclusão automática auditável:** ${businessCase.executive_conclusion||'Ainda sem dados suficientes.'}`,`- **Horizonte:** ${economicCase.horizon_months} meses · taxa ${reportNumber(economicCase.discount_rate_pct,2)}%`,`- **Orçamento / custo projetado:** ${reportMoney(economic.budget_base,economicCase.currency)} / ${reportMoney(economic.forecast_cost_at_completion,economicCase.currency)}`,`- **Custo realizado:** ${reportMoney(economic.realized_cost,economicCase.currency)}`,`- **Benefício esperado / realizado / comprovado:** ${reportMoney(economic.expected_gross_benefit,economicCase.currency)} / ${reportMoney(economic.realized_benefit,economicCase.currency)} / ${reportMoney(economic.verified_realized_benefit,economicCase.currency)}`,`- **Benefício líquido projetado:** ${reportMoney(economic.forecast_net_benefit,economicCase.currency)}`,`- **ROI / payback:** ${economic.forecast_roi_pct==null?'—':`${reportNumber(economic.forecast_roi_pct,2)}%`} / ${economic.forecast_payback_months==null?'—':`${economic.forecast_payback_months} meses`}`,`- **Esforço humano / bloqueios:** ${reportNumber(economic.actual_human_hours,2)} h realizadas / ${reportNumber(economic.planned_human_hours,2)} h previstas / ${Number(economic.blocked_resource_count||0)} recursos bloqueados`,`- **Encargo anual posterior:** ${reportMoney(economic.annual_post_mission_burden,economicCase.currency)}`,`- **Qualidade / revisão:** ${reportNumber(businessCase.quality?.overall_score,1)}% · ${economicCase.status}`,...(businessCase.alternative_comparison?.profiles||[]).map(row=>`- **Alternativa · ${row.alternative_label}:** custo ${reportMoney(row.total_cost,economicCase.currency)} · benefício provável ${reportMoney(row.probable_gross_benefit,economicCase.currency)} · ROI ${row.roi_pct==null?'—':`${reportNumber(row.roi_pct,2)}%`}`),...(businessCase.items||[]).map(row=>`- **${row.alternative_node_id?`Alternativa ${row.alternative_label||'indisponível'}`:'Missão'} · ${row.label}** · ${row.kind} · ${row.amount_basis==='per_unit'?'unitário':'total'} · base ${reportMoney(row.base_amount,economicCase.currency)} · realizado ${reportMoney(row.realized_amount,economicCase.currency)} · estado ${row.operational_status||'planned'}${row.blocker?` · bloqueio ${row.blocker}`:''} · origem ${row.source_label||row.evidence_label||'não declarada'}`)]:['- O business case vivo ainda não foi iniciado.'];
-  const lines=[`# ${mission.title}`,``,`**Missão:** ${mission.code} · revisão ${mission.revision} · ${mission.lifecycle_state}`,`**Integridade do arquivo:** SHA-256 \`${snapshot.integrity.digest}\``,``,`## Objetivo`,``,mission.objective||'Não registado',``,`## Pergunta central`,``,mission.central_question||'Não registada',``,`## Contexto`,``,mission.context||'Não registado',``,`## Documentos`,``,...(snapshot.attachments.length?snapshot.attachments.map(item=>`- ${item.filename} — ${item.extraction_status} — SHA-256 ${item.sha256||'—'}`):['- Sem documentos.']),``,`## Evidência e raciocínio`,``,...(nodes.length?nodes.map(node=>`- **${node.node_type} · ${node.label}** [${node.status}] — ${node.body||''}`):['- Sem objetos no grafo.']),``,`## Baseline → intervenção → resultado`,``,...validationLines,``,`## Business case vivo · economia e recursos`,``,...businessLines,``,`## Decisão, resultado e aprendizagem`,``,...(cycles.length?cycles.map(cycle=>`- **${cycle.decision}** [${cycle.status}]\n  - Ação: ${cycle.action||'—'}\n  - Responsável/prazo: ${cycle.owner||'—'} · ${cycle.due_date||'—'}\n  - Esperado: ${cycle.expected_outcome||'—'}\n  - Observado: ${cycle.actual_outcome||'—'}\n  - Aprendizagem: ${cycle.learning||'—'}`):['- Sem decisões.']),``,`## Prontidão`,``,...(snapshot.completion_readiness?.checks||[]).map(check=>`- [${check.passed?'x':' '}] ${check.label}`),``,`---`,`Gerado pelo SRIS Mission Intelligence em ${new Date(snapshot.generated_at).toLocaleString('pt-PT')}. Revisão humana obrigatória.`];
+  const auditEvents=snapshot.mission_audit?.events||[];
+  const measurement=(label,row)=>row?[`- **${label}:** ${row.period_start} → ${row.period_end}`,`  - Valor bruto: ${reportNumber(row.numerator_value)}`,`  - Atividade: ${reportNumber(row.denominator_value)}`,`  - Normalizado: ${reportNumber(row.normalized_value)} ${analysis.normalized_unit||''}`,`  - Evidência: ${row.evidence_node_id||'—'} · qualidade ${reportLabel('data_quality',row.data_quality)}`]:[`- **${label}:** não registada`];
+  const validationMissingMessage=governedPolicy.measurement_applicability==='required'
+    ?'- A medição é obrigatória nesta missão, mas o protocolo quantitativo ainda não foi iniciado.'
+    :governedPolicy.measurement_applicability==='not_applicable'
+      ?'- A medição foi marcada como não aplicável numa revisão humana da política da missão.'
+      :'- A medição é opcional nesta missão e o protocolo quantitativo ainda não foi iniciado.';
+  const validationLines=validation.required?[`- **Perfil:** ${validation.profile_definition?.label||validation.profile}`,`- **Unidade observada:** ${protocol.subject||'—'}`,`- **Indicador:** ${protocol.indicator_name||'—'} · ${protocol.indicator_unit||'—'}`,`- **Normalização:** ${protocol.denominator_name||'sem denominador'} · ${protocol.denominator_unit||'—'}`,`- **Intervenção:** ${protocol.intervention_description||'—'}`,`- **Meta:** ${reportNumber(protocol.target_value)} · ${protocol.target_description||'—'}`,...measurement('Baseline',validation.baseline),...measurement('Resultado',validation.result),`- **Comparação determinística:** ${analysis.comparable?`${reportNumber(analysis.absolute_change)} ${analysis.normalized_unit||''} · ${reportNumber(analysis.percent_change,2)}% · ${reportLabel('target_status',analysis.target_status)}`:'períodos ainda não comparáveis'}`,`- **Atribuição revista:** ${protocol.attribution_confidence?reportLabel('confidence',protocol.attribution_confidence):'Pendente'}`,`- **Racional:** ${protocol.review_rationale||'—'}`,`- **Limitações:** ${protocol.limitations||'—'}`,`- **Integridade do protocolo:** revisão ${protocol.revision||1} · SHA-256 ${protocol.content_hash||'—'}`]:[validationMissingMessage];
+  const economicStates=businessCase.metric_states||{};
+  const economicKnown=businessCase.metrics_state==='observed_or_estimated';
+  const economicState=(key,fallback=key)=>economicStates[key]||economicStates[fallback]||'unknown_not_zero';
+  const economicAvailable=state=>state!=='unknown_not_zero';
+  const economicValue=(value,state,formatter)=>{
+    if(!economicAvailable(state)||value===null||value===undefined)return'—';
+    const rendered=formatter(value);
+    return state==='partial_observed_or_estimated'?`Parcial · ${rendered}`:rendered;
+  };
+  const economicMoney=(value,key='forecast_financial',fallback='financial')=>economicValue(value,economicState(key,fallback),amount=>reportMoney(amount,economicCase.currency));
+  const economicNumber=(value,digits,key,fallback=key)=>economicValue(value,economicState(key,fallback),amount=>reportNumber(amount,digits));
+  const economicHasPartial=Object.values(economicStates).includes('partial_observed_or_estimated');
+  const economicStatus=!economicKnown
+    ?'por determinar — ausência de linhas não significa zero'
+    :economicHasPartial
+      ?'parcial — alguns indicadores continuam por determinar'
+      :'estimativas ou observações registadas';
+  const forecastFinancialState=economicState('forecast_financial','financial');
+  const forecastRoi=!economicAvailable(forecastFinancialState)||economic.forecast_roi_pct==null?'—':`${economicValue(economic.forecast_roi_pct,forecastFinancialState,value=>reportNumber(value,2))}%`;
+  const forecastPayback=!economicAvailable(forecastFinancialState)||economic.forecast_payback_months==null?'—':`${economicValue(economic.forecast_payback_months,forecastFinancialState,value=>reportNumber(value,0))} meses`;
+  const economicQuality=Number(businessCase.quality?.monetary_line_count||0)>0?`${reportNumber(businessCase.quality?.overall_score,1)}%`:'— · ainda não avaliável';
+  const businessLines=economicCase.id?[
+    `- **Modelo:** ${businessCase.definitions?.case_kinds?.[economicCase.case_kind]?.label||economicCase.case_kind}`,
+    `- **Estado dos valores:** ${economicStatus}`,
+    `- **Conclusão automática auditável:** ${businessCase.executive_conclusion||'Ainda sem dados suficientes.'}`,
+    `- **Horizonte:** ${economicCase.horizon_months} meses · taxa ${reportNumber(economicCase.discount_rate_pct,2)}%`,
+    `- **Orçamento / custo projetado:** ${economicMoney(economic.budget_base,'budget_base','costs')} / ${economicMoney(economic.forecast_cost_at_completion,'forecast_cost','costs')}`,
+    `- **Custo comprometido / realizado:** ${economicMoney(economic.committed_cost,'committed_cost','costs')} / ${economicMoney(economic.realized_cost,'realized_cost','costs')}`,
+    `- **Benefício esperado / realizado / com evidência revista:** ${economicMoney(economic.expected_gross_benefit,'expected_benefit','benefits')} / ${economicMoney(economic.realized_benefit,'realized_benefit','benefits')} / ${economicMoney(economic.reviewed_evidence_realized_benefit,'reviewed_evidence_realized_benefit','benefits')}`,
+    `- **Benefício líquido projetado:** ${economicMoney(economic.forecast_net_benefit,'forecast_financial','financial')}`,
+    `- **ROI / payback:** ${forecastRoi} / ${forecastPayback}`,
+    `- **Esforço humano / bloqueios:** ${economicNumber(economic.actual_human_hours,2,'actual_human_hours','human_hours')} h realizadas / ${economicNumber(economic.planned_human_hours,2,'planned_human_hours','human_hours')} h previstas / ${economicNumber(economic.blocked_resource_count,0,'resources')} recursos bloqueados`,
+    `- **Encargo anual posterior:** ${economicMoney(economic.annual_post_mission_burden,'post_mission_costs')}`,
+    `- **Financiamento / lacuna:** ${economicMoney(economic.funding_available,'funding')} / ${economicMoney(economic.funding_gap,'funding_gap')}`,
+    `- **Qualidade / revisão:** ${economicQuality} · ${economicCase.status}`,
+    ...(businessCase.alternative_comparison?.profiles||[]).map(row=>{
+      const states=row.metric_states||{};
+      const profileState=(key,fallback=key)=>states[key]||states[fallback]||'unknown_not_zero';
+      const costsState=profileState('scenario_base_costs','costs');
+      const benefitsState=profileState('scenario_base_benefits','benefits');
+      const financialState=profileState('scenario_base_financial','financial');
+      const cost=economicValue(row.total_cost,costsState,value=>reportMoney(value,economicCase.currency));
+      const benefit=economicValue(row.probable_gross_benefit,benefitsState,value=>reportMoney(value,economicCase.currency));
+      const roi=!economicAvailable(financialState)||row.roi_pct==null?'—':`${economicValue(row.roi_pct,financialState,value=>reportNumber(value,2))}%`;
+      return`- **Alternativa · ${row.alternative_label}:** custo ${cost} · benefício provável ${benefit} · ROI ${roi}`;
+    }),
+    ...(businessCase.items||[]).map(row=>`- **${row.alternative_node_id?`Alternativa ${row.alternative_label||'indisponível'}`:'Missão'} · ${row.label}** · ${businessDefinitionLabel(businessCase,'item_kinds',row.kind)} · ${row.amount_basis==='per_unit'?'unitário':'total'} · base ${reportMoney(row.base_amount,economicCase.currency)} · realizado ${reportMoney(row.realized_amount,economicCase.currency)} · estado ${reportLabel('operational_status',row.operational_status||'planned')}${row.blocker?` · bloqueio ${row.blocker}`:''} · origem ${row.source_label||row.evidence_label||'não declarada'}`),
+  ]:[governedPolicy.economics_applicability==='not_applicable'
+    ?'- Economia e recursos foram marcados como não aplicáveis numa revisão humana da política da missão.'
+    :governedPolicy.economics_applicability==='optional'
+      ?'- Economia e recursos são opcionais nesta missão e o business case vivo ainda não foi iniciado.'
+      :'- Economia e recursos são obrigatórios nesta missão, mas o business case vivo ainda não foi iniciado.'];
+  const lines=[`# ${mission.title}`,``,`**Missão:** ${mission.code} · revisão ${mission.revision} · ${reportLabel('lifecycle',mission.lifecycle_state)}`,`**Integridade do arquivo:** SHA-256 \`${snapshot.integrity.digest}\``,``,`## Objetivo`,``,mission.objective||'Não registado',``,`## Pergunta central`,``,mission.central_question||'Não registada',``,`## Contexto`,``,mission.context||'Não registado',``,`## Documentos`,``,...(snapshot.attachments.length?snapshot.attachments.map(item=>`- ${item.filename} — ${reportLabel('extraction_status',item.extraction_status)} — SHA-256 ${item.sha256||'—'}`):['- Sem documentos.']),``,`## Evidência e raciocínio`,``,...(nodes.length?nodes.map(node=>`- **${reportLabel('node_type',node.node_type)} · ${node.label}** [${reportLabel('node_status',node.status)}] — ${node.body||''}`):['- Sem objetos no grafo.']),``,`## Baseline → intervenção → resultado`,``,...validationLines,``,`## Business case vivo · economia e recursos`,``,...businessLines,``,`## Decisão, resultado e aprendizagem`,``,...(cycles.length?cycles.map(cycle=>`- **${cycle.decision}** [${reportLabel('cycle_status',cycle.status)}]\n  - Ação: ${cycle.action||'—'}\n  - Responsável/prazo: ${cycle.owner||'—'} · ${cycle.due_date||'—'}\n  - Esperado: ${cycle.expected_outcome||'—'}\n  - Observado: ${cycle.actual_outcome||'—'}\n  - Aprendizagem: ${cycle.learning||'—'}`):['- Sem decisões.']),``,`## Prontidão`,``,...(snapshot.completion_readiness?.checks||[]).map(check=>`- [${check.passed?'x':' '}] ${check.label}`),``,`## Histórico auditável`,``,...(auditEvents.length?auditEvents.map(event=>`- **${AUDIT_ACTION_LABELS[event.action]||String(event.action||'Alteração auditada').replaceAll('_',' ').replaceAll('.',' · ')}** — ${event.actor||'Sistema'}${event.created_at?` · ${new Date(event.created_at).toLocaleString('pt-PT')}`:''}${event.payload?.rationale?`\n  - Justificação: ${event.payload.rationale}`:''}`):['- Sem eventos auditáveis nesta janela.']),...(snapshot.mission_audit?.scope_complete===false?['- Nota: podem existir eventos anteriores fora da janela mais recente.']:[]),``,`---`,`Gerado pelo SRIS Mission Intelligence em ${new Date(snapshot.generated_at).toLocaleString('pt-PT')}. Revisão humana obrigatória.`];
   return lines.join('\n');
 }
 
@@ -1306,15 +1590,50 @@ $$('[data-report]').forEach(button=>button.addEventListener('click',()=>exportRe
 
 async function loadHistory(){
   if(!selectedMission)return;
+  const root=$('#dialogue-history');
+  if(!root)return;
   try{
-    const rows=await api(`${miBase()}/dialogues?mission_code=${encodeURIComponent(selectedMission.code)}`);
-    missionRuntime.dialogues=rows;
-    const root=$('#dialogue-history');
-    if(!root)return;
-    root.innerHTML=rows.length?rows.map(dialogue=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>${escapeHtml(dialogue.status||'Sessão analítica')}</strong><div class="note">${dialogue.created_at?new Date(dialogue.created_at).toLocaleString('pt-PT'):''}</div></div></div>`).join(''):'<div class="note">Ainda não existem sessões interativas nesta missão.</div>';
-  }catch{
-    const root=$('#dialogue-history');
-    if(root)root.innerHTML='<div class="note">Histórico temporariamente indisponível.</div>';
+    const [dialogueResult,auditResult]=await Promise.allSettled([
+      api(`${miBase()}/dialogues?mission_code=${encodeURIComponent(selectedMission.code)}`),
+      api(`/api/pilot/audit/missions/${encodeURIComponent(selectedMission.code)}?limit=300`),
+    ]);
+    const dialogues=dialogueResult.status==='fulfilled'?(dialogueResult.value||[]):[];
+    const auditPayload=auditResult.status==='fulfilled'?(auditResult.value||{}):{};
+    const audit=auditPayload.events||[];
+    missionRuntime.dialogues=dialogues;
+    const items=audit.map(event=>{
+      const payload=event.payload||{};
+      const details=[
+        payload.rationale,
+        payload.previous_status&&payload.status?`${reportLabel('cycle_status',payload.previous_status)} → ${reportLabel('cycle_status',payload.status)}`:'',
+        payload.revision?`Revisão ${payload.revision}`:'',
+        Array.isArray(payload.changed_fields)&&payload.changed_fields.length?`${payload.changed_fields.length} campo(s) alterado(s)`:''
+      ].filter(Boolean).join(' · ');
+      return{
+        key:`audit:${event.id}`,
+        created_at:event.created_at,
+        label:AUDIT_ACTION_LABELS[event.action]||String(event.action||'Alteração auditada').replaceAll('_',' ').replaceAll('.',' · '),
+        detail:details,
+        actor:event.actor||'Sistema',
+      };
+    });
+    const auditedSessionIds=new Set(audit.map(event=>String(event.resource_id||'')));
+    dialogues.forEach(dialogue=>{
+      if(auditedSessionIds.has(String(dialogue.id||'')))return;
+      items.push({
+        key:`dialogue:${dialogue.id}`,
+        created_at:dialogue.created_at,
+        label:'Sessão assistida',
+        detail:dialogue.status?`Estado: ${dialogue.status}`:'',
+        actor:'Utilizador autenticado',
+      });
+    });
+    items.sort((left,right)=>new Date(right.created_at||0)-new Date(left.created_at||0));
+    root.innerHTML=items.length?items.map(item=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>${escapeHtml(item.label)}</strong>${item.detail?`<div>${escapeHtml(item.detail)}</div>`:''}<div class="note">${escapeHtml(item.actor)}${item.created_at?` · ${new Date(item.created_at).toLocaleString('pt-PT')}`:''}</div></div></div>`).join(''):'<div class="note">Ainda não existem alterações auditadas nesta missão.</div>';
+    if(auditResult.status==='rejected')root.insertAdjacentHTML('beforeend','<div class="note">A auditoria transversal está temporariamente indisponível; são mostradas apenas as sessões acessíveis.</div>');
+    else if(auditPayload.scope_complete===false)root.insertAdjacentHTML('beforeend','<div class="note">Este histórico cobre os eventos mais recentes do workspace; podem existir registos mais antigos fora desta janela.</div>');
+  }catch(error){
+    root.innerHTML=`<div class="note">Histórico temporariamente indisponível: ${escapeHtml(error.message)}</div>`;
   }
 }
 

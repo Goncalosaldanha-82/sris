@@ -149,11 +149,23 @@ def mission_completion_readiness(
     cycles = db.execute(
         text(
             """
-            SELECT id, status, action, owner, due_date, expected_outcome,
-                   evidence_node_id, action_started_at, actual_outcome_at,
-                   outcome_evidence_node_id, actual_outcome, learning
-            FROM pilot_decision_cycles
-            WHERE organization_id=:org AND mission_code=:mission
+            SELECT cycle.id, cycle.status, cycle.action, cycle.owner,
+                   cycle.due_date, cycle.expected_outcome,
+                   cycle.evidence_node_id, foundation.status AS evidence_status,
+                   cycle.action_started_at, cycle.actual_outcome_at,
+                   cycle.outcome_evidence_node_id,
+                   outcome_foundation.status AS outcome_evidence_status,
+                   cycle.actual_outcome, cycle.learning
+            FROM pilot_decision_cycles cycle
+            LEFT JOIN pilot_evidence_graph_nodes foundation
+              ON foundation.id=cycle.evidence_node_id
+             AND foundation.organization_id=cycle.organization_id
+             AND foundation.mission_code=cycle.mission_code
+            LEFT JOIN pilot_evidence_graph_nodes outcome_foundation
+              ON outcome_foundation.id=cycle.outcome_evidence_node_id
+             AND outcome_foundation.organization_id=cycle.organization_id
+             AND outcome_foundation.mission_code=cycle.mission_code
+            WHERE cycle.organization_id=:org AND cycle.mission_code=:mission
             """
         ),
         {"org": organization_id, "mission": mission_code},
@@ -163,6 +175,7 @@ def mission_completion_readiness(
         for row in cycles
         if row["status"] == "completed"
         and str(row["evidence_node_id"] or "").strip()
+        and row["evidence_status"] in {"accepted", "verified"}
         and str(row["action"] or "").strip()
         and str(row["owner"] or "").strip()
         and row["due_date"] is not None
@@ -170,8 +183,12 @@ def mission_completion_readiness(
         and row["action_started_at"] is not None
         and row["actual_outcome_at"] is not None
         and str(row["outcome_evidence_node_id"] or "").strip()
+        and row["outcome_evidence_status"] in {"accepted", "verified"}
         and str(row["actual_outcome"] or "").strip()
         and str(row["learning"] or "").strip()
+    ]
+    open_cycles = [
+        row for row in cycles if row["status"] not in {"completed", "abandoned"}
     ]
 
     published_learning = 0
@@ -230,6 +247,12 @@ def mission_completion_readiness(
             "label": "Decisão, ação, resultado e aprendizagem completos",
             "passed": len(completed_cycles) > 0,
             "count": len(completed_cycles),
+        },
+        {
+            "key": "decision_cycles_resolved",
+            "label": "Sem ciclos de decisão ainda abertos",
+            "passed": not open_cycles,
+            "count": len(cycles) - len(open_cycles),
         },
         {
             "key": "learning_reviewed",

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.atlas_platform.auth import require_org_role
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role
+from app.mission_intelligence.lifecycle import require_mutable_mission
 
 from .ai import (
     configured_pilot_organization_id,
@@ -262,6 +263,26 @@ def _attachment_error(exc: AttachmentError) -> HTTPException:
     )
 
 
+def _mutable_mission_by_code(
+    db: Session,
+    *,
+    organization_id: str,
+    mission_code: str,
+) -> CanonicalMission:
+    mission = (
+        db.query(CanonicalMission)
+        .filter(
+            CanonicalMission.organization_id == organization_id,
+            CanonicalMission.code == mission_code,
+        )
+        .one_or_none()
+    )
+    if mission is None:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    require_mutable_mission(mission)
+    return mission
+
+
 @organization_router.post("/missions/{mission_code}/attachments", status_code=201)
 async def upload_mission_attachment(
     organization_id: str,
@@ -279,6 +300,11 @@ async def upload_mission_attachment(
     ),
     db: Session = Depends(get_db),
 ) -> dict:
+    _mutable_mission_by_code(
+        db,
+        organization_id=organization_id,
+        mission_code=mission_code,
+    )
     content = await file.read(MAX_ATTACHMENT_BYTES + 1)
     try:
         row = create_attachment(
@@ -404,6 +430,11 @@ def remove_mission_attachment(
     ),
     db: Session = Depends(get_db),
 ) -> Response:
+    _mutable_mission_by_code(
+        db,
+        organization_id=organization_id,
+        mission_code=mission_code,
+    )
     row = get_attachment(
         db,
         organization_id=organization_id,

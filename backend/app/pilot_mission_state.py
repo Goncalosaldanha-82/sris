@@ -16,6 +16,7 @@ from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role, User
 from app.mission_intelligence.models import CanonicalMission
+from app.evidence_graph import _require_mission_mutable
 from app.pilot_serialization import as_iso
 
 
@@ -441,15 +442,24 @@ def _module_payloads(db: Session, mission: CanonicalMission) -> dict[str, Any]:
         )
 
     packets: list[dict[str, Any]] = []
-    if _table_exists(db, "pilot_learning_packets"):
+    if _table_exists(db, "pilot_learning_packets") and _table_exists(
+        db, "pilot_evidence_graph_nodes"
+    ):
         packets = _rows(
             db,
             """
-            SELECT id, source_learning_node_id, title, statement,
-                   lineage_sha256, created_at, updated_at
-            FROM pilot_learning_packets
-            WHERE organization_id=:org AND source_mission_id=:mission
-            ORDER BY id
+            SELECT packet.id, packet.source_learning_node_id, packet.title,
+                   packet.statement, packet.lineage_sha256,
+                   packet.created_at, packet.updated_at
+            FROM pilot_learning_packets packet
+            JOIN pilot_evidence_graph_nodes source_node
+              ON source_node.id=packet.source_learning_node_id
+             AND source_node.organization_id=packet.organization_id
+             AND source_node.mission_id=packet.source_mission_id
+            WHERE packet.organization_id=:org
+              AND packet.source_mission_id=:mission
+              AND source_node.status IN ('accepted','verified')
+            ORDER BY packet.id
             """,
             params,
         )
@@ -534,6 +544,7 @@ def _module_hashes(payloads: dict[str, Any]) -> dict[str, str | None]:
         "constraint",
         "gap",
         "hypothesis",
+        "target",
         "alternative",
     }
     epistemic_nodes = [
@@ -971,6 +982,21 @@ def _structured_conflicts(
             ["mission"],
         )
 
+    open_cycles = [
+        row
+        for row in payloads["decision"]
+        if row.get("status") not in {"completed", "abandoned"}
+    ]
+    if mission.lifecycle_state == "completed" and open_cycles:
+        add(
+            "completed_mission_with_open_decision_cycle",
+            "critical",
+            "Missão concluída com decisão ainda aberta",
+            "Uma decisão foi reaberta ou continua em curso. Reative a missão, corrija a cadeia e só depois volte a concluí-la.",
+            ["mission", "decision", "action", "outcome", "learning"],
+            [f"CYCLE:{row['id']}" for row in open_cycles],
+        )
+
     economics_required = policy["economics_applicability"] == "required"
     measurement_required = policy["measurement_applicability"] == "required"
     comparison_required = policy["alternatives_applicability"] == "required"
@@ -1091,6 +1117,22 @@ def _structured_conflicts(
                 [module_key, *REVIEW_UPSTREAMS[module_key]],
             )
 
+    active_node_by_id = {
+        str(row["id"]): row
+        for row in payloads["evidence"]["nodes"]
+        if row.get("status") not in {"rejected", "superseded"}
+    }
+    active_evidence_ids = {
+        node_id
+        for node_id, row in active_node_by_id.items()
+        if row.get("node_type") == "evidence"
+    }
+    reviewed_evidence_ids = {
+        node_id
+        for node_id, row in active_node_by_id.items()
+        if row.get("node_type") == "evidence"
+        and row.get("status") in {"accepted", "verified"}
+    }
     governed_cycles = [
         row
         for row in payloads["decision"]
@@ -1112,6 +1154,35 @@ def _structured_conflicts(
         ("validation", "validation_content_hash", policy["measurement_applicability"]),
     )
     for cycle in governed_cycles:
+        cycle_id = str(cycle.get("id"))
+        foundation_evidence = str(cycle.get("evidence_node_id") or "")
+        if not foundation_evidence:
+            add(
+                f"decision_evidence_missing:{cycle_id}",
+                "critical",
+                "Decisão sem evidência de fundamento",
+                "Uma decisão governada tem de preservar a evidência humana que sustentou o compromisso.",
+                ["evidence", "decision"],
+                [f"CYCLE:{cycle_id}"],
+            )
+        elif foundation_evidence not in active_evidence_ids:
+            add(
+                f"decision_evidence_unavailable:{cycle_id}",
+                "critical",
+                "Evidência da decisão indisponível",
+                "A decisão governada não aponta para uma evidência ativa da própria missão.",
+                ["evidence", "decision"],
+                [f"CYCLE:{cycle_id}", f"GRAPH:{foundation_evidence}"],
+            )
+        elif foundation_evidence not in reviewed_evidence_ids:
+            add(
+                f"decision_evidence_unreviewed:{cycle_id}",
+                "critical",
+                "Evidência da decisão ainda não revista",
+                "Uma proposta factual não pode fundamentar uma decisão governada sem revisão humana explícita.",
+                ["evidence", "decision"],
+                [f"CYCLE:{cycle_id}", f"GRAPH:{foundation_evidence}"],
+            )
         stale_inputs: list[str] = []
         for module_key, snapshot_field, applicability in snapshot_dependencies:
             if applicability == "not_applicable":
@@ -1142,17 +1213,6 @@ def _structured_conflicts(
             [f"LEARNING:{row['id']}" for row in payloads["learning"]["packets"]],
         )
 
-    node_by_source = {
-        (row.get("source_kind"), row.get("source_id")): row
-        for row in payloads["evidence"]["nodes"]
-        if row.get("status") not in {"rejected", "superseded"}
-    }
-    active_evidence_ids = {
-        str(row["id"])
-        for row in payloads["evidence"]["nodes"]
-        if row.get("node_type") == "evidence"
-        and row.get("status") not in {"rejected", "superseded"}
-    }
     today = date.today()
     for cycle in payloads["decision"]:
         if cycle.get("status") != "completed":
@@ -1160,15 +1220,23 @@ def _structured_conflicts(
         cycle_id = str(cycle.get("id"))
         action_started = cycle.get("action_started_at")
         outcome_at = cycle.get("actual_outcome_at")
+        foundation_evidence = str(cycle.get("evidence_node_id") or "")
         outcome_evidence = str(cycle.get("outcome_evidence_node_id") or "")
         missing = [
             label
             for label, value in (
+                ("evidência que fundamenta a decisão", cycle.get("evidence_node_id")),
+                ("ação executada", cycle.get("action")),
+                ("responsável", cycle.get("owner")),
+                ("prazo", cycle.get("due_date")),
+                ("resultado esperado", cycle.get("expected_outcome")),
                 ("início real da ação", action_started),
+                ("resultado observado", cycle.get("actual_outcome")),
                 ("data do resultado", outcome_at),
                 ("evidência do resultado", outcome_evidence),
+                ("aprendizagem", cycle.get("learning")),
             )
-            if not value
+            if not str(value or "").strip()
         ]
         if missing:
             add(
@@ -1206,6 +1274,15 @@ def _structured_conflicts(
                 ["evidence", "outcome"],
                 [f"CYCLE:{cycle_id}", f"GRAPH:{outcome_evidence}"],
             )
+        elif outcome_evidence and outcome_evidence not in reviewed_evidence_ids:
+            add(
+                f"outcome_evidence_unreviewed:{cycle_id}",
+                "critical",
+                "Evidência do resultado ainda não revista",
+                "Um resultado não pode ser consolidado como facto sem revisão humana explícita da evidência que o comprova.",
+                ["evidence", "outcome"],
+                [f"CYCLE:{cycle_id}", f"GRAPH:{outcome_evidence}"],
+            )
         if outcome_evidence and outcome_evidence == str(cycle.get("evidence_node_id") or ""):
             add(
                 f"outcome_reuses_decision_evidence:{cycle_id}",
@@ -1215,7 +1292,9 @@ def _structured_conflicts(
                 ["evidence", "decision", "outcome"],
                 [f"CYCLE:{cycle_id}", f"GRAPH:{outcome_evidence}"],
             )
-        if ("decision_cycle", f"action:{cycle_id}") not in node_by_source:
+        action_node_id = str(cycle.get("action_node_id") or "")
+        materialized_action = active_node_by_id.get(action_node_id)
+        if not materialized_action or materialized_action.get("node_type") != "action":
             add(
                 f"action_not_materialized:{cycle_id}",
                 "critical",
@@ -1843,6 +1922,7 @@ def update_governance_policy(
             detail="A aplicabilidade da missão exige a função de revisor ou administrador.",
         )
     mission = _mission(db, membership.organization_id, mission_code)
+    _require_mission_mutable(mission)
     _ensure_schema(db)
     values = payload.model_dump(exclude={"expected_revision"})
     snapshot = {

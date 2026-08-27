@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
+from .lifecycle import require_mutable_mission
 
 from .ai import (
     DEFAULT_CONTEXT_RESEARCH_OUTPUT_TOKENS,
@@ -179,6 +180,23 @@ def apply_analysis_input(
 ) -> MissionDocumentV13:
     """Apply declared analysis context without promoting prose to evidence."""
 
+    # An empty analysis payload is the default used by the mission dialogue.
+    # Treating it as new information used to replace the stored contextual
+    # claims with empty strings and, consequently, create a canonical revision
+    # merely because somebody tried to open the AI assistant.  Empty input is
+    # absence of an instruction, not a governed change.
+    has_declared_context = any(
+        str(value or "").strip()
+        for value in (
+            payload.context,
+            payload.central_question,
+            payload.available_evidence,
+            payload.unknowns,
+        )
+    )
+    if not has_declared_context:
+        return document
+
     metadata = dict(document.metadata)
     metadata["unstructured_input"] = {
         "available_evidence_claim": payload.available_evidence,
@@ -257,6 +275,7 @@ def persist_mission(
             )
         )
     elif mission.content_hash != content_hash:
+        require_mutable_mission(mission)
         mission.revision += 1
         mission.title = document.title
         mission.schema_version = document.schema_version

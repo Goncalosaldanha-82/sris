@@ -161,6 +161,68 @@ def _canonical_analysis(mission_code: str):
     return document, analyze_mission(document)
 
 
+def test_empty_analysis_input_does_not_change_the_canonical_document() -> None:
+    document, _ = _canonical_analysis("M-001")
+
+    unchanged = service.apply_analysis_input(document, AnalysisInput())
+
+    assert unchanged is document
+    assert service._hash(unchanged) == service._hash(document)
+
+
+def test_unconfigured_dialogue_has_no_persistent_side_effects(monkeypatch) -> None:
+    monkeypatch.setenv("SRIS_AI_ENABLED", "false")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    suffix = uuid4().hex[:8]
+    headers, organization_id = _owner_named(f"no-ai-side-effect-{suffix}")
+    base = f"/api/organizations/{organization_id}/mission-intelligence"
+    created = client.post(
+        f"{base}/missions",
+        headers=headers,
+        json={
+            "title": "Missão sem fornecedor de IA",
+            "objective": "Confirmar que disponibilidade técnica não altera o estado governado.",
+            "context": "A missão já existe e deve permanecer exatamente na mesma revisão.",
+            "central_question": "A tentativa de diálogo é realmente isenta de efeitos?",
+            "mission_kind": "mission",
+            "domain": "institutional_innovation",
+            "priority": "strategic",
+        },
+    )
+    assert created.status_code == 201, created.text
+    mission = created.json()
+
+    response = client.post(
+        f"{base}/missions/{mission['code']}/interact",
+        headers=headers,
+        json={
+            "intent": "diagnose",
+            "message": "Analisa esta missão sem alterar o seu estado.",
+            "mission_input": {},
+            "research_context": False,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["ai_status"] == "not_configured"
+    assert payload["session_id"] is None
+    assert payload["turn_id"] is None
+    assert payload["turn_persisted"] is False
+    assert payload["canonical_mutation"] == "none"
+
+    current = client.get(f"{base}/missions/{mission['id']}", headers=headers)
+    assert current.status_code == 200, current.text
+    assert current.json()["revision"] == mission["revision"] == 1
+    assert current.json()["content_hash"] == mission["content_hash"]
+    dialogues = client.get(
+        f"{base}/dialogues?mission_code={mission['code']}",
+        headers=headers,
+    )
+    assert dialogues.status_code == 200, dialogues.text
+    assert dialogues.json() == []
+
+
 def _research_bundle(document) -> AIResearchBundle:
     basis_id = document.records[0].canonical_id
     source_url = "https://example.gov.pt/dragos-study"

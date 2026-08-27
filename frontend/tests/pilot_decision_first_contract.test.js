@@ -43,7 +43,7 @@ test('the Pilot has one explicit browser composition',()=>{
 });
 
 test('alternative comparison is multicriteria, persistent and decision-neutral',()=>{
-  for(const marker of ['Eficácia','Custo','Risco','Reversibilidade','Experiência do hóspede','Robustez da evidência']){
+  for(const marker of ['Eficácia','Custo','Risco','Reversibilidade','Impacto no utilizador / beneficiário','Robustez da evidência']){
     assert.match(loaded.comparison,new RegExp(marker));
   }
   assert.match(index,/data-open-mission-tab="comparison"/);
@@ -170,6 +170,11 @@ test('evidence relations confirm persistence where the user creates them',()=>{
   assert.match(loaded.graph,/Relação já existente e confirmada/);
   assert.match(loaded.graph,/O servidor não devolveu a relação no grafo persistente/);
   assert.match(loaded.graph,/from_node_id===from&&edge\.to_node_id===to&&edge\.edge_type===edgeType/);
+  assert.match(loaded.graph,/data-eg-review="accepted"/);
+  assert.match(loaded.graph,/data-eg-review="verified"/);
+  assert.match(loaded.graph,/Aceitar após revisão/);
+  assert.match(loaded.graph,/Verificar factual/);
+  assert.match(loaded.graph,/A decisão continua sob autoridade humana/);
 });
 
 test('learning reuse is reviewed in-product and shows active inherited context',()=>{
