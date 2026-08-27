@@ -2,7 +2,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260827-pilot-readiness-repairs-v25';
+  const BUILD='20260827-governed-context-and-memory-v26';
   if(window.__srisDecisionLoopV2?.installed){
     window.__srisDecisionLoopV2.refresh?.();
     return;
@@ -81,6 +81,7 @@
       .dc1-quality{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;margin-top:10px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#f8faf9}.dc1-quality span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.dc1-quality-track{height:6px;border-radius:999px;background:#e4eae6;overflow:hidden}.dc1-quality-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#b78d3e,#2c6c55)}.dc1-quality b{font-size:10px;color:#47655a}
       .dc1-edit{margin-top:11px;border:1px solid var(--line);border-radius:12px;background:#fbfcfb;overflow:hidden}.dc1-edit summary{cursor:pointer;list-style:none;padding:11px 12px;font-size:10px;font-weight:850;color:#49675c}.dc1-edit summary::-webkit-details-marker{display:none}.dc1-edit summary:after{content:'+';float:right;font-size:16px;font-weight:500}.dc1-edit[open] summary:after{content:'−'}.dc1-edit-body{padding:0 12px 12px}.dc1-terminal-fields{border:0;padding:0;margin:0;min-width:0}.dc1-terminal-fields:disabled{opacity:.72}.dc1-form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.dc1-edit textarea{min-height:76px}.dc1-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.dc1-inline{min-height:18px;margin-top:7px;font-size:10px;color:var(--muted)}.dc1-inline.error{color:#a33f3f}.dc1-inline.success{color:#276349}.dc1-learning{margin-top:9px;padding:10px;border:1px solid #d9e5df;border-radius:11px;background:#f5faf7;font-size:11px;line-height:1.5}.dc1-learning.warn{border-color:#ead7ad;background:#fff9ed;color:#715a2e}
       .dc1-review{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}.dc1-review-note{font-size:9px;color:var(--muted);width:100%}.dc1-reopen{margin-top:10px;padding:11px;border:1px solid #ead7ad;border-radius:11px;background:#fff9ed}.dc1-reopen label{display:block;font-size:9px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;color:#715a2e;margin-bottom:6px}.dc1-reopen textarea{min-height:68px;background:#fff}.dc1-empty{padding:25px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}
+      .dc1-card.is-governance-suspended{border-color:#d8b56f;background:#fffaf0}.dc1-governance-suspended{margin:10px 0;padding:9px 10px;border-radius:10px;background:#fff0d8;color:#71531d;font-size:10px;font-weight:750}
       @media(max-width:900px){.dc1-kpis{grid-template-columns:repeat(3,1fr)}.dc1-form-grid{grid-template-columns:1fr 1fr}.dc1-editor-grid{grid-template-columns:1fr}}
       @media(max-width:650px){.dc1-toolbar{display:grid}.dc1-toolbar .btn{width:100%}.dc1-kpis{grid-template-columns:repeat(2,1fr)}.dc1-grid,.dc1-form-grid{grid-template-columns:1fr}.dc1-stage{grid-template-columns:repeat(2,1fr)}.dc1-head{display:grid}.dc1-head-meta{justify-content:flex-start}.dc1-editor-actions{display:grid}.dc1-editor-actions .btn,.dc1-actions .btn{width:100%}}
     `;
@@ -162,12 +163,14 @@
       if(event.target.closest?.('[data-mission-tab="cycle"]'))setTimeout(()=>load(false),0);
     },true);
     document.addEventListener('sris:mission-opened',()=>{
+      loading=false;
       rows=[];
       evidenceNodes=[];
-      renderKPIs();
+      render();
       if($('[data-mission-tab="cycle"]')?.classList.contains('active'))load(false);
     });
     document.addEventListener('sris:evidence-graph-updated',augmentGraph);
+    document.addEventListener('sris:mission-state-updated',event=>{if(event.detail?.mission?.code===missionCode())render(true);});
     document.addEventListener('sris:workbench-updated',augmentWorkbench);
 
     installed=true;
@@ -302,7 +305,7 @@
     }
   }
 
-  function render(){
+  function render(skipUpdateEvent=false){
     renderKPIs();
     const list=$('#dc1-list');
     if(!list)return;
@@ -315,7 +318,7 @@
     $$('[data-dc-save]',list).forEach(button=>button.addEventListener('click',()=>save(button.dataset.dcSave)));
     $$('[data-dc-materialize]',list).forEach(button=>button.addEventListener('click',()=>materialize(button.dataset.dcMaterialize)));
     $$('[data-dc-reopen]',list).forEach(button=>button.addEventListener('click',()=>reopen(button.dataset.dcReopen)));
-    document.dispatchEvent(new CustomEvent('sris:decision-cycles-updated',{detail:{mission_code:missionCode(),cycles:rows}}));
+    if(!skipUpdateEvent)document.dispatchEvent(new CustomEvent('sris:decision-cycles-updated',{detail:{mission_code:missionCode(),cycles:rows}}));
   }
 
   function renderKPIs(){
@@ -342,6 +345,8 @@
     const locked=missionLocked();
     const ready=row.status==='completed'&&quality.complete===quality.total;
     const materialized=Boolean(row.action_node_id||row.graph_nodes?.action_node_id);
+    const governed=window.SRISMissionState?.current||window.SRISGovernedMissionState;
+    const legacySuspended=governed?.mission?.code===missionCode()&&governed?.health?.status==='requires_resolution'&&['committed','in_progress','completed'].includes(row.status);
     const learningNotice=ready
       ? `<div class="dc1-learning">${materialized?'A cadeia Decisão → Ação → Resultado → Aprendizagem já está materializada. Reveja agora a aprendizagem no grafo.':'O ciclo tem cronologia e evidência. Materialize a cadeia antes da revisão da aprendizagem.'}</div>`
       : row.status==='completed'
@@ -355,11 +360,12 @@
     const outcomeFoundationLabel=(row.outcome_evidence_label
       ||(row.outcome_evidence_node_id?`Evidência indisponível · ${String(row.outcome_evidence_node_id).slice(0,12)}…`:""))
       +(row.outcome_evidence_node_id?` · ${statusLabels[row.outcome_evidence_status]||row.outcome_evidence_status||'estado desconhecido'}`:'');
-    return `<article class="dc1-card" data-cycle="${esc(row.id)}" data-overdue="${due.overdue?'true':'false'}">
+    return `<article class="dc1-card${legacySuspended?' is-governance-suspended':''}" data-cycle="${esc(row.id)}" data-overdue="${due.overdue?'true':'false'}">
       <div class="dc1-head">
         <div class="dc1-title"><div class="eyebrow">DECISÃO</div><strong>${esc(row.decision)}</strong></div>
-        <div class="dc1-head-meta"><span class="dc1-status" data-status="${esc(row.status)}">${esc(statusLabels[row.status]||row.status)}</span>${due.label?`<span class="dc1-due ${due.className}">${esc(due.label)}</span>`:''}</div>
+        <div class="dc1-head-meta"><span class="dc1-status" data-status="${esc(row.status)}">${esc(statusLabels[row.status]||row.status)}</span>${legacySuspended?'<span class="dc1-due overdue">Estado legado suspenso</span>':''}${due.label?`<span class="dc1-due ${due.className}">${esc(due.label)}</span>`:''}</div>
       </div>
+      ${legacySuspended?'<div class="dc1-governance-suspended">O estado histórico está preservado, mas não pode fundamentar execução, conclusão ou reutilização até a missão ser reconciliada.</div>':''}
       ${renderStage(row.status)}
       <div class="dc1-grid">
         ${summaryField('Fundamento',foundationLabel,'Ainda não associado')}
@@ -500,6 +506,8 @@
       announce('O ciclo de decisão foi atualizado.','success');
       await load(true);
     }catch(err){
+      const statusSelect=$('[data-f="status"]',card);
+      if(statusSelect)statusSelect.value=row.status||'proposed';
       inline(card,err.message,'error');
       announce(`Não foi possível atualizar a decisão: ${err.message}`,'error');
     }finally{

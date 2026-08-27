@@ -16,6 +16,7 @@ from app.atlas_platform.auth import require_org_role
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role
 from app.pilot_text import normalize_generated_title
+from app.pilot_mission_state import build_mission_state
 
 from .contracts import MissionDocumentV13
 from .memory_models import EvidenceAsset, MemoryItem, MemoryLink
@@ -140,7 +141,11 @@ def _as_datetime(value: Any) -> datetime | None:
         return None
 
 
-def _pilot_memory_hash(node: Any, publication: Any | None) -> str:
+def _pilot_memory_hash(
+    node: Any,
+    publication: Any | None,
+    source_governance_state: str | None = None,
+) -> str:
     payload = {
         "id": node["id"],
         "node_type": node["node_type"],
@@ -153,6 +158,7 @@ def _pilot_memory_hash(node: Any, publication: Any | None) -> str:
         "source_sha256": node["source_sha256"],
         "provenance_json": node["provenance_json"],
         "published_lineage_sha256": publication["lineage_sha256"] if publication else None,
+        "source_governance_state": source_governance_state,
     }
     return hashlib.sha256(_dump(payload).encode("utf-8")).hexdigest()
 
@@ -193,6 +199,7 @@ def _sync_pilot_memory(
     updated = 0
     links_created = 0
     pilot_indexed: dict[tuple[str, str], MemoryItem] = {}
+    governance_cache: dict[str, str] = {}
 
     for node in nodes:
         mission = mission_by_id.get(str(node["mission_id"]))
@@ -205,11 +212,31 @@ def _sync_pilot_memory(
             publication is None or node["status"] not in {"accepted", "verified"}
         ):
             continue
+        source_governance_state = None
+        memory_state = str(node["status"])
+        if node["node_type"] == "learning" and publication is not None:
+            if mission.lifecycle_state not in {"completed", "archived"}:
+                source_governance_state = "source_mission_open"
+            else:
+                source_governance_state = governance_cache.get(mission.id)
+                if source_governance_state is None:
+                    governed = build_mission_state(
+                        db,
+                        organization_id=organization_id,
+                        mission_id=mission.id,
+                        mission_code=mission.code,
+                    )
+                    source_governance_state = str(
+                        (governed.get("health") or {}).get("status") or "in_progress"
+                    )
+                    governance_cache[mission.id] = source_governance_state
+            if source_governance_state != "governed":
+                memory_state = "suspended"
         kind = PILOT_MEMORY_KIND.get(str(node["node_type"]), str(node["node_type"]))
         if kind not in INDEXABLE_KINDS:
             continue
         record_id = f"PILOT-{node['id']}"
-        source_hash = _pilot_memory_hash(node, publication)
+        source_hash = _pilot_memory_hash(node, publication, source_governance_state)
         display_title = normalize_generated_title(node["label"])
         provenance = _load(node["provenance_json"], {})
         metadata = {
@@ -225,6 +252,7 @@ def _sync_pilot_memory(
             "source_id": node["source_id"],
             "source_sha256": node["source_sha256"],
             "provenance": provenance,
+            "source_governance_state": source_governance_state,
         }
         if publication:
             metadata.update(
@@ -247,7 +275,7 @@ def _sync_pilot_memory(
                 item_type=kind,
                 title=display_title,
                 summary=node["body"] or "",
-                state=node["status"],
+                state=memory_state,
                 confidence=_pilot_confidence(node["confidence"]),
                 valid_from=_as_datetime(node["created_at"]),
                 last_verified_at=verified_at,
@@ -263,11 +291,11 @@ def _sync_pilot_memory(
             db.add(item)
             db.flush()
             created += 1
-        elif item.source_content_hash != source_hash or item.state != node["status"]:
+        elif item.source_content_hash != source_hash or item.state != memory_state:
             item.item_type = kind
             item.title = display_title
             item.summary = node["body"] or ""
-            item.state = node["status"]
+            item.state = memory_state
             item.confidence = _pilot_confidence(node["confidence"])
             item.last_verified_at = verified_at or item.last_verified_at
             item.source_revision = mission.revision

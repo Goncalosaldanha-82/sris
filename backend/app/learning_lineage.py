@@ -17,7 +17,7 @@ from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role, User
 from app.mission_intelligence.models import CanonicalMission
 from app.evidence_graph import _require_mission_mutable
-from app.pilot_mission_state import record_module_review
+from app.pilot_mission_state import build_mission_state, record_module_review
 from app.pilot_serialization import as_iso
 from app.pilot_text import normalize_generated_title
 
@@ -275,13 +275,41 @@ def _graph_snapshot(db: Session, *, organization_id: str, mission_id: str, learn
     }
 
 
-def _packet_view(row) -> dict:
+def _source_governance_health(
+    db: Session,
+    *,
+    organization_id: str,
+    source_mission_id: str,
+    source_mission_code: str,
+    source_lifecycle_state: str | None,
+) -> str:
+    """Resolve whether a published lineage is still institutionally usable.
+
+    A reviewed learning node is necessary but not sufficient.  Reopening its
+    source mission suspends reuse until that mission is reconciled and closed
+    again; the same applies to a legacy completed mission with governed
+    conflicts.
+    """
+    if source_lifecycle_state not in {"completed", "archived"}:
+        return "source_mission_open"
+    state = build_mission_state(
+        db,
+        organization_id=organization_id,
+        mission_id=source_mission_id,
+        mission_code=source_mission_code,
+    )
+    return str((state.get("health") or {}).get("status") or "in_progress")
+
+
+def _packet_view(row, *, source_governance_health: str | None = None) -> dict:
     snapshot = json.loads(row["graph_snapshot_json"] or "{}")
     source_node_status = row.get("source_node_status") if hasattr(row, "get") else None
     canonical_status = (
-        "valid"
-        if source_node_status in {"accepted", "verified"}
-        else "superseded"
+        "superseded"
+        if source_node_status not in {"accepted", "verified"}
+        else "valid"
+        if source_governance_health in {None, "governed"}
+        else "suspended"
     )
     return {
         "id": row["id"],
@@ -296,6 +324,7 @@ def _packet_view(row) -> dict:
         # but a superseded source lineage cannot keep influencing new missions.
         "canonical_status": canonical_status,
         "source_node_status": source_node_status,
+        "source_governance_health": source_governance_health,
         "lineage_sha256": row["lineage_sha256"],
         "lineage": snapshot,
         "created_at": as_iso(row["created_at"]),
@@ -306,7 +335,8 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
     """Return only human-reviewed inheritance that is allowed to alter a future mission."""
     _ensure_schema(db)
     rows = db.execute(text("""
-        SELECT p.*,
+        SELECT p.*, source_node.status AS source_node_status,
+               source_mission.lifecycle_state AS source_lifecycle_state,
                CASE r.disposition
                    WHEN 'still_valid' THEN 'reuse'
                    WHEN 'requires_revalidation' THEN 'requires_revalidation'
@@ -315,6 +345,9 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
                END AS applicability,
                r.rationale, r.context_change, r.updated_at AS reviewed_at
         FROM pilot_learning_packets p
+        JOIN mi_missions source_mission
+          ON source_mission.id=p.source_mission_id
+         AND source_mission.organization_id=p.organization_id
         JOIN pilot_evidence_graph_nodes source_node
           ON source_node.id=p.source_learning_node_id
          AND source_node.organization_id=p.organization_id
@@ -323,11 +356,25 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
         WHERE p.organization_id=:org AND r.organization_id=:org
           AND r.target_mission_id=:target
           AND r.disposition IN ('still_valid','requires_revalidation')
-          AND source_node.status IN ('accepted','verified')
         ORDER BY r.updated_at DESC
     """), {"org": organization_id, "target": target_mission_id}).mappings().all()
     valid, revalidation = [], []
+    health_cache: dict[str, str] = {}
     for row in rows:
+        source_id = str(row["source_mission_id"])
+        source_health = health_cache.get(source_id)
+        if source_health is None:
+            source_health = _source_governance_health(
+                db,
+                organization_id=organization_id,
+                source_mission_id=source_id,
+                source_mission_code=str(row["source_mission_code"]),
+                source_lifecycle_state=row["source_lifecycle_state"],
+            )
+            health_cache[source_id] = source_health
+        canonical_status = _packet_view(
+            row, source_governance_health=source_health
+        )["canonical_status"]
         item = {
             "packet_id": row["id"],
             "source_mission_code": row["source_mission_code"],
@@ -337,8 +384,17 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
             "lineage_counts": (json.loads(row["graph_snapshot_json"] or "{}").get("counts") or {}),
             "rationale": row["rationale"],
             "context_change": row["context_change"],
+            "canonical_status": canonical_status,
         }
-        (valid if row["applicability"] == "reuse" else revalidation).append(item)
+        if canonical_status == "valid" and row["applicability"] == "reuse":
+            valid.append(item)
+        else:
+            if canonical_status == "suspended":
+                item["context_change"] = (
+                    "A missão de origem foi reaberta ou deixou de estar governativamente "
+                    "reconciliada. A aprendizagem permanece suspensa até novo fecho válido."
+                )
+            revalidation.append(item)
     parts = []
     if valid:
         parts.append("APRENDIZAGEM ORGANIZACIONAL HERDADA — VALIDADA NESTE CONTEXTO:\n" + "\n".join(
@@ -353,7 +409,7 @@ def inherited_learning_context(db: Session, *, organization_id: str, target_miss
     return "\n\n".join(parts), {
         "valid": valid,
         "requires_revalidation": revalidation,
-        "policy": "Only explicit human applicability reviews may alter future mission context.",
+        "policy": "Só uma revisão humana explícita e uma origem governativamente válida podem alterar o contexto de uma missão futura.",
     }
 
 
@@ -447,7 +503,7 @@ def publish_learning_packet(
          AND source_node.mission_id=p.source_mission_id
         WHERE p.id=:id
     """), {"id": packet_id}).mappings().one()
-    return _packet_view(row)
+    return _packet_view(row, source_governance_health="source_mission_open")
 
 
 @router.get("/missions/{mission_code}/candidates")
@@ -468,6 +524,7 @@ def learning_candidates(
     target_terms = _tokens(target.title, target.domain, str(target_doc.get("context") or ""), str(target_doc.get("central_question") or ""))
     rows = db.execute(text("""
         SELECT p.*, m.title AS source_title, m.domain AS source_domain,
+               m.lifecycle_state AS source_lifecycle_state,
                source_node.status AS source_node_status,
                CASE r.disposition
                    WHEN 'still_valid' THEN 'reuse'
@@ -489,20 +546,39 @@ def learning_candidates(
         ORDER BY p.updated_at DESC
     """), {"org": membership.organization_id, "target": target.id}).mappings().all()
     candidates = []
+    health_cache: dict[str, str] = {}
     for row in rows:
         source_terms = _tokens(row["source_title"] or "", row["source_domain"] or "", row["title"], row["statement"])
         overlap = len(target_terms & source_terms) / max(1, len(target_terms | source_terms)) if target_terms and source_terms else 0.0
         domain_bonus = 0.45 if row["source_domain"] == target.domain else 0.0
         relevance = min(1.0, domain_bonus + overlap)
-        packet = _packet_view(row)
+        source_id = str(row["source_mission_id"])
+        source_health = health_cache.get(source_id)
+        if source_health is None:
+            source_health = _source_governance_health(
+                db,
+                organization_id=membership.organization_id,
+                source_mission_id=source_id,
+                source_mission_code=str(row["source_mission_code"]),
+                source_lifecycle_state=row["source_lifecycle_state"],
+            )
+            health_cache[source_id] = source_health
+        packet = _packet_view(row, source_governance_health=source_health)
         packet["source_mission"]["title"] = row["source_title"]
         packet["source_mission"]["domain"] = row["source_domain"]
         packet["relevance_score"] = round(relevance, 4)
-        packet["review"] = None if row["applicability"] in {None, "pending"} else {
-            "applicability": row["applicability"],
-            "rationale": row["rationale"],
-            "context_change": row["context_change"],
+        effective_applicability = row["applicability"]
+        if packet["canonical_status"] == "suspended":
+            effective_applicability = "requires_revalidation"
+        packet["review"] = None if effective_applicability in {None, "pending"} else {
+            "applicability": effective_applicability,
+            "rationale": row["rationale"] or "A origem deixou de estar governativamente reconciliada.",
+            "context_change": row["context_change"] or "Revalidar após reconciliação e novo fecho da missão de origem.",
             "reviewed_at": as_iso(row["reviewed_at"]),
+            "system_enforced": bool(
+                packet["canonical_status"] == "suspended"
+                and row["applicability"] in {None, "pending"}
+            ),
         }
         candidates.append(packet)
     candidates.sort(key=lambda item: item["relevance_score"], reverse=True)
@@ -512,7 +588,11 @@ def learning_candidates(
         "candidates": candidates,
         "summary": {
             "candidate_count": len(candidates),
-            "reviewed_count": sum(1 for item in candidates if item["review"]),
+            "reviewed_count": sum(
+                1
+                for item in candidates
+                if item["review"] and not item["review"].get("system_enforced")
+            ),
             "canonically_valid_count": sum(1 for item in candidates if item["canonical_status"] == "valid"),
             "reusable_count": sum(1 for item in candidates if (item["review"] or {}).get("applicability") == "reuse"),
             "requires_revalidation_count": sum(1 for item in candidates if (item["review"] or {}).get("applicability") == "requires_revalidation"),
@@ -537,8 +617,12 @@ def review_learning_candidate(
     target = _mission(db, membership.organization_id, mission_code)
     _require_mission_mutable(target)
     packet = db.execute(text("""
-        SELECT p.*, source_node.status AS source_node_status
+        SELECT p.*, source_node.status AS source_node_status,
+               source_mission.lifecycle_state AS source_lifecycle_state
         FROM pilot_learning_packets p
+        JOIN mi_missions source_mission
+          ON source_mission.id=p.source_mission_id
+         AND source_mission.organization_id=p.organization_id
         LEFT JOIN pilot_evidence_graph_nodes source_node
           ON source_node.id=p.source_learning_node_id
          AND source_node.organization_id=p.organization_id
@@ -547,12 +631,30 @@ def review_learning_candidate(
     """), {"id": packet_id, "org": membership.organization_id}).mappings().first()
     if packet is None or packet["source_mission_id"] == target.id:
         raise HTTPException(status_code=404, detail="A aprendizagem candidata não existe para esta missão.")
-    if packet.get("source_node_status") not in {"accepted", "verified"}:
+    source_health = _source_governance_health(
+        db,
+        organization_id=membership.organization_id,
+        source_mission_id=str(packet["source_mission_id"]),
+        source_mission_code=str(packet["source_mission_code"]),
+        source_lifecycle_state=packet["source_lifecycle_state"],
+    )
+    canonical_status = _packet_view(
+        packet, source_governance_health=source_health
+    )["canonical_status"]
+    if canonical_status == "superseded":
         raise HTTPException(
             status_code=409,
             detail="A aprendizagem de origem já não tem uma revisão humana válida e não pode ser reutilizada.",
         )
     applicability = payload.effective_applicability
+    if canonical_status == "suspended" and applicability == "reuse":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "A missão de origem foi reaberta ou deixou de estar reconciliada. "
+                "Esta aprendizagem só pode ser marcada para revalidação até existir um novo fecho governado."
+            ),
+        )
     legacy_disposition = {
         "reuse": "still_valid",
         "requires_revalidation": "requires_revalidation",
@@ -596,7 +698,7 @@ def review_learning_candidate(
         "status": "reviewed",
         "target_mission_code": target.code,
         "learning_packet_id": packet_id,
-        "canonical_status": "valid",
+        "canonical_status": canonical_status,
         "applicability": applicability,
         "context_effect": (
             "will_influence_future_ai_context" if applicability == "reuse"

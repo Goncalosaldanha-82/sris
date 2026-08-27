@@ -1580,6 +1580,69 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert reactivated_mission.status_code == 200, reactivated_mission.text
     assert reactivated_mission.json()["lifecycle_state"] == "active"
 
+    suspended_candidates = client.get(
+        f"/api/pilot/learning/missions/{unrelated_target.json()['code']}/candidates",
+        headers=headers,
+    )
+    assert suspended_candidates.status_code == 200, suspended_candidates.text
+    suspended_packet = next(
+        row for row in suspended_candidates.json()["candidates"] if row["id"] == packet["id"]
+    )
+    assert suspended_packet["canonical_status"] == "suspended"
+    assert suspended_packet["review"]["applicability"] == "requires_revalidation"
+    assert suspended_candidates.json()["summary"]["canonically_valid_count"] == 0
+    assert suspended_candidates.json()["summary"]["reusable_count"] == 0
+    assert suspended_candidates.json()["summary"]["requires_revalidation_count"] >= 1
+
+    suspended_reuse = client.post(
+        f"/api/pilot/learning/missions/{unrelated_target.json()['code']}/candidates/{packet['id']}/review",
+        headers=headers,
+        json={
+            "applicability": "reuse",
+            "rationale": "Tentativa controlada de reutilizar uma origem reaberta.",
+            "context_change": "",
+        },
+    )
+    assert suspended_reuse.status_code == 409, suspended_reuse.text
+
+    marked_for_revalidation = client.post(
+        f"/api/pilot/learning/missions/{unrelated_target.json()['code']}/candidates/{packet['id']}/review",
+        headers=headers,
+        json={
+            "applicability": "requires_revalidation",
+            "rationale": "A origem foi reaberta e deixou de sustentar reutilização direta.",
+            "context_change": "Reconciliar a cadeia e concluir novamente a missão de origem.",
+        },
+    )
+    assert marked_for_revalidation.status_code == 200, marked_for_revalidation.text
+    assert marked_for_revalidation.json()["canonical_status"] == "suspended"
+    suspended_context = client.get(
+        f"/api/pilot/learning/missions/{unrelated_target.json()['code']}/active-context",
+        headers=headers,
+    )
+    assert suspended_context.status_code == 200, suspended_context.text
+    assert suspended_context.json()["inheritance"]["valid"] == []
+    assert any(
+        row["packet_id"] == packet["id"]
+        for row in suspended_context.json()["inheritance"]["requires_revalidation"]
+    )
+
+    suspended_summary = client.get("/api/pilot/workspace-summary", headers=headers)
+    suspended_source = next(
+        row for row in suspended_summary.json()["missions"] if row["id"] == mission_payload["id"]
+    )
+    assert suspended_source["published_learning"] == 0
+    suspended_memory_sync = client.post(f"{memory_base}/sync", headers=headers)
+    assert suspended_memory_sync.status_code == 200, suspended_memory_sync.text
+    suspended_memory = client.get(f"{memory_base}/items?limit=500", headers=headers)
+    suspended_learning = next(
+        item
+        for item in suspended_memory.json()
+        if item["canonical_record_id"] == f"PILOT-{learning_node_id}"
+    )
+    assert suspended_learning["state"] == "suspended"
+    assert suspended_learning["metadata"]["source_governance_state"] == "source_mission_open"
+
     reopened = client.post(
         f"/api/pilot/decision-cycles/{decision.json()['id']}/reopen",
         headers=headers,
@@ -1813,7 +1876,7 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
             "node_type": "evidence",
             "label": "Leituras e ocupação · janeiro",
             "body": "100 m³ e 1 000 quartos-noite ocupados, conferidos pela operação.",
-            "status": "verified",
+            "status": "proposed",
             "provenance": {"source": "operational_records", "human_reviewed": True},
         },
     )
@@ -1824,7 +1887,7 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
             "node_type": "evidence",
             "label": "Leituras e ocupação · março",
             "body": "70 m³ e 1 000 quartos-noite ocupados, conferidos pela operação.",
-            "status": "verified",
+            "status": "proposed",
             "provenance": {"source": "operational_records", "human_reviewed": True},
         },
     )
@@ -1868,6 +1931,12 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
     assert analysis["result_value"] == 0.07
     assert round(analysis["percent_change"], 6) == -30.0
     assert analysis["target_status"] == "met"
+    assert result.json()["readiness"]["ready"] is False
+    assert result.json()["readiness"]["progress_percent"] < 100
+    assert {
+        "baseline_evidence_reviewed",
+        "result_evidence_reviewed",
+    }.issubset(set(result.json()["readiness"]["blocking_keys"]))
 
     current_protocol = result.json()["protocol"]
     protocol_fields = (
@@ -1899,6 +1968,14 @@ def test_tourism_advance_profile_normalizes_and_governs_impact(monkeypatch) -> N
     )
     assert locked.status_code == 409, locked.text
     assert locked.json()["detail"]["code"] == "validation_measurement_contract_locked"
+
+    for evidence_id in (baseline_evidence.json()["id"], result_evidence.json()["id"]):
+        evidence_review = client.patch(
+            f"{graph_base}/nodes/{evidence_id}",
+            headers=headers,
+            json={"status": "verified"},
+        )
+        assert evidence_review.status_code == 200, evidence_review.text
 
     reviewed = client.post(
         f"{validation_base}/review",

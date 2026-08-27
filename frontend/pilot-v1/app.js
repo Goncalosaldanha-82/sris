@@ -10,6 +10,7 @@ let profileAvailable=false;
 let refreshPromise=null;
 let editingMissionId=null;
 let workspaceSummary=null;
+let missionOpenSequence=0;
 const missionRuntime={attachments:[],graph:null,validation:null,businessCase:null,cycles:[],readiness:null,dialogues:[],memory:[],extraction:null};
 
 const titles={
@@ -85,7 +86,7 @@ const missionTemplates={
 };
 
 function logout(){
-  ['sris_access_token','sris_refresh_token','sris_org_id'].forEach(key=>localStorage.removeItem(key));
+  ['sris_access_token','sris_refresh_token','sris_org_id','sris_user_id','sris_user_email'].forEach(key=>localStorage.removeItem(key));
   location.assign('/');
 }
 
@@ -172,6 +173,14 @@ function setText(selector,value){
 function setValue(selector,value){
   const element=$(selector);
   if(element)element.value=value??'';
+}
+
+function displayChangeNote(value){
+  const note=String(value||'').trim();
+  const legacyTranslations={
+    'Analysis input accepted as a new canonical mission revision.':'Entrada de análise aceite como nova revisão canónica da missão.',
+  };
+  return legacyTranslations[note]||note||'Revisão canónica preservada.';
 }
 
 function initials(name){
@@ -324,7 +333,10 @@ function renderProfile(payload){
   setText('#workspace-role',role);
   setText('#workspace-name',workspaceName);
   setValue('#account-name',user.full_name||'');
-  setValue('#account-email',user.email||'');
+  const accountEmail=user.email||localStorage.getItem('sris_user_email')||'';
+  if(user.id)localStorage.setItem('sris_user_id',user.id);
+  if(accountEmail)localStorage.setItem('sris_user_email',accountEmail);
+  setValue('#account-email',accountEmail);
   setValue('#account-org',workspaceName);
   setValue('#account-role',role);
 
@@ -688,12 +700,15 @@ async function loadMissions({openFirst=false}={}){
 async function loadEpistemicCounts(code){
   const root=$('#detail-epistemic-counts');
   if(!root||!code)return;
+  const missionId=selectedMission?.id;
   try{
     const graph=await api(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`);
+    if(!selectedMission||selectedMission.id!==missionId||selectedMission.code!==code)return;
     const counts=graph.counts||{};
     const gaps=Number(counts.gap||0)+Number(counts.claim_gap||0);
     root.innerHTML=`<span>Pressupostos · ${Number(counts.assumption||0)}</span><span>Restrições · ${Number(counts.constraint||0)}</span><span>Lacunas · ${gaps}</span><span>Proveniência · ativa</span>`;
   }catch{
+    if(!selectedMission||selectedMission.id!==missionId||selectedMission.code!==code)return;
     root.innerHTML='<span>Pressupostos · —</span><span>Restrições · —</span><span>Lacunas · —</span><span>Proveniência · ativa</span>';
   }
 }
@@ -827,8 +842,10 @@ document.addEventListener('click',event=>{
 });
 
 async function openMission(id){
+  const openSequence=++missionOpenSequence;
   try{
     const mission=await api(`${miBase()}/missions/${encodeURIComponent(id)}`);
+    if(openSequence!==missionOpenSequence)return;
     const detailMessage=$('#detail-message');
     if(detailMessage){detailMessage.className='alert hidden';detailMessage.textContent='';}
     selectedMission=mission;
@@ -870,6 +887,7 @@ async function openMission(id){
     await Promise.allSettled([loadAttachments(),loadHistory(),loadMissionRevisions(),loadEpistemicCounts(mission.code),loadMissionOperationalState()]);
     renderMissionOperationalState();
   }catch(error){
+    if(openSequence!==missionOpenSequence)return;
     $('#mission-list')?.insertAdjacentHTML('afterbegin',`<div class="alert error">Não foi possível abrir esta missão: ${escapeHtml(error.message)}</div>`);
   }
 }
@@ -1078,8 +1096,11 @@ async function downloadAttachment(id,filename,button){
 
 async function loadAttachments(){
   if(!selectedMission)return;
+  const missionId=selectedMission.id;
+  const missionCode=selectedMission.code;
   try{
-    const rows=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments`);
+    const rows=await api(`${miBase()}/missions/${encodeURIComponent(missionCode)}/attachments`);
+    if(!selectedMission||selectedMission.id!==missionId)return;
     missionRuntime.attachments=rows;
     const root=$('#attachment-list');
     if(!root)return;
@@ -1096,6 +1117,7 @@ async function loadAttachments(){
     document.dispatchEvent(new CustomEvent('sris:attachments-updated',{detail:{mission:selectedMission,attachments:rows}}));
     renderMissionOperationalState();
   }catch(error){
+    if(!selectedMission||selectedMission.id!==missionId)return;
     const root=$('#attachment-list');
     if(root)root.innerHTML=`<div class="note">Os documentos desta missão não estão disponíveis neste momento: ${escapeHtml(error.message)}</div>`;
   }
@@ -1103,13 +1125,16 @@ async function loadAttachments(){
 
 async function loadAttachmentExtraction(attachmentId,button){
   if(!selectedMission)return;
+  const missionId=selectedMission.id;
+  const missionCode=selectedMission.code;
   const panel=$('#attachment-extraction-panel');
   if(!panel)return;
   button?.classList.add('loading');
   panel.classList.remove('hidden');
   panel.innerHTML='<div class="note">A verificar a extração e a proveniência da fonte…</div>';
   try{
-    const data=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.code)}/attachments/${encodeURIComponent(attachmentId)}/extraction?limit=50`);
+    const data=await api(`${miBase()}/missions/${encodeURIComponent(missionCode)}/attachments/${encodeURIComponent(attachmentId)}/extraction?limit=50`);
+    if(!selectedMission||selectedMission.id!==missionId)return;
     missionRuntime.extraction=data;
     const source=data.attachment||{};
     const filename=source.filename||'Documento';
@@ -1120,6 +1145,7 @@ async function loadAttachmentExtraction(attachmentId,button){
     $('#visual-evidence-form',panel)?.addEventListener('submit',event=>promoteVisualEvidence(source.id,event));
     panel.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(error){
+    if(!selectedMission||selectedMission.id!==missionId)return;
     panel.innerHTML=`<div class="alert error">Não foi possível abrir o texto extraído: ${escapeHtml(error.message)}</div>`;
   }finally{button?.classList.remove('loading');}
 }
@@ -1598,11 +1624,14 @@ async function loadHistory(){
   if(!selectedMission)return;
   const root=$('#dialogue-history');
   if(!root)return;
+  const missionId=selectedMission.id;
+  const missionCode=selectedMission.code;
   try{
     const [dialogueResult,auditResult]=await Promise.allSettled([
-      api(`${miBase()}/dialogues?mission_code=${encodeURIComponent(selectedMission.code)}`),
-      api(`/api/pilot/audit/missions/${encodeURIComponent(selectedMission.code)}?limit=300`),
+      api(`${miBase()}/dialogues?mission_code=${encodeURIComponent(missionCode)}`),
+      api(`/api/pilot/audit/missions/${encodeURIComponent(missionCode)}?limit=300`),
     ]);
+    if(!selectedMission||selectedMission.id!==missionId)return;
     const dialogues=dialogueResult.status==='fulfilled'?(dialogueResult.value||[]):[];
     const auditPayload=auditResult.status==='fulfilled'?(auditResult.value||{}):{};
     const audit=auditPayload.events||[];
@@ -1639,6 +1668,7 @@ async function loadHistory(){
     if(auditResult.status==='rejected')root.insertAdjacentHTML('beforeend','<div class="note">A auditoria transversal está temporariamente indisponível; são mostradas apenas as sessões acessíveis.</div>');
     else if(auditPayload.scope_complete===false)root.insertAdjacentHTML('beforeend','<div class="note">Este histórico cobre os eventos mais recentes do workspace; podem existir registos mais antigos fora desta janela.</div>');
   }catch(error){
+    if(!selectedMission||selectedMission.id!==missionId)return;
     root.innerHTML=`<div class="note">Histórico temporariamente indisponível: ${escapeHtml(error.message)}</div>`;
   }
 }
@@ -1647,10 +1677,13 @@ async function loadMissionRevisions(){
   if(!selectedMission)return;
   const root=$('#mission-revision-history');
   if(!root)return;
+  const missionId=selectedMission.id;
   try{
-    const rows=await api(`${miBase()}/missions/${encodeURIComponent(selectedMission.id)}/revisions`);
-    root.innerHTML=rows.length?rows.map(row=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão ${Number(row.revision||1)}</strong><div>${escapeHtml(row.change_note||'Revisão canónica preservada.')}</div><div class="note">${row.created_at?new Date(row.created_at).toLocaleString('pt-PT'):''} · hash ${escapeHtml(String(row.content_hash||'').slice(0,16))}…</div></div></div>`).join(''):'<div class="note">Sem revisões disponíveis.</div>';
+    const rows=await api(`${miBase()}/missions/${encodeURIComponent(missionId)}/revisions`);
+    if(!selectedMission||selectedMission.id!==missionId)return;
+    root.innerHTML=rows.length?rows.map(row=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>Revisão ${Number(row.revision||1)}</strong><div>${escapeHtml(displayChangeNote(row.change_note))}</div><div class="note">${row.created_at?new Date(row.created_at).toLocaleString('pt-PT'):''} · hash ${escapeHtml(String(row.content_hash||'').slice(0,16))}…</div></div></div>`).join(''):'<div class="note">Sem revisões disponíveis.</div>';
   }catch(error){
+    if(!selectedMission||selectedMission.id!==missionId)return;
     root.innerHTML=`<div class="note">Não foi possível carregar as revisões: ${escapeHtml(error.message)}</div>`;
   }
 }

@@ -33,14 +33,15 @@
     messageBox.textContent='';
   }
 
-  function saveSession(data){
+  function saveSession(data,email=''){
     localStorage.setItem('sris_access_token',data.access_token||'');
     localStorage.setItem('sris_refresh_token',data.refresh_token||'');
     if(data.organization_id)localStorage.setItem('sris_org_id',data.organization_id);
+    if(email)localStorage.setItem('sris_user_email',String(email).trim().toLowerCase());
   }
 
   function clearSession(){
-    ['sris_access_token','sris_refresh_token','sris_org_id'].forEach(key=>localStorage.removeItem(key));
+    ['sris_access_token','sris_refresh_token','sris_org_id','sris_user_id','sris_user_email'].forEach(key=>localStorage.removeItem(key));
   }
 
   async function api(path,options={}){
@@ -147,7 +148,7 @@
         method:'POST',
         body:JSON.stringify({email:$('#login-email').value.trim(),password:$('#login-password').value}),
       });
-      saveSession(data);
+      saveSession(data,$('#login-email').value);
       location.assign('/app');
     });
   });
@@ -164,7 +165,7 @@
           password:$('#reg-password').value,
         }),
       });
-      saveSession(data);
+      saveSession(data,$('#reg-email').value);
       location.assign('/app');
     });
   });

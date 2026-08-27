@@ -78,7 +78,10 @@
 
   function moduleStateLabel(item){
     if(item.status==='stale')return 'Revisão invalidada';
-    if(item.status==='missing')return item.applicability==='required'?'Obrigatório em falta':'Sem dados';
+    if(item.status==='missing'){
+      if(item.key==='action'&&item.applicability==='required')return 'Execução governada e prova da ação em falta';
+      return item.applicability==='required'?'Obrigatório em falta':'Sem dados';
+    }
     if(item.status==='not_applicable')return 'Não aplicável · revisto';
     if(item.status==='optional')return 'Opcional · não iniciado';
     if(item.review?.status==='current')return `${item.count} · revisão atual`;
@@ -132,6 +135,7 @@
       if(title&&document.querySelector('#mission')?.classList.contains('active'))title.textContent=`${state.mission.code} · ${state.mission.title}`;
       document.dispatchEvent(new CustomEvent('sris:mission-state-updated',{detail:state}));
     }catch(error){
+      if(own!==sequence||requested!==currentCode)return;
       const root=document.querySelector('#governed-mission-state');
       if(root)root.innerHTML=`<div class="alert error">Não foi possível consolidar o estado da missão: ${esc(error.message)}</div>`;
     }

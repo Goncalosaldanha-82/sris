@@ -199,12 +199,16 @@ def workspace_summary(
             """
             SELECT packet.source_mission_id, COUNT(*) AS total
             FROM pilot_learning_packets packet
+            JOIN mi_missions source_mission
+              ON source_mission.id=packet.source_mission_id
+             AND source_mission.organization_id=packet.organization_id
             JOIN pilot_evidence_graph_nodes source_node
               ON source_node.id=packet.source_learning_node_id
              AND source_node.organization_id=packet.organization_id
              AND source_node.mission_id=packet.source_mission_id
             WHERE packet.organization_id=:org
               AND source_node.status IN ('accepted','verified')
+              AND source_mission.lifecycle_state IN ('completed','archived')
             GROUP BY packet.source_mission_id
             """
         ),
@@ -280,6 +284,12 @@ def workspace_summary(
         elif mission.lifecycle_state == "archived":
             next_action = "Missão arquivada"
 
+        governed_learning_count = (
+            packet_counts.get(mission.id, 0)
+            if mission.lifecycle_state in {"completed", "archived"}
+            and governed_health.get("status") == "governed"
+            else 0
+        )
         mission_cards.append(
             {
                 "id": mission.id,
@@ -300,7 +310,7 @@ def workspace_summary(
                 "decisions": len(cycles),
                 "attention": attention,
                 "reviewed_learning": reviewed_learning.get(mission.id, 0),
-                "published_learning": packet_counts.get(mission.id, 0),
+                "published_learning": governed_learning_count,
                 "progress_percent": readiness["progress_percent"],
                 "validation_profile": readiness.get("validation", {}).get("profile", "none"),
                 "validation_required": readiness.get("validation", {}).get("required", False),
@@ -331,7 +341,7 @@ def workspace_summary(
             "evidence_gaps": total_gaps,
             "governance_conflicts": governance_conflicts,
             "pending_results": pending_results,
-            "published_learning": sum(packet_counts.values()),
+            "published_learning": sum(row["published_learning"] for row in mission_cards),
         },
         "missions": mission_cards,
     }

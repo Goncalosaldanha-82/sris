@@ -22,6 +22,7 @@ const loaded={
   learning:read('learning-lineage.js'),
   decision:read('decision-cycle-v1.js'),
   admin:read('admin-accounts.js'),
+  missionState:read('mission-state-v1.js'),
 };
 
 test('the Pilot has one explicit browser composition',()=>{
@@ -52,6 +53,10 @@ test('alternative comparison is multicriteria, persistent and decision-neutral',
   assert.match(loaded.comparison,/Guardar nova revisão/);
   assert.match(loaded.comparison,/Confirmar revisão humana/);
   assert.match(loaded.comparison,/Nenhuma alternativa é selecionada automaticamente/);
+  assert.match(loaded.comparison,/— · por atribuir/);
+  assert.match(loaded.comparison,/nenhuma pontuação é presumida/);
+  assert.match(loaded.comparison,/complete\?weightedTotal\.toFixed\(1\):'—'/);
+  assert.match(loaded.comparison,/const ranking = state\.matrix &&/);
   assert.match(loaded.comparison,/sris:alternative-matrix-updated/);
   assert.match(loaded.comparison,/Duplicado exato detetado/);
   assert.match(loaded.comparison,/Retirar duplicado/);
@@ -200,6 +205,9 @@ test('learning reuse is reviewed in-product and shows active inherited context',
   assert.match(loaded.learning,/Revalidar antes de reutilizar/);
   assert.match(loaded.learning,/Não aplicável a esta missão/);
   assert.match(loaded.learning,/canonicamente válida/);
+  assert.match(loaded.learning,/validade suspensa/);
+  assert.match(loaded.learning,/Origem suspensa/);
+  assert.match(loaded.learning,/suspended\?'ll-suspended'/);
   assert.match(loaded.learning,/data-applicability/);
   assert.match(loaded.learning,/Que diferenças existem entre os contextos\?/);
   assert.match(loaded.learning,/pointerup.*ensureMobileEditorFocus/);
@@ -208,4 +216,35 @@ test('learning reuse is reviewed in-product and shows active inherited context',
   assert.match(loaded.learning,/enterkeyhint="done"/);
   assert.doesNotMatch(loaded.learning,/O que mudou no contexto\?/);
   assert.doesNotMatch(loaded.learning,/data-disposition/);
+});
+
+test('mission changes clear every active module before loading the next context',()=>{
+  assert.match(loaded.workspace,/state\.contextVersion\+=1/);
+  assert.match(loaded.workspace,/state\.sessionId=null;state\.turns=\[\];state\.attachments=\[\];state\.pendingQuestions=\[\];clearMissionIntelligence\(mission\)/);
+  assert.match(loaded.workspace,/requestedMissionId!==state\.missionId\|\|requestedVersion!==state\.contextVersion/);
+  assert.match(loaded.workspace,/requestedVersion!==state\.contextVersion\|\|requestedCode!==missionCode\(\)/);
+  assert.match(loaded.workspace,/memoryStateLabels/);
+  assert.match(loaded.workspace,/suspended:'Suspenso'/);
+  assert.match(loaded.workspace,/A trocar o contexto da missão de forma atómica/);
+  assert.match(loaded.app,/let missionOpenSequence=0/);
+  assert.match(loaded.app,/if\(openSequence!==missionOpenSequence\)return/);
+  assert.match(loaded.app,/if\(!selectedMission\|\|selectedMission\.id!==missionId\)return/);
+  assert.match(loaded.graph,/graphLoadSequence/);
+  assert.match(loaded.graph,/sris:mission-opened/);
+  assert.match(loaded.comparison,/loadSequence/);
+  assert.match(loaded.comparison,/A trocar o contexto da missão de forma atómica/);
+  assert.match(loaded.decision,/loading=false;\s*rows=\[\];\s*evidenceNodes=\[\];\s*render\(\)/s);
+});
+
+test('rejected decisions, identity and legacy copy reconcile visibly',()=>{
+  assert.match(loaded.decision,/statusSelect\.value=row\.status\|\|'proposed'/);
+  assert.match(loaded.app,/sris_user_email/);
+  assert.match(loaded.admin,/profileEmail\.value=current\.email/);
+  assert.match(loaded.app,/Entrada de análise aceite como nova revisão canónica da missão\./);
+  assert.match(loaded.validation,/PRONTIDÃO OPERACIONAL DO PROTOCOLO/);
+  assert.match(loaded.validation,/incluindo revisão das evidências/);
+  assert.match(loaded.missionState,/Execução governada e prova da ação em falta/);
+  assert.match(loaded.graph,/Estado legado suspenso/);
+  assert.match(loaded.decision,/Estado legado suspenso/);
+  assert.match(loaded.decision,/sris:mission-state-updated/);
 });

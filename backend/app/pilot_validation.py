@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
@@ -439,6 +439,8 @@ def _validation_checks(
     baseline: dict | None,
     result: dict | None,
     analysis: dict,
+    baseline_evidence_status: str | None = None,
+    result_evidence_status: str | None = None,
 ) -> list[dict]:
     if not required:
         return []
@@ -499,8 +501,10 @@ def _validation_checks(
         {"key": "validation_scope", "label": "Unidade, problema e âmbito de validação definidos", "passed": scope_ready, "count": int(scope_ready)},
         {"key": "indicator_defined", "label": "Indicador, unidade e normalização definidos", "passed": indicator_ready, "count": int(indicator_ready)},
         {"key": "baseline_comparable", "label": "Baseline quantitativa ligada à evidência", "passed": baseline_ready, "count": int(baseline_ready)},
+        {"key": "baseline_evidence_reviewed", "label": "Evidência da baseline aceite ou verificada", "passed": baseline_evidence_status in {"accepted", "verified"}, "count": int(baseline_evidence_status in {"accepted", "verified"})},
         {"key": "intervention_defined", "label": "Intervenção, meta e data de revisão definidas", "passed": intervention_ready, "count": int(intervention_ready)},
         {"key": "result_comparable", "label": "Resultado comparável ligado à evidência", "passed": bool(result_ready and analysis.get("comparable")), "count": int(bool(result_ready and analysis.get("comparable")))},
+        {"key": "result_evidence_reviewed", "label": "Evidência do resultado aceite ou verificada", "passed": result_evidence_status in {"accepted", "verified"}, "count": int(result_evidence_status in {"accepted", "verified"})},
         {"key": "target_evaluated", "label": "Resultado comparado deterministicamente com a meta", "passed": target_evaluated, "count": int(target_evaluated)},
         {"key": "attribution_reviewed", "label": "Atribuição, limitações e fatores externos revistos", "passed": review_ready, "count": int(review_ready)},
     ]
@@ -530,6 +534,24 @@ def validation_readiness(
     measurements = _measurement_rows(db, organization_id, mission_id) if protocol else {}
     baseline = measurements.get("baseline")
     result = measurements.get("result")
+    evidence_ids = [
+        str(item.get("evidence_node_id"))
+        for item in (baseline, result)
+        if item and item.get("evidence_node_id")
+    ]
+    evidence_statuses: dict[str, str] = {}
+    if evidence_ids:
+        rows = db.execute(
+            text(
+                """
+                SELECT id, status FROM pilot_evidence_graph_nodes
+                WHERE organization_id=:org AND mission_id=:mission
+                  AND id IN :ids
+                """
+            ).bindparams(bindparam("ids", expanding=True)),
+            {"org": organization_id, "mission": mission_id, "ids": evidence_ids},
+        ).mappings().all()
+        evidence_statuses = {str(item["id"]): str(item["status"]) for item in rows}
     analysis = _analysis(protocol, baseline, result)
     checks = _validation_checks(
         required=required,
@@ -538,6 +560,8 @@ def validation_readiness(
         baseline=baseline,
         result=result,
         analysis=analysis,
+        baseline_evidence_status=evidence_statuses.get(str((baseline or {}).get("evidence_node_id") or "")),
+        result_evidence_status=evidence_statuses.get(str((result or {}).get("evidence_node_id") or "")),
     )
     completed = sum(1 for check in checks if check["passed"])
     return {

@@ -60,7 +60,7 @@
     const readiness=state.aggregate?.readiness||{};
     const checks=Array.isArray(readiness.checks)?readiness.checks:[];
     if(!checks.length)return'<div class="vp-readiness-empty">Ative um perfil para acrescentar validação quantitativa a esta missão.</div>';
-    return `<div class="vp-readiness-head"><div><span>PRONTIDÃO DO PROTOCOLO</span><strong>${Number(readiness.progress_percent||0)}%</strong></div><small>${Number(readiness.completed_checks||0)} de ${Number(readiness.total_checks||0)} condições verificadas</small></div><div class="vp-checks">${checks.map(check=>`<div class="vp-check ${check.passed?'passed':''}"><span>${check.passed?'✓':'○'}</span><strong>${esc(check.label)}</strong></div>`).join('')}</div>${interpretationHtml()}`;
+    return `<div class="vp-readiness-head"><div><span>PRONTIDÃO OPERACIONAL DO PROTOCOLO</span><strong>${Number(readiness.progress_percent||0)}%</strong></div><small>${Number(readiness.completed_checks||0)} de ${Number(readiness.total_checks||0)} condições verificadas, incluindo revisão das evidências</small></div><div class="vp-checks">${checks.map(check=>`<div class="vp-check ${check.passed?'passed':''}"><span>${check.passed?'✓':'○'}</span><strong>${esc(check.label)}</strong></div>`).join('')}</div>${interpretationHtml()}`;
   }
 
   function interpretationHtml(){

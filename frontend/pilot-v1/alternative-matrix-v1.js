@@ -51,6 +51,7 @@
   let state = null;
   let currentMissionCode = "";
   let loading = false;
+  let loadSequence = 0;
   let addingAlternative = false;
   let removingAlternative = false;
   let pendingRemovalId = "";
@@ -169,7 +170,8 @@
   }
 
   function scoreOptions(selected) {
-    return [1, 2, 3, 4, 5].map((score) => `<option value="${score}" ${Number(selected) === score ? "selected" : ""}>${score}</option>`).join("");
+    return `<option value="" ${selected == null || selected === "" ? "selected" : ""}>— · por atribuir</option>`
+      + [1, 2, 3, 4, 5].map((score) => `<option value="${score}" ${Number(selected) === score ? "selected" : ""}>${score}</option>`).join("");
   }
 
   function economicMoney(value) {
@@ -236,7 +238,7 @@
     const tableRows = criterionList.map((criterion) => {
       const cells = alternatives.map((alternative) => {
         const saved = existing.get(alternative.id)?.get(criterion.key);
-        const selected = saved?.score || 3;
+        const selected = saved?.score ?? "";
         return `<td><label class="sr-only" for="acm-score-${esc(alternative.id)}-${esc(criterion.key)}">${esc(criterion.label)} · ${esc(alternative.label)}</label><select id="acm-score-${esc(alternative.id)}-${esc(criterion.key)}" data-acm-score data-alt="${esc(alternative.id)}" data-criterion="${esc(criterion.key)}">${scoreOptions(selected)}</select><span class="alternative-matrix-contribution" data-acm-contribution data-alt="${esc(alternative.id)}" data-criterion="${esc(criterion.key)}"></span></td>`;
       }).join("");
       return `<tr><th scope="row"><strong>${esc(criterion.label)}</strong><span class="alternative-matrix-scale">${esc(criterion.scale_hint)}</span></th>${cells}</tr>`;
@@ -250,7 +252,7 @@
       return `<details ${altIndex === 0 ? "open" : ""}><summary>${esc(alternative.label)} · justificações e evidência</summary>${blocks}</details>`;
     }).join("");
     const weightEditors = criterionList.map((criterion) => `<div class="alternative-matrix-weight"><label for="acm-weight-${esc(criterion.key)}">${esc(criterion.label)}</label><input id="acm-weight-${esc(criterion.key)}" data-acm-weight data-criterion="${esc(criterion.key)}" type="number" min="0" max="100" step="1" value="${weightValue(criterion.key)}"><span class="alternative-matrix-scale">peso %</span></div>`).join("");
-    const ranking = (state.ranking || []).length
+    const ranking = state.matrix && (state.ranking || []).length
       ? (state.ranking || []).map((item) => `<div class="alternative-matrix-rank"><strong>${item.position}</strong><div><strong>${esc(item.alternative_label)}</strong><div class="alternative-matrix-criterion-chips">${criterionList.map((criterion) => `<span>${esc(criterion.label)} ${esc(item.scores[criterion.key])}/5</span>`).join("")}</div></div><span class="alternative-matrix-rank-score">${Number(item.weighted_score).toFixed(1)}</span></div>`).join("")
       : '<div class="alternative-matrix-empty">Guarde uma revisão completa para obter a ordenação determinística. A ordenação informa; não decide.</div>';
     const history = (state.history || []).length
@@ -264,7 +266,7 @@
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Alternativas da missão</h4><p class="note">As alternativas pertencem ao grafo canónico da missão; não são cópias locais da matriz. Duplicados exatos podem ser retirados sem apagar o histórico.</p></div><span class="pill">${alternatives.length} disponíveis</span></div><form id="alternative-matrix-add" class="alternative-matrix-add"><div class="field"><label for="acm-new-title">Título</label><input id="acm-new-title" required minlength="3" placeholder="Ex.: Redutores de caudal reguláveis"></div><div class="field"><label for="acm-new-body">Descrição</label><input id="acm-new-body" required minlength="5" placeholder="Âmbito, diferença material e condição de aplicação"></div><button id="alternative-matrix-add-submit" class="btn btn-secondary" type="submit" ${addingAlternative ? "disabled" : ""}>${addingAlternative ? "A adicionar…" : "Adicionar alternativa"}</button></form></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Economia e recursos por alternativa</h4><p class="note">Valores vivos do business case: custo total, recursos necessários, benefício provável e retorno. Não substituem a avaliação multicritério.</p></div><span class="pill">${state.economic_comparison?.complete_profile_count || 0}/${state.economic_comparison?.profiles?.length || 0} completos</span></div>${economicComparisonTable()}<div class="alternative-matrix-economic-status ${economicAlignmentTone}">${esc(economicAlignment.message || "A sincronizar a revisão económica usada pela matriz.")}</div><div class="alternative-matrix-controls" style="margin-top:12px"><button class="btn btn-secondary" type="button" data-open-mission-tab="economics">Abrir Business Case Vivo</button></div></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Pesos da decisão</h4><p class="note">A soma tem de ser 100%. Os pesos fazem parte de cada revisão e ficam sujeitos a auditoria.</p></div><span id="alternative-matrix-weight-total" class="alternative-matrix-weight-total"></span></div><div class="alternative-matrix-weights">${weightEditors}</div></section>
-      <section class="alternative-matrix-card"><div class="card-head"><div><h4>Matriz de pontuação</h4><p class="note">Escala 1–5 orientada para valor. Em custo e risco, 5 representa a condição mais favorável.</p></div><span class="pill">20–100 pontos</span></div>${alternatives.length ? `<div class="alternative-matrix-scroller"><table class="alternative-matrix-table"><thead><tr><th scope="col">Critério</th>${tableHead}</tr></thead><tbody>${tableRows}<tr class="alternative-matrix-total-row"><th scope="row">Pontuação total</th>${totalCells}</tr></tbody></table></div><div class="alternative-matrix-rationales">${rationaleEditors}</div>` : '<div class="alternative-matrix-empty">Adicione pelo menos duas alternativas para iniciar a comparação.</div>'}<div class="alternative-matrix-explanation">Fórmula: soma(pontuação × peso) ÷ 5. Como a escala começa em 1, o resultado final varia entre 20 e 100 pontos. Desempate: robustez da evidência, eficácia e título. Nenhuma alternativa é selecionada automaticamente.</div><div class="alternative-matrix-controls" style="margin-top:14px"><button id="alternative-matrix-save" class="btn btn-primary" type="button" ${alternatives.length < 2 ? "disabled" : ""}>Guardar nova revisão</button><button id="alternative-matrix-review" class="btn btn-secondary" type="button" ${!state.matrix || !state.readiness?.passed || state.matrix.status === "reviewed" ? "disabled" : ""}>Confirmar revisão humana</button></div></section>
+      <section class="alternative-matrix-card"><div class="card-head"><div><h4>Matriz de pontuação</h4><p class="note">Escala 1–5 orientada para valor. Em custo e risco, 5 representa a condição mais favorável. Antes de existir uma avaliação guardada, nenhuma pontuação é presumida.</p></div><span class="pill">20–100 pontos após preenchimento</span></div>${alternatives.length ? `<div class="alternative-matrix-scroller"><table class="alternative-matrix-table"><thead><tr><th scope="col">Critério</th>${tableHead}</tr></thead><tbody>${tableRows}<tr class="alternative-matrix-total-row"><th scope="row">Pontuação total</th>${totalCells}</tr></tbody></table></div><div class="alternative-matrix-rationales">${rationaleEditors}</div>` : '<div class="alternative-matrix-empty">Adicione pelo menos duas alternativas para iniciar a comparação.</div>'}<div class="alternative-matrix-explanation">Fórmula: soma(pontuação × peso) ÷ 5. Como a escala começa em 1, o resultado final varia entre 20 e 100 pontos. Desempate: robustez da evidência, eficácia e título. Nenhuma alternativa é selecionada automaticamente.</div><div class="alternative-matrix-controls" style="margin-top:14px"><button id="alternative-matrix-save" class="btn btn-primary" type="button" ${alternatives.length < 2 ? "disabled" : ""}>Guardar nova revisão</button><button id="alternative-matrix-review" class="btn btn-secondary" type="button" ${!state.matrix || !state.readiness?.passed || state.matrix.status === "reviewed" ? "disabled" : ""}>Confirmar revisão humana</button></div></section>
       <section class="alternative-matrix-card"><div class="card-head"><div><h4>Ordenação transparente</h4><p class="note">Resultado da última revisão guardada${matrixStale?"; não deve fundamentar uma nova decisão até ser atualizada":""}.</p></div><span class="pill">${state.readiness?.passed ? "comparação atual" : matrixStale ? "desatualizada" : "incompleta"}</span></div><div class="alternative-matrix-ranking">${ranking}</div></section>
       <details class="alternative-matrix-card"><summary><strong>Histórico imutável e hashes</strong></summary><div class="alternative-matrix-history" style="margin-top:14px">${history}</div></details>
     `;
@@ -294,10 +296,16 @@
     }
     for (const alternative of state?.alternatives || []) {
       let weightedTotal = 0;
+      let complete = true;
       for (const criterion of criteria()) {
         const scoreNode = findField("score", alternative.id, criterion.key);
         const contributionNode = findField("contribution", alternative.id, criterion.key);
         if (scoreNode && contributionNode) {
+          if(scoreNode.value===''){
+            complete=false;
+            contributionNode.textContent='— · por atribuir';
+            continue;
+          }
           const contribution = (Number(scoreNode.value) * (weights[criterion.key] || 0)) / 5;
           weightedTotal += contribution;
           contributionNode.textContent = `${contribution.toFixed(1)} pontos ponderados`;
@@ -305,7 +313,7 @@
       }
       const liveTotal = Array.from(document.querySelectorAll("[data-acm-live-total]"))
         .find((item) => item.dataset.alt === alternative.id);
-      if (liveTotal) liveTotal.textContent = weightedTotal.toFixed(1);
+      if (liveTotal) liveTotal.textContent = complete?weightedTotal.toFixed(1):'—';
     }
   }
 
@@ -332,7 +340,7 @@
         }
         return {
           criterion: criterion.key,
-          score: Number(score?.value || 0),
+          score: (()=>{if(!score?.value)throw new Error(`Atribua uma pontuação de 1 a 5 em ${criterion.label.toLowerCase()} para “${alternative.label}”.`);return Number(score.value);})(),
           rationale: rationaleValue,
           evidence_node_id: evidence?.value || null,
         };
@@ -449,21 +457,24 @@
 
   async function load(code, force) {
     const resolved = code || missionCode();
-    if (!resolved || resolved === "MISSÃO" || loading) return;
+    if (!resolved || resolved === "MISSÃO") return;
+    if (loading && resolved === currentMissionCode && !force) return;
     if (!force && state && resolved === currentMissionCode) {
       render();
       return;
     }
     currentMissionCode = resolved;
+    const requestSequence=++loadSequence;
     loading = true;
     if (root()) root().innerHTML = '<div class="note">A sincronizar alternativas, critérios, pesos e revisões…</div>';
     try {
       state = await api(`/api/pilot/alternative-matrices/missions/${encodeURIComponent(resolved)}`);
+      if(requestSequence!==loadSequence||resolved!==currentMissionCode)return;
       render();
     } catch (error) {
-      if (root()) root().innerHTML = `<div class="alternative-matrix-status error">${esc(error.message)}</div>`;
+      if (requestSequence===loadSequence&&resolved===currentMissionCode&&root()) root().innerHTML = `<div class="alternative-matrix-status error">${esc(error.message)}</div>`;
     } finally {
-      loading = false;
+      if(requestSequence===loadSequence)loading = false;
     }
   }
 
@@ -488,10 +499,14 @@
     const tab = event.target.closest('[data-mission-tab="comparison"]');
     if (tab) window.setTimeout(() => load(missionCode(), true), 0);
   });
-  document.addEventListener("sris:mission-opened", () => {
+  document.addEventListener("sris:mission-opened", (event) => {
+    loadSequence+=1;
+    loading=false;
     state = null;
-    currentMissionCode = missionCode();
+    currentMissionCode = event.detail?.mission?.code || missionCode();
     installTab();
+    if(root())root().innerHTML='<div class="note">A trocar o contexto da missão de forma atómica…</div>';
+    if(document.querySelector(`[data-mission-tab="${TAB}"]`)?.classList.contains("active"))void load(currentMissionCode,true);
   });
   document.addEventListener("sris:evidence-graph-updated", () => {
     if (document.querySelector(`#mission-tab-${TAB}`)?.classList.contains("active")) load(missionCode(), true);

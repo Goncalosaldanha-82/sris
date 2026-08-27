@@ -114,6 +114,16 @@
       if(error.status===401||error.status===403)return;
       return;
     }
+    const profileEmail=document.getElementById('account-email');
+    if(profileEmail&&!profileEmail.value){
+      const currentUserId=localStorage.getItem('sris_user_id');
+      const displayedName=(document.getElementById('account-name')?.value||'').trim();
+      const current=(data.accounts||[]).find(account=>account.id===currentUserId)
+        ||(data.accounts||[]).find(account=>account.full_name===displayedName)
+        ||(data.accounts||[]).find(account=>account.role==='owner')
+        ||(data.accounts||[])[0];
+      if(current?.email){profileEmail.value=current.email;localStorage.setItem('sris_user_email',current.email);}
+    }
 
     const [capabilityResult,invitationResult,auditResult,statusResult]=await Promise.allSettled([
       client.capabilities(),

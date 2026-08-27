@@ -33,6 +33,8 @@
     rejected:'Rejeitado',
     superseded:'Substituído',
   };
+  let governedMissionState=null;
+  let graphLoadSequence=0;
 
   const relationLabels={
     supports:'suporta',
@@ -189,6 +191,7 @@
     style.id='eg-v2-style';
     style.textContent=`
       .eg-toolbar{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.eg-toolbar h3{margin:5px 0}.eg-contract{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0}.eg-contract>div{padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:#f7faf8}.eg-contract strong,.eg-contract span{display:block}.eg-contract strong{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#45675b}.eg-contract span{margin-top:5px;font-size:10px;line-height:1.45;color:var(--muted)}#eg-status{min-height:20px;margin:10px 0}.eg-counts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin:12px 0 15px}.eg-count{border:1px solid var(--line);border-radius:12px;padding:10px;background:#f8faf8}.eg-count strong{display:block;font-size:21px;color:var(--forest)}.eg-count span{font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.eg-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}.eg-nodes{display:grid;gap:10px}.eg-node{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}.eg-node-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.eg-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}.eg-source-integrity{background:#e5f1eb;color:#285f4b}.eg-type{font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px;border-radius:999px;background:#edf4f1;color:#41685a}.eg-node[data-type="evidence"] .eg-type{background:#f6efe1;color:#8b652b}.eg-node[data-type="assumption"] .eg-type{background:#fbf0db;color:#8b6429}.eg-node[data-type="constraint"] .eg-type{background:#f8e9e6;color:#8c5047}.eg-node[data-type="gap"] .eg-type{background:#f7efe8;color:#8b6429}.eg-node[data-type="hypothesis"] .eg-type{background:#f3eafa;color:#785185}.eg-node[data-type="alternative"] .eg-type{background:#e8f1f8;color:#3d6580}.eg-node[data-type="decision"] .eg-type{background:#e5f1eb;color:#285f4b}.eg-node[data-type="learning"] .eg-type{background:#123e32;color:#fff}.eg-node p{white-space:pre-wrap;line-height:1.55;margin:9px 0;color:#364842}.eg-prov{font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:8px;line-height:1.45}.eg-confidence{font-weight:800;color:#46675b}.eg-node-review{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}.eg-node-review button{padding:7px 9px;border:1px solid #9bada6;border-radius:8px;background:#fff;color:var(--forest);font:inherit;font-size:9px;font-weight:800;cursor:pointer}.eg-node-review button[data-eg-review="verified"]{border-color:#4c806c;background:#edf7f1}.eg-node-review button[data-eg-review="rejected"]{border-color:#d5a29a;color:#8e3535}.eg-node-review button:disabled{cursor:wait;opacity:.55}.eg-edges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.eg-edge{font-size:9px;border-radius:999px;padding:4px 7px;background:#f0f4f2;color:#4c665e}.eg-edge.is-confirmed{background:#dcefe5;color:#205b45;box-shadow:0 0 0 2px rgba(47,116,88,.12)}.eg-side{display:grid;gap:12px;position:sticky;top:96px}.eg-form{padding:15px}.eg-form .field{margin-bottom:10px}.eg-form textarea{min-height:90px}.eg-direction-intro{margin:0 0 12px;padding:9px 10px;border-radius:10px;background:#f3f6f4;color:#52675f;font-size:10px;line-height:1.45}.eg-edge-preview{min-height:46px;margin:4px 0 8px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:#f7faf8;color:#49615a;font-size:11px;line-height:1.45;overflow-wrap:anywhere}.eg-preview-caption{display:block;margin-bottom:5px;font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;color:#6b7d76}.eg-edge-preview strong{display:block;color:var(--forest);font-size:11px}.eg-edge-preview .eg-relation-phrase{display:block;margin:3px 0;color:#8a672d;font-weight:850}.eg-direction-help{display:block;margin-top:7px;padding-top:7px;border-top:1px solid var(--line);color:#60736b}.eg-direction-warning{display:block;margin-top:7px;padding:7px 8px;border-radius:8px;background:#fff0e7;color:#8b4b2f;font-weight:800}.eg-swap-button{width:100%;margin:0 0 8px;padding:9px 10px;border:1px solid #9bada6;border-radius:10px;background:#fff;color:var(--forest);font:inherit;font-size:10px;font-weight:800;cursor:pointer}#eg-edge-submit{width:100%}.eg-inline-status{min-height:44px;margin-top:9px;padding:10px 11px;border-radius:11px;background:#f3f5f3;color:#65736f;font-size:11px;line-height:1.45;overflow-wrap:anywhere}.eg-inline-status[data-state="pending"]{background:#f6f1e6;color:#7c642e}.eg-inline-status[data-state="success"]{background:#e8f5ed;color:#236044;font-weight:750}.eg-inline-status[data-state="error"]{background:#fff0f0;color:#8e3535;font-weight:750}.eg-relations-card{padding:15px}.eg-relations{display:grid;gap:8px}.eg-relation-row{padding:10px;border:1px solid var(--line);border-radius:11px;background:#f9fbfa;font-size:10px;line-height:1.45;color:#536660;overflow-wrap:anywhere}.eg-relation-row strong{display:block;color:var(--forest);font-size:11px;margin:2px 0}.eg-relation-row.is-confirmed{border-color:#6e9c8b;background:#edf7f1;box-shadow:0 0 0 3px rgba(47,116,88,.08)}.eg-relation-warning{margin-top:7px;padding:7px 8px;border-radius:8px;background:#fff0e7;color:#8b4b2f;font-weight:750}.eg-relation-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}.eg-relation-action{padding:6px 8px;border:1px solid #9bada6;border-radius:8px;background:#fff;color:var(--forest);font:inherit;font-size:9px;font-weight:800;cursor:pointer}.eg-relation-action[data-edge-delete]{border-color:#d5a29a;color:#8e3535}.eg-relation-confirmation{margin-top:9px;padding:9px;border:1px solid #d8b67d;border-radius:9px;background:#fff8e9;color:#674c24}.eg-relation-confirmation strong{margin:0 0 5px;color:#674c24}.eg-relation-confirmation span{display:block;margin-top:4px}.eg-relation-confirmation .eg-relation-actions{border-top-color:#e5cfaa}.eg-relation-action[data-edge-confirm="delete"]{border-color:#c47e73;background:#fff;color:#8e3535}.eg-relation-action:disabled,.eg-swap-button:disabled{cursor:wait;opacity:.55}.eg-relations-empty{padding:13px;border:1px dashed var(--line);border-radius:11px;color:var(--muted);font-size:11px;line-height:1.45}.eg-empty{padding:28px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}@media(max-width:1080px){.eg-layout{grid-template-columns:1fr}.eg-side{position:static}.eg-counts{grid-template-columns:repeat(4,1fr)}}@media(max-width:700px){.eg-toolbar{display:grid}.eg-contract{grid-template-columns:1fr}.eg-counts{grid-template-columns:repeat(2,1fr)}}`;
+    style.textContent+='.eg-governance-suspended{background:#fff0d8;color:#7b5718}.eg-node.is-governance-suspended{border-color:#d8b56f;background:#fffaf0}';
     document.head.appendChild(style);
 
     button.addEventListener('click',async()=>{
@@ -288,16 +291,18 @@
   async function loadGraph(){
     const code=missionCode();
     if(!code)return;
+    const requestSequence=++graphLoadSequence;
     const status=document.querySelector('#eg-status');
     try{
       const graph=await req(`/api/pilot/evidence-graph/missions/${encodeURIComponent(code)}`);
+      if(requestSequence!==graphLoadSequence||code!==missionCode())return null;
       window.__srisEvidenceGraph=graph;
       render(graph);
       document.dispatchEvent(new CustomEvent('sris:evidence-graph-updated',{detail:graph}));
       if(status&&!status.textContent)status.textContent='Grafo sincronizado com o estado persistente da missão.';
       return graph;
     }catch(error){
-      if(status)status.textContent=`Não foi possível abrir o grafo: ${error.message}`;
+      if(requestSequence===graphLoadSequence&&code===missionCode()&&status)status.textContent=`Não foi possível abrir o grafo: ${error.message}`;
       return null;
     }
   }
@@ -342,9 +347,11 @@
         }).join('');
         const confidence=node.confidence===null||node.confidence===undefined?'não avaliada':`${Math.round(Number(node.confidence)*100)}%`;
         const sourceIntegrity=(node.source_kind==='document_chunk'||node.source_kind==='visual_document')&&node.provenance?.source_integrity_verified?'<span class="pill eg-source-integrity">Fonte íntegra</span>':'';
+        const legacySuspended=governedMissionState?.health?.status==='requires_resolution'&&['decision','outcome','learning'].includes(node.node_type)&&['accepted','verified'].includes(node.status);
+        const governanceBadge=legacySuspended?'<span class="pill eg-governance-suspended">Estado legado suspenso</span>':'';
         const verification=(node.node_type==='evidence'||node.node_type==='outcome')?`<button type="button" data-eg-node="${esc(node.id)}" data-eg-review="verified">Verificar factual</button>`:'';
         const review=node.status==='proposed'&&node.node_type!=='learning'?`<div class="eg-node-review" aria-label="Revisão humana"><button type="button" data-eg-node="${esc(node.id)}" data-eg-review="accepted">Aceitar após revisão</button>${verification}<button type="button" data-eg-node="${esc(node.id)}" data-eg-review="rejected">Rejeitar</button></div>`:'';
-        return `<article class="eg-node" data-type="${esc(node.node_type)}"><div class="eg-node-head"><div><span class="eg-type">${esc(typeLabels[node.node_type]||node.node_type)}</span><strong style="display:block;margin-top:8px">${esc(node.label)}</strong></div><div class="eg-badges">${sourceIntegrity}<span class="pill">${esc(statusLabels[node.status]||node.status)}</span></div></div><p>${esc((node.body||'').slice(0,2200))}</p><div class="eg-prov">${provenanceText(node)} · <span class="eg-confidence">confiança ${confidence}</span></div>${review}${outgoing?`<div class="eg-edges">${outgoing}</div>`:''}</article>`;
+        return `<article class="eg-node${legacySuspended?' is-governance-suspended':''}" data-type="${esc(node.node_type)}"><div class="eg-node-head"><div><span class="eg-type">${esc(typeLabels[node.node_type]||node.node_type)}</span><strong style="display:block;margin-top:8px">${esc(node.label)}</strong></div><div class="eg-badges">${sourceIntegrity}<span class="pill">${esc(statusLabels[node.status]||node.status)}</span>${governanceBadge}</div></div>${legacySuspended?'<div class="note"><strong>O estado histórico está preservado, mas não pode fundamentar novos avanços até a missão ser reconciliada.</strong></div>':''}<p>${esc((node.body||'').slice(0,2200))}</p><div class="eg-prov">${provenanceText(node)} · <span class="eg-confidence">confiança ${confidence}</span></div>${review}${outgoing?`<div class="eg-edges">${outgoing}</div>`:''}</article>`;
       }).join(''):'<div class="eg-empty">Ainda não existem objetos no grafo. Adicione observações, evidência, pressupostos, restrições, hipóteses ou decisões — ou sincronize uma análise já realizada.</div>';
     }
 
@@ -580,5 +587,20 @@
     }
   }
 
+  document.addEventListener('sris:mission-opened',()=>{
+    graphLoadSequence+=1;
+    governedMissionState=null;
+    window.__srisEvidenceGraph=null;
+    const nodes=document.querySelector('#eg-nodes');
+    const counts=document.querySelector('#eg-counts');
+    if(nodes)nodes.innerHTML='<div class="eg-empty">A trocar o contexto da missão de forma atómica…</div>';
+    if(counts)counts.innerHTML='';
+    if(document.querySelector('[data-mission-tab="graph"]')?.classList.contains('active'))void loadGraph();
+  });
+  document.addEventListener('sris:mission-state-updated',event=>{
+    if(event.detail?.mission?.code!==missionCode())return;
+    governedMissionState=event.detail;
+    if(window.__srisEvidenceGraph)render(window.__srisEvidenceGraph);
+  });
   if(!install())document.addEventListener('DOMContentLoaded',install,{once:true});
 })();

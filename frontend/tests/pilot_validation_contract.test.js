@@ -48,7 +48,8 @@ test('baseline and result remain evidence-backed and deterministic',()=>{
 });
 
 test('protocol completion is never presented as automatic impact validation',()=>{
-  assert.match(validation,/PRONTIDÃO DO PROTOCOLO/);
+  assert.match(validation,/PRONTIDÃO OPERACIONAL DO PROTOCOLO/);
+  assert.match(validation,/incluindo revisão das evidências/);
   assert.match(validation,/Processo completo/);
   assert.match(validation,/Meta matemática atingida/);
   assert.match(validation,/Atribuição causal/);
