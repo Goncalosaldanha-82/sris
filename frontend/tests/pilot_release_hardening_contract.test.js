@@ -8,6 +8,8 @@ const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 const index=read('frontend/pilot-v1/index.html');
+const home=read('frontend/pilot-v1/home.html');
+const account=read('frontend/pilot-v1/account.html');
 const app=read('frontend/pilot-v1/app.js');
 const css=read('frontend/pilot-v1/pilot.css');
 const server=read('backend/app/main.py');
@@ -72,3 +74,19 @@ test('mobile mission creation wins the synchronization race and stays actionable
   assert.match(css,/#mission\[data-mode="editor"\] \.mission-rail/);
   assert.match(css,/scroll-snap-type:x mandatory/);
 });
+test('official SRIS vector identity is consistent across platform surfaces',()=>{
+  const pages=home+'\n'+index+'\n'+account;
+  assert.match(home,/sris-logo-compact-dark\.svg/);
+  assert.match(home,/sris-logo-compact-light\.svg/);
+  assert.match(index,/sris-logo-compact-dark\.svg/);
+  assert.match(index,/sris-mark-dark\.svg/);
+  assert.match(account,/sris-logo-compact-dark\.svg/);
+  assert.equal((pages.match(/sris-favicon\.svg/g)||[]).length,3);
+  assert.doesNotMatch(pages,/class="brand-emblem/);
+  assert.match(css,/\.brand-lockup-image/);
+  assert.match(app,/REPORT_BRAND_DATA_URI/);
+  for(const asset of ['sris-logo-compact-dark.svg','sris-logo-compact-light.svg','sris-mark-dark.svg','sris-favicon.svg']){
+    assert.equal(fs.existsSync(path.join(root,'frontend/pilot-v1',asset)),true);
+  }
+});
+

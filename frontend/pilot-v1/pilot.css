@@ -37,17 +37,13 @@ a{color:var(--forest)}
 .note{font-size:12px;line-height:1.5}
 .eyebrow,.product-index{display:block;color:var(--forest-soft);font-size:10px;font-weight:850;letter-spacing:.18em;text-transform:uppercase}
 
-.brand-lockup{position:relative;z-index:2;display:flex;align-items:center;gap:12px;width:max-content;color:var(--forest)}
-.brand-lockup-light{color:#fff}
-.brand-emblem{position:relative;display:inline-block;width:41px;height:41px;flex:0 0 41px;border:1.8px solid currentColor;border-radius:50%}
-.brand-emblem::before{content:"";position:absolute;left:50%;top:8px;width:2px;height:25px;transform:translateX(-50%);border-radius:2px;background:currentColor}
-.brand-emblem::after{content:"";position:absolute;left:50%;top:5px;width:5px;height:5px;transform:translateX(-50%);border-radius:50%;background:currentColor;box-shadow:0 23px 0 -1px currentColor}
-.brand-emblem.large{width:62px;height:62px;flex-basis:62px;border-width:2px;color:var(--gold)}
-.brand-emblem.large::before{top:12px;height:37px;width:2px}
-.brand-emblem.large::after{top:8px;box-shadow:0 35px 0 -1px currentColor}
-.brand-copy{display:grid;line-height:1}
-.brand-copy strong{font-family:Georgia,"Times New Roman",serif;font-size:24px;font-weight:500;letter-spacing:.05em}
-.brand-copy small{margin-top:6px;font-size:7px;font-weight:750;letter-spacing:.25em}
+.brand-lockup{position:relative;z-index:2;display:flex;align-items:center;width:max-content}
+.brand-lockup-image{display:block;width:clamp(220px,18vw,270px);height:auto}
+.sidebar-brand .brand-lockup-image{width:176px}
+.auth-mobile-brand .brand-lockup-image{width:182px}
+.access-context .brand-lockup-image{width:240px}
+.brand-mark-image{display:block;width:62px;height:auto;object-fit:contain}
+.brand-mark-image.large{width:62px}
 
 .btn,.ghost-btn,.link-btn,.inline-link,.mission-tabs button,.nav button,.auth-tab,.report-actions button{border:0;background:none;text-decoration:none}
 .btn{display:inline-flex;min-height:46px;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:11px;padding:11px 17px;font-weight:760;line-height:1.2;transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}
@@ -188,7 +184,7 @@ a{color:var(--forest)}
 .mission-workspace{min-width:0;min-height:590px}
 .mission-context-loading{display:none;min-height:520px;align-items:center;justify-content:center;align-content:center;justify-items:center;gap:9px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,#fbfdfc,#f2f7f4);color:var(--forest);text-align:center}.mission-context-loading strong{font-family:Georgia,"Times New Roman",serif;font-size:24px;font-weight:500}.mission-context-loading span:last-child{max-width:540px;color:var(--muted);font-size:11px;line-height:1.6}.mission-context-loading-mark{display:grid;width:42px;height:42px;place-items:center;border-radius:50%;background:#e4eee8;color:var(--forest-soft);font-size:20px}.mission-context-loading-active>#mission-context-loading{display:grid}.mission-context-loading-active>:not(#mission-context-loading){display:none!important}
 .empty-state{max-width:970px;margin:auto;padding:clamp(12px,3vw,32px)}
-.empty-state>.brand-emblem{margin-bottom:18px}.empty-state h2{max-width:760px}.empty-state>p{max-width:790px}
+.empty-state>.brand-mark-image{margin-bottom:18px}.empty-state h2{max-width:760px}.empty-state>p{max-width:790px}
 .template-heading{align-items:center;margin:30px 0 13px;border-top:1px solid var(--line);padding-top:22px}
 .mission-template-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .mission-template{display:grid;gap:8px;border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px;text-align:left;transition:border-color .15s,transform .15s}
@@ -261,8 +257,7 @@ a{color:var(--forest)}
   .auth-panel{display:block;min-height:calc(100dvh - 185px);overflow:visible;padding:23px 18px calc(96px + env(safe-area-inset-bottom))}
   .auth-card{max-width:none}
   .auth-mobile-brand{display:flex;margin-bottom:18px;color:var(--forest)}
-  .auth-mobile-brand .brand-emblem{width:34px;height:34px;flex-basis:34px}.auth-mobile-brand .brand-emblem::before{top:6px;height:22px}.auth-mobile-brand .brand-emblem::after{top:4px;box-shadow:0 21px 0 -1px currentColor}
-  .auth-mobile-brand .brand-copy strong{font-size:20px}
+  .auth-mobile-brand .brand-lockup-image{width:182px}
   .auth-card h2{font-size:43px;margin-bottom:8px}
   .auth-card>.muted{margin-bottom:18px;font-size:15px}
   .auth-tabs{margin-bottom:16px}
@@ -306,7 +301,7 @@ a{color:var(--forest)}
   .mission-rail{position:static;padding:14px}.mission-rail .card-head{display:flex;align-items:center}.mission-rail .card-head h2{font-family:Inter,ui-sans-serif,sans-serif;font-size:24px;font-weight:800}.mission-rail.no-missions .input,.mission-rail.no-missions .mission-list{display:none}
   #mission[data-mode="editor"] .mission-rail,#mission[data-mode="detail"] .mission-rail{display:none}
   .mission-workspace{min-height:0;padding:16px;scroll-margin-top:76px}
-  .empty-state{padding:5px 0}.empty-state>.brand-emblem{display:none}.empty-state h2{font-size:34px;line-height:1}.empty-state>p{font-size:13px;line-height:1.55}
+  .empty-state{padding:5px 0}.empty-state>.brand-mark-image{display:none}.empty-state h2{font-size:34px;line-height:1}.empty-state>p{font-size:13px;line-height:1.55}
   .template-heading,.detail-head,.card-head,.card-title{display:grid}
   .template-heading{margin:20px 0 12px;padding-top:18px}.template-heading h3{font-size:22px}.template-heading .btn{width:100%}
   .mission-template-grid{display:flex;gap:10px;margin-right:-16px;overflow-x:auto;padding:1px 16px 12px 0;scroll-snap-type:x mandatory;scrollbar-width:none}.mission-template-grid::-webkit-scrollbar{display:none}
