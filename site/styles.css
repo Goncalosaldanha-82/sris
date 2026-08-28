@@ -682,7 +682,7 @@ h4 {
 
 .cycle-rail {
   display: grid;
-  grid-template-columns: repeat(11, minmax(92px, 1fr));
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
   gap: 7px;
   padding: 3px 3px 14px;
   overflow-x: auto;
