@@ -120,66 +120,26 @@ h4 {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
   color: #fffdf5;
-  font-size: 15px;
-  font-weight: 850;
-  letter-spacing: 0.12em;
   line-height: 1;
 }
 
-.brand small {
+.brand-lockup {
   display: block;
-  margin-top: 5px;
-  color: var(--gold-soft);
-  font-size: 8px;
-  letter-spacing: 0.25em;
+  width: 190px;
+  height: auto;
 }
 
 .brand-mark {
-  width: 38px;
-  height: 38px;
+  display: block;
+  width: 27px;
+  height: auto;
   flex: 0 0 auto;
-  position: relative;
-  border: 1.5px solid var(--gold-soft);
-  border-radius: 50%;
-}
-
-.brand-mark::before {
-  content: "";
-  position: absolute;
-  left: 18px;
-  top: 7px;
-  width: 1.5px;
-  height: 27px;
-  background: var(--gold-soft);
-}
-
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  left: 15px;
-  top: 7px;
-  width: 7px;
-  height: 7px;
-  background: var(--gold-soft);
-  border-radius: 50%;
+  object-fit: contain;
 }
 
 .brand-mark.small {
-  width: 27px;
-  height: 27px;
-}
-
-.brand-mark.small::before {
-  left: 12px;
-  top: 5px;
-  height: 19px;
-}
-
-.brand-mark.small::after {
-  left: 9px;
-  top: 5px;
+  width: 24px;
 }
 
 .desktop-nav {
@@ -1952,24 +1912,8 @@ footer {
     min-height: 72px;
   }
 
-  .brand {
-    font-size: 13px;
-  }
-
-  .brand-mark {
-    width: 34px;
-    height: 34px;
-  }
-
-  .brand-mark::before {
-    left: 16px;
-    top: 6px;
-    height: 25px;
-  }
-
-  .brand-mark::after {
-    left: 13px;
-    top: 6px;
+  .brand-lockup {
+    width: 168px;
   }
 
   .hero {
