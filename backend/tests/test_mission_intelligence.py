@@ -3977,6 +3977,7 @@ def test_institutional_activation_script_verifies_full_session_contract() -> Non
     assert "institutional-activation-token.txt" in script
     assert "ConvertTo-SecureString" in script
     assert ").Trim()" in script
+    assert "SRIS_LOCAL_ACTIVATION_TOKEN" in script
     assert "Read-Host \"Cole o token temporario do Railway\" -AsSecureString" in script
     assert "Read-Host \"Defina a nova palavra-passe" in script
     assert "activation_token = $plainToken" in script
@@ -3985,8 +3986,9 @@ def test_institutional_activation_script_verifies_full_session_contract() -> Non
         repo_root / "scripts" / "PREPARE_SRIS_INSTITUTIONAL_TOKEN.ps1"
     ).read_text(encoding="utf-8")
     assert "RandomNumberGenerator" in prepare_script
-    assert "ConvertFrom-SecureString" in prepare_script
+    assert "SRIS_LOCAL_ACTIVATION_TOKEN" in prepare_script
     assert "Set-Clipboard" in prepare_script
+    assert "Nao feche esta janela" in prepare_script
     assert "Nao gere outro token" in prepare_script
 
     frontend = (repo_root / "frontend" / "atlas-os" / "index.html").read_text(

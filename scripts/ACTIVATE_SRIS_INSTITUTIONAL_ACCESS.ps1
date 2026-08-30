@@ -61,7 +61,14 @@ Write-Host "Conta: $Email"
 Write-Host "Nenhum segredo sera gravado no ficheiro ou enviado para o GitHub."
 
 $activationConsumed = $false
-if (Test-Path -LiteralPath $TokenFile) {
+if (-not [string]::IsNullOrWhiteSpace($env:SRIS_LOCAL_ACTIVATION_TOKEN)) {
+    $secureToken = ConvertTo-SecureString `
+        $env:SRIS_LOCAL_ACTIVATION_TOKEN `
+        -AsPlainText `
+        -Force
+    Write-Host "Token encontrado na memoria desta janela do PowerShell." -ForegroundColor Green
+}
+elseif (Test-Path -LiteralPath $TokenFile) {
     try {
         $encryptedToken = (
             Get-Content -LiteralPath $TokenFile -Raw
@@ -232,6 +239,9 @@ finally {
     }
     if ($activationConsumed -and (Test-Path -LiteralPath $TokenFile)) {
         Remove-Item -LiteralPath $TokenFile -Force
+    }
+    if ($activationConsumed) {
+        $env:SRIS_LOCAL_ACTIVATION_TOKEN = $null
     }
     try {
         Set-Clipboard -Value "[SRIS: segredo temporario removido]" -ErrorAction Stop
