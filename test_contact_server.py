@@ -1,12 +1,14 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from contact_server import (
     RateLimiter,
     build_email,
     is_allowed_origin,
     is_valid_email,
+    send_contact_email,
     send_via_resend,
+    send_via_smtp,
     validate_contact,
 )
 
@@ -73,6 +75,55 @@ class EmailTests(unittest.TestCase):
     def test_delivery_requires_api_key(self):
         with self.assertRaisesRegex(RuntimeError, "RESEND_API_KEY"):
             send_via_resend(valid_payload())
+
+    @patch("contact_server.urlopen")
+    @patch.dict(
+        "os.environ",
+        {
+            "RESEND_API_KEY": "test-key",
+            "SRIS_EMAIL_FROM": "verified@sris.io",
+        },
+        clear=True,
+    )
+    def test_resend_reuses_shared_verified_sender(self, urlopen):
+        response = MagicMock()
+        response.__enter__.return_value.status = 200
+        urlopen.return_value = response
+
+        send_via_resend(valid_payload())
+
+        request = urlopen.call_args.args[0]
+        self.assertIn(b"verified@sris.io", request.data)
+
+    @patch("contact_server.smtplib.SMTP")
+    @patch.dict(
+        "os.environ",
+        {
+            "SRIS_CONTACT_EMAIL_PROVIDER": "smtp",
+            "SRIS_SMTP_HOST": "smtp.example.org",
+            "SRIS_SMTP_USER": "legacy-user",
+            "SRIS_SMTP_PASSWORD": "secret",
+            "SRIS_SMTP_FROM_EMAIL": "website@sris.io",
+        },
+        clear=True,
+    )
+    def test_smtp_supports_legacy_username(self, smtp):
+        connection = smtp.return_value.__enter__.return_value
+
+        send_via_smtp(valid_payload())
+
+        smtp.assert_called_once_with("smtp.example.org", 587, timeout=10)
+        connection.starttls.assert_called_once()
+        connection.login.assert_called_once_with("legacy-user", "secret")
+        connection.send_message.assert_called_once()
+
+    @patch("contact_server.send_via_smtp")
+    @patch.dict(
+        "os.environ", {"SRIS_CONTACT_EMAIL_PROVIDER": "smtp"}, clear=True
+    )
+    def test_contact_provider_can_select_smtp(self, smtp):
+        send_contact_email(valid_payload())
+        smtp.assert_called_once()
 
 
 class OriginTests(unittest.TestCase):

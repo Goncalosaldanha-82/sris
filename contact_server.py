@@ -9,9 +9,12 @@ import mimetypes
 import os
 import re
 import secrets
+import smtplib
+import ssl
 import threading
 import time
 from collections import defaultdict, deque
+from email.message import EmailMessage
 from email.utils import parseaddr
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -171,7 +174,11 @@ def send_via_resend(data: dict[str, object]) -> None:
     if not api_key:
         raise RuntimeError("RESEND_API_KEY is not configured")
     to_email = os.environ.get("SRIS_CONTACT_TO_EMAIL", "contact@sris.io").strip()
-    from_email = os.environ.get("SRIS_CONTACT_FROM_EMAIL", "website@mail.sris.io").strip()
+    from_email = (
+        os.environ.get("SRIS_CONTACT_FROM_EMAIL", "").strip()
+        or os.environ.get("SRIS_EMAIL_FROM", "").strip()
+        or "website@mail.sris.io"
+    )
     payload = json.dumps(build_email(data, to_email, from_email)).encode("utf-8")
     request = Request(
         "https://api.resend.com/emails",
@@ -190,6 +197,72 @@ def send_via_resend(data: dict[str, object]) -> None:
                 raise RuntimeError(f"Unexpected Resend status {response.status}")
     except (HTTPError, URLError, TimeoutError) as error:
         raise RuntimeError("Email delivery failed") from error
+
+
+def send_via_smtp(data: dict[str, object]) -> None:
+    host = os.environ.get("SRIS_SMTP_HOST", "").strip()
+    username = (
+        os.environ.get("SRIS_SMTP_USERNAME", "").strip()
+        or os.environ.get("SRIS_SMTP_USER", "").strip()
+    )
+    password = os.environ.get("SRIS_SMTP_PASSWORD", "")
+    security = os.environ.get("SRIS_SMTP_SECURITY", "starttls").strip().lower()
+    to_email = os.environ.get("SRIS_CONTACT_TO_EMAIL", "contact@sris.io").strip()
+    from_email = (
+        os.environ.get("SRIS_CONTACT_FROM_EMAIL", "").strip()
+        or os.environ.get("SRIS_SMTP_FROM_EMAIL", "").strip()
+        or os.environ.get("SRIS_EMAIL_FROM", "").strip()
+    )
+    if security not in {"starttls", "ssl"}:
+        raise RuntimeError("Secure SMTP is not configured")
+    if not host or not is_valid_email(to_email) or not is_valid_email(from_email):
+        raise RuntimeError("SMTP delivery is not configured")
+    if bool(username) is not bool(password):
+        raise RuntimeError("SMTP credentials are incomplete")
+
+    default_port = 465 if security == "ssl" else 587
+    try:
+        port = int(os.environ.get("SRIS_SMTP_PORT", str(default_port)))
+    except ValueError as error:
+        raise RuntimeError("SMTP port is invalid") from error
+    if not 1 <= port <= 65535:
+        raise RuntimeError("SMTP port is invalid")
+
+    payload = build_email(data, to_email, from_email)
+    message = EmailMessage()
+    message["From"] = str(payload["from"])
+    message["To"] = to_email
+    message["Reply-To"] = str(payload["reply_to"])
+    message["Subject"] = str(payload["subject"])
+    message.set_content(str(payload["text"]))
+    message.add_alternative(str(payload["html"]), subtype="html")
+
+    context = ssl.create_default_context()
+    smtp_class = smtplib.SMTP_SSL if security == "ssl" else smtplib.SMTP
+    try:
+        with smtp_class(host, port, timeout=10) as connection:
+            if security == "starttls":
+                connection.starttls(context=context)
+            if username:
+                connection.login(username, password)
+            connection.send_message(message)
+    except (OSError, smtplib.SMTPException) as error:
+        raise RuntimeError("Email delivery failed") from error
+
+
+def send_contact_email(data: dict[str, object]) -> None:
+    provider = (
+        os.environ.get("SRIS_CONTACT_EMAIL_PROVIDER", "").strip().lower()
+        or os.environ.get("SRIS_EMAIL_PROVIDER", "").strip().lower()
+        or "resend"
+    )
+    if provider == "resend":
+        send_via_resend(data)
+        return
+    if provider == "smtp":
+        send_via_smtp(data)
+        return
+    raise RuntimeError("Unsupported contact email provider")
 
 
 class ContactHandler(SimpleHTTPRequestHandler):
@@ -280,7 +353,7 @@ class ContactHandler(SimpleHTTPRequestHandler):
             return
 
         try:
-            send_via_resend(data)
+            send_contact_email(data)
         except RuntimeError:
             LOGGER.exception("Contact delivery failed")
             self._json(
