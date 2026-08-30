@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b241d">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="/sris-favicon.svg" type="image/svg+xml">
+  <title>Demonstração pública — SRIS Mission Intelligence</title>
+  <meta name="description" content="Demonstração pública, só de leitura, do SRIS Mission Intelligence com dados fictícios.">
+  <link rel="stylesheet" href="/demonstracao.css?v=__PILOT_BUILD__">
+</head>
+<body>
+  <header class="demo-header">
+    <a href="/" aria-label="SRIS — início"><img src="/sris-logo-compact-light.svg?v=__PILOT_BUILD__" alt="SRIS — Mission Intelligence"></a>
+    <nav><span class="readonly">Só de leitura</span><a href="/">Acesso institucional</a></nav>
+  </header>
+  <div class="fictional-banner">Demonstração pública · Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios.</div>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">MISSION INTELLIGENCE · CASO DEMONSTRATIVO</p>
+      <h1 id="mission-title">A carregar demonstração…</h1>
+      <p id="mission-subtitle" class="lead"></p>
+      <div class="meta" id="mission-meta"></div>
+    </section>
+
+    <section class="summary-grid" aria-label="Resumo da missão">
+      <article><span>Estado</span><strong id="mission-status">—</strong></article>
+      <article><span>Confiança</span><strong id="mission-confidence">—</strong></article>
+      <article><span>Decisão atual</span><strong id="mission-decision">—</strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading"><p class="eyebrow">01 · SITUAÇÃO</p><h2>O que estava em causa</h2></div>
+      <p id="situation-summary" class="body-copy"></p>
+      <div id="attention-list" class="card-grid"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading"><p class="eyebrow">02 · CADEIA DE DECISÃO</p><h2>Do sinal à aprendizagem</h2></div>
+      <div id="decision-chain" class="chain"></div>
+    </section>
+
+    <section class="panel split">
+      <div>
+        <div class="section-heading"><p class="eyebrow">03 · QUESTÃO</p><h2>A pergunta que orientou o piloto</h2></div>
+        <p id="central-question" class="body-copy"></p>
+        <h3>O que estava disponível</h3><p id="available-evidence" class="body-copy small"></p>
+        <h3>O que continuou desconhecido</h3><p id="unknowns" class="body-copy small"></p>
+      </div>
+      <div>
+        <div class="section-heading"><p class="eyebrow">04 · ALTERNATIVAS</p><h2>Opções comparadas</h2></div>
+        <div id="alternatives-list" class="stack"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading"><p class="eyebrow">05 · EVIDÊNCIA</p><h2>Registos com método e limitação</h2></div>
+      <div id="evidence-list" class="evidence-grid"></div>
+    </section>
+
+    <section class="panel learning-panel">
+      <div class="section-heading"><p class="eyebrow">06 · APRENDIZAGEM</p><h2>O que fica reutilizável</h2></div>
+      <div id="learning-list" class="card-grid"></div>
+    </section>
+
+    <section class="cta">
+      <p class="eyebrow">ÁREA INSTITUCIONAL</p>
+      <h2>Os pilotos reais permanecem separados desta demonstração.</h2>
+      <p>O acesso é criado por convite e cada organização trabalha no seu próprio espaço.</p>
+      <a href="/">Entrar com convite</a>
+    </section>
+  </main>
+  <footer>SRIS — Mission Intelligence · Demonstração fictícia · <span id="demo-build">__PILOT_BUILD__</span></footer>
+  <div id="demo-error" class="error hidden" role="alert"></div>
+  <script src="/demonstracao.js?v=__PILOT_BUILD__" defer></script>
+</body>
+</html>

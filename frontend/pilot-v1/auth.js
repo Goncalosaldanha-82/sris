@@ -115,7 +115,7 @@
     $('#trial-box')?.classList.toggle('hidden',!['login','register'].includes(name));
 
     const copy={
-      login:['Bem-vindo','Entre no seu workspace ou crie uma conta para estruturar a primeira missão.','login-form'],
+      login:['Bem-vindo','Entre no espaço da sua organização. As contas institucionais são criadas por convite.','login-form'],
       register:['Criar conta','Crie um workspace individual e comece pela primeira decisão real.','register-form'],
       'reset-request':['Recuperar acesso',resetSubtitle(),'reset-request-form'],
       'reset-confirm':['Nova palavra-passe','Defina uma nova credencial. A alteração invalida as sessões anteriores.','reset-confirm-form'],
@@ -260,8 +260,11 @@
     try{
       capabilities=await api('/api/pilot/capabilities');
       if(!capabilities.public_signup){
+        $('#register-tab').classList.add('hidden');
         $('#register-tab').disabled=true;
-        $('#register-tab').title='Criação pública de conta temporariamente fechada';
+        $('#register-tab').title='Criação pública de conta fechada; acesso por convite';
+      }else{
+        $('#register-tab').classList.remove('hidden');
       }
     }catch(error){console.warn('Pilot capabilities unavailable on entry:',error.message);}
     if(applyResetTokenFromURL())return;

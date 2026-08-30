@@ -147,6 +147,44 @@ def test_pilot_entry_is_one_versioned_mobile_safe_surface() -> None:
     assert photo.headers["cache-control"].endswith("immutable")
 
 
+def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
+    page = client.get("/demonstracao")
+    assert page.status_code == 200
+    assert page.headers["cache-control"].startswith("no-store")
+    for marker in (
+        "Demonstração pública",
+        "Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios",
+        "Só de leitura",
+        "Os pilotos reais permanecem separados desta demonstração",
+        f"/demonstracao.css?v={PILOT_BUILD}",
+        f"/demonstracao.js?v={PILOT_BUILD}",
+    ):
+        assert marker in page.text
+
+    catalog = client.get("/api/mission-intelligence/demo/fictional/missions")
+    assert catalog.status_code == 200
+    payload = catalog.json()
+    assert payload["schema"] == "sris_fictional_demo_catalog"
+    assert list(payload["missions"]) == ["DEMO-MUN-001"]
+    mission = payload["missions"]["DEMO-MUN-001"]
+    assert mission["organization"] == "Município de Vale Sereno (entidade fictícia)"
+    serialized = json.dumps(payload, ensure_ascii=False)
+    for real_boundary in ("Podentes", "Penela", "Fernando Saldanha", "517723816"):
+        assert real_boundary not in serialized
+
+    detail = client.get("/api/mission-intelligence/demo/fictional/missions/DEMO-MUN-001")
+    assert detail.status_code == 200
+    assert detail.json()["status"].endswith("dados fictícios")
+    assert client.get("/api/mission-intelligence/demo/fictional/missions/UNKNOWN").status_code == 404
+
+
+def test_entry_separates_invited_access_from_public_demo() -> None:
+    page = client.get("/")
+    assert "As contas institucionais são criadas por convite" in page.text
+    assert 'href="/demonstracao"' in page.text
+    assert "A demonstração usa apenas dados fictícios" in page.text
+
+
 def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
     response = client.get("/app")
     assert response.status_code == 200

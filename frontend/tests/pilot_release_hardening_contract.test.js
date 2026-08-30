@@ -10,6 +10,7 @@ const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 const index=read('frontend/pilot-v1/index.html');
 const home=read('frontend/pilot-v1/home.html');
 const account=read('frontend/pilot-v1/account.html');
+const demo=read('frontend/pilot-v1/demonstracao.html');
 const app=read('frontend/pilot-v1/app.js');
 const css=read('frontend/pilot-v1/pilot.css');
 const server=read('backend/app/main.py');
@@ -90,3 +91,12 @@ test('official SRIS vector identity is consistent across platform surfaces',()=>
   }
 });
 
+test('public demonstration stays fictional and separated from invited access',()=>{
+  assert.match(home,/As contas institucionais são criadas por convite/);
+  assert.match(home,/href="\/demonstracao"/);
+  assert.match(home,/A demonstração usa apenas dados fictícios/);
+  assert.match(demo,/Só de leitura/);
+  assert.match(demo,/Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios/);
+  assert.match(demo,/Os pilotos reais permanecem separados desta demonstração/);
+  assert.doesNotMatch(demo,/Podentes|Penela|Fernando Saldanha|517723816/);
+});

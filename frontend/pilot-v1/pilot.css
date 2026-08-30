@@ -391,3 +391,5 @@ a{color:var(--forest)}
   .mission-workspace,.card{border:0;box-shadow:none;padding:0}
   body{background:#fff}
 }
+.auth-demo-link{display:flex;align-items:center;justify-content:center;margin-top:18px;text-decoration:none}
+.auth-boundary{text-align:center;margin:10px 0 0}

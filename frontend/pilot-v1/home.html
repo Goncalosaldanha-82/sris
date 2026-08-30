@@ -34,11 +34,11 @@
       </div>
       <div class="eyebrow auth-release">PILOTO V1 · VALIDAÇÃO OPERACIONAL</div>
       <h2 id="auth-title">Bem-vindo</h2>
-      <p class="muted" id="auth-subtitle">Entre no seu workspace ou crie uma conta para estruturar a primeira missão.</p>
+      <p class="muted" id="auth-subtitle">Entre no espaço da sua organização. As contas institucionais são criadas por convite.</p>
 
       <div class="auth-tabs" id="auth-tabs" role="tablist" aria-label="Acesso">
         <button class="auth-tab active" id="login-tab" type="button" role="tab" aria-selected="true" data-mode="login">Entrar</button>
-        <button class="auth-tab" id="register-tab" type="button" role="tab" aria-selected="false" data-mode="register">Criar conta</button>
+        <button class="auth-tab hidden" id="register-tab" type="button" role="tab" aria-selected="false" data-mode="register">Criar conta</button>
       </div>
 
       <div id="message" class="alert hidden" role="status" aria-live="polite" tabindex="-1"></div>
@@ -57,6 +57,9 @@
           <button type="button" class="link-btn" id="forgot-link">Recuperar palavra-passe</button>
         </div>
       </form>
+
+      <a class="btn btn-secondary auth-demo-link" href="/demonstracao">Ver demonstração pública</a>
+      <p class="note auth-boundary">A demonstração usa apenas dados fictícios e não permite alterar registos.</p>
 
       <form id="register-form" class="auth-form hidden" novalidate>
         <div class="field"><label for="reg-name">Nome</label><input id="reg-name" name="name" required minlength="2" autocomplete="name" placeholder="O seu nome"></div>

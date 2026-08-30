@@ -114,5 +114,16 @@ def pilot_app() -> HTMLResponse:
     )
 
 
+@app.get("/demonstracao", include_in_schema=False)
+def public_demo() -> HTMLResponse:
+    return HTMLResponse(
+        _frontend_html("demonstracao.html"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-SRIS-Pilot-Build": PILOT_BUILD,
+        },
+    )
+
+
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
