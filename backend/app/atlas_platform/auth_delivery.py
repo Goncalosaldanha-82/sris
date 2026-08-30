@@ -282,12 +282,29 @@ def _send_api_email(
     except AuthDeliveryError:
         raise
     except HTTPError as exc:
-        # Keep credentials and provider response bodies out of user-visible
-        # errors, but preserve the HTTP status so an operator can distinguish
-        # an invalid key/domain (401/403/422) from a transient outage.
-        raise AuthDeliveryError(
-            f"Fornecedor de email recusou o envio (HTTP {exc.code})."
-        ) from exc
+        # Resend/Brevo return a small JSON error envelope. Preserve only its
+        # public error code and message: never headers, request data or keys.
+        provider_name = "Resend" if configuration.provider == "resend" else "Brevo"
+        provider_code = ""
+        provider_message = ""
+        try:
+            body = exc.read(4096).decode("utf-8", errors="replace")
+            payload = json.loads(body)
+            if isinstance(payload, dict):
+                provider_code = _clean_header(
+                    str(payload.get("name") or payload.get("code") or "")
+                )[:80]
+                provider_message = _clean_header(
+                    str(payload.get("message") or "")
+                )[:320]
+        except (OSError, UnicodeError, ValueError, TypeError):
+            pass
+        detail = f"{provider_name} recusou o envio (HTTP {exc.code})"
+        if provider_code:
+            detail += f" · {provider_code}"
+        if provider_message:
+            detail += f": {provider_message}"
+        raise AuthDeliveryError(f"{detail}.") from exc
     except URLError as exc:
         raise AuthDeliveryError(
             "Não foi possível contactar o fornecedor de email."

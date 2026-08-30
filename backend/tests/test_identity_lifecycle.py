@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
+from urllib.error import HTTPError
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -104,6 +106,42 @@ def test_resend_delivery_uses_json_api_without_exposing_key(monkeypatch) -> None
     assert request.full_url == "https://api.resend.com/emails"
     assert request.get_header("Authorization") == "Bearer test-key"
     assert b"person@example.com" in request.data
+
+
+def test_resend_http_error_preserves_only_safe_provider_detail(monkeypatch) -> None:
+    _clear_delivery_environment(monkeypatch)
+    monkeypatch.setenv("SRIS_EMAIL_PROVIDER", "resend")
+    monkeypatch.setenv("SRIS_EMAIL_FROM", "access@example.com")
+    monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "secret-test-key")
+
+    def fake_urlopen(request, timeout):
+        raise HTTPError(
+            request.full_url,
+            403,
+            "Forbidden",
+            hdrs=None,
+            fp=io.BytesIO(
+                b'{"name":"validation_error","message":"Domain is not verified"}'
+            ),
+        )
+
+    monkeypatch.setattr(auth_delivery, "urlopen", fake_urlopen)
+    try:
+        auth_delivery.send_transactional_email(
+            recipient="person@example.com",
+            subject="Ativar acesso",
+            text_body="Texto",
+            html_body="<p>Texto</p>",
+        )
+    except auth_delivery.AuthDeliveryError as exc:
+        detail = str(exc)
+    else:
+        raise AssertionError("Expected provider error")
+    assert "HTTP 403" in detail
+    assert "validation_error" in detail
+    assert "Domain is not verified" in detail
+    assert "secret-test-key" not in detail
 
 
 def _owner() -> tuple[dict[str, str], str, str]:
