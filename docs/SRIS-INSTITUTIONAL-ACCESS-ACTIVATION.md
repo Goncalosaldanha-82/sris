@@ -19,9 +19,32 @@ The whole operation is protected by an exact email and a high-entropy,
 single-use token. The endpoint is absent from OpenAPI and returns `404` whenever
 the temporary gate is not fully configured.
 
-## Safe sequence
+## Preferred sequence: activation by institutional email
 
-Always prove the flow in `staging` before touching `production`.
+The managed pilot uses the ordinary password-recovery surface for the first
+owner.  This removes local scripts and copied activation secrets from the
+operator journey while keeping public account and organization creation closed.
+
+1. Configure transactional email and keep both public creation gates disabled.
+2. Set `SRIS_ACCESS_ACTIVATION_EMAIL` to the exact institutional mailbox.
+3. Deploy and wait for `ACTIVE`.
+4. On the normal SRIS login page, choose **Recuperar palavra-passe** and enter
+   that exact mailbox.
+5. SRIS creates or repairs the canonical user, organization and `owner`
+   membership, then emails a single-use password-reset link.
+6. Define the password through the received link and sign in.
+7. Delete `SRIS_ACCESS_ACTIVATION_EMAIL`,
+   `SRIS_ACCESS_ACTIVATION_TOKEN` and any optional
+   `SRIS_ACCESS_ACTIVATION_*` identity variables, then deploy again.
+
+The public response remains generic. A different email never creates an
+account, and the bootstrap refuses to run while public user or organization
+creation is enabled.
+
+## Manual fallback
+
+Use this fallback only if transactional email is unavailable. Always prove the
+flow in `staging` before touching `production`.
 
 1. Generate a fresh token locally. Do not paste it into chat, source code or Git.
 2. In the Railway `sris` service for the target environment, set:

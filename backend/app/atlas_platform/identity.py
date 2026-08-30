@@ -147,6 +147,130 @@ def _first_organization_id(db: Session, user_id: str) -> str | None:
     return membership.organization_id if membership is not None else None
 
 
+def _initial_owner_for_password_reset(
+    db: Session,
+    email: str,
+) -> User | None:
+    """Prepare the one institutional owner behind an exact-email gate.
+
+    The temporary Railway variable identifies the only mailbox that may use
+    this recovery bootstrap.  No public user or organization creation is
+    opened: the normal, generic password-reset endpoint creates or repairs the
+    canonical SRIS owner and sends a single-use reset link to that mailbox.
+    """
+
+    configured_email = os.getenv(
+        "SRIS_ACCESS_ACTIVATION_EMAIL",
+        "",
+    ).strip().lower()
+    if not configured_email or not secrets.compare_digest(
+        email.encode("utf-8"),
+        configured_email.encode("utf-8"),
+    ):
+        return None
+
+    public_registration = environment_flag(
+        "ATLAS_SELF_REGISTRATION_ENABLED",
+        default=not _managed_runtime(),
+    )
+    public_organization_creation = environment_flag(
+        "ATLAS_ORGANIZATION_CREATION_ENABLED",
+        default=not _managed_runtime(),
+    )
+    if public_registration or public_organization_creation:
+        return None
+
+    organization_name = (
+        os.getenv("SRIS_ACCESS_ACTIVATION_ORGANIZATION_NAME", "SRIS").strip()
+        or "SRIS"
+    )
+    organization_slug = (
+        os.getenv("SRIS_ACCESS_ACTIVATION_ORGANIZATION_SLUG", "sris")
+        .strip()
+        .lower()
+        or "sris"
+    )
+    if not all(
+        character.isalnum() or character == "-"
+        for character in organization_slug
+    ):
+        return None
+
+    user = db.query(User).filter(User.email == configured_email).one_or_none()
+    user_created = user is None
+    if user is None:
+        user = User(
+            email=configured_email,
+            full_name=(
+                os.getenv("SRIS_ACCESS_ACTIVATION_FULL_NAME", "Gonçalo Saldanha")
+                .strip()
+                or "Utilizador institucional"
+            ),
+            password_hash=hash_password(f"{_new_token()}{_new_token()}"),
+            is_active=True,
+            auth_version=1,
+        )
+        db.add(user)
+        db.flush()
+    elif not user.is_active:
+        user.is_active = True
+        user.auth_version += 1
+
+    organization = (
+        db.query(Organization)
+        .filter(Organization.slug == organization_slug)
+        .one_or_none()
+    )
+    organization_created = organization is None
+    if organization is None:
+        organization = Organization(
+            name=organization_name,
+            slug=organization_slug,
+        )
+        db.add(organization)
+        db.flush()
+
+    membership = (
+        db.query(Membership)
+        .filter(
+            Membership.user_id == user.id,
+            Membership.organization_id == organization.id,
+        )
+        .one_or_none()
+    )
+    membership_created = membership is None
+    previous_role = membership.role if membership is not None else None
+    if membership is None:
+        membership = Membership(
+            user_id=user.id,
+            organization_id=organization.id,
+            role=Role.OWNER.value,
+        )
+        db.add(membership)
+        db.flush()
+    else:
+        membership.role = Role.OWNER.value
+
+    record_audit(
+        db,
+        action="institutional_access.email_bootstrap_prepared",
+        resource_type="membership",
+        resource_id=membership.id,
+        organization_id=organization.id,
+        user_id=user.id,
+        payload={
+            "method": "password_reset_email",
+            "user_created": user_created,
+            "organization_created": organization_created,
+            "membership_created": membership_created,
+            "previous_role": previous_role,
+        },
+    )
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def _send_invitation_email(invitation_id: str, raw_token: str) -> None:
     with SessionLocal() as db:
         invitation = db.get(UserInvitation, invitation_id)
@@ -621,11 +745,13 @@ def request_password_reset(
         return response
 
     email = str(payload.email).strip().lower()
-    user = (
-        db.query(User)
-        .filter(User.email == email, User.is_active.is_(True))
-        .one_or_none()
-    )
+    user = _initial_owner_for_password_reset(db, email)
+    if user is None:
+        user = (
+            db.query(User)
+            .filter(User.email == email, User.is_active.is_(True))
+            .one_or_none()
+        )
     if user is None:
         return response
 

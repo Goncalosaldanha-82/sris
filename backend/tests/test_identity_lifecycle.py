@@ -7,7 +7,14 @@ from fastapi.testclient import TestClient
 
 from app.atlas_platform import auth_delivery, identity
 from app.atlas_platform.database import Base, SessionLocal, engine
-from app.atlas_platform.models import PasswordResetToken, User, UserInvitation
+from app.atlas_platform.models import (
+    Membership,
+    Organization,
+    PasswordResetToken,
+    Role,
+    User,
+    UserInvitation,
+)
 from app.main import app
 
 
@@ -419,6 +426,78 @@ def test_password_reset_is_generic_single_use_and_revokes_sessions(
         },
     )
     assert replay.status_code == 400
+
+
+def test_exact_email_gate_bootstraps_first_owner_through_normal_reset(
+    monkeypatch,
+) -> None:
+    captured = _capture_auth_links(monkeypatch)
+    suffix = uuid4().hex[:10]
+    owner_email = f"institutional-owner-{suffix}@example.com"
+    organization_slug = f"sris-{suffix}"
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_ID", "identity-staging")
+    monkeypatch.setenv("ATLAS_SELF_REGISTRATION_ENABLED", "false")
+    monkeypatch.setenv("ATLAS_ORGANIZATION_CREATION_ENABLED", "false")
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_EMAIL", owner_email)
+    monkeypatch.setenv(
+        "SRIS_ACCESS_ACTIVATION_ORGANIZATION_SLUG",
+        organization_slug,
+    )
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_ORGANIZATION_NAME", "SRIS")
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_FULL_NAME", "Gonçalo Saldanha")
+
+    unrelated_email = f"not-gated-{suffix}@example.com"
+    unrelated = client.post(
+        "/api/auth/password-reset/request",
+        json={"email": unrelated_email},
+    )
+    assert unrelated.status_code == 202
+    with SessionLocal() as db:
+        assert db.query(User).filter(User.email == unrelated_email).first() is None
+
+    requested = client.post(
+        "/api/auth/password-reset/request",
+        json={"email": owner_email},
+    )
+    assert requested.status_code == 202, requested.text
+    assert captured and captured[-1][0] == "reset"
+    reset_token = captured[-1][1]
+
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.email == owner_email).one()
+        organization = (
+            db.query(Organization)
+            .filter(Organization.slug == organization_slug)
+            .one()
+        )
+        membership = (
+            db.query(Membership)
+            .filter(
+                Membership.user_id == user.id,
+                Membership.organization_id == organization.id,
+            )
+            .one()
+        )
+        assert user.is_active is True
+        assert user.full_name == "Gonçalo Saldanha"
+        assert membership.role == Role.OWNER.value
+
+    confirmed = client.post(
+        "/api/auth/password-reset/confirm",
+        json={
+            "token": reset_token,
+            "new_password": "institutional-owner-password-456",
+        },
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    logged_in = client.post(
+        "/api/auth/login",
+        json={
+            "email": owner_email,
+            "password": "institutional-owner-password-456",
+        },
+    )
+    assert logged_in.status_code == 200, logged_in.text
 
 
 def test_admin_cannot_invite_another_admin(monkeypatch) -> None:
