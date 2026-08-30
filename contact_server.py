@@ -102,7 +102,7 @@ def validate_contact(payload: object) -> tuple[dict[str, object] | None, str | N
     if not 20 <= len(data["message"]) <= 4_000:
         return None, "A mensagem deve ter entre 20 e 4000 caracteres."
     if not data["privacy"]:
-        return None, "É necessário autorizar o tratamento dos dados para respondermos."
+        return None, "É necessário confirmar a leitura da Política de Privacidade."
     elapsed = data["elapsed_ms"]
     if not isinstance(elapsed, (int, float)) or isinstance(elapsed, bool):
         return None, "Pedido inválido. Atualize a página e tente novamente."
@@ -125,7 +125,7 @@ def build_email(data: dict[str, object], to_email: str, from_email: str) -> dict
         "Novo contacto recebido através de sris.io\n\n"
         f"Nome: {name}\nEmail: {email_address}\nOrganização: {organization}\n\n"
         f"Mensagem:\n{message}\n\n"
-        "O remetente autorizou o tratamento destes dados exclusivamente para resposta a este contacto."
+        "O remetente declarou ter lido e compreendido a Política de Privacidade."
     )
     html_body = (
         "<h2>Novo contacto recebido através de sris.io</h2>"
@@ -133,8 +133,7 @@ def build_email(data: dict[str, object], to_email: str, from_email: str) -> dict
         f"<strong>Email:</strong> {html.escape(email_address)}<br>"
         f"<strong>Organização:</strong> {html.escape(organization)}</p>"
         f"<p><strong>Mensagem:</strong><br>{escaped_message}</p>"
-        "<p><small>O remetente autorizou o tratamento destes dados exclusivamente "
-        "para resposta a este contacto.</small></p>"
+        "<p><small>O remetente declarou ter lido e compreendido a Política de Privacidade.</small></p>"
     )
     return {
         "from": f"SRIS Website <{from_email}>",
@@ -190,6 +189,8 @@ class ContactHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self) -> None:
+        if self._redirect_www():
+            return
         path = self.path.split("?", 1)[0]
         if path == "/health":
             self._json(HTTPStatus.OK, {"status": "ok"})
@@ -197,13 +198,19 @@ class ContactHandler(SimpleHTTPRequestHandler):
         if path == "/backups" or path.startswith("/backups/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
+        if path == "/privacidade":
+            self.path = "/privacidade.html"
         super().do_GET()
 
     def do_HEAD(self) -> None:
+        if self._redirect_www():
+            return
         path = self.path.split("?", 1)[0]
         if path == "/backups" or path.startswith("/backups/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
+        if path == "/privacidade":
+            self.path = "/privacidade.html"
         super().do_HEAD()
 
     def do_POST(self) -> None:
@@ -275,6 +282,17 @@ class ContactHandler(SimpleHTTPRequestHandler):
         if forwarded:
             return forwarded.split(",", 1)[0].strip()[:64]
         return self.client_address[0]
+
+    def _redirect_www(self) -> bool:
+        host = (self.headers.get("Host") or "").split(":", 1)[0].lower()
+        if host != "www.sris.io":
+            return False
+        safe_path = self.path.replace("\r", "").replace("\n", "")
+        self.send_response(HTTPStatus.MOVED_PERMANENTLY)
+        self.send_header("Location", f"https://sris.io{safe_path}")
+        self.send_header("Cache-Control", "public, max-age=3600")
+        self.end_headers()
+        return True
 
     def _json(self, status: HTTPStatus, payload: dict[str, object]) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")

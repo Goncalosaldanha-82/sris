@@ -179,6 +179,29 @@ h4 {
   gap: 12px;
 }
 
+.header-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid rgba(221, 192, 119, 0.48);
+  border-radius: 999px;
+  padding: 7px 14px;
+  color: #f1dfae;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.header-login:hover,
+.header-login:focus-visible {
+  border-color: var(--gold-soft);
+  background: rgba(221, 192, 119, 0.1);
+  color: #fff5d8;
+}
+
 .release-badge,
 .state-pill {
   display: inline-flex;
@@ -1473,6 +1496,47 @@ h4 {
   font-style: normal;
 }
 
+.pilot-terms {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 11px;
+  margin-top: 17px;
+}
+
+.pilot-terms article {
+  padding: 21px;
+  border: 1px solid var(--line-light);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.pilot-terms span,
+.pilot-terms strong {
+  display: block;
+}
+
+.pilot-terms span {
+  color: #8a6b30;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.pilot-terms strong {
+  margin-top: 11px;
+  color: #10251e;
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.15;
+}
+
+.pilot-terms p {
+  margin: 9px 0 0;
+  color: #5c6a63;
+  font-size: 11px;
+}
+
 .pilot-example {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
@@ -1847,6 +1911,13 @@ h4 {
   line-height: 1.45;
 }
 
+.contact-consent a {
+  color: var(--gold-soft);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .contact-honeypot {
   position: absolute !important;
   width: 1px;
@@ -1923,8 +1994,115 @@ footer {
   color: #64796e;
 }
 
-.footer-grid > span {
+.footer-grid > span,
+.footer-links {
   font-size: 10px;
+}
+
+.footer-links {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.footer-links a {
+  color: #b4c3bb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-page {
+  background: var(--paper);
+  color: var(--text-light);
+}
+
+.legal-header {
+  background: #06120f;
+}
+
+.legal-header .nav-shell {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.legal-main {
+  padding: clamp(70px, 9vw, 120px) 0;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(110, 170, 128, 0.12), transparent 27%),
+    var(--paper);
+}
+
+.legal-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  gap: clamp(44px, 8vw, 112px);
+  align-items: start;
+}
+
+.legal-intro {
+  position: sticky;
+  top: 36px;
+}
+
+.legal-intro h1 {
+  margin: 12px 0 20px;
+  color: #10251e;
+  font-size: clamp(44px, 5vw, 66px);
+  line-height: 0.98;
+}
+
+.legal-intro > p:not(.eyebrow) {
+  color: #526159;
+}
+
+.legal-intro > span {
+  display: block;
+  margin-top: 24px;
+  color: #78857e;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.legal-content {
+  overflow: hidden;
+  border: 1px solid var(--line-light);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.legal-content section {
+  padding: clamp(26px, 4vw, 44px);
+  border-bottom: 1px solid var(--line-light);
+}
+
+.legal-content section:last-child {
+  border-bottom: 0;
+}
+
+.legal-content h2 {
+  margin: 0 0 15px;
+  color: #10251e;
+  font-size: clamp(25px, 3vw, 34px);
+}
+
+.legal-content p,
+.legal-content li {
+  color: #526159;
+  font-size: 14px;
+}
+
+.legal-content p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-content ul {
+  padding-left: 20px;
+}
+
+.legal-content a {
+  color: #6d5324;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 @media (max-width: 1120px) {
@@ -1976,6 +2154,18 @@ footer {
 
   .recognition {
     grid-template-columns: 1fr;
+  }
+
+  .pilot-terms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .legal-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-intro {
+    position: static;
   }
 
   .recognition-card {
@@ -2079,6 +2269,10 @@ footer {
 
   .footer-grid > p {
     margin: 0;
+  }
+
+  .footer-links {
+    justify-items: start;
   }
 }
 
@@ -2280,6 +2474,10 @@ footer {
 
   .pilot-image {
     min-height: 240px;
+  }
+
+  .pilot-terms {
+    grid-template-columns: 1fr;
   }
 
   .recognition-card {
