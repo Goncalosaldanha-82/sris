@@ -13,7 +13,7 @@ from app.atlas_platform.models import PasswordResetToken, UserInvitation
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260830-private-operations-v31"
+PILOT_BUILD = "20260830-private-operations-v32"
 
 CANONICAL_MISSION_CHAIN = [
     "context",
@@ -99,8 +99,8 @@ def _transactional_email_status(db: Session) -> str:
     return "operational" if max(attempts)[1] == "sent" else "delivery-failed"
 
 
-def _password_reset_delivery(email_status: str) -> str:
-    if email_status == "operational":
+def _password_reset_delivery(email_configured: bool) -> str:
+    if email_configured:
         return "email"
     if _flag("SRIS_PILOT_SHOW_RESET_LINK", False):
         return "pilot-link"
@@ -116,17 +116,21 @@ def pilot_capabilities(db: Session = Depends(get_db)) -> dict:
     capabilities.
     """
 
+    email_configured = auth_email_delivery_ready()
     email_status = _transactional_email_status(db)
     email_operational = email_status == "operational"
     return {
         "build": PILOT_BUILD,
         "public_signup": _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True),
         "password_reset": True,
-        "password_reset_delivery": _password_reset_delivery(email_status),
+        "password_reset_delivery": _password_reset_delivery(email_configured),
         "transactional_email_status": email_status,
-        "transactional_email_configured": auth_email_delivery_ready(),
+        "transactional_email_configured": email_configured,
         "transactional_email_ready": email_operational,
-        "invitations_enabled": email_operational,
+        # A previous provider failure must not create a permanent deadlock: once
+        # the transport is configured, an administrator needs to be able to
+        # retry a failed invitation and thereby establish fresh delivery proof.
+        "invitations_enabled": email_configured,
         "workspace_profile_endpoint": "/api/pilot/profile",
         "mission_intelligence": True,
         "document_intelligence": True,

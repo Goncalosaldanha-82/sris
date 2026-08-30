@@ -131,13 +131,14 @@
       <div id="pilot-admin-message" class="alert hidden" role="status" aria-live="polite"></div>
       <section class="admin-section"><h4>Contas ativas no workspace</h4><div id="pilot-admin-list" class="ledger">${accountRows(data.accounts||[])||'<div class="note">Sem contas.</div>'}</div></section>
       <section class="admin-section">
-        <div class="card-title"><div><h4>Convidar uma pessoa</h4><div class="note">O convite é pessoal, temporário e atribui apenas a função indicada.</div></div><span class="pill">${capabilities.invitations_enabled?'entrega validada':capabilities.transactional_email_status==='delivery-failed'?'falha de entrega':'validação necessária'}</span></div>
+        <div class="card-title"><div><h4>Convidar uma pessoa</h4><div class="note">O convite é pessoal, temporário e atribui apenas a função indicada.</div></div><span class="pill">${capabilities.transactional_email_status==='operational'?'entrega validada':capabilities.transactional_email_status==='delivery-failed'?'falha anterior — repetir teste':'entrega por validar'}</span></div>
+        ${capabilities.invitations_enabled&&capabilities.transactional_email_status!=='operational'?`<div class="alert ${capabilities.transactional_email_status==='delivery-failed'?'error':''}">${capabilities.transactional_email_status==='delivery-failed'?'A última entrega falhou. Depois de corrigir o remetente no fornecedor de email, use «Reenviar» no convite pendente para confirmar o serviço.':'O transporte está configurado, mas ainda não existe uma entrega confirmada.'}</div>`:''}
         ${capabilities.invitations_enabled?`<form id="pilot-invite-form" class="admin-invite-grid">
           <div class="field"><label for="pilot-invite-name">Nome completo</label><input id="pilot-invite-name" required minlength="2" maxlength="200"></div>
           <div class="field"><label for="pilot-invite-email">Email</label><input id="pilot-invite-email" type="email" required></div>
           <div class="field"><label for="pilot-invite-role">Função</label><select id="pilot-invite-role"><option value="contributor">Colaborador</option><option value="reviewer">Revisor</option><option value="observer">Observador</option></select></div>
           <button class="btn btn-primary" type="submit">Enviar convite</button>
-        </form>`:`<div class="alert error">${capabilities.transactional_email_status==='delivery-failed'?'O último ensaio de email falhou.':'A entrega de email ainda não foi validada.'} As contas existentes continuam operacionais, mas os convites permanecem bloqueados até existir uma entrega confirmada.</div>`}
+        </form>`:`<div class="alert error">O transporte de email não está configurado. Os convites permanecem indisponíveis até existir um remetente e um fornecedor válidos.</div>`}
         <div id="pilot-invitation-list" class="ledger">${invitationRows(invitations)}</div>
       </section>`;
     accountSection.appendChild(wrapper);

@@ -399,8 +399,8 @@ def test_pilot_capabilities_report_the_authentication_email_transport(monkeypatc
     assert available.json()["transactional_email_ready"] is False
     assert available.json()["transactional_email_status"] == "configured-unverified"
     assert available.json()["transactional_email_configured"] is True
-    assert available.json()["invitations_enabled"] is False
-    assert available.json()["password_reset_delivery"] == "configuration-required"
+    assert available.json()["invitations_enabled"] is True
+    assert available.json()["password_reset_delivery"] == "email"
 
 
 def test_account_surface_does_not_expose_the_audit_log() -> None:

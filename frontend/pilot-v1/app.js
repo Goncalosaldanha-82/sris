@@ -351,7 +351,7 @@ function renderProfile(payload){
   setText('#mini-name',user.full_name||user.email||'Utilizador');
   setText('#mini-org',workspaceName);
   setText('#avatar',initials(user.full_name||user.email));
-  setText('#welcome-title',`Olá${user.full_name?' '+user.full_name.split(' ')[0]:''}. Que decisão precisa de ficar melhor fundamentada?`);
+  setText('#welcome-title','O que precisa de atenção agora?');
   setText('#workspace-role',role);
   setText('#workspace-name',workspaceName);
   setValue('#account-name',user.full_name||'');

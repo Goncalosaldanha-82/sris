@@ -14,72 +14,76 @@ _CATALOG = {
     "missions": {
         "DEMO-MUN-001": {
             "id": "DEMO-MUN-001",
-            "title": "Água Municipal 360",
-            "subtitle": "Reduzir perdas de água em equipamentos municipais sem degradar o serviço.",
+            "title": "Território Habitado 2035",
+            "subtitle": "Articular PDM, habitação acessível e uma rede de refúgios climáticos.",
             "organization": "Município de Vale Sereno (entidade fictícia)",
-            "domain": "Eficiência hídrica e governação municipal",
-            "status": "Piloto concluído — dados fictícios",
+            "domain": "Ordenamento, habitação e resiliência climática",
+            "status": "Missão em avaliação — dados fictícios",
             "confidence": "Moderada",
-            "decision": "DEC-DEMO-003 · Expandir de forma condicionada",
+            "decision": "DEC-DEMO-003 · Rede distribuída sob validação",
             "method_notice": (
                 "Caso exclusivamente demonstrativo. Todos os nomes, valores, datas e "
                 "resultados são fictícios e servem apenas para ilustrar o método SRIS."
             ),
             "situation": {
                 "summary": (
-                    "A autarquia fictícia gere 12 edifícios. Faturas e leituras manuais "
-                    "sugeriam consumo anómalo, mas não permitiam localizar perdas nem separar "
-                    "avarias, sazonalidade e alterações de utilização."
+                    "O município fictício enfrenta simultaneamente escassez de habitação a "
+                    "preço comportável, edifícios devolutos e exposição crescente a ondas de "
+                    "calor, incêndio, seca e tempestades. A revisão do PDM e a adaptação de "
+                    "equipamentos públicos estavam a avançar em processos separados."
                 ),
                 "attention": [
                     {
-                        "title": "A linha de base não distinguia causas.",
-                        "description": "O consumo mensal agregado ocultava picos noturnos e diferenças entre edifícios.",
-                        "level": "Lacuna inicial",
+                        "title": "Habitação e proteção climática eram tratadas separadamente.",
+                        "description": "O PDM, a carta de riscos, o património devoluto e os equipamentos públicos não estavam ligados numa leitura única.",
+                        "level": "Conflito de planeamento",
                     },
                     {
-                        "title": "A expansão depende de capacidade operacional.",
-                        "description": "Alertas sem responsável e prazo de resposta não produzem redução sustentada.",
-                        "level": "Condição de escala",
+                        "title": "A urgência não elimina a necessidade de proteção social.",
+                        "description": "Uma intervenção climática pode agravar preços ou deslocar residentes se os efeitos na oferta habitacional não forem avaliados.",
+                        "level": "Condição de decisão",
                     },
                 ],
                 "chain": [
-                    {"number": "01", "label": "Observação", "value": "Consumo anómalo", "note": "Faturas e leituras mensais em 12 edifícios fictícios.", "state": "completed"},
-                    {"number": "02", "label": "Evidência", "value": "Linha de base de 8 semanas", "note": "Medição horária em 3 edifícios-piloto fictícios.", "state": "completed"},
-                    {"number": "03", "label": "Hipótese", "value": "Perdas fora do horário", "note": "Picos noturnos poderiam indicar fugas ou equipamentos mal regulados.", "state": "completed"},
-                    {"number": "04", "label": "Alternativas", "value": "3 comparadas", "note": "Monitorização, manutenção calendarizada e substituição integral.", "state": "completed"},
-                    {"number": "05", "label": "Decisão", "value": "Piloto em 3 edifícios", "note": "Monitorização com protocolo de resposta em 48 horas.", "state": "completed"},
-                    {"number": "06", "label": "Resultado", "value": "−14% no piloto", "note": "Valor fictício, corrigido por ocupação e comparado com a linha de base.", "state": "completed"},
-                    {"number": "07", "label": "Aprendizagem", "value": "Tecnologia + responsabilidade", "note": "A redução ocorreu quando cada alerta teve dono, prazo e confirmação.", "state": "learning"},
+                    {"number": "01", "label": "Observação", "value": "Riscos e pressão habitacional", "note": "Zonas de calor, incêndio e tempestade sobrepõem-se a bairros com menor oferta acessível.", "state": "completed"},
+                    {"number": "02", "label": "Evidência", "value": "Dossier territorial integrado", "note": "PDM, edifícios devolutos, acessibilidade, vulnerabilidade climática e capacidade dos equipamentos.", "state": "completed"},
+                    {"number": "03", "label": "Hipótese", "value": "Rede distribuída", "note": "Reabilitar ativos existentes pode proteger residentes e ampliar oferta sem nova dispersão urbana.", "state": "completed"},
+                    {"number": "04", "label": "Alternativas", "value": "3 comparadas", "note": "Grande centro único, rede de equipamentos e solução mista com habitação resiliente.", "state": "completed"},
+                    {"number": "05", "label": "Decisão", "value": "Piloto em dois territórios", "note": "Solução mista condicionada a validação técnica, social e financeira.", "state": "completed"},
+                    {"number": "06", "label": "Resultado", "value": "Ainda não demonstrado", "note": "A missão define primeiro baseline, indicadores e regras de atribuição.", "state": "pending"},
+                    {"number": "07", "label": "Aprendizagem", "value": "Pendente de execução", "note": "Nenhuma conclusão é apresentada antes da medição e revisão humana.", "state": "learning"},
                 ],
             },
             "analysis": {
                 "central_question": (
-                    "Que intervenção reduz perdas com menor custo total e sem interromper "
-                    "serviços municipais essenciais?"
+                    "Que alterações ao PDM e que rede de edifícios devem ser priorizadas para "
+                    "proteger a população de extremos climáticos sem agravar a escassez nem o "
+                    "preço da habitação?"
                 ),
                 "available_evidence": (
-                    "24 meses de faturas fictícias; leituras horárias durante 8 semanas; "
-                    "registos de ocupação; ordens de manutenção e inspeções técnicas simuladas."
+                    "Cartografia fictícia do PDM e de riscos; inventário de edifícios públicos "
+                    "e devolutos; tempos de acesso pedonal; procura e preços de habitação; "
+                    "auditorias térmicas e estimativas preliminares de reabilitação."
                 ),
                 "unknowns": (
-                    "Sazonalidade anual, durabilidade da redução e custo de integração com "
-                    "sistemas legados fora dos três edifícios-piloto."
+                    "Disponibilidade jurídica dos imóveis, procura real durante cada tipo de "
+                    "evento, capacidade de operação prolongada e impacto das intervenções na "
+                    "oferta e no preço da habitação."
                 ),
                 "alternatives": [
-                    {"id": "ALT-DEMO-001", "title": "Monitorização e resposta em 48 horas", "state": "Selecionada para piloto", "rationale": "Baixo investimento inicial e aprendizagem rápida."},
-                    {"id": "ALT-DEMO-002", "title": "Manutenção calendarizada reforçada", "state": "Comparada", "rationale": "Menor dependência tecnológica, mas deteção mais lenta."},
-                    {"id": "ALT-DEMO-003", "title": "Substituição integral de equipamentos", "state": "Adiada", "rationale": "Custo elevado antes de localizar as causas dominantes."},
+                    {"id": "ALT-DEMO-001", "title": "Centro climático municipal único", "state": "Comparada", "rationale": "Operação concentrada, mas acesso desigual e ponto único de falha."},
+                    {"id": "ALT-DEMO-002", "title": "Rede de escolas e equipamentos adaptados", "state": "Comparada", "rationale": "Maior proximidade, exigindo coordenação e disponibilidade sazonal."},
+                    {"id": "ALT-DEMO-003", "title": "Rede mista com reabilitação habitacional", "state": "Preferida sob validação", "rationale": "Combina proteção imediata, recuperação de ativos e oferta habitacional resiliente."},
                 ],
             },
             "evidence": [
-                {"id": "EVD-DEMO-001", "type": "Série temporal", "title": "Linha de base de consumo", "description": "Oito semanas de leituras horárias em três edifícios fictícios.", "method": "Contadores simulados e validação semanal.", "limitation": "Não representa um ciclo anual completo.", "status": "Verificada no cenário", "confidence": "Elevada"},
-                {"id": "EVD-DEMO-002", "type": "Observação", "title": "Picos fora do horário", "description": "Dois edifícios apresentaram consumo noturno persistente.", "method": "Comparação com horários e ocupação simulados.", "limitation": "O padrão indica anomalia, não identifica sozinho a causa.", "status": "Confirmada no cenário", "confidence": "Moderada"},
-                {"id": "EVD-DEMO-003", "type": "Resultado", "title": "Redução corrigida no piloto", "description": "Redução fictícia de 14% após correções e protocolo de resposta.", "method": "Comparação com linha de base, corrigida por ocupação.", "limitation": "A persistência para além de 12 semanas não foi testada.", "status": "Resultado demonstrativo", "confidence": "Moderada"},
+                {"id": "EVD-DEMO-001", "type": "Cartografia", "title": "Vulnerabilidade territorial combinada", "description": "Sobreposição fictícia de calor, incêndio, tempestade, mobilidade e vulnerabilidade social.", "method": "Análise multicritério com revisão técnica municipal.", "limitation": "A escala territorial não substitui avaliação de cada edifício.", "status": "Em revisão no cenário", "confidence": "Moderada"},
+                {"id": "EVD-DEMO-002", "type": "Inventário", "title": "Edifícios e capacidade de adaptação", "description": "Equipamentos públicos e imóveis devolutos avaliados quanto a acesso, conforto térmico e uso compatível.", "method": "Triagem documental e auditoria técnica simulada.", "limitation": "Titularidade e custo de intervenção ainda não estão confirmados em todos os casos.", "status": "Parcialmente verificada", "confidence": "Moderada"},
+                {"id": "EVD-DEMO-003", "type": "Baseline", "title": "Habitação acessível e deslocação", "description": "Linha de base fictícia para oferta, esforço financeiro das famílias e risco de deslocação.", "method": "Série municipal simulada com segmentação territorial.", "limitation": "A relação causal entre intervenção e preços exigirá acompanhamento longitudinal.", "status": "Baseline proposto", "confidence": "Baixa a moderada"},
             ],
             "learning": [
-                {"id": "LRN-DEMO-001", "title": "Um alerta precisa de responsável", "description": "A monitorização só alterou o resultado quando cada alerta passou a ter responsável, prazo e fecho verificável."},
-                {"id": "LRN-DEMO-002", "title": "Medir antes de substituir", "description": "A linha de base evitou uma substituição integral prematura e concentrou o investimento nas causas observadas."},
+                {"id": "LRN-DEMO-001", "title": "Aprendizagem ainda não confirmada", "description": "A preferência por uma rede mista é uma decisão de piloto, não prova de impacto."},
+                {"id": "LRN-DEMO-002", "title": "O efeito habitacional faz parte do resultado", "description": "Proteção climática, acessibilidade e preço da habitação serão medidos em conjunto para evitar uma melhoria aparente com dano social."},
             ],
         }
     },
