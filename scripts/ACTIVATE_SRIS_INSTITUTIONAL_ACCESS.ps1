@@ -1,9 +1,12 @@
 param(
-    [string]$BaseUrl = "https://sris-staging.up.railway.app",
-    [string]$Email = "goncalo.saldanha82@gmail.com",
+    [string]$BaseUrl = "https://sris-pilot-v1-staging.up.railway.app",
+    [string]$Email = "contact@sris.io",
     [string]$FullName = "Goncalo Saldanha",
     [string]$OrganizationName = "SRIS",
-    [string]$OrganizationSlug = "sris"
+    [string]$OrganizationSlug = "sris",
+    [string]$TokenFile = (
+        Join-Path $env:LOCALAPPDATA "SRIS\institutional-activation-token.txt"
+    )
 )
 
 $ErrorActionPreference = "Stop"
@@ -57,7 +60,23 @@ Write-Host "Destino: $BaseUrl"
 Write-Host "Conta: $Email"
 Write-Host "Nenhum segredo sera gravado no ficheiro ou enviado para o GitHub."
 
-$secureToken = Read-Host "Cole o token temporario do Railway" -AsSecureString
+$activationConsumed = $false
+if (Test-Path -LiteralPath $TokenFile) {
+    try {
+        $secureToken = Get-Content -LiteralPath $TokenFile -Raw |
+            ConvertTo-SecureString
+        Write-Host "Token cifrado local encontrado; nao precisa de o colar." -ForegroundColor Green
+    }
+    catch {
+        throw (
+            "O token cifrado local nao pode ser lido nesta conta do Windows. " +
+            "Execute novamente PREPARE_SRIS_INSTITUTIONAL_TOKEN.ps1."
+        )
+    }
+}
+else {
+    $secureToken = Read-Host "Cole o token temporario do Railway" -AsSecureString
+}
 $tokenPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
 try {
     $plainToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPointer)
@@ -127,6 +146,7 @@ try {
     if ($activation.status -ne "institutional_access_activated") {
         throw "A API nao confirmou a ativacao institucional."
     }
+    $activationConsumed = $true
 
     Write-Host "Conta ativada; a validar a sessao institucional..." -ForegroundColor Green
 
@@ -206,6 +226,9 @@ finally {
     }
     if ($null -ne $secureConfirmation) {
         $secureConfirmation.Dispose()
+    }
+    if ($activationConsumed -and (Test-Path -LiteralPath $TokenFile)) {
+        Remove-Item -LiteralPath $TokenFile -Force
     }
     try {
         Set-Clipboard -Value "[SRIS: segredo temporario removido]" -ErrorAction Stop
