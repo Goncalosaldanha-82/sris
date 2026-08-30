@@ -3976,6 +3976,7 @@ def test_institutional_activation_script_verifies_full_session_contract() -> Non
     assert "ACESSO INSTITUCIONAL CONFIRMADO" in script
     assert "institutional-activation-token.txt" in script
     assert "ConvertTo-SecureString" in script
+    assert ").Trim()" in script
     assert "Read-Host \"Cole o token temporario do Railway\" -AsSecureString" in script
     assert "Read-Host \"Defina a nova palavra-passe" in script
     assert "activation_token = $plainToken" in script

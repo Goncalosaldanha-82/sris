@@ -63,8 +63,10 @@ Write-Host "Nenhum segredo sera gravado no ficheiro ou enviado para o GitHub."
 $activationConsumed = $false
 if (Test-Path -LiteralPath $TokenFile) {
     try {
-        $secureToken = Get-Content -LiteralPath $TokenFile -Raw |
-            ConvertTo-SecureString
+        $encryptedToken = (
+            Get-Content -LiteralPath $TokenFile -Raw
+        ).Trim()
+        $secureToken = ConvertTo-SecureString $encryptedToken
         Write-Host "Token cifrado local encontrado; nao precisa de o colar." -ForegroundColor Green
     }
     catch {
@@ -211,6 +213,7 @@ finally {
     $plainToken = $null
     $plainPassword = $null
     $plainConfirmation = $null
+    $encryptedToken = $null
     $activationJson = $null
     $activationBody = $null
     $activation = $null
