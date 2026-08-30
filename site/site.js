@@ -98,4 +98,49 @@
       mobileMenu.open = false;
     });
   });
+
+  const copyEmailButton = document.querySelector("[data-copy-email]");
+  const copyFeedback = document.querySelector("[data-copy-feedback]");
+
+  if (copyEmailButton) {
+    const initialLabel = copyEmailButton.textContent;
+    let resetTimer;
+
+    copyEmailButton.addEventListener("click", async () => {
+      const email = copyEmailButton.dataset.copyEmail;
+      let copied = false;
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(email);
+          copied = true;
+        } else {
+          const field = document.createElement("textarea");
+          field.value = email;
+          field.setAttribute("readonly", "");
+          field.style.position = "fixed";
+          field.style.opacity = "0";
+          document.body.appendChild(field);
+          field.select();
+          copied = document.execCommand("copy");
+          field.remove();
+        }
+      } catch {
+        copied = false;
+      }
+
+      window.clearTimeout(resetTimer);
+      copyEmailButton.textContent = copied ? "Copiado" : initialLabel;
+      if (copyFeedback) {
+        copyFeedback.textContent = copied
+          ? "Endereço copiado para a área de transferência."
+          : "Não foi possível copiar. Selecione o endereço apresentado acima.";
+      }
+
+      resetTimer = window.setTimeout(() => {
+        copyEmailButton.textContent = initialLabel;
+        if (copyFeedback) copyFeedback.textContent = "";
+      }, 3000);
+    });
+  }
 })();

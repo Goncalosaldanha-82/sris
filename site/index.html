@@ -34,6 +34,7 @@
         <a href="#governanca">Governação</a>
         <a href="#piloto">Piloto</a>
         <a href="#estado">Estado</a>
+        <a href="#contacto">Contacto</a>
       </nav>
       <div class="header-actions">
         <span class="release-badge"><i></i>Piloto funcional</span>
@@ -46,6 +47,7 @@
             <a href="#governanca">Governação</a>
             <a href="#piloto">Piloto</a>
             <a href="#estado">Estado</a>
+            <a href="#contacto">Contacto</a>
           </nav>
         </details>
       </div>
@@ -65,7 +67,7 @@
           <p class="hero-lead">O SRIS é a infraestrutura que aumenta a capacidade de qualquer organização compreender uma situação, tomar uma decisão defensável, executar com controlo e preservar o que aprendeu.</p>
           <div class="hero-actions">
             <a class="button primary" href="#plataforma">Conhecer a plataforma</a>
-            <a class="button ghost" href="mailto:contact@sris.io?subject=SRIS%20%E2%80%94%20Explorar%20um%20caso-piloto">Explorar um caso-piloto <span aria-hidden="true">↗</span></a>
+            <a class="button ghost" href="#contacto">Explorar um caso-piloto <span aria-hidden="true">↓</span></a>
           </div>
           <ul class="hero-principles" aria-label="Princípios do SRIS">
             <li>Evidência rastreável</li>
@@ -380,15 +382,24 @@
       </div>
     </section>
 
-    <section class="cta">
+    <section class="cta" id="contacto" aria-labelledby="contacto-heading">
       <div class="cta-media" aria-hidden="true"><img src="/assets/territory-sunrise.webp" alt="" width="1500" height="844" loading="lazy"></div>
       <div class="wrap cta-grid">
         <div>
           <p class="eyebrow">Próxima missão</p>
-          <h2>Se a decisão importa, a sua fundamentação não pode desaparecer.</h2>
+          <h2 id="contacto-heading">Se a decisão importa, a sua fundamentação não pode desaparecer.</h2>
           <p>Um piloto começa com um caso concreto, um âmbito fechado e critérios de sucesso definidos antes da intervenção.</p>
         </div>
-        <a class="button primary" href="mailto:contact@sris.io?subject=SRIS%20%E2%80%94%20Explorar%20um%20caso-piloto">Explorar um caso-piloto <span aria-hidden="true">↗</span></a>
+        <aside class="contact-card" aria-label="Contacto institucional do SRIS">
+          <span class="micro-label">Contacto institucional</span>
+          <a class="contact-email" href="mailto:contact@sris.io?subject=SRIS%20%E2%80%94%20Explorar%20um%20caso-piloto">contact@sris.io</a>
+          <p>Copie o endereço ou abra a sua aplicação de correio quando estiver preparado para nos contactar.</p>
+          <div class="contact-actions">
+            <button class="button primary" type="button" data-copy-email="contact@sris.io">Copiar endereço</button>
+            <a class="button ghost" href="mailto:contact@sris.io?subject=SRIS%20%E2%80%94%20Explorar%20um%20caso-piloto">Enviar email <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="copy-feedback" data-copy-feedback aria-live="polite"></p>
+        </aside>
       </div>
     </section>
   </main>
