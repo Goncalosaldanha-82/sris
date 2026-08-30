@@ -144,6 +144,50 @@ def test_resend_http_error_preserves_only_safe_provider_detail(monkeypatch) -> N
     assert "secret-test-key" not in detail
 
 
+def test_resend_testing_fallback_retries_only_after_403(monkeypatch) -> None:
+    _clear_delivery_environment(monkeypatch)
+    monkeypatch.setenv("SRIS_EMAIL_PROVIDER", "resend")
+    monkeypatch.setenv("SRIS_EMAIL_FROM", "website@mail.sris.io")
+    monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    requests = []
+
+    class Response:
+        status = 202
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_urlopen(request, timeout):
+        requests.append(request)
+        if len(requests) == 1:
+            raise HTTPError(
+                request.full_url,
+                403,
+                "Forbidden",
+                hdrs=None,
+                fp=io.BytesIO(
+                    b'{"name":"validation_error","message":"Domain is not verified"}'
+                ),
+            )
+        return Response()
+
+    monkeypatch.setattr(auth_delivery, "urlopen", fake_urlopen)
+    auth_delivery.send_transactional_email(
+        recipient="owner@example.com",
+        subject="Ativar acesso",
+        text_body="Texto",
+        html_body="<p>Texto</p>",
+        allow_resend_testing_fallback=True,
+    )
+    assert len(requests) == 2
+    assert b"website@mail.sris.io" in requests[0].data
+    assert b"onboarding@resend.dev" in requests[1].data
+
+
 def _owner() -> tuple[dict[str, str], str, str]:
     suffix = uuid4().hex[:10]
     email = f"identity-owner-{suffix}@example.com"

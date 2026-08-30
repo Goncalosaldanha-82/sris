@@ -323,6 +323,7 @@ def _send_password_reset_email(
     raw_token: str,
     *,
     raise_on_failure: bool = False,
+    allow_resend_testing_fallback: bool = False,
 ) -> bool:
     delivery_error: AuthDeliveryError | None = None
     with SessionLocal() as db:
@@ -356,6 +357,7 @@ def _send_password_reset_email(
                     "<p>O link expira em breve e só pode ser usado uma vez. "
                     "Se não fez este pedido, ignore a mensagem.</p>"
                 ),
+                allow_resend_testing_fallback=allow_resend_testing_fallback,
             )
             reset.delivery_status = "sent"
             reset.sent_at = utcnow()
@@ -842,6 +844,7 @@ def request_password_reset(
                 reset.id,
                 raw_token,
                 raise_on_failure=True,
+                allow_resend_testing_fallback=True,
             )
         except AuthDeliveryError as exc:
             raise HTTPException(

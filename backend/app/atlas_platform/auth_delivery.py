@@ -15,6 +15,10 @@ from urllib.request import Request, urlopen
 class AuthDeliveryError(RuntimeError):
     """Authentication email could not be delivered safely."""
 
+    def __init__(self, message: str, *, provider_status: int | None = None) -> None:
+        super().__init__(message)
+        self.provider_status = provider_status
+
 
 @dataclass(frozen=True)
 class SMTPConfiguration:
@@ -188,24 +192,47 @@ def send_transactional_email(
     subject: str,
     text_body: str,
     html_body: str,
+    allow_resend_testing_fallback: bool = False,
 ) -> None:
     configuration = auth_delivery_configuration()
     if configuration is None:
         raise AuthDeliveryError("Authentication email is not configured")
 
     if configuration.provider == "resend":
-        _send_api_email(
-            configuration,
-            "https://api.resend.com/emails",
-            {
-                "from": formataddr((configuration.from_name, configuration.from_email)),
-                "to": [_clean_header(recipient)],
-                "subject": _clean_header(subject),
-                "text": text_body,
-                "html": html_body,
-            },
-            {"Authorization": f"Bearer {os.environ['RESEND_API_KEY'].strip()}"},
-        )
+        payload = {
+            "from": formataddr((configuration.from_name, configuration.from_email)),
+            "to": [_clean_header(recipient)],
+            "subject": _clean_header(subject),
+            "text": text_body,
+            "html": html_body,
+        }
+        try:
+            _send_api_email(
+                configuration,
+                "https://api.resend.com/emails",
+                payload,
+                {"Authorization": f"Bearer {os.environ['RESEND_API_KEY'].strip()}"},
+            )
+        except AuthDeliveryError as exc:
+            if not (
+                allow_resend_testing_fallback
+                and exc.provider_status == 403
+                and configuration.from_email.lower() != "onboarding@resend.dev"
+            ):
+                raise
+            # Resend permits its testing sender only to the account owner's
+            # mailbox. This fallback is enabled solely for the exact-email,
+            # one-time institutional bootstrap; ordinary resets and invites
+            # never use it.
+            payload["from"] = formataddr(
+                (configuration.from_name, "onboarding@resend.dev")
+            )
+            _send_api_email(
+                configuration,
+                "https://api.resend.com/emails",
+                payload,
+                {"Authorization": f"Bearer {os.environ['RESEND_API_KEY'].strip()}"},
+            )
         return
     if configuration.provider == "brevo":
         _send_api_email(
@@ -304,7 +331,10 @@ def _send_api_email(
             detail += f" · {provider_code}"
         if provider_message:
             detail += f": {provider_message}"
-        raise AuthDeliveryError(f"{detail}.") from exc
+        raise AuthDeliveryError(
+            f"{detail}.",
+            provider_status=exc.code,
+        ) from exc
     except URLError as exc:
         raise AuthDeliveryError(
             "Não foi possível contactar o fornecedor de email."
