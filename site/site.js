@@ -99,48 +99,54 @@
     });
   });
 
-  const copyEmailButton = document.querySelector("[data-copy-email]");
-  const copyFeedback = document.querySelector("[data-copy-feedback]");
+  const contactForm = document.querySelector("[data-contact-form]");
+  const formStatus = document.querySelector("[data-form-status]");
 
-  if (copyEmailButton) {
-    const initialLabel = copyEmailButton.textContent;
-    let resetTimer;
+  if (contactForm) {
+    const submitButton = contactForm.querySelector('button[type="submit"]');
+    const loadedAt = Date.now();
 
-    copyEmailButton.addEventListener("click", async () => {
-      const email = copyEmailButton.dataset.copyEmail;
-      let copied = false;
+    contactForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!contactForm.reportValidity()) return;
+
+      const data = new FormData(contactForm);
+      const payload = {
+        name: String(data.get("name") || "").trim(),
+        email: String(data.get("email") || "").trim(),
+        organization: String(data.get("organization") || "").trim(),
+        message: String(data.get("message") || "").trim(),
+        website: String(data.get("website") || "").trim(),
+        privacy: data.get("privacy") === "on",
+        elapsed_ms: Date.now() - loadedAt
+      };
+
+      submitButton.disabled = true;
+      submitButton.textContent = "A enviar…";
+      contactForm.setAttribute("aria-busy", "true");
+      formStatus.className = "form-status";
+      formStatus.textContent = "A enviar o seu pedido em segurança.";
 
       try {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(email);
-          copied = true;
-        } else {
-          const field = document.createElement("textarea");
-          field.value = email;
-          field.setAttribute("readonly", "");
-          field.style.position = "fixed";
-          field.style.opacity = "0";
-          document.body.appendChild(field);
-          field.select();
-          copied = document.execCommand("copy");
-          field.remove();
-        }
-      } catch {
-        copied = false;
-      }
+        const response = await fetch("/api/contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Não foi possível enviar o pedido.");
 
-      window.clearTimeout(resetTimer);
-      copyEmailButton.textContent = copied ? "Copiado" : initialLabel;
-      if (copyFeedback) {
-        copyFeedback.textContent = copied
-          ? "Endereço copiado para a área de transferência."
-          : "Não foi possível copiar. Selecione o endereço apresentado acima.";
+        contactForm.reset();
+        formStatus.classList.add("success");
+        formStatus.textContent = "Pedido enviado. Obrigado — responderemos diretamente para o email indicado.";
+      } catch (error) {
+        formStatus.classList.add("error");
+        formStatus.textContent = error.message || "Não foi possível enviar agora. Tente novamente dentro de alguns minutos.";
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Enviar pedido";
+        contactForm.removeAttribute("aria-busy");
       }
-
-      resetTimer = window.setTimeout(() => {
-        copyEmailButton.textContent = initialLabel;
-        if (copyFeedback) copyFeedback.textContent = "";
-      }, 3000);
     });
   }
 })();

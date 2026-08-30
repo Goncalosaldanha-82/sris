@@ -17,7 +17,7 @@
   <meta name="twitter:title" content="SRIS — Mission Intelligence">
   <meta name="twitter:description" content="Infraestrutura de decisão para organizações que precisam de agir sem esconder a incerteza.">
   <link rel="preload" href="/assets/territory-sunrise.webp" as="image" type="image/webp" media="(min-width: 641px)">
-  <link rel="stylesheet" href="/styles.css?v=20260830-contact">
+  <link rel="stylesheet" href="/styles.css?v=20260830-form">
 </head>
 <body>
   <a class="skip-link" href="#conteudo">Saltar para o conteúdo</a>
@@ -390,15 +390,48 @@
           <h2 id="contacto-heading">Se a decisão importa, a sua fundamentação não pode desaparecer.</h2>
           <p>Um piloto começa com um caso concreto, um âmbito fechado e critérios de sucesso definidos antes da intervenção.</p>
         </div>
-        <aside class="contact-card" aria-label="Contacto institucional do SRIS">
-          <span class="micro-label">Contacto institucional</span>
-          <a class="contact-email" href="mailto:contact@sris.io?subject=SRIS%20%E2%80%94%20Explorar%20um%20caso-piloto">contact@sris.io</a>
-          <p>Copie o endereço ou abra a sua aplicação de correio quando estiver preparado para nos contactar.</p>
-          <div class="contact-actions">
-            <button class="button primary" type="button" data-copy-email="contact@sris.io">Copiar endereço</button>
-            <a class="button ghost" href="mailto:contact@sris.io?subject=SRIS%20%E2%80%94%20Explorar%20um%20caso-piloto">Enviar email <span aria-hidden="true">↗</span></a>
+        <aside class="contact-card" aria-label="Formulário de contacto institucional do SRIS">
+          <div class="contact-heading">
+            <div>
+              <span class="micro-label">Contacto institucional</span>
+              <span class="contact-email">contact@sris.io</span>
+            </div>
+            <span class="contact-response">Resposta pessoal</span>
           </div>
-          <p class="copy-feedback" data-copy-feedback aria-live="polite"></p>
+          <p>Descreva o contexto e o caso que pretende explorar. Respondemos diretamente para o endereço indicado.</p>
+          <form class="contact-form" data-contact-form novalidate>
+            <div class="contact-fields">
+              <label>
+                <span>Nome <b aria-hidden="true">*</b></span>
+                <input type="text" name="name" autocomplete="name" minlength="2" maxlength="100" required>
+              </label>
+              <label>
+                <span>Email profissional <b aria-hidden="true">*</b></span>
+                <input type="email" name="email" autocomplete="email" maxlength="254" required>
+              </label>
+            </div>
+            <label>
+              <span>Organização</span>
+              <input type="text" name="organization" autocomplete="organization" maxlength="120">
+            </label>
+            <label>
+              <span>Mensagem <b aria-hidden="true">*</b></span>
+              <textarea name="message" rows="5" minlength="20" maxlength="4000" placeholder="Que decisão, missão ou caso concreto pretende explorar?" required></textarea>
+            </label>
+            <label class="contact-honeypot" aria-hidden="true">
+              <span>Website</span>
+              <input type="text" name="website" tabindex="-1" autocomplete="off">
+            </label>
+            <label class="contact-consent">
+              <input type="checkbox" name="privacy" required>
+              <span>Autorizo o tratamento destes dados exclusivamente para resposta a este contacto. <b aria-hidden="true">*</b></span>
+            </label>
+            <div class="contact-submit">
+              <button class="button primary" type="submit">Enviar pedido</button>
+              <span>Sem subscrição automática ou utilização para marketing.</span>
+            </div>
+            <p class="form-status" data-form-status role="status" aria-live="polite"></p>
+          </form>
         </aside>
       </div>
     </section>
@@ -412,6 +445,6 @@
     </div>
   </footer>
 
-  <script src="/site.js?v=20260830-contact" defer></script>
+  <script src="/site.js?v=20260830-form" defer></script>
 </body>
 </html>
