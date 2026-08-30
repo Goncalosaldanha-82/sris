@@ -76,6 +76,27 @@ def is_valid_email(value: str) -> bool:
     return parsed == value and len(value) <= 254 and bool(EMAIL_RE.fullmatch(value))
 
 
+def is_allowed_origin(origin: str, host: str, configured_origins: str) -> bool:
+    """Allow canonical origins and the HTTPS origin serving this exact site.
+
+    Railway may serve the institutional site on its generated hostname before
+    the custom domain is attached.  A same-origin form is safe there too; the
+    previous fixed allow-list rejected that legitimate request before email
+    delivery was attempted.
+    """
+
+    normalized_origin = origin.strip().rstrip("/")
+    normalized_host = host.strip().split(":", 1)[0].lower()
+    allowed = {
+        value.strip().rstrip("/")
+        for value in configured_origins.split(",")
+        if value.strip()
+    }
+    if normalized_origin in allowed:
+        return True
+    return normalized_origin == f"https://{normalized_host}"
+
+
 def validate_contact(payload: object) -> tuple[dict[str, object] | None, str | None]:
     if not isinstance(payload, dict):
         return None, "Pedido inválido."
@@ -218,15 +239,12 @@ class ContactHandler(SimpleHTTPRequestHandler):
             self._json(HTTPStatus.NOT_FOUND, {"error": "Recurso não encontrado."})
             return
 
-        allowed_origins = {
-            value.strip().rstrip("/")
-            for value in os.environ.get(
-                "SRIS_ALLOWED_ORIGINS", "https://sris.io,https://www.sris.io"
-            ).split(",")
-            if value.strip()
-        }
-        origin = (self.headers.get("Origin") or "").rstrip("/")
-        if origin not in allowed_origins:
+        configured_origins = os.environ.get(
+            "SRIS_ALLOWED_ORIGINS", "https://sris.io,https://www.sris.io"
+        )
+        origin = self.headers.get("Origin") or ""
+        host = self.headers.get("Host") or ""
+        if not is_allowed_origin(origin, host, configured_origins):
             self._json(HTTPStatus.FORBIDDEN, {"error": "Origem do pedido não autorizada."})
             return
 

@@ -1,7 +1,14 @@
 import unittest
 from unittest.mock import patch
 
-from contact_server import RateLimiter, build_email, is_valid_email, send_via_resend, validate_contact
+from contact_server import (
+    RateLimiter,
+    build_email,
+    is_allowed_origin,
+    is_valid_email,
+    send_via_resend,
+    validate_contact,
+)
 
 
 def valid_payload(**overrides):
@@ -30,7 +37,7 @@ class ValidationTests(unittest.TestCase):
 
     def test_privacy_is_required(self):
         _, error = validate_contact(valid_payload(privacy=False))
-        self.assertIn("autorizar", error)
+        self.assertIn("Privacidade", error)
 
     def test_message_length_is_checked(self):
         _, error = validate_contact(valid_payload(message="Curta"))
@@ -66,6 +73,33 @@ class EmailTests(unittest.TestCase):
     def test_delivery_requires_api_key(self):
         with self.assertRaisesRegex(RuntimeError, "RESEND_API_KEY"):
             send_via_resend(valid_payload())
+
+
+class OriginTests(unittest.TestCase):
+    def test_canonical_origin_is_allowed(self):
+        self.assertTrue(
+            is_allowed_origin(
+                "https://sris.io", "sris.io", "https://sris.io,https://www.sris.io"
+            )
+        )
+
+    def test_same_origin_railway_host_is_allowed(self):
+        self.assertTrue(
+            is_allowed_origin(
+                "https://sris-mission-intelligence.up.railway.app",
+                "sris-mission-intelligence.up.railway.app",
+                "https://sris.io,https://www.sris.io",
+            )
+        )
+
+    def test_external_origin_is_rejected(self):
+        self.assertFalse(
+            is_allowed_origin(
+                "https://example.org",
+                "sris-mission-intelligence.up.railway.app",
+                "https://sris.io,https://www.sris.io",
+            )
+        )
 
 
 class RateLimiterTests(unittest.TestCase):
