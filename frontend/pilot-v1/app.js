@@ -498,10 +498,16 @@ async function loadAccountCapabilities(){
   const root=$('#account-capabilities');
   if(!root)return;
   try{
-    const [authCapabilities,pilotCapabilities]=await Promise.all([api('/api/auth/capabilities'),api('/api/pilot/capabilities')]);
-    root.innerHTML=`<div><dt>Convites</dt><dd>${authCapabilities.invitations_enabled?'Disponíveis':'Configuração necessária'}</dd></div><div><dt>Email transacional</dt><dd>${pilotCapabilities.transactional_email_ready?'Ativo':'Não configurado'}</dd></div><div><dt>Auditoria</dt><dd>Ativa</dd></div>`;
+    const pilotCapabilities=await api('/api/pilot/capabilities');
+    const emailLabel={
+      operational:'Entrega validada',
+      'delivery-failed':'Falha de entrega',
+      'configured-unverified':'Por validar',
+      'not-configured':'Não configurado',
+    }[pilotCapabilities.transactional_email_status]||'Por validar';
+    root.innerHTML=`<div><dt>Convites</dt><dd>${pilotCapabilities.invitations_enabled?'Disponíveis':'Bloqueados'}</dd></div><div><dt>Email transacional</dt><dd>${emailLabel}</dd></div><div><dt>Recuperação de acesso</dt><dd>${pilotCapabilities.password_reset_delivery==='email'?'Disponível':'Bloqueada'}</dd></div>`;
   }catch{
-    root.innerHTML='<div><dt>Convites</dt><dd>A confirmar</dd></div><div><dt>Email transacional</dt><dd>A confirmar</dd></div><div><dt>Auditoria</dt><dd>Ativa</dd></div>';
+    root.innerHTML='<div><dt>Convites</dt><dd>A confirmar</dd></div><div><dt>Email transacional</dt><dd>A confirmar</dd></div><div><dt>Recuperação de acesso</dt><dd>A confirmar</dd></div>';
   }
 }
 

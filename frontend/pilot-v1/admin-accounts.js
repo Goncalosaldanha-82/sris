@@ -56,7 +56,6 @@
     invite:(organizationId,payload)=>api(`/api/organizations/${encodeURIComponent(organizationId)}/invitations`,{method:'POST',body:JSON.stringify(payload)}),
     resend:(organizationId,invitationId)=>api(`/api/organizations/${encodeURIComponent(organizationId)}/invitations/${encodeURIComponent(invitationId)}/resend`,{method:'POST'}),
     revoke:(organizationId,invitationId)=>api(`/api/organizations/${encodeURIComponent(organizationId)}/invitations/${encodeURIComponent(invitationId)}`,{method:'DELETE'}),
-    audit:()=>api('/admin/audit?limit=40'),
   };
   window.SRISAdminAccounts=client;
 
@@ -90,19 +89,6 @@
     </div>`).join(''):'<div class="note">Sem convites pendentes.</div>';
   }
 
-  function auditRows(events){
-    const labels={
-      'pilot.account.state_changed':'Estado de conta alterado',
-      'pilot.account.role_changed':'Função alterada',
-      'user.invited':'Convite criado',
-      'user.invitation_resent':'Convite reenviado',
-      'user.invitation_revoked':'Convite revogado',
-      'mission_intelligence.mission_created':'Missão criada',
-      'mission_intelligence.mission_revised':'Missão revista',
-    };
-    return (events||[]).length?(events||[]).map(event=>`<div class="timeline-row"><span class="timeline-dot"></span><div><strong>${escapeHtml(labels[event.action]||event.action)}</strong><div class="note">${event.created_at?new Date(event.created_at).toLocaleString('pt-PT'):''} · ${escapeHtml(event.resource_type||'registo')}${event.resource_id?` · ${escapeHtml(String(event.resource_id).slice(0,12))}…`:''}</div></div></div>`).join(''):'<div class="note">Sem eventos de auditoria.</div>';
-  }
-
   async function renderAdmin(){
     const accountSection=document.getElementById('account');
     if(!accountSection||document.getElementById('pilot-admin-card'))return;
@@ -125,38 +111,35 @@
       if(current?.email){profileEmail.value=current.email;localStorage.setItem('sris_user_email',current.email);}
     }
 
-    const [capabilityResult,invitationResult,auditResult,statusResult]=await Promise.allSettled([
-      client.capabilities(),
+    const [capabilityResult,invitationResult]=await Promise.allSettled([
+      api('/api/pilot/capabilities'),
       client.invitations(data.organization_id),
-      client.audit(),
-      client.status(),
     ]);
     const capabilities=capabilityResult.status==='fulfilled'?capabilityResult.value:{invitations_enabled:false};
     const invitations=invitationResult.status==='fulfilled'?invitationResult.value:[];
-    const audit=auditResult.status==='fulfilled'?auditResult.value:{events:[]};
-    const status=statusResult.status==='fulfilled'?statusResult.value:null;
+    const activeAccounts=(data.accounts||[]).filter(account=>account.is_active).length;
+    const totalAccounts=(data.accounts||[]).length;
 
     const wrapper=document.createElement('article');
     wrapper.className='card';
     wrapper.id='pilot-admin-card';
     wrapper.innerHTML=`
       <div class="card-title">
-        <div><h3>Administração do workspace</h3><div class="note">Contas, funções e estado de acesso com registo de auditoria.</div></div>
-        <span class="pill" id="pilot-ops-state">${status?`${status.active_members}/${status.members} ativas · ${status.audit_events} eventos`:'Estado a sincronizar'}</span>
+        <div><h3>Administração do workspace</h3><div class="note">Contas, funções e estado de acesso.</div></div>
+        <span class="pill" id="pilot-ops-state">${activeAccounts}/${totalAccounts} contas ativas</span>
       </div>
       <div id="pilot-admin-message" class="alert hidden" role="status" aria-live="polite"></div>
       <section class="admin-section"><h4>Contas ativas no workspace</h4><div id="pilot-admin-list" class="ledger">${accountRows(data.accounts||[])||'<div class="note">Sem contas.</div>'}</div></section>
       <section class="admin-section">
-        <div class="card-title"><div><h4>Convidar uma pessoa</h4><div class="note">O convite é pessoal, temporário e atribui apenas a função indicada.</div></div><span class="pill">${capabilities.invitations_enabled?'email ativo':'configuração necessária'}</span></div>
+        <div class="card-title"><div><h4>Convidar uma pessoa</h4><div class="note">O convite é pessoal, temporário e atribui apenas a função indicada.</div></div><span class="pill">${capabilities.invitations_enabled?'entrega validada':capabilities.transactional_email_status==='delivery-failed'?'falha de entrega':'validação necessária'}</span></div>
         ${capabilities.invitations_enabled?`<form id="pilot-invite-form" class="admin-invite-grid">
           <div class="field"><label for="pilot-invite-name">Nome completo</label><input id="pilot-invite-name" required minlength="2" maxlength="200"></div>
           <div class="field"><label for="pilot-invite-email">Email</label><input id="pilot-invite-email" type="email" required></div>
           <div class="field"><label for="pilot-invite-role">Função</label><select id="pilot-invite-role"><option value="contributor">Colaborador</option><option value="reviewer">Revisor</option><option value="observer">Observador</option></select></div>
           <button class="btn btn-primary" type="submit">Enviar convite</button>
-        </form>`:'<div class="alert error">O email transacional ainda não está configurado neste staging. As contas existentes continuam operacionais, mas novos convites não podem ser enviados até essa configuração ficar pronta.</div>'}
+        </form>`:`<div class="alert error">${capabilities.transactional_email_status==='delivery-failed'?'O último ensaio de email falhou.':'A entrega de email ainda não foi validada.'} As contas existentes continuam operacionais, mas os convites permanecem bloqueados até existir uma entrega confirmada.</div>`}
         <div id="pilot-invitation-list" class="ledger">${invitationRows(invitations)}</div>
-      </section>
-      <details class="technical-details admin-audit"><summary>Ver auditoria recente</summary><div id="pilot-audit-list">${auditRows(audit.events||[])}</div></details>`;
+      </section>`;
     accountSection.appendChild(wrapper);
 
     wrapper.querySelector('#pilot-invite-form')?.addEventListener('submit',async event=>{

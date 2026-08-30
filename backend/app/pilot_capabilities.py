@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
 from app.atlas_platform.auth_delivery import auth_email_delivery_ready
+from app.atlas_platform.database import get_db
+from app.atlas_platform.models import PasswordResetToken, UserInvitation
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260828-brand-system-v30"
+PILOT_BUILD = "20260830-private-operations-v31"
 
 CANONICAL_MISSION_CHAIN = [
     "context",
@@ -40,8 +46,61 @@ def _flag(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _password_reset_delivery() -> str:
-    if auth_email_delivery_ready():
+def _as_utc(value: datetime | None) -> datetime:
+    if value is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _transactional_email_status(db: Session) -> str:
+    """Report proven delivery, rather than configuration presence.
+
+    A provider key and sender address only prove that a transport was
+    configured.  The Pilot must not describe email as operational until the
+    most recent real delivery attempt succeeded.
+    """
+
+    if not auth_email_delivery_ready():
+        return "not-configured"
+
+    try:
+        latest_reset = (
+            db.query(PasswordResetToken)
+            .filter(PasswordResetToken.delivery_status.in_(("sent", "failed")))
+            .order_by(PasswordResetToken.requested_at.desc())
+            .first()
+        )
+        latest_invitation = (
+            db.query(UserInvitation)
+            .filter(
+                UserInvitation.delivery_attempts > 0,
+                UserInvitation.delivery_status.in_(("sent", "failed")),
+            )
+            .order_by(UserInvitation.created_at.desc())
+            .first()
+        )
+    except SQLAlchemyError:
+        # Capability discovery must fail closed during first boot or before
+        # migrations: configured credentials are never treated as proof.
+        return "configured-unverified"
+    attempts = []
+    if latest_reset is not None:
+        attempts.append(
+            (_as_utc(latest_reset.requested_at), latest_reset.delivery_status)
+        )
+    if latest_invitation is not None:
+        attempts.append(
+            (_as_utc(latest_invitation.created_at), latest_invitation.delivery_status)
+        )
+    if not attempts:
+        return "configured-unverified"
+    return "operational" if max(attempts)[1] == "sent" else "delivery-failed"
+
+
+def _password_reset_delivery(email_status: str) -> str:
+    if email_status == "operational":
         return "email"
     if _flag("SRIS_PILOT_SHOW_RESET_LINK", False):
         return "pilot-link"
@@ -49,7 +108,7 @@ def _password_reset_delivery() -> str:
 
 
 @router.get("/capabilities")
-def pilot_capabilities() -> dict:
+def pilot_capabilities(db: Session = Depends(get_db)) -> dict:
     """Public, non-sensitive description of the Pilot surface.
 
     Provider names, model aliases, balances and organization state are
@@ -57,13 +116,17 @@ def pilot_capabilities() -> dict:
     capabilities.
     """
 
+    email_status = _transactional_email_status(db)
+    email_operational = email_status == "operational"
     return {
         "build": PILOT_BUILD,
         "public_signup": _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True),
         "password_reset": True,
-        "password_reset_delivery": _password_reset_delivery(),
-        "transactional_email_ready": auth_email_delivery_ready(),
-        "invitations_enabled": auth_email_delivery_ready(),
+        "password_reset_delivery": _password_reset_delivery(email_status),
+        "transactional_email_status": email_status,
+        "transactional_email_configured": auth_email_delivery_ready(),
+        "transactional_email_ready": email_operational,
+        "invitations_enabled": email_operational,
         "workspace_profile_endpoint": "/api/pilot/profile",
         "mission_intelligence": True,
         "document_intelligence": True,

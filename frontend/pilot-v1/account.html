@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#103d32">
   <link rel="icon" href="/sris-favicon.svg" type="image/svg+xml">
   <title>Acesso ao workspace · SRIS Pilot</title>
-  <link rel="stylesheet" href="/pilot.css?v=20260828-brand-system-v30">
+  <link rel="stylesheet" href="/pilot.css?v=20260830-private-operations-v31">
   <style>
     .access-page{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:minmax(320px,.85fr) minmax(430px,1.15fr);background:var(--paper)}
     .access-context{display:flex;min-height:100%;flex-direction:column;justify-content:space-between;padding:clamp(30px,6vw,78px);background:linear-gradient(145deg,var(--forest-deep),var(--forest));color:#fff}.access-context .brand-lockup{color:var(--gold-light)}.access-context h1{max-width:620px;margin:22px 0 14px;color:#fff;font-size:clamp(45px,6vw,76px);line-height:.98}.access-context p{max-width:540px;color:rgba(255,255,255,.75)}
@@ -18,14 +18,14 @@
 <body>
   <div class="access-page">
     <aside class="access-context">
-      <div class="brand-lockup"><img class="brand-lockup-image" src="/sris-logo-compact-dark.svg?v=20260828-brand-system-v30" alt="SRIS — Mission Intelligence" width="240" height="53"></div>
+      <div class="brand-lockup"><img class="brand-lockup-image" src="/sris-logo-compact-dark.svg?v=20260830-private-operations-v31" alt="SRIS — Mission Intelligence" width="240" height="53"></div>
       <div class="access-context-copy"><div class="eyebrow" style="color:var(--gold-light)">IDENTIDADE E CONTINUIDADE</div><h1>Acesso pessoal. Trabalho preservado.</h1><p>Convites e recuperações são temporários e de utilização única. Depois de entrar, cada missão regressa ao mesmo workspace, com revisões, evidência, decisões e memória.</p></div>
       <small>SRIS Pilot V1 · validação operacional</small>
     </aside>
     <main class="access-surface">
       <section class="access-card">
         <div id="request-view" class="hidden">
-          <div class="eyebrow">RECUPERAR ACESSO</div><h2>Definir uma nova palavra-passe</h2><p class="muted">Se a conta estiver ativa e o email transacional configurado, receberá um link temporário.</p>
+          <div class="eyebrow">RECUPERAR ACESSO</div><h2>Definir uma nova palavra-passe</h2><p class="muted">Se a conta estiver ativa e a entrega de email validada, receberá um link temporário.</p>
           <form id="request-form"><div class="field"><label for="request-email">Email</label><input id="request-email" type="email" autocomplete="email" required></div><button class="btn btn-primary" id="request-submit" type="submit">Enviar instruções</button></form>
           <div class="access-message" id="request-message" aria-live="polite"></div>
           <a class="btn btn-secondary" href="/">Voltar ao início de sessão</a>
@@ -58,7 +58,7 @@
     $('#request-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;message('#request-message','A processar…');try{const data=await request('/api/auth/password-reset/request',{method:'POST',body:JSON.stringify({email:$('#request-email').value.trim()})});event.target.reset();message('#request-message',data.message||'Se a conta existir, receberá instruções por email.','success')}catch(error){message('#request-message',error.message,'error')}finally{button.disabled=false}});
     $('#invite-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const password=$('#invite-password').value;if(!invitation?.existing_account&&password!==$('#invite-confirm').value){message('#invite-message','As duas palavras-passe não coincidem.','error');button.disabled=false;return}message('#invite-message','A ativar a conta…');try{const data=await request('/api/auth/invitations/accept',{method:'POST',body:JSON.stringify({token:inviteToken,password,full_name:invitation?.existing_account?null:$('#invite-name').value.trim()})});localStorage.setItem('sris_access_token',data.access_token);localStorage.setItem('sris_refresh_token',data.refresh_token);localStorage.setItem('sris_org_id',data.organization_id);message('#invite-message','Conta ativada. A abrir o workspace…','success');setTimeout(()=>location.replace('/app'),500)}catch(error){message('#invite-message',error.message,'error');button.disabled=false}});
     $('#reset-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const password=$('#reset-password').value;if(password!==$('#reset-confirm').value){message('#reset-message','As duas palavras-passe não coincidem.','error');button.disabled=false;return}message('#reset-message','A guardar…');try{await request('/api/auth/password-reset/confirm',{method:'POST',body:JSON.stringify({token:resetToken,new_password:password})});event.target.classList.add('hidden');message('#reset-message','Palavra-passe alterada. As sessões anteriores foram encerradas; já pode entrar.','success')}catch(error){message('#reset-message',error.message,'error');button.disabled=false}});
-    async function loadCapabilities(){try{const data=await request('/api/auth/capabilities');if(!data.password_reset_enabled){$('#request-submit').disabled=true;message('#request-message','A recuperação por email ainda não está configurada neste staging. Contacte o administrador do workspace.','error')}}catch{}}
+    async function loadCapabilities(){try{const data=await request('/api/pilot/capabilities');if(data.password_reset_delivery!=='email'){$('#request-submit').disabled=true;message('#request-message',data.transactional_email_status==='delivery-failed'?'O último ensaio de entrega de email falhou. Contacte o administrador do workspace.':'A recuperação por email ainda não foi validada neste ambiente. Contacte o administrador do workspace.','error')}}catch{}}
     readFragment();if(inviteToken)loadInvitation();else if(resetToken)show('reset-view');else{show('request-view');loadCapabilities()}
   })();
   </script>

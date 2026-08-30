@@ -383,6 +383,8 @@ def test_pilot_capabilities_report_the_authentication_email_transport(monkeypatc
     unavailable = client.get("/api/pilot/capabilities")
     assert unavailable.status_code == 200
     assert unavailable.json()["transactional_email_ready"] is False
+    assert unavailable.json()["transactional_email_status"] == "not-configured"
+    assert unavailable.json()["transactional_email_configured"] is False
     assert unavailable.json()["invitations_enabled"] is False
     assert unavailable.json()["password_reset_delivery"] == "configuration-required"
 
@@ -394,9 +396,27 @@ def test_pilot_capabilities_report_the_authentication_email_transport(monkeypatc
     monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
     available = client.get("/api/pilot/capabilities")
     assert available.status_code == 200
-    assert available.json()["transactional_email_ready"] is True
-    assert available.json()["invitations_enabled"] is True
-    assert available.json()["password_reset_delivery"] == "email"
+    assert available.json()["transactional_email_ready"] is False
+    assert available.json()["transactional_email_status"] == "configured-unverified"
+    assert available.json()["transactional_email_configured"] is True
+    assert available.json()["invitations_enabled"] is False
+    assert available.json()["password_reset_delivery"] == "configuration-required"
+
+
+def test_account_surface_does_not_expose_the_audit_log() -> None:
+    admin_script = client.get("/admin-accounts.js")
+    account_surface = client.get("/app")
+    assert admin_script.status_code == 200
+    assert account_surface.status_code == 200
+    for forbidden in (
+        "/admin/audit",
+        "Ver auditoria recente",
+        "pilot-audit-list",
+        "audit_events",
+        "resource_id",
+    ):
+        assert forbidden not in admin_script.text
+    assert "<dt>Auditoria</dt>" not in account_surface.text
 
 
 def test_pilot_openapi_exposes_the_operational_scope() -> None:
