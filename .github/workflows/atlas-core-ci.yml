@@ -8,6 +8,7 @@ on:
       - main
       - mission-intelligence-interactive-v2
       - pilot-v1-september-2026
+      - demo-experience-2026-08-30
     paths:
       - "backend/**"
       - "frontend/**"

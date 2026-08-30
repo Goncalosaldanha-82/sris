@@ -1,6 +1,6 @@
 # SRIS Pilot V1 — Deployment Contract
 
-Branch: `pilot-v1-september-2026`
+Deployment branch: `demo-experience-2026-08-30`
 
 ## Isolation rule
 
@@ -9,6 +9,11 @@ Pilot V1 must be deployed as a **new Railway service**. Do not repoint the exist
 Recommended service name: `sris-pilot-v1`.
 
 Pilot V1 should use its **own PostgreSQL database/service** for pilot data. Do not run the pilot against the current staging database once external pilot work begins.
+
+The public route `/demonstracao` is stateless, read-only and contains only a
+clearly labelled fictional municipal case. The authenticated route `/app`
+remains isolated from the demonstration and is available only to invited
+institutional accounts.
 
 ## Runtime
 
@@ -34,6 +39,9 @@ At minimum verify before first pilot use:
 3. AI/provider configuration required by Mission Intelligence is present.
 4. Any email/recovery configuration used by login flows is present.
 5. Object-storage configuration is either deliberately configured or explicitly left disabled until the storage backend is selected.
+6. `ATLAS_SELF_REGISTRATION_ENABLED=false`,
+   `ATLAS_ORGANIZATION_CREATION_ENABLED=false` and
+   `SRIS_PUBLIC_SIGNUP_ENABLED=false` are all set explicitly.
 
 ## Release gates
 
