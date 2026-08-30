@@ -318,16 +318,22 @@ def _send_invitation_email(invitation_id: str, raw_token: str) -> None:
             db.commit()
 
 
-def _send_password_reset_email(reset_id: str, raw_token: str) -> None:
+def _send_password_reset_email(
+    reset_id: str,
+    raw_token: str,
+    *,
+    raise_on_failure: bool = False,
+) -> bool:
+    delivery_error: AuthDeliveryError | None = None
     with SessionLocal() as db:
         reset = db.get(PasswordResetToken, reset_id)
         if reset is None or reset.used_at is not None or reset.revoked_at is not None:
-            return
+            return False
         if _as_utc(reset.expires_at) <= utcnow():
-            return
+            return False
         user = db.get(User, reset.user_id)
         if user is None or not user.is_active:
-            return
+            return False
 
         try:
             reset_url = build_auth_link("reset", raw_token)
@@ -353,11 +359,15 @@ def _send_password_reset_email(reset_id: str, raw_token: str) -> None:
             )
             reset.delivery_status = "sent"
             reset.sent_at = utcnow()
-        except AuthDeliveryError:
+        except AuthDeliveryError as exc:
+            delivery_error = exc
             reset.delivery_status = "failed"
             logger.exception("SRIS password-reset email delivery failed")
         finally:
             db.commit()
+    if delivery_error is not None and raise_on_failure:
+        raise delivery_error
+    return delivery_error is None
 
 
 def _assert_invitable(inviter: Membership, requested_role: str) -> str:
@@ -745,6 +755,14 @@ def request_password_reset(
         return response
 
     email = str(payload.email).strip().lower()
+    activation_email = os.getenv(
+        "SRIS_ACCESS_ACTIVATION_EMAIL",
+        "",
+    ).strip().lower()
+    is_institutional_activation = bool(activation_email) and secrets.compare_digest(
+        email.encode("utf-8"),
+        activation_email.encode("utf-8"),
+    )
     user = _initial_owner_for_password_reset(db, email)
     if user is None:
         user = (
@@ -770,7 +788,14 @@ def request_password_reset(
         .order_by(PasswordResetToken.requested_at.desc())
         .first()
     )
-    if latest is not None and now - _as_utc(latest.requested_at) < cooldown:
+    if (
+        latest is not None
+        and now - _as_utc(latest.requested_at) < cooldown
+        and not (
+            is_institutional_activation
+            and latest.delivery_status == "failed"
+        )
+    ):
         return response
 
     for previous in (
@@ -811,6 +836,24 @@ def request_password_reset(
         payload={"delivery": "email"},
     )
     db.commit()
+    if is_institutional_activation:
+        try:
+            _send_password_reset_email(
+                reset.id,
+                raw_token,
+                raise_on_failure=True,
+            )
+        except AuthDeliveryError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+        return PasswordResetStartResponse(
+            status="sent",
+            message=(
+                "Email enviado. Consulte a caixa de entrada e o correio não solicitado."
+            ),
+        )
     background_tasks.add_task(_send_password_reset_email, reset.id, raw_token)
     return response
 

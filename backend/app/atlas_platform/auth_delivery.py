@@ -281,5 +281,18 @@ def _send_api_email(
                 raise AuthDeliveryError("Authentication email delivery failed")
     except AuthDeliveryError:
         raise
-    except (HTTPError, URLError, OSError, ValueError) as exc:
-        raise AuthDeliveryError("Authentication email delivery failed") from exc
+    except HTTPError as exc:
+        # Keep credentials and provider response bodies out of user-visible
+        # errors, but preserve the HTTP status so an operator can distinguish
+        # an invalid key/domain (401/403/422) from a transient outage.
+        raise AuthDeliveryError(
+            f"Fornecedor de email recusou o envio (HTTP {exc.code})."
+        ) from exc
+    except URLError as exc:
+        raise AuthDeliveryError(
+            "Não foi possível contactar o fornecedor de email."
+        ) from exc
+    except (OSError, ValueError) as exc:
+        raise AuthDeliveryError(
+            "O fornecedor de email não concluiu o envio."
+        ) from exc

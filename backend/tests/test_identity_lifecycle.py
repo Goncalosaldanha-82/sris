@@ -460,6 +460,8 @@ def test_exact_email_gate_bootstraps_first_owner_through_normal_reset(
         json={"email": owner_email},
     )
     assert requested.status_code == 202, requested.text
+    assert requested.json()["status"] == "sent"
+    assert requested.json()["message"].startswith("Email enviado.")
     assert captured and captured[-1][0] == "reset"
     reset_token = captured[-1][1]
 
@@ -498,6 +500,49 @@ def test_exact_email_gate_bootstraps_first_owner_through_normal_reset(
         },
     )
     assert logged_in.status_code == 200, logged_in.text
+
+
+def test_institutional_activation_reports_provider_failure(monkeypatch) -> None:
+    suffix = uuid4().hex[:10]
+    owner_email = f"institutional-failure-{suffix}@example.com"
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_ID", "identity-staging")
+    monkeypatch.setenv("ATLAS_SELF_REGISTRATION_ENABLED", "false")
+    monkeypatch.setenv("ATLAS_ORGANIZATION_CREATION_ENABLED", "false")
+    monkeypatch.setenv("SRIS_ACCESS_ACTIVATION_EMAIL", owner_email)
+    monkeypatch.setenv(
+        "SRIS_ACCESS_ACTIVATION_ORGANIZATION_SLUG",
+        f"sris-failure-{suffix}",
+    )
+    monkeypatch.setattr(identity, "auth_email_delivery_ready", lambda: True)
+    monkeypatch.setattr(
+        identity,
+        "build_auth_link",
+        lambda flow, token: f"https://sris.example/account.html#{flow}={token}",
+    )
+
+    def fail_delivery(**_kwargs) -> None:
+        raise auth_delivery.AuthDeliveryError(
+            "Fornecedor de email recusou o envio (HTTP 403)."
+        )
+
+    monkeypatch.setattr(identity, "send_transactional_email", fail_delivery)
+    requested = client.post(
+        "/api/auth/password-reset/request",
+        json={"email": owner_email},
+    )
+    assert requested.status_code == 503, requested.text
+    assert "HTTP 403" in requested.json()["detail"]
+
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.email == owner_email).one()
+        reset = (
+            db.query(PasswordResetToken)
+            .filter(PasswordResetToken.user_id == user.id)
+            .order_by(PasswordResetToken.requested_at.desc())
+            .first()
+        )
+        assert reset is not None
+        assert reset.delivery_status == "failed"
 
 
 def test_admin_cannot_invite_another_admin(monkeypatch) -> None:
