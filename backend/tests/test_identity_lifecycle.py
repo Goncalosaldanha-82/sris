@@ -32,6 +32,7 @@ def _clear_delivery_environment(monkeypatch) -> None:
         "BREVO_API_KEY",
         "SRIS_SMTP_HOST",
         "SRIS_SMTP_USERNAME",
+        "SRIS_SMTP_USER",
         "SRIS_SMTP_PASSWORD",
         "SRIS_SMTP_FROM_EMAIL",
     ):
@@ -52,6 +53,22 @@ def test_managed_email_delivery_requires_https_and_transport_security(
     monkeypatch.setenv("SRIS_SMTP_SECURITY", "starttls")
     monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
     assert auth_delivery.smtp_configuration() is not None
+
+
+def test_smtp_accepts_legacy_username_variable(monkeypatch) -> None:
+    _clear_delivery_environment(monkeypatch)
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_ID", "identity-staging")
+    monkeypatch.setenv("SRIS_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("SRIS_SMTP_USER", "legacy-user")
+    monkeypatch.setenv("SRIS_SMTP_PASSWORD", "secret")
+    monkeypatch.setenv("SRIS_SMTP_FROM_EMAIL", "access@example.com")
+    monkeypatch.setenv("SRIS_SMTP_SECURITY", "starttls")
+    monkeypatch.setenv("SRIS_PUBLIC_BASE_URL", "https://sris.example.com")
+
+    configuration = auth_delivery.smtp_configuration()
+
+    assert configuration is not None
+    assert configuration.username == "legacy-user"
 
 
 def test_resend_is_a_first_class_fail_closed_identity_transport(monkeypatch) -> None:

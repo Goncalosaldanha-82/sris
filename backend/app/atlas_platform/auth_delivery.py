@@ -83,7 +83,13 @@ def _managed_or_production() -> bool:
 
 def smtp_configuration() -> SMTPConfiguration | None:
     host = os.getenv("SRIS_SMTP_HOST", "").strip()
-    username = os.getenv("SRIS_SMTP_USERNAME", "").strip()
+    # ``SRIS_SMTP_USER`` was used by the first Railway staging setup.  Keep it
+    # as a compatibility alias so an existing institutional relay does not
+    # become unavailable merely because the canonical variable was renamed.
+    username = (
+        os.getenv("SRIS_SMTP_USERNAME", "").strip()
+        or os.getenv("SRIS_SMTP_USER", "").strip()
+    )
     password = os.getenv("SRIS_SMTP_PASSWORD", "")
     from_email = os.getenv("SRIS_SMTP_FROM_EMAIL", "").strip()
     from_name = _clean_header(os.getenv("SRIS_SMTP_FROM_NAME", "SRIS")) or "SRIS"

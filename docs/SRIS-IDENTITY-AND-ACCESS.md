@@ -43,14 +43,15 @@ body, never in an API path or query string that ordinary access logs record.
 
 ## Required Railway variables
 
-Configure these independently in `staging` and `production`. Select exactly one
-transport. Resend is shown below; `brevo` with `BREVO_API_KEY` is equivalent,
-and the SMTP variables remain supported for institutional relays:
+Configure these variables only in the dedicated invitation pilot service.
+Select exactly one transport. Resend is shown below; `brevo` with
+`BREVO_API_KEY` is equivalent, and the SMTP variables remain supported for
+institutional relays:
 
 ```text
 ATLAS_SELF_REGISTRATION_ENABLED=false
 ATLAS_ORGANIZATION_CREATION_ENABLED=false
-SRIS_PUBLIC_BASE_URL=https://sris-staging.up.railway.app
+SRIS_PUBLIC_BASE_URL=https://sris-pilot-v1-staging.up.railway.app
 SRIS_EMAIL_PROVIDER=resend
 SRIS_EMAIL_FROM=<verified sender>
 SRIS_EMAIL_FROM_NAME=SRIS
@@ -60,15 +61,14 @@ SRIS_PASSWORD_RESET_TTL_MINUTES=30
 SRIS_PASSWORD_RESET_COOLDOWN_SECONDS=60
 ```
 
-In production, set `SRIS_PUBLIC_BASE_URL` to:
-
-```text
-https://sris-production.up.railway.app
-```
+The `sris-production` service is outside this pilot and must not receive these
+variables, deployments or database links.
 
 For Brevo, use `SRIS_EMAIL_PROVIDER=brevo` and `BREVO_API_KEY=<secret>`. For an
 institutional SMTP relay, use `SRIS_EMAIL_PROVIDER=smtp` and the existing
-`SRIS_SMTP_*` variables. If several transports are configured without an
+`SRIS_SMTP_*` variables. The canonical username variable is
+`SRIS_SMTP_USERNAME`; `SRIS_SMTP_USER` remains accepted for compatibility with
+the first staging configuration. If several transports are configured without an
 explicit provider, SRIS fails closed instead of choosing one silently.
 
 The sender address must be accepted by the chosen provider. User passwords
@@ -85,7 +85,8 @@ are never Railway variables and are never chosen by administrators.
 7. Verify the old password and the earlier access token no longer work.
 8. Verify invitation replay and reset-link replay both fail.
 9. Revoke the disposable membership.
-10. Only after those checks, repeat with production-specific SMTP and base URL.
+10. Record the verified pilot configuration without propagating it to another
+    Railway service.
 
 Never reuse an invitation, recovery or initial-owner activation token between
 environments.
