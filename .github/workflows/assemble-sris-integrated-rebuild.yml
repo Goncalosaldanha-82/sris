@@ -1,0 +1,57 @@
+name: Assemble SRIS integrated rebuild
+
+on:
+  push:
+    branches:
+      - pilot-v1-integrated-rebuild-20260831
+    paths:
+      - '.sris-rebuild/**'
+      - '.github/workflows/assemble-sris-integrated-rebuild.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct integrated rebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .sris-rebuild/chunks/* > /tmp/sris-integrated-rebuild.b64
+          base64 --decode /tmp/sris-integrated-rebuild.b64 > /tmp/sris-integrated-rebuild.tar.gz
+          echo "f4566f4ee3123b8914f93d0cc3a363760e7f8ff85aa91939060396f236bff1ae  /tmp/sris-integrated-rebuild.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/sris-integrated-rebuild.tar.gz -C .
+          rm -rf .sris-rebuild
+          rm -f .github/workflows/assemble-sris-integrated-rebuild.yml
+
+      - name: Validate package before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            backend/app/main.py \
+            backend/app/pilot_capabilities.py \
+            backend/app/pilot_engagements.py \
+            backend/tests/test_pilot_engagements.py \
+            migrations/versions/20260831_0023_pilot_and_mission_intelligence.py
+          node --check frontend/pilot-v1/pilot-platform-v2.js
+          node --check frontend/tests/pilot_engagements_contract.test.js
+          node --test frontend/tests/pilot_engagements_contract.test.js
+
+      - name: Commit assembled rebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "SRIS Release Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: rebuild SRIS as Pilot & Mission Intelligence"
+          git push origin HEAD:pilot-v1-integrated-rebuild-20260831
