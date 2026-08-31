@@ -157,6 +157,9 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
         "Só de leitura",
         "Business Case Vivo: antes, durante e depois",
         "06 · ECONOMIA E RECURSOS",
+        "Matriz de alternativas",
+        "Grafo de evidência",
+        "Teste os pressupostos, não apenas o resultado",
         "Os pilotos reais permanecem separados desta demonstração",
         f"/demonstracao.css?v={PILOT_BUILD}",
         f"/demonstracao.js?v={PILOT_BUILD}",
@@ -173,6 +176,19 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
     assert mission["domain"] == "Alojamento turístico · sustentabilidade e eficiência de recursos"
     assert mission["decision"] == "Piloto de medição aprovado"
     assert mission["decision_code"] == "DEC-TA-003"
+    profile = mission["property_profile"]
+    assert profile["annual_available_room_nights"] == profile["rooms"] * 365
+    assert profile["annual_occupied_room_nights"] == round(
+        profile["annual_available_room_nights"] * profile["average_occupancy_percent"] / 100
+    )
+    assert "insuficiente para afirmar causa" in mission["confidence_definition"]
+    matrix = mission["analysis"]["decision_matrix"]
+    assert len(matrix["criteria"]) == 4
+    assert all(row["total"] == sum(row["scores"]) for row in matrix["rows"])
+    assert max(matrix["rows"], key=lambda row: row["total"])["alternative_id"] == "ALT-TA-002"
+    graph = mission["evidence_graph"]
+    graph_node_ids = {node["id"] for node in graph["nodes"]}
+    assert all(link["from"] in graph_node_ids and link["to"] in graph_node_ids for link in graph["links"])
     business_case = mission["business_case"]
     projection = business_case["projection"]
     pilot = business_case["pilot"]
@@ -189,6 +205,31 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
     )
     assert business_case["actual"]["status"] == "Pendente de medição"
     assert business_case["actual"]["net_benefit_eur_per_year"] is None
+    assert business_case["selected_scenario_id"] == "central"
+    assert [scenario["id"] for scenario in business_case["scenarios"]] == [
+        "prudent", "central", "favorable"
+    ]
+    for scenario in business_case["scenarios"]:
+        assert scenario["protected_revenue_basis"]
+        assert scenario["recurring_cost_basis"]
+        assert scenario["direct_savings_eur_per_year"] == round(
+            scenario["water_saving_m3_per_year"] * scenario["water_tariff_eur_per_m3"]
+            + scenario["energy_saving_kwh_per_year"] * scenario["energy_tariff_eur_per_kwh"]
+        )
+        assert scenario["net_benefit_eur_per_year"] == (
+            scenario["direct_savings_eur_per_year"]
+            + scenario["protected_revenue_eur_per_year"]
+            - scenario["recurring_cost_eur_per_year"]
+        )
+        assert scenario["payback_months"] == round(
+            pilot["investment_eur"] / scenario["net_benefit_eur_per_year"] * 12
+        )
+        assert scenario["net_return_3y_eur"] == (
+            scenario["net_benefit_eur_per_year"] * 3 - pilot["investment_eur"]
+        )
+        assert scenario["roi_3y_percent"] == round(
+            scenario["net_return_3y_eur"] / pilot["investment_eur"] * 100
+        )
     assert mission["situation"]["chain"][-1]["label"] == "Aprendizagem"
     assert mission["situation"]["chain"][-2]["value"] == "Ainda não demonstrado"
     serialized = json.dumps(payload, ensure_ascii=False)

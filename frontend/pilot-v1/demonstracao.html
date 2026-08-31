@@ -22,11 +22,12 @@
       <h1 id="mission-title">A carregar demonstração…</h1>
       <p id="mission-subtitle" class="lead"></p>
       <div class="meta" id="mission-meta"></div>
+      <div id="property-profile" class="property-profile" aria-label="Dimensão da unidade fictícia"></div>
     </section>
 
     <section class="summary-grid" aria-label="Resumo da missão">
       <article><span>Estado</span><strong id="mission-status">—</strong></article>
-      <article><span>Confiança</span><strong id="mission-confidence">—</strong></article>
+      <article><span>Confiança</span><strong id="mission-confidence">—</strong><small id="confidence-definition" class="summary-note"></small></article>
       <article><span>Decisão atual</span><strong id="mission-decision">—</strong></article>
     </section>
 
@@ -52,16 +53,26 @@
         <div class="section-heading"><p class="eyebrow">04 · ALTERNATIVAS</p><h2>Opções comparadas</h2></div>
         <div id="alternatives-list" class="stack"></div>
       </div>
+      <div class="product-surface matrix-surface">
+        <div class="product-bar"><span>VISTA DA PLATAFORMA</span><strong>Matriz de alternativas</strong><small id="matrix-scale"></small></div>
+        <div class="table-scroll"><table class="decision-matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table></div>
+      </div>
     </section>
 
     <section class="panel">
       <div class="section-heading"><p class="eyebrow">05 · EVIDÊNCIA</p><h2>Registos com método e limitação</h2></div>
       <div id="evidence-list" class="evidence-grid"></div>
+      <div class="product-surface graph-surface">
+        <div class="product-bar"><span>VISTA DA PLATAFORMA</span><strong>Grafo de evidência</strong><small>Selecione um nó para consultar proveniência e limitação</small></div>
+        <div id="evidence-graph" class="evidence-graph" aria-label="Grafo de evidência interativo"></div>
+        <div id="graph-detail" class="graph-detail" aria-live="polite"></div>
+      </div>
     </section>
 
     <section class="panel economy-panel">
       <div class="section-heading"><p class="eyebrow">06 · ECONOMIA E RECURSOS</p><h2>Business Case Vivo: antes, durante e depois</h2></div>
       <p id="business-case-notice" class="business-case-notice"></p>
+      <div class="scenario-heading"><div><span>CENÁRIOS</span><strong>Teste os pressupostos, não apenas o resultado</strong></div><div id="scenario-controls" class="scenario-controls" role="group" aria-label="Cenário económico"></div></div>
       <div id="business-case-timeline" class="economy-timeline"></div>
       <div class="resource-grid">
         <article class="resource-card"><p class="eyebrow">RECURSOS HUMANOS</p><h3>Tempo interno previsto</h3><div id="human-resources" class="resource-list"></div></article>
