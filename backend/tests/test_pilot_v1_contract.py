@@ -155,6 +155,8 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
         "Demonstração pública",
         "Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios",
         "Só de leitura",
+        "Business Case Vivo: antes, durante e depois",
+        "06 · ECONOMIA E RECURSOS",
         "Os pilotos reais permanecem separados desta demonstração",
         f"/demonstracao.css?v={PILOT_BUILD}",
         f"/demonstracao.js?v={PILOT_BUILD}",
@@ -169,6 +171,24 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
     mission = payload["missions"]["DEMO-TA-001"]
     assert mission["organization"] == "Hotel Horizonte Verde (unidade fictícia)"
     assert mission["domain"] == "Alojamento turístico · sustentabilidade e eficiência de recursos"
+    assert mission["decision"] == "Piloto de medição aprovado"
+    assert mission["decision_code"] == "DEC-TA-003"
+    business_case = mission["business_case"]
+    projection = business_case["projection"]
+    pilot = business_case["pilot"]
+    assert projection["net_benefit_eur_per_year"] == (
+        projection["direct_savings_eur_per_year"]
+        + projection["protected_revenue_eur_per_year"]
+        - projection["recurring_cost_eur_per_year"]
+    )
+    assert projection["net_return_3y_eur"] == (
+        projection["net_benefit_eur_per_year"] * 3 - pilot["investment_eur"]
+    )
+    assert projection["roi_3y_percent"] == round(
+        projection["net_return_3y_eur"] / pilot["investment_eur"] * 100
+    )
+    assert business_case["actual"]["status"] == "Pendente de medição"
+    assert business_case["actual"]["net_benefit_eur_per_year"] is None
     assert mission["situation"]["chain"][-1]["label"] == "Aprendizagem"
     assert mission["situation"]["chain"][-2]["value"] == "Ainda não demonstrado"
     serialized = json.dumps(payload, ensure_ascii=False)

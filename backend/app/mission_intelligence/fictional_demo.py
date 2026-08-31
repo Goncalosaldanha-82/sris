@@ -20,7 +20,8 @@ _CATALOG = {
             "domain": "Alojamento turístico · sustentabilidade e eficiência de recursos",
             "status": "Missão em avaliação — dados fictícios",
             "confidence": "Moderada",
-            "decision": "DEC-TA-003 · Piloto de medição aprovado",
+            "decision": "Piloto de medição aprovado",
+            "decision_code": "DEC-TA-003",
             "method_notice": (
                 "Caso exclusivamente demonstrativo. Todos os nomes, valores, datas e "
                 "resultados são fictícios e servem apenas para ilustrar o método SRIS."
@@ -83,6 +84,62 @@ _CATALOG = {
                 {"id": "EVD-TA-002", "type": "Operação", "title": "Ocorrências, lavandaria e rega", "description": "Registos fictícios ligam alterações de procedimento e manutenção aos consumos.", "method": "Linha temporal operacional com validação pela equipa da unidade.", "limitation": "Alguns registos são manuais e podem estar incompletos.", "status": "Parcialmente verificada", "confidence": "Moderada"},
                 {"id": "EVD-TA-003", "type": "Qualidade do serviço", "title": "Conforto e experiência do hóspede", "description": "A decisão inclui reclamações, conforto, higiene e continuidade do serviço.", "method": "Indicadores operacionais e questionário breve antes e depois do teste.", "limitation": "Atribuição exige amostra e período comparáveis.", "status": "Protocolo proposto", "confidence": "Baixa a moderada"},
             ],
+            "business_case": {
+                "notice": (
+                    "Valores exclusivamente fictícios para demonstrar a leitura económica da missão. "
+                    "São identificados como baseline, orçamento ou projeção; nenhum corresponde a um "
+                    "resultado real de cliente."
+                ),
+                "currency": "EUR",
+                "baseline": {
+                    "status": "Baseline anual fictícia",
+                    "annual_resource_spend_eur": 142000,
+                    "avoidable_operating_loss_eur": 18600,
+                    "revenue_at_risk_eur": 9000,
+                },
+                "pilot": {
+                    "status": "Orçamento fictício",
+                    "duration_weeks": 8,
+                    "investment_eur": 12800,
+                    "equipment_eur": 8900,
+                    "internal_people_cost_eur": 3900,
+                    "internal_hours": 92,
+                    "planned_interruption_hours": 6,
+                },
+                "projection": {
+                    "status": "Cenário central fictício — não demonstrado",
+                    "direct_savings_eur_per_year": 13600,
+                    "protected_revenue_eur_per_year": 4200,
+                    "recurring_cost_eur_per_year": 2400,
+                    "net_benefit_eur_per_year": 15400,
+                    "payback_months": 10,
+                    "net_return_3y_eur": 33400,
+                    "roi_3y_percent": 261,
+                },
+                "actual": {
+                    "status": "Pendente de medição",
+                    "net_benefit_eur_per_year": None,
+                    "payback_months": None,
+                    "roi_3y_percent": None,
+                },
+                "human_resources": [
+                    {"role": "Direção", "hours": 16},
+                    {"role": "Operações", "hours": 36},
+                    {"role": "Manutenção", "hours": 28},
+                    {"role": "Finanças e dados", "hours": 12},
+                ],
+                "material_resources": [
+                    {"resource": "Subcontadores temporários", "quantity": 6},
+                    {"resource": "Registadores acústicos de fugas", "quantity": 2},
+                    {"resource": "Analisador portátil de energia", "quantity": 1},
+                    {"resource": "Kit de registo e protocolo de medição", "quantity": 1},
+                ],
+                "formulas": [
+                    "Benefício líquido anual = poupança direta + receita protegida − custo recorrente.",
+                    "Retorno líquido a 3 anos = benefício líquido anual × 3 − investimento inicial.",
+                    "ROI a 3 anos = retorno líquido a 3 anos ÷ investimento inicial.",
+                ],
+            },
             "learning": [
                 {"id": "LRN-TA-001", "title": "Normalizar antes de classificar", "description": "Uma variação total não deve ser tratada como ineficiência sem considerar ocupação e atividade operacional."},
                 {"id": "LRN-TA-002", "title": "Aprendizagem ainda não confirmada", "description": "A alternativa preferida é uma decisão de teste, não prova de poupança, retorno ou impacto."},

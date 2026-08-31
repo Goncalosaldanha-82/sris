@@ -13,7 +13,7 @@ from app.atlas_platform.models import PasswordResetToken, UserInvitation
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260831-tourism-advance-demo-v33"
+PILOT_BUILD = "20260831-live-business-case-demo-v34"
 
 CANONICAL_MISSION_CHAIN = [
     "context",
