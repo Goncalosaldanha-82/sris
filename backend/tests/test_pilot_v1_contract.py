@@ -158,6 +158,7 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
         "Business Case Vivo: antes, durante e depois",
         "06 · ECONOMIA E RECURSOS",
         "Matriz de alternativas",
+        "Deslize horizontalmente para consultar todos os critérios",
         "Grafo de evidência",
         "Teste os pressupostos, não apenas o resultado",
         "Os pilotos reais permanecem separados desta demonstração",
@@ -183,13 +184,21 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
     )
     assert "insuficiente para afirmar causa" in mission["confidence_definition"]
     matrix = mission["analysis"]["decision_matrix"]
-    assert len(matrix["criteria"]) == 4
+    assert [criterion["label"] for criterion in matrix["criteria"]] == [
+        "Rastreabilidade", "Eficácia", "Custo", "Risco controlado",
+        "Reversibilidade", "Experiência", "Robustez",
+    ]
     assert all(row["total"] == sum(row["scores"]) for row in matrix["rows"])
     assert max(matrix["rows"], key=lambda row: row["total"])["alternative_id"] == "ALT-TA-002"
     graph = mission["evidence_graph"]
     graph_node_ids = {node["id"] for node in graph["nodes"]}
     assert all(link["from"] in graph_node_ids and link["to"] in graph_node_ids for link in graph["links"])
     business_case = mission["business_case"]
+    baseline = business_case["baseline"]
+    assert baseline["annual_resource_spend_eur"] == round(
+        baseline["water_consumption_m3_per_year"] * baseline["water_tariff_eur_per_m3"]
+        + baseline["energy_consumption_kwh_per_year"] * baseline["energy_tariff_eur_per_kwh"]
+    )
     projection = business_case["projection"]
     pilot = business_case["pilot"]
     assert projection["net_benefit_eur_per_year"] == (

@@ -93,14 +93,17 @@ _CATALOG = {
                     "scale": "1 = fraco · 5 = forte",
                     "criteria": [
                         {"id": "traceability", "label": "Rastreabilidade"},
-                        {"id": "viability", "label": "Viabilidade"},
+                        {"id": "effectiveness", "label": "Eficácia"},
+                        {"id": "cost", "label": "Custo"},
+                        {"id": "risk", "label": "Risco controlado"},
+                        {"id": "reversibility", "label": "Reversibilidade"},
                         {"id": "experience", "label": "Experiência"},
-                        {"id": "no_displacement", "label": "Não desloca impacto"},
+                        {"id": "robustness", "label": "Robustez"},
                     ],
                     "rows": [
-                        {"alternative_id": "ALT-TA-001", "label": "Substituição geral", "scores": [2, 2, 3, 4], "total": 11},
-                        {"alternative_id": "ALT-TA-002", "label": "Medição dirigida", "scores": [5, 4, 4, 5], "total": 18},
-                        {"alternative_id": "ALT-TA-003", "label": "Lavandaria externa", "scores": [2, 3, 3, 1], "total": 9},
+                        {"alternative_id": "ALT-TA-001", "label": "Substituição geral", "scores": [2, 4, 2, 2, 1, 3, 2], "total": 16},
+                        {"alternative_id": "ALT-TA-002", "label": "Medição dirigida", "scores": [5, 4, 4, 4, 5, 4, 5], "total": 31},
+                        {"alternative_id": "ALT-TA-003", "label": "Lavandaria externa", "scores": [2, 3, 3, 2, 3, 3, 2], "total": 18},
                     ],
                 },
             },
@@ -135,6 +138,10 @@ _CATALOG = {
                 "currency": "EUR",
                 "baseline": {
                     "status": "Baseline anual fictícia",
+                    "water_consumption_m3_per_year": 15000,
+                    "water_tariff_eur_per_m3": 2.0,
+                    "energy_consumption_kwh_per_year": 509091,
+                    "energy_tariff_eur_per_kwh": 0.22,
                     "annual_resource_spend_eur": 142000,
                     "annual_resource_spend_basis": "12 meses de faturas fictícias de água e energia.",
                     "avoidable_operating_loss_eur": 18600,
@@ -162,6 +169,10 @@ _CATALOG = {
                     "roi_3y_percent": 261,
                 },
                 "selected_scenario_id": "central",
+                "scenario_scope_note": (
+                    "A redução de água é mais ambiciosa porque o cenário inclui fuga e rega; "
+                    "a energia considera apenas otimização operacional, sem substituição geral de equipamentos."
+                ),
                 "scenarios": [
                     {
                         "id": "prudent",

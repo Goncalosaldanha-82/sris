@@ -4,8 +4,9 @@
   const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   const set=(selector,value)=>{const element=$(selector);if(element)element.textContent=value||'—';};
   const money=value=>Number.isFinite(value)?new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(value):'Pendente';
-  const unitMoney=value=>Number.isFinite(value)?new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR',minimumFractionDigits:value<1?2:0,maximumFractionDigits:2}).format(value):'Pendente';
+  const unitMoney=value=>Number.isFinite(value)?new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(value):'Pendente';
   const number=value=>Number.isFinite(value)?new Intl.NumberFormat('pt-PT').format(value):'Pendente';
+  const percent=(part,total)=>Number.isFinite(part)&&Number.isFinite(total)&&total>0?new Intl.NumberFormat('pt-PT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(part/total*100)+'%':'Pendente';
   const metric=(label,value,detail='')=>`<div class="financial-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${detail?`<small>${esc(detail)}</small>`:''}</div>`;
   let activeScenarioId='central';
 
@@ -34,6 +35,8 @@
     $('#scenario-controls').innerHTML=scenarios.map(item=>`<button type="button" data-scenario-id="${esc(item.id)}" class="${item.id===activeScenarioId?'active':''}" aria-pressed="${item.id===activeScenarioId?'true':'false'}">${esc(item.label)}</button>`).join('');
     $('#business-case-timeline').innerHTML=`
       <article class="economy-phase"><div class="phase-heading"><span>ANTES</span><strong>${esc(baseline.status)}</strong></div>
+        ${metric('Consumo de água',`${number(baseline.water_consumption_m3_per_year)} m³ / ano`,`${unitMoney(baseline.water_tariff_eur_per_m3)}/m³`)}
+        ${metric('Consumo de energia',`${number(baseline.energy_consumption_kwh_per_year)} kWh / ano`,`${unitMoney(baseline.energy_tariff_eur_per_kwh)}/kWh`)}
         ${metric('Água + energia',`${money(baseline.annual_resource_spend_eur)} / ano`,baseline.annual_resource_spend_basis)}
         ${metric('Perda operacional evitável',`${money(baseline.avoidable_operating_loss_eur)} / ano`,baseline.avoidable_operating_loss_basis)}
         ${metric('Receita sob risco',`${money(baseline.revenue_at_risk_eur)} / ano`,baseline.revenue_at_risk_basis)}
@@ -46,7 +49,7 @@
         ${metric('Interrupção planeada',`≤ ${esc(pilot.planned_interruption_hours)} h`)}
       </article>
       <article class="economy-phase projection"><div class="phase-heading"><span>DEPOIS · CENÁRIO ${esc(projection.label||'CENTRAL').toUpperCase()}</span><strong>${esc(projection.status)}</strong></div>
-        <div class="provenance-box"><span>ORIGEM DA POUPANÇA DIRETA</span><p><strong>Água:</strong> ${number(projection.water_saving_m3_per_year)} m³ × ${unitMoney(projection.water_tariff_eur_per_m3)}/m³</p><p><strong>Energia:</strong> ${number(projection.energy_saving_kwh_per_year)} kWh × ${unitMoney(projection.energy_tariff_eur_per_kwh)}/kWh</p><small>Pressupostos fictícios a confirmar por submedição.</small></div>
+        <div class="provenance-box"><span>ORIGEM DA POUPANÇA DIRETA</span><p><strong>Água:</strong> ${number(projection.water_saving_m3_per_year)} m³ (${percent(projection.water_saving_m3_per_year,baseline.water_consumption_m3_per_year)} da baseline) × ${unitMoney(projection.water_tariff_eur_per_m3)}/m³</p><p><strong>Energia:</strong> ${number(projection.energy_saving_kwh_per_year)} kWh (${percent(projection.energy_saving_kwh_per_year,baseline.energy_consumption_kwh_per_year)} da baseline) × ${unitMoney(projection.energy_tariff_eur_per_kwh)}/kWh</p><small>${esc(data.scenario_scope_note)} Pressupostos fictícios a confirmar por submedição.</small></div>
         ${metric('Poupança direta projetada',`${money(projection.direct_savings_eur_per_year)} / ano`)}
         ${metric('Receita protegida projetada',`${money(projection.protected_revenue_eur_per_year)} / ano`,projection.protected_revenue_basis)}
         ${metric('Custo recorrente projetado',`${money(projection.recurring_cost_eur_per_year)} / ano`,projection.recurring_cost_basis)}
