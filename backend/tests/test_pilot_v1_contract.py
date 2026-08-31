@@ -165,14 +165,17 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
     assert catalog.status_code == 200
     payload = catalog.json()
     assert payload["schema"] == "sris_fictional_demo_catalog"
-    assert list(payload["missions"]) == ["DEMO-MUN-001"]
-    mission = payload["missions"]["DEMO-MUN-001"]
-    assert mission["organization"] == "Município de Vale Sereno (entidade fictícia)"
+    assert list(payload["missions"]) == ["DEMO-TA-001"]
+    mission = payload["missions"]["DEMO-TA-001"]
+    assert mission["organization"] == "Hotel Horizonte Verde (unidade fictícia)"
+    assert mission["domain"] == "Alojamento turístico · sustentabilidade e eficiência de recursos"
+    assert mission["situation"]["chain"][-1]["label"] == "Aprendizagem"
+    assert mission["situation"]["chain"][-2]["value"] == "Ainda não demonstrado"
     serialized = json.dumps(payload, ensure_ascii=False)
     for real_boundary in ("Podentes", "Penela", "Fernando Saldanha", "517723816"):
         assert real_boundary not in serialized
 
-    detail = client.get("/api/mission-intelligence/demo/fictional/missions/DEMO-MUN-001")
+    detail = client.get("/api/mission-intelligence/demo/fictional/missions/DEMO-TA-001")
     assert detail.status_code == 200
     assert detail.json()["status"].endswith("dados fictícios")
     assert client.get("/api/mission-intelligence/demo/fictional/missions/UNKNOWN").status_code == 404

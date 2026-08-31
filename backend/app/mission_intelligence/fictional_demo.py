@@ -6,84 +6,86 @@ from copy import deepcopy
 _CATALOG = {
     "schema": "sris_fictional_demo_catalog",
     "schema_version": "1.0",
-    "catalog_version": "2026-08-30",
+    "catalog_version": "2026-08-31",
     "notice": (
         "Demonstração pública com dados integralmente fictícios. Qualquer semelhança "
         "com entidades, pessoas, locais ou projetos reais é coincidência."
     ),
     "missions": {
-        "DEMO-MUN-001": {
-            "id": "DEMO-MUN-001",
-            "title": "Território Habitado 2035",
-            "subtitle": "Articular PDM, habitação acessível e uma rede de refúgios climáticos.",
-            "organization": "Município de Vale Sereno (entidade fictícia)",
-            "domain": "Ordenamento, habitação e resiliência climática",
+        "DEMO-TA-001": {
+            "id": "DEMO-TA-001",
+            "title": "Eficiência Hoteleira 2026",
+            "subtitle": "Distinguir ocupação, operação e anomalia antes de intervir nos consumos.",
+            "organization": "Hotel Horizonte Verde (unidade fictícia)",
+            "domain": "Alojamento turístico · sustentabilidade e eficiência de recursos",
             "status": "Missão em avaliação — dados fictícios",
             "confidence": "Moderada",
-            "decision": "DEC-DEMO-003 · Rede distribuída sob validação",
+            "decision": "DEC-TA-003 · Piloto de medição aprovado",
             "method_notice": (
                 "Caso exclusivamente demonstrativo. Todos os nomes, valores, datas e "
                 "resultados são fictícios e servem apenas para ilustrar o método SRIS."
             ),
             "situation": {
                 "summary": (
-                    "O município fictício enfrenta simultaneamente escassez de habitação a "
-                    "preço comportável, edifícios devolutos e exposição crescente a ondas de "
-                    "calor, incêndio, seca e tempestades. A revisão do PDM e a adaptação de "
-                    "equipamentos públicos estavam a avançar em processos separados."
+                    "Uma unidade de alojamento fictícia registou um aumento de 15% no "
+                    "consumo total de água e de 9% no consumo de energia face ao período "
+                    "anterior. No mesmo intervalo alteraram-se a ocupação, o funcionamento "
+                    "da lavandaria, a rega e várias rotinas de manutenção. O aumento bruto "
+                    "não permite concluir, por si só, que existe ineficiência."
                 ),
                 "attention": [
                     {
-                        "title": "Habitação e proteção climática eram tratadas separadamente.",
-                        "description": "O PDM, a carta de riscos, o património devoluto e os equipamentos públicos não estavam ligados numa leitura única.",
-                        "level": "Conflito de planeamento",
+                        "title": "O indicador bruto mistura consumo e atividade.",
+                        "description": "Sem normalização por quarto-noite ocupado e por serviço operacional, maior consumo pode refletir apenas maior atividade.",
+                        "level": "Problema de comparação",
                     },
                     {
-                        "title": "A urgência não elimina a necessidade de proteção social.",
-                        "description": "Uma intervenção climática pode agravar preços ou deslocar residentes se os efeitos na oferta habitacional não forem avaliados.",
+                        "title": "Reduzir recursos não pode degradar a experiência.",
+                        "description": "Conforto, higiene, qualidade do serviço e carga de trabalho são condições da decisão, não efeitos secundários invisíveis.",
                         "level": "Condição de decisão",
                     },
                 ],
                 "chain": [
-                    {"number": "01", "label": "Observação", "value": "Riscos e pressão habitacional", "note": "Zonas de calor, incêndio e tempestade sobrepõem-se a bairros com menor oferta acessível.", "state": "completed"},
-                    {"number": "02", "label": "Evidência", "value": "Dossier territorial integrado", "note": "PDM, edifícios devolutos, acessibilidade, vulnerabilidade climática e capacidade dos equipamentos.", "state": "completed"},
-                    {"number": "03", "label": "Hipótese", "value": "Rede distribuída", "note": "Reabilitar ativos existentes pode proteger residentes e ampliar oferta sem nova dispersão urbana.", "state": "completed"},
-                    {"number": "04", "label": "Alternativas", "value": "3 comparadas", "note": "Grande centro único, rede de equipamentos e solução mista com habitação resiliente.", "state": "completed"},
-                    {"number": "05", "label": "Decisão", "value": "Piloto em dois territórios", "note": "Solução mista condicionada a validação técnica, social e financeira.", "state": "completed"},
-                    {"number": "06", "label": "Resultado", "value": "Ainda não demonstrado", "note": "A missão define primeiro baseline, indicadores e regras de atribuição.", "state": "pending"},
-                    {"number": "07", "label": "Aprendizagem", "value": "Pendente de execução", "note": "Nenhuma conclusão é apresentada antes da medição e revisão humana.", "state": "learning"},
+                    {"number": "01", "label": "Observação", "value": "+15% água · +9% energia", "note": "Variações totais registadas num período com atividade diferente.", "state": "completed"},
+                    {"number": "02", "label": "Evidência", "value": "Baseline operacional", "note": "Faturas, contadores, ocupação, lavandaria, rega, manutenção e ocorrências.", "state": "completed"},
+                    {"number": "03", "label": "Hipótese", "value": "Causas concorrentes", "note": "Ocupação, fuga, rega, lavandaria e procedimentos permanecem separados.", "state": "completed"},
+                    {"number": "04", "label": "Alternativas", "value": "3 comparadas", "note": "Substituição de equipamentos, protocolo operacional ou lavandaria externa.", "state": "completed"},
+                    {"number": "05", "label": "Decisão", "value": "Medição dirigida", "note": "Piloto de oito semanas antes de investimento generalizado.", "state": "completed"},
+                    {"number": "06", "label": "Ação", "value": "Instrumentar e testar", "note": "Submedição, inspeção de fugas e protocolo operacional controlado.", "state": "open"},
+                    {"number": "07", "label": "Resultado", "value": "Ainda não demonstrado", "note": "Água e energia serão comparadas por atividade, custo e qualidade do serviço.", "state": "pending"},
+                    {"number": "08", "label": "Aprendizagem", "value": "Pendente de execução", "note": "Nenhuma conclusão é publicada antes da medição e revisão humana.", "state": "learning"},
                 ],
             },
             "analysis": {
                 "central_question": (
-                    "Que alterações ao PDM e que rede de edifícios devem ser priorizadas para "
-                    "proteger a população de extremos climáticos sem agravar a escassez nem o "
-                    "preço da habitação?"
+                    "Que intervenção reduz o consumo de água e energia por quarto-noite "
+                    "ocupado, com viabilidade operacional e económica, sem degradar a "
+                    "experiência do hóspede nem transferir o impacto para outro serviço?"
                 ),
                 "available_evidence": (
-                    "Cartografia fictícia do PDM e de riscos; inventário de edifícios públicos "
-                    "e devolutos; tempos de acesso pedonal; procura e preços de habitação; "
-                    "auditorias térmicas e estimativas preliminares de reabilitação."
+                    "Faturas e leituras mensais fictícias; quartos-noite ocupados; ciclos "
+                    "de lavandaria; horários de rega; ocorrências de manutenção; custos "
+                    "operacionais e registos de reclamações e conforto."
                 ),
                 "unknowns": (
-                    "Disponibilidade jurídica dos imóveis, procura real durante cada tipo de "
-                    "evento, capacidade de operação prolongada e impacto das intervenções na "
-                    "oferta e no preço da habitação."
+                    "Distribuição do consumo por zona; existência e dimensão de fugas; "
+                    "efeito meteorológico na rega; consumo efetivo da lavandaria; adesão "
+                    "da equipa e impacto da intervenção na experiência do hóspede."
                 ),
                 "alternatives": [
-                    {"id": "ALT-DEMO-001", "title": "Centro climático municipal único", "state": "Comparada", "rationale": "Operação concentrada, mas acesso desigual e ponto único de falha."},
-                    {"id": "ALT-DEMO-002", "title": "Rede de escolas e equipamentos adaptados", "state": "Comparada", "rationale": "Maior proximidade, exigindo coordenação e disponibilidade sazonal."},
-                    {"id": "ALT-DEMO-003", "title": "Rede mista com reabilitação habitacional", "state": "Preferida sob validação", "rationale": "Combina proteção imediata, recuperação de ativos e oferta habitacional resiliente."},
+                    {"id": "ALT-TA-001", "title": "Substituir equipamentos em todos os quartos", "state": "Comparada", "rationale": "Pode reduzir consumo, mas antecipa investimento antes de confirmar causas, baseline e efeito na experiência."},
+                    {"id": "ALT-TA-002", "title": "Medição dirigida e protocolo operacional", "state": "Preferida sob validação", "rationale": "Combina submedição, inspeção de fugas e teste controlado, preservando a possibilidade de comparar antes e depois."},
+                    {"id": "ALT-TA-003", "title": "Externalizar a lavandaria", "state": "Comparada", "rationale": "Reduz consumo interno aparente, mas pode transferir custo e impacto ambiental sem melhorar a eficiência do sistema."},
                 ],
             },
             "evidence": [
-                {"id": "EVD-DEMO-001", "type": "Cartografia", "title": "Vulnerabilidade territorial combinada", "description": "Sobreposição fictícia de calor, incêndio, tempestade, mobilidade e vulnerabilidade social.", "method": "Análise multicritério com revisão técnica municipal.", "limitation": "A escala territorial não substitui avaliação de cada edifício.", "status": "Em revisão no cenário", "confidence": "Moderada"},
-                {"id": "EVD-DEMO-002", "type": "Inventário", "title": "Edifícios e capacidade de adaptação", "description": "Equipamentos públicos e imóveis devolutos avaliados quanto a acesso, conforto térmico e uso compatível.", "method": "Triagem documental e auditoria técnica simulada.", "limitation": "Titularidade e custo de intervenção ainda não estão confirmados em todos os casos.", "status": "Parcialmente verificada", "confidence": "Moderada"},
-                {"id": "EVD-DEMO-003", "type": "Baseline", "title": "Habitação acessível e deslocação", "description": "Linha de base fictícia para oferta, esforço financeiro das famílias e risco de deslocação.", "method": "Série municipal simulada com segmentação territorial.", "limitation": "A relação causal entre intervenção e preços exigirá acompanhamento longitudinal.", "status": "Baseline proposto", "confidence": "Baixa a moderada"},
+                {"id": "EVD-TA-001", "type": "Baseline", "title": "Consumo por quarto-noite ocupado", "description": "Série fictícia normaliza água e energia pela atividade real da unidade.", "method": "Cruzamento mensal entre contadores, faturas e quartos-noite ocupados.", "limitation": "A medição geral ainda não separa quartos, lavandaria, cozinha e rega.", "status": "Em revisão no cenário", "confidence": "Moderada"},
+                {"id": "EVD-TA-002", "type": "Operação", "title": "Ocorrências, lavandaria e rega", "description": "Registos fictícios ligam alterações de procedimento e manutenção aos consumos.", "method": "Linha temporal operacional com validação pela equipa da unidade.", "limitation": "Alguns registos são manuais e podem estar incompletos.", "status": "Parcialmente verificada", "confidence": "Moderada"},
+                {"id": "EVD-TA-003", "type": "Qualidade do serviço", "title": "Conforto e experiência do hóspede", "description": "A decisão inclui reclamações, conforto, higiene e continuidade do serviço.", "method": "Indicadores operacionais e questionário breve antes e depois do teste.", "limitation": "Atribuição exige amostra e período comparáveis.", "status": "Protocolo proposto", "confidence": "Baixa a moderada"},
             ],
             "learning": [
-                {"id": "LRN-DEMO-001", "title": "Aprendizagem ainda não confirmada", "description": "A preferência por uma rede mista é uma decisão de piloto, não prova de impacto."},
-                {"id": "LRN-DEMO-002", "title": "O efeito habitacional faz parte do resultado", "description": "Proteção climática, acessibilidade e preço da habitação serão medidos em conjunto para evitar uma melhoria aparente com dano social."},
+                {"id": "LRN-TA-001", "title": "Normalizar antes de classificar", "description": "Uma variação total não deve ser tratada como ineficiência sem considerar ocupação e atividade operacional."},
+                {"id": "LRN-TA-002", "title": "Aprendizagem ainda não confirmada", "description": "A alternativa preferida é uma decisão de teste, não prova de poupança, retorno ou impacto."},
             ],
         }
     },
