@@ -1,41 +1,25 @@
 name: ATLAS Core CI
 
 on:
-  workflow_dispatch:
   push:
     branches:
-      - feature/ske-core
       - main
-      - mission-intelligence-interactive-v2
+      - phase-2-operationalization
       - pilot-v1-september-2026
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "migrations/**"
-      - "pyproject.toml"
-      - "alembic.ini"
-      - ".github/workflows/atlas-core-ci.yml"
   pull_request:
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "migrations/**"
-      - "pyproject.toml"
-      - "alembic.ini"
 
 permissions:
   contents: read
 
+env:
+  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/atlas-ci/atlas-tests.db
+  ATLAS_REPOSITORY_ROOT: /tmp/atlas-ci/repository
+  ATLAS_JWT_SECRET: atlas-ci-test-secret-change-before-production
+  ATLAS_ENV: test
+
 jobs:
   core-validation:
-    runs-on: ubuntu-latest
-
-    env:
-      ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/atlas-ci/atlas-tests.db
-      ATLAS_REPOSITORY_ROOT: /tmp/atlas-ci/repository
-      ATLAS_JWT_SECRET: atlas-ci-test-secret-change-before-production
-      ATLAS_ENV: test
-
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -44,7 +28,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
+          cache: pip
 
       - name: Prepare CI directories
         run: |
@@ -78,12 +62,13 @@ jobs:
         run: python -m pytest backend/tests/test_atlas_platform_workflow.py
 
       - name: Run Mission Intelligence foundation tests
-        run: >-
-          python -m pytest backend/tests/test_mission_intelligence.py
-          -k "not test_frontend_and_openapi_expose_the_new_capability"
+        run: python -m pytest backend/tests/test_mission_intelligence.py -k "not test_frontend_and_openapi_expose_the_new_capability"
 
       - name: Run Pilot V1 contract tests
         run: python -m pytest backend/tests/test_pilot_v1_contract.py
+
+      - name: Run Pilot and Mission Intelligence platform tests
+        run: python -m pytest backend/tests/test_pilot_platform.py
 
       - name: Run Learning Inheritance tests
         run: python -m pytest backend/tests/test_learning_inheritance.py
