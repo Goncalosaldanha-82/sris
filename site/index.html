@@ -17,7 +17,7 @@
   <meta name="twitter:title" content="SRIS — Mission Intelligence">
   <meta name="twitter:description" content="Infraestrutura de decisão para organizações que precisam de agir sem esconder a incerteza.">
   <link rel="preload" href="/assets/territory-sunrise.webp" as="image" type="image/webp" media="(min-width: 641px)">
-  <link rel="stylesheet" href="/styles.css?v=20260830-closeout">
+  <link rel="stylesheet" href="/styles.css?v=20260831-commercial-contact">
 </head>
 <body>
   <a class="skip-link" href="#conteudo">Saltar para o conteúdo</a>
@@ -393,9 +393,9 @@
       <div class="cta-media" aria-hidden="true"><img src="/assets/territory-sunrise.webp" alt="" width="1500" height="844" loading="lazy"></div>
       <div class="wrap cta-grid">
         <div>
-          <p class="eyebrow">Próxima missão</p>
+          <p class="eyebrow">Contacto institucional</p>
           <h2 id="contacto-heading">Se a decisão importa, a sua fundamentação não pode desaparecer.</h2>
-          <p>Um piloto começa com um caso concreto, um âmbito fechado e critérios de sucesso definidos antes da intervenção.</p>
+          <p>O primeiro passo é uma conversa de enquadramento. Qualquer diagnóstico, piloto ou trabalho na plataforma depende de âmbito, condições e proposta previamente acordados.</p>
         </div>
         <aside class="contact-card" aria-label="Formulário de contacto institucional do SRIS">
           <div class="contact-heading">
@@ -403,9 +403,9 @@
               <span class="micro-label">Contacto institucional</span>
               <span class="contact-email">contact@sris.io</span>
             </div>
-            <span class="contact-response">Resposta pessoal</span>
+            <span class="contact-response">Avaliação preliminar</span>
           </div>
-          <p>Descreva o contexto e o caso que pretende explorar. Respondemos diretamente para o endereço indicado.</p>
+          <p>Indique o objetivo do contacto. Este formulário não inicia uma missão nem implica análise, diagnóstico ou entrega de resultados.</p>
           <form class="contact-form" data-contact-form novalidate>
             <div class="contact-fields">
               <label>
@@ -422,8 +422,20 @@
               <input type="text" name="organization" autocomplete="organization" maxlength="120">
             </label>
             <label>
-              <span>Mensagem <b aria-hidden="true">*</b></span>
-              <textarea name="message" rows="5" minlength="20" maxlength="4000" placeholder="Que decisão, missão ou caso concreto pretende explorar?" required></textarea>
+              <span>Motivo do contacto <b aria-hidden="true">*</b></span>
+              <select name="purpose" required>
+                <option value="" selected disabled>Selecione uma opção</option>
+                <option value="presentation">Agendar uma apresentação</option>
+                <option value="demonstration">Solicitar uma demonstração</option>
+                <option value="pilot">Avaliar a possibilidade de um piloto</option>
+                <option value="partnership">Propor uma parceria</option>
+                <option value="institutional">Assunto institucional ou imprensa</option>
+                <option value="other">Outro assunto</option>
+              </select>
+            </label>
+            <label>
+              <span>Informação adicional <b aria-hidden="true">*</b></span>
+              <textarea name="message" rows="5" minlength="20" maxlength="4000" placeholder="Indique apenas o necessário para prepararmos a conversa. Não envie informação confidencial." required></textarea>
             </label>
             <label class="contact-honeypot" aria-hidden="true">
               <span>Website</span>
@@ -434,8 +446,8 @@
               <span>Li e compreendi a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>. <b aria-hidden="true">*</b></span>
             </label>
             <div class="contact-submit">
-              <button class="button primary" type="submit">Enviar pedido</button>
-              <span>Sem subscrição automática ou utilização para marketing.</span>
+              <button class="button primary" type="submit">Solicitar contacto</button>
+              <span>O envio não constitui proposta, contrato, diagnóstico nem prestação de serviço.</span>
             </div>
             <p class="form-status" data-form-status role="status" aria-live="polite"></p>
           </form>
@@ -452,6 +464,6 @@
     </div>
   </footer>
 
-  <script src="/site.js?v=20260830-closeout" defer></script>
+  <script src="/site.js?v=20260831-commercial-contact" defer></script>
 </body>
 </html>

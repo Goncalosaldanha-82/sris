@@ -1862,6 +1862,7 @@ h4 {
 
 .contact-form input[type="text"],
 .contact-form input[type="email"],
+.contact-form select,
 .contact-form textarea {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1887,10 +1888,15 @@ h4 {
 }
 
 .contact-form input:focus,
+.contact-form select:focus,
 .contact-form textarea:focus {
   border-color: rgba(230, 199, 118, 0.7);
   background: rgba(255, 255, 255, 0.085);
   box-shadow: 0 0 0 3px rgba(230, 199, 118, 0.12);
+}
+
+.contact-form select {
+  color-scheme: dark;
 }
 
 .contact-consent {

@@ -18,6 +18,7 @@ def valid_payload(**overrides):
         "name": "Ana Martins",
         "email": "ana@example.org",
         "organization": "Organização Exemplo",
+        "purpose": "presentation",
         "message": "Pretendo explorar um caso-piloto concreto com a equipa.",
         "website": "",
         "privacy": True,
@@ -45,6 +46,12 @@ class ValidationTests(unittest.TestCase):
         _, error = validate_contact(valid_payload(message="Curta"))
         self.assertIn("20", error)
 
+    def test_contact_purpose_is_required_and_restricted(self):
+        _, missing_error = validate_contact(valid_payload(purpose=""))
+        _, unknown_error = validate_contact(valid_payload(purpose="free-consulting"))
+        self.assertIn("motivo", missing_error)
+        self.assertIn("motivo", unknown_error)
+
     def test_submission_cannot_be_instant(self):
         _, error = validate_contact(valid_payload(elapsed_ms=100))
         self.assertIn("depressa", error)
@@ -70,6 +77,7 @@ class EmailTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;", email["html"])
         self.assertEqual(email["reply_to"], "ana@example.org")
         self.assertEqual(email["to"], ["contact@sris.io"])
+        self.assertIn("Agendar apresentação", email["subject"])
 
     @patch.dict("os.environ", {}, clear=True)
     def test_delivery_requires_api_key(self):

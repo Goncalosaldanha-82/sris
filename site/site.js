@@ -115,6 +115,7 @@
         name: String(data.get("name") || "").trim(),
         email: String(data.get("email") || "").trim(),
         organization: String(data.get("organization") || "").trim(),
+        purpose: String(data.get("purpose") || "").trim(),
         message: String(data.get("message") || "").trim(),
         website: String(data.get("website") || "").trim(),
         privacy: data.get("privacy") === "on",
@@ -125,7 +126,7 @@
       submitButton.textContent = "A enviar…";
       contactForm.setAttribute("aria-busy", "true");
       formStatus.className = "form-status";
-      formStatus.textContent = "A enviar o seu pedido em segurança.";
+      formStatus.textContent = "A enviar o contacto em segurança.";
 
       try {
         const response = await fetch("/api/contact", {
@@ -138,13 +139,13 @@
 
         contactForm.reset();
         formStatus.classList.add("success");
-        formStatus.textContent = "Pedido enviado. Obrigado — responderemos diretamente para o email indicado.";
+        formStatus.textContent = "Contacto enviado. Obrigado — responderemos para avaliar o enquadramento e os próximos passos.";
       } catch (error) {
         formStatus.classList.add("error");
         formStatus.textContent = error.message || "Não foi possível enviar agora. Tente novamente dentro de alguns minutos.";
       } finally {
         submitButton.disabled = false;
-        submitButton.textContent = "Enviar pedido";
+        submitButton.textContent = "Solicitar contacto";
         contactForm.removeAttribute("aria-busy");
       }
     });

@@ -29,6 +29,14 @@ RATE_LIMIT_WINDOW = 60 * 60
 MIN_FORM_TIME_MS = 1_200
 MAX_FORM_TIME_MS = 24 * 60 * 60 * 1_000
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+CONTACT_PURPOSES = {
+    "presentation": "Agendar apresentação",
+    "demonstration": "Solicitar demonstração",
+    "pilot": "Avaliar um piloto",
+    "partnership": "Propor parceria",
+    "institutional": "Assunto institucional ou imprensa",
+    "other": "Outro assunto",
+}
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -108,6 +116,7 @@ def validate_contact(payload: object) -> tuple[dict[str, object] | None, str | N
         "name": clean_text(payload.get("name")),
         "email": clean_text(payload.get("email")),
         "organization": clean_text(payload.get("organization")),
+        "purpose": clean_text(payload.get("purpose")),
         "message": clean_text(payload.get("message")),
         "website": clean_text(payload.get("website")),
         "privacy": payload.get("privacy") is True,
@@ -123,6 +132,8 @@ def validate_contact(payload: object) -> tuple[dict[str, object] | None, str | N
         return None, "Indique um email válido."
     if len(data["organization"]) > 120:
         return None, "O nome da organização é demasiado longo."
+    if data["purpose"] not in CONTACT_PURPOSES:
+        return None, "Selecione o motivo do contacto."
     if not 20 <= len(data["message"]) <= 4_000:
         return None, "A mensagem deve ter entre 20 e 4000 caracteres."
     if not data["privacy"]:
@@ -140,6 +151,7 @@ def build_email(data: dict[str, object], to_email: str, from_email: str) -> dict
     name = str(data["name"])
     email_address = str(data["email"])
     organization = str(data["organization"]) or "Não indicada"
+    purpose = CONTACT_PURPOSES[str(data["purpose"])]
     message = str(data["message"])
     subject_source = str(data["organization"]) or name
     subject_source = re.sub(r"[\r\n]+", " ", subject_source)[:120]
@@ -147,7 +159,8 @@ def build_email(data: dict[str, object], to_email: str, from_email: str) -> dict
 
     text_body = (
         "Novo contacto recebido através de sris.io\n\n"
-        f"Nome: {name}\nEmail: {email_address}\nOrganização: {organization}\n\n"
+        f"Nome: {name}\nEmail: {email_address}\nOrganização: {organization}\n"
+        f"Motivo: {purpose}\n\n"
         f"Mensagem:\n{message}\n\n"
         "O remetente declarou ter lido e compreendido a Política de Privacidade."
     )
@@ -155,7 +168,8 @@ def build_email(data: dict[str, object], to_email: str, from_email: str) -> dict
         "<h2>Novo contacto recebido através de sris.io</h2>"
         f"<p><strong>Nome:</strong> {html.escape(name)}<br>"
         f"<strong>Email:</strong> {html.escape(email_address)}<br>"
-        f"<strong>Organização:</strong> {html.escape(organization)}</p>"
+        f"<strong>Organização:</strong> {html.escape(organization)}<br>"
+        f"<strong>Motivo:</strong> {html.escape(purpose)}</p>"
         f"<p><strong>Mensagem:</strong><br>{escaped_message}</p>"
         "<p><small>O remetente declarou ter lido e compreendido a Política de Privacidade.</small></p>"
     )
@@ -163,7 +177,7 @@ def build_email(data: dict[str, object], to_email: str, from_email: str) -> dict
         "from": f"SRIS Website <{from_email}>",
         "to": [to_email],
         "reply_to": email_address,
-        "subject": f"Novo contacto SRIS — {subject_source}",
+        "subject": f"Novo contacto SRIS — {purpose} — {subject_source}",
         "text": text_body,
         "html": html_body,
     }
