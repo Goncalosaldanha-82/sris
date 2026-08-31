@@ -171,6 +171,26 @@ class SiteAlignmentTests(unittest.TestCase):
         self.assertNotIn("Diagnóstico inicial sem custo", page)
         self.assertNotIn("gratuit", page.lower())
 
+    def test_public_pages_use_month_level_update_reference_and_return_to_form(self):
+        page = Path("site/index.html").read_text(encoding="utf-8")
+        privacy = Path("site/privacidade.html").read_text(encoding="utf-8")
+
+        self.assertNotIn("20260831", page)
+        self.assertIn("© 2026 SRIS", page)
+        self.assertIn("Última atualização: agosto de 2026", privacy)
+        self.assertNotIn("30 de agosto de 2026", privacy)
+        self.assertNotIn("20260831", privacy)
+        self.assertIn("© 2026 SRIS", privacy)
+        self.assertIn('href="/#contacto">Voltar ao formulário</a>', privacy)
+        self.assertIn('href="/#contacto">Formulário de contacto</a>', privacy)
+
+        for dated_label in (
+            "Forbes Green ESG Awards 2026",
+            "Prémio Nacional de Inovação 2026",
+            "Prémios Líderes do Turismo 2026",
+        ):
+            self.assertIn(dated_label, page)
+
 
 class RateLimiterTests(unittest.TestCase):
     def test_limit_and_window(self):
