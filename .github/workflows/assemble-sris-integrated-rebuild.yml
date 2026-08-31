@@ -25,8 +25,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo 'SRIS rebuild chunk inventory:'
+          wc -c .sris-rebuild/chunks/*
+          sha256sum .sris-rebuild/chunks/*
           cat .sris-rebuild/chunks/* > /tmp/sris-integrated-rebuild.b64
+          echo "Base64 bytes: $(wc -c < /tmp/sris-integrated-rebuild.b64)"
           base64 --decode /tmp/sris-integrated-rebuild.b64 > /tmp/sris-integrated-rebuild.tar.gz
+          sha256sum /tmp/sris-integrated-rebuild.tar.gz
           echo "f4566f4ee3123b8914f93d0cc3a363760e7f8ff85aa91939060396f236bff1ae  /tmp/sris-integrated-rebuild.tar.gz" | sha256sum -c -
           tar -xzf /tmp/sris-integrated-rebuild.tar.gz -C .
           rm -rf .sris-rebuild
