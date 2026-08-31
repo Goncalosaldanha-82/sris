@@ -6,7 +6,7 @@ from copy import deepcopy
 _CATALOG = {
     "schema": "sris_fictional_demo_catalog",
     "schema_version": "1.0",
-    "catalog_version": "2026-08-31",
+    "catalog_version": "2026-08",
     "notice": (
         "Demonstração pública com dados integralmente fictícios. Qualquer semelhança "
         "com entidades, pessoas, locais ou projetos reais é coincidência."

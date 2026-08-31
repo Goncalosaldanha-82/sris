@@ -151,6 +151,9 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
     page = client.get("/demonstracao")
     assert page.status_code == 200
     assert page.headers["cache-control"].startswith("no-store")
+    assert "20260831" not in page.text
+    assert "demo-build" not in page.text
+    assert "Atualizada em agosto de 2026" in page.text
     for marker in (
         "Demonstração pública",
         "Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios",
@@ -173,6 +176,8 @@ def test_public_demo_is_read_only_and_uses_only_fictional_data() -> None:
     assert payload["schema"] == "sris_fictional_demo_catalog"
     assert list(payload["missions"]) == ["DEMO-TA-001"]
     mission = payload["missions"]["DEMO-TA-001"]
+    assert payload["catalog_version"] == "2026-08"
+    assert mission["title"] == "Eficiência Hoteleira 2026"
     assert mission["organization"] == "Hotel Horizonte Verde (unidade fictícia)"
     assert mission["domain"] == "Alojamento turístico · sustentabilidade e eficiência de recursos"
     assert mission["decision"] == "Piloto de medição aprovado"
