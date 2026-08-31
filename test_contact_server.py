@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from contact_server import (
@@ -159,6 +160,16 @@ class OriginTests(unittest.TestCase):
                 "https://sris.io,https://www.sris.io",
             )
         )
+
+
+class SiteAlignmentTests(unittest.TestCase):
+    def test_tourism_context_and_commercial_boundary_are_explicit(self):
+        page = Path("site/index.html").read_text(encoding="utf-8")
+        self.assertIn("Alojamento · sustentabilidade · eficiência de recursos", page)
+        self.assertIn("Ver demonstração para alojamento", page)
+        self.assertIn("Condições definidas antes do início", page)
+        self.assertNotIn("Diagnóstico inicial sem custo", page)
+        self.assertNotIn("gratuit", page.lower())
 
 
 class RateLimiterTests(unittest.TestCase):
