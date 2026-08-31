@@ -21,7 +21,7 @@
     const byKind=kind=>nodes.filter(node=>node.kind===kind);
     const nodeButton=node=>`<button type="button" class="graph-node" data-node-id="${esc(node.id)}"><small>${esc(node.kind)}</small><strong>${esc(node.label)}</strong></button>`;
     $('#evidence-graph').innerHTML=`<div class="graph-column evidence-source">${byKind('Evidência').map(nodeButton).join('')}</div><span class="graph-arrow" aria-hidden="true">→</span><div class="graph-column">${byKind('Hipótese').map(nodeButton).join('')}</div><span class="graph-arrow" aria-hidden="true">→</span><div class="graph-column">${byKind('Alternativa').map(nodeButton).join('')}</div><span class="graph-arrow" aria-hidden="true">→</span><div class="graph-column">${byKind('Decisão').map(nodeButton).join('')}</div>`;
-    const show=node=>{document.querySelectorAll('.graph-node').forEach(button=>button.classList.toggle('active',button.dataset.nodeId===node.id));$('#graph-detail').innerHTML=`<span>${esc(node.kind)} · ${esc(node.id)}</span><strong>${esc(node.label)}</strong><p>${esc(node.detail)}</p>`;};
+    const show=node=>{document.querySelectorAll('.graph-node').forEach(button=>button.classList.toggle('active',button.dataset.nodeId===node.id));$('#graph-detail').innerHTML=`<span>${esc(node.kind)}</span><strong>${esc(node.label)}</strong><p>${esc(node.detail)}</p>`;};
     document.querySelectorAll('.graph-node').forEach(button=>button.addEventListener('click',()=>{const node=nodes.find(item=>item.id===button.dataset.nodeId);if(node)show(node);}));
     if(nodes[0])show(nodes[0]);
   }
