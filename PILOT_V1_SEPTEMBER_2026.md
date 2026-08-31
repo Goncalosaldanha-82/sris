@@ -1,53 +1,104 @@
 # SRIS Pilot V1 — September 2026
 
 ## Delivery target
-Pilot-ready build before **2026-09-10**.
+
+Plataforma funcional para pilotos controlados com organizações públicas ou privadas, preservando a transversalidade do núcleo SRIS.
 
 ## Product thesis
-A mission must start materially better because previous missions existed.
 
-The pilot experience is independent from the legacy `frontend/atlas-os` UI. The old staging interface is not modified by this branch.
+Uma organização deve iniciar cada nova decisão materialmente melhor porque missões e pilotos anteriores existiram, produziram prova e preservaram aprendizagem revalidável.
 
-## Core user journey
-1. Command — show what deserves attention and why.
-2. New mission — describe the problem in natural language.
-3. Preflight — recover related missions, prior learning, contradictions, stale knowledge and evidence gaps.
-4. Mission cockpit — separate known / hypothesised / missing / inherited knowledge.
-5. Next best action — identify the information or intervention with highest decision value.
-6. Outcome — record what happened after action.
-7. Learning — promote a learning with validity conditions and invalidation triggers.
-8. Inheritance — require explicit still-valid / revalidate / invalidate review in a future mission.
-9. Organizational memory — preserve history, supersession and cross-mission relationships.
-10. Pilot Mode — measure baseline, intervention, outcomes and value produced by SRIS itself.
+## Arquitetura de produto
 
-## Pilot proof metrics
-- Time-to-informed-start.
-- Learning reuse rate.
-- Decision outcome closure.
-- Decision Debt reduced.
-- Context recovered without manual reconstruction.
-- Evidence gaps resolved before intervention.
-- Repeated-problem rate.
+```text
+Organização
+└── Unidade, serviço, instalação, território ou projeto
+    └── Piloto
+        ├── Pilot Charter
+        ├── Data Readiness
+        ├── Baseline e Scorecard
+        ├── Missão ou missões governadas
+        ├── Implementação
+        ├── Resultado e Value Case
+        └── Recomendação de escala
 
-## Delivery gates
-### Gate A — Experience foundation
-New standalone frontend, responsive design, health state, navigation and Mission Intelligence cockpit.
+Memória organizacional
+└── Aprendizagem publicada, reutilizável, revalidável e invalidável
+```
 
-### Gate B — Live data
-Authentication, organization context, real mission list, mission document and learning inheritance APIs.
+O núcleo é transversal. Perfis configuráveis adaptam vocabulário, métricas, fontes e modelos ao setor sem alterar o contrato metodológico.
 
-### Gate C — Action loop
-Create mission, preflight, inheritance disposition, evidence gaps, decision/action/outcome and learning promotion.
+Perfis iniciais:
 
-### Gate D — Pilot Mode
-Baseline snapshot, pilot scope, metric capture, outcome comparison and pilot evidence report.
+- Transversal;
+- Hospitality;
+- Setor público;
+- Operações industriais;
+- Laboratório territorial.
 
-### Gate E — Operational readiness
-Attachment stress test, session/auth regression, DB migration, backup/rollback, mobile pass, error-state pass and Railway deployment validation.
+Modelos iniciais:
+
+- decisão e intervenção mensurável;
+- Hospitality · eficiência de recursos;
+- Hospitality · inteligência operacional;
+- serviço público · melhoria mensurável;
+- investimento · validação antes de escala.
+
+## Cinco momentos de utilização
+
+> Contexto → Evidência → Decisão → Medição → Memória
+
+## Oito registos canónicos
+
+> Observação → Evidência → Hipótese → Alternativa → Decisão → Ação → Resultado → Aprendizagem
+
+Pressupostos, restrições, lacunas, incerteza, proveniência e confiança são condições transversais, não etapas.
+
+## Jornada principal
+
+1. Comando — mostrar pilotos, missões, decisões, resultados e próximos passos que requerem atenção.
+2. Novo piloto — escolher um modelo ou começar livremente, definindo problema, parceiro, contexto e decisão.
+3. Pilot Charter — acordar âmbito, papéis, dados, métricas, recursos, risco, entregáveis e gates.
+4. Data Readiness — identificar, receber, mapear e validar fontes sem exigir integração complexa inicial.
+5. Baseline — separar valor absoluto, atividade de normalização, fonte, período, método e limitações.
+6. Missão — executar os oito registos canónicos com revisão humana.
+7. Implementação — acompanhar ações, marcos, riscos, bloqueios, responsáveis, prazos e prova.
+8. Outcome — comparar baseline, objetivo e resultado sem atribuição fictícia.
+9. Value Case — distinguir custo, benefício esperado, estimado, observado e realizado.
+10. Scale Recommendation — escalar, repetir, adaptar, suspender ou parar com condições explícitas.
+11. Memória — preservar aprendizagem e exigir revalidação num novo contexto.
+
+## Provas do piloto
+
+- tempo até início informado;
+- prontidão de dados;
+- baseline aprovada;
+- decisão fundamentada;
+- execução acompanhada;
+- resultado fechado;
+- benefício e custo com estatuto explícito;
+- aprendizagem publicada;
+- reutilização contextual;
+- decisão de escala verificável.
+
+## Gates de entrega
+
+- serviço e PostgreSQL isolados;
+- autenticação, convite e recuperação testados;
+- criação e persistência de piloto e missão;
+- importação documental e estruturada;
+- exportação verificável;
+- mobile físico;
+- backup e restauro;
+- assistência desligável e governada;
+- uma missão real fechada;
+- regressão final sobre build congelado.
 
 ## Non-negotiables
-- No UI claims unsupported by stored data.
-- AI/model is not the system of record.
-- Canonical mission data and organizational memory remain the source of truth.
-- Historical knowledge is superseded or invalidated, never silently erased.
-- The pilot build must not require the legacy interface to operate.
+
+- nenhuma afirmação da interface pode ultrapassar os dados armazenados;
+- o fornecedor de IA não é sistema de registo;
+- nenhum benefício é realizado sem baseline, período, fonte, cálculo e avaliação de atribuição;
+- histórico é substituído ou invalidado, nunca apagado silenciosamente;
+- perfis setoriais não bifurcam o núcleo do produto;
+- programas de inovação são canais para pilotos, não versões distintas da aplicação.
