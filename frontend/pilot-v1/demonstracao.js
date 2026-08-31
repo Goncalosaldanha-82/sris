@@ -4,6 +4,7 @@
   const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   const set=(selector,value)=>{const element=$(selector);if(element)element.textContent=value||'—';};
   const money=value=>Number.isFinite(value)?new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(value):'Pendente';
+  const unitMoney=value=>Number.isFinite(value)?new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR',minimumFractionDigits:value<1?2:0,maximumFractionDigits:2}).format(value):'Pendente';
   const number=value=>Number.isFinite(value)?new Intl.NumberFormat('pt-PT').format(value):'Pendente';
   const metric=(label,value,detail='')=>`<div class="financial-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${detail?`<small>${esc(detail)}</small>`:''}</div>`;
   let activeScenarioId='central';
@@ -45,7 +46,7 @@
         ${metric('Interrupção planeada',`≤ ${esc(pilot.planned_interruption_hours)} h`)}
       </article>
       <article class="economy-phase projection"><div class="phase-heading"><span>DEPOIS · CENÁRIO ${esc(projection.label||'CENTRAL').toUpperCase()}</span><strong>${esc(projection.status)}</strong></div>
-        <div class="provenance-box"><span>ORIGEM DA POUPANÇA DIRETA</span><p><strong>Água:</strong> ${number(projection.water_saving_m3_per_year)} m³ × ${money(projection.water_tariff_eur_per_m3)}/m³</p><p><strong>Energia:</strong> ${number(projection.energy_saving_kwh_per_year)} kWh × ${money(projection.energy_tariff_eur_per_kwh)}/kWh</p><small>Pressupostos fictícios a confirmar por submedição.</small></div>
+        <div class="provenance-box"><span>ORIGEM DA POUPANÇA DIRETA</span><p><strong>Água:</strong> ${number(projection.water_saving_m3_per_year)} m³ × ${unitMoney(projection.water_tariff_eur_per_m3)}/m³</p><p><strong>Energia:</strong> ${number(projection.energy_saving_kwh_per_year)} kWh × ${unitMoney(projection.energy_tariff_eur_per_kwh)}/kWh</p><small>Pressupostos fictícios a confirmar por submedição.</small></div>
         ${metric('Poupança direta projetada',`${money(projection.direct_savings_eur_per_year)} / ano`)}
         ${metric('Receita protegida projetada',`${money(projection.protected_revenue_eur_per_year)} / ano`,projection.protected_revenue_basis)}
         ${metric('Custo recorrente projetado',`${money(projection.recurring_cost_eur_per_year)} / ano`,projection.recurring_cost_basis)}
