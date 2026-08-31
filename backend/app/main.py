@@ -13,6 +13,7 @@ from app.mission_intelligence.learning_api import router as learning_inheritance
 from app.mission_intelligence.memory_api import router as organizational_memory_router
 from app.mission_intelligence import memory_models  # noqa: F401
 from app.pilot_capabilities import PILOT_BUILD, router as pilot_capabilities_router
+from app.pilot_platform import router as pilot_platform_router
 from app.pilot_product_secure import router as pilot_product_router
 from app.pilot_intelligence import router as pilot_intelligence_router
 from app.pilot_alternative_matrix import router as pilot_alternative_matrix_router
@@ -31,6 +32,7 @@ app.include_router(learning_inheritance_router)
 app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
 app.include_router(pilot_capabilities_router)
+app.include_router(pilot_platform_router)
 app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
 app.include_router(pilot_alternative_matrix_router)
@@ -81,14 +83,18 @@ if ASSETS_DIR.exists():
 
 def _frontend_html(filename: str) -> str:
     html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
-    # HTML uses one explicit build placeholder. There is no server-side script
-    # injection and therefore no second, hidden runtime composition layer.
     html = html.replace("__PILOT_BUILD__", PILOT_BUILD)
     html = html.replace(
         "<head>",
         f'<head>\n  <meta name="sris-pilot-build" content="{PILOT_BUILD}">',
         1,
     )
+    if filename == "index.html":
+        html = html.replace(
+            "</body>",
+            f'<script src="/pilot-platform-v1.js?v={PILOT_BUILD}" defer></script>\n</body>',
+            1,
+        )
     return html
 
 
