@@ -36,6 +36,8 @@ It does not assert deployment to Railway. The Railway service `sris-pilot-v1` re
 
 Context, Measurement and Memory are navigation and governance moments; they are not additional canonical records.
 
+The Pilot V1 backend and frontend contracts have been reconciled so that automated tests protect this distinction instead of the obsolete eleven-step presentation.
+
 ## Universal configuration
 
 The official profile catalog contains exactly six profiles:
@@ -64,7 +66,7 @@ The only valid migration lineage after the existing Pilot V1 staging state is:
 - No revision named `20260831_0023` belongs to this lineage.
 - The expected Alembic head is `20260901_0024`.
 
-The permanent CI gate must validate both a fresh database and the real staging upgrade path from `20260827_0022` to `20260901_0024`.
+The permanent CI gate validates both a fresh database and the real staging upgrade path from `20260827_0022` to `20260901_0024`.
 
 ## Release gate
 
