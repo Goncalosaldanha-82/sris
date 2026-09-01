@@ -1,0 +1,77 @@
+name: SRIS Pilot Release Reconciliation
+
+on:
+  push:
+    branches:
+      - pilot-v1-september-2026
+    paths:
+      - "tools/pilot_release_repair.py"
+      - ".github/workflows/pilot-release-repair.yml"
+
+permissions:
+  contents: write
+
+env:
+  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-repair/sris.db
+  ATLAS_REPOSITORY_ROOT: /tmp/sris-repair/repository
+  ATLAS_JWT_SECRET: sris-repair-test-secret-change-before-production
+  ATLAS_ENV: test
+  SRIS_PILOT_MODE: "true"
+  SRIS_PUBLIC_SIGNUP_ENABLED: "true"
+
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the candidate branch
+        uses: actions/checkout@v4
+        with:
+          ref: pilot-v1-september-2026
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Apply the audited reconciliation
+        run: python tools/pilot_release_repair.py
+
+      - name: Install test dependencies
+        run: |
+          mkdir -p /tmp/sris-repair/repository
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[test]"
+
+      - name: Validate syntax and migration path
+        run: |
+          python -m compileall -q backend/app backend/tests migrations
+          node --check frontend/pilot-v1/app.js
+          node --check frontend/pilot-v1/pilot-platform-v1.js
+          node --check frontend/pilot-v1/pilot-value-v1.js
+          node --check frontend/pilot-v1/pilot-mission-bridge-v1.js
+          rm -f /tmp/sris-repair/sris.db
+          python -m alembic upgrade 20260827_0022
+          python -m alembic upgrade head
+          python -m alembic current -v
+          python -m alembic heads -v
+
+      - name: Run corrected product contracts
+        run: |
+          node --test frontend/tests/*.test.js
+          python -m pytest -q backend/tests/test_alembic_migrations.py
+          python -m pytest -q backend/tests/test_pilot_platform.py
+          python -m pytest -q backend/tests/test_pilot_value.py
+          python -m pytest -q backend/tests/test_pilot_tenant_isolation.py
+          python -m pytest -q backend/tests/test_identity_lifecycle.py
+
+      - name: Commit the reconciled release candidate
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend frontend migrations Dockerfile .github/workflows/atlas-core-ci.yml
+          git diff --cached --check
+          git commit -m "fix: reconcile the integrated pilot release candidate"
+          git push origin HEAD:pilot-v1-september-2026
