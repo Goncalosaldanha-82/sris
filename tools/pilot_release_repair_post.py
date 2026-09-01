@@ -36,3 +36,20 @@ for relative in (
     if updated != source:
         path.write_text(updated, encoding="utf-8")
         print(f"updated {relative}")
+
+# The platform test imports the application at module load time, so its pilot
+# flags must be set before that import rather than inherited accidentally from
+# another test process or a developer shell.
+platform_test = ROOT / "backend" / "tests" / "test_pilot_platform.py"
+source = platform_test.read_text(encoding="utf-8")
+if 'os.environ.setdefault("SRIS_PILOT_MODE", "true")' not in source:
+    source = source.replace(
+        "from __future__ import annotations\n\nfrom uuid import uuid4\n\nfrom fastapi.testclient import TestClient\n",
+        "from __future__ import annotations\n\nimport os\nfrom uuid import uuid4\n\n"
+        "os.environ.setdefault(\"SRIS_PILOT_MODE\", \"true\")\n"
+        "os.environ.setdefault(\"SRIS_PUBLIC_SIGNUP_ENABLED\", \"true\")\n\n"
+        "from fastapi.testclient import TestClient\n",
+        1,
+    )
+    platform_test.write_text(source, encoding="utf-8")
+    print("updated backend/tests/test_pilot_platform.py pilot flags")
