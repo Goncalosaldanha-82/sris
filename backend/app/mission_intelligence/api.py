@@ -47,6 +47,7 @@ from .dialogue_service import (
     run_interactive_turn,
 )
 from .engine import ENGINE_VERSION
+from .fictional_demo import fictional_demo_catalog, fictional_demo_mission
 from .governance import governance_view, update_policy, usage_event_view
 from .interactive import INTERACTIVE_PROMPT_VERSION
 from .models import AIUsageEvent, CanonicalMission, IntelligenceRun, MissionRevision
@@ -106,6 +107,19 @@ def capability_status() -> dict:
 @public_router.get("/demo/missions")
 def list_demo_missions() -> dict:
     return load_demo_catalog()
+
+
+@public_router.get("/demo/fictional/missions")
+def list_fictional_demo_missions() -> dict:
+    return fictional_demo_catalog()
+
+
+@public_router.get("/demo/fictional/missions/{mission_code}")
+def get_fictional_demo_mission(mission_code: str) -> dict:
+    mission = fictional_demo_mission(mission_code)
+    if mission is None:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return mission
 
 
 @public_router.get("/demo/missions/{mission_code}")

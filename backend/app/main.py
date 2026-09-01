@@ -70,7 +70,7 @@ async def security_and_trace_headers(request: Request, call_next):
 
     path = request.url.path
     is_frontend_asset = path.endswith((".js", ".css", ".svg", ".webp", ".png", ".jpg", ".jpeg"))
-    if path.startswith("/api/") or path in {"/", "/app", "/account.html"}:
+    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -118,6 +118,17 @@ def pilot_home() -> HTMLResponse:
 def pilot_app() -> HTMLResponse:
     return HTMLResponse(
         _frontend_html("index.html"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-SRIS-Pilot-Build": PILOT_BUILD,
+        },
+    )
+
+
+@app.get("/demonstracao", include_in_schema=False)
+def public_demo() -> HTMLResponse:
+    return HTMLResponse(
+        _frontend_html("demonstracao.html"),
         headers={
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "X-SRIS-Pilot-Build": PILOT_BUILD,
