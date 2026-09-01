@@ -22,6 +22,20 @@ env:
 jobs:
   core-validation:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas-ci-password
+          POSTGRES_DB: atlas_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas -d atlas_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -56,7 +70,7 @@ jobs:
       - name: Migrate a new CI application database
         run: python -m alembic upgrade head
 
-      - name: Validate the real staging upgrade path from 0022
+      - name: Validate the staging upgrade path from 0022 on SQLite
         run: |
           rm -f /tmp/atlas-ci/staging-at-0022.db
           export ATLAS_DATABASE_URL=sqlite+pysqlite:////tmp/atlas-ci/staging-at-0022.db
@@ -64,6 +78,37 @@ jobs:
           python -m alembic upgrade head
           python -m alembic current -v
           python -m alembic heads -v
+
+      - name: Validate the staging upgrade path from 0022 on PostgreSQL
+        env:
+          ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas-ci-password@127.0.0.1:5432/atlas_ci
+        run: |
+          python -m alembic upgrade 20260827_0022
+          python -m alembic upgrade head
+          python -m alembic current -v
+          python -m alembic heads -v
+          python - <<'PY'
+          from sqlalchemy import create_engine, inspect, text
+
+          url = "postgresql+psycopg://atlas:atlas-ci-password@127.0.0.1:5432/atlas_ci"
+          engine = create_engine(url)
+          expected_tables = {
+              "sris_pilots",
+              "sris_pilot_missions",
+              "sris_pilot_metrics",
+              "sris_pilot_data_sources",
+              "sris_pilot_work_items",
+              "sris_pilot_value_items",
+              "sris_pilot_collaborators",
+          }
+          with engine.connect() as connection:
+              revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+              assert revision == "20260901_0024", revision
+              tables = set(inspect(connection).get_table_names())
+              missing = expected_tables - tables
+              assert not missing, sorted(missing)
+          print("PostgreSQL staging-path migration verified at 20260901_0024")
+          PY
 
       - name: Run frontend contract tests
         run: node --test frontend/tests/*.test.js
