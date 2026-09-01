@@ -1,0 +1,141 @@
+name: Restore public Tourism Advance demonstration retry
+
+on:
+  push:
+    branches:
+      - pilot-v1-september-2026
+    paths:
+      - ".github/workflows/restore-public-demonstration-retry.yml"
+
+permissions:
+  contents: write
+
+env:
+  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-demo-restore.db
+  ATLAS_REPOSITORY_ROOT: /tmp/sris-demo-restore-repository
+  ATLAS_JWT_SECRET: sris-demo-restore-secret-change-before-production
+  ATLAS_ENV: test
+  SRIS_PILOT_MODE: "true"
+  SRIS_PUBLIC_SIGNUP_ENABLED: "true"
+
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the application branch
+        uses: actions/checkout@v4
+        with:
+          ref: pilot-v1-september-2026
+          fetch-depth: 0
+
+      - name: Recover exact frozen demonstration assets
+        run: |
+          git fetch origin demo-experience-2026-08-30
+          mkdir -p frontend/pilot-v1 backend/app/mission_intelligence frontend/tests
+          git show origin/demo-experience-2026-08-30:frontend/pilot-v1/demonstracao.html > frontend/pilot-v1/demonstracao.html
+          git show origin/demo-experience-2026-08-30:frontend/pilot-v1/demonstracao.css > frontend/pilot-v1/demonstracao.css
+          git show origin/demo-experience-2026-08-30:frontend/pilot-v1/demonstracao.js > frontend/pilot-v1/demonstracao.js
+          git show origin/demo-experience-2026-08-30:backend/app/mission_intelligence/fictional_demo.py > backend/app/mission_intelligence/fictional_demo.py
+
+      - name: Restore route, API and permanent regression contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          main_path = Path("backend/app/main.py")
+          main = main_path.read_text(encoding="utf-8")
+          main = main.replace(
+              'path in {"/", "/app", "/account.html"}',
+              'path in {"/", "/app", "/account.html", "/demonstracao"}',
+          )
+          if '@app.get("/demonstracao"' not in main:
+              marker = '\n\nif FRONTEND_DIR.exists():\n    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")\n'
+              route = '''\n\n@app.get("/demonstracao", include_in_schema=False)\ndef public_demo() -> HTMLResponse:\n    return HTMLResponse(\n        _frontend_html("demonstracao.html"),\n        headers={\n            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",\n            "X-SRIS-Pilot-Build": PILOT_BUILD,\n        },\n    )\n'''
+              if marker not in main:
+                  raise RuntimeError("Static frontend mount marker not found in main.py")
+              main = main.replace(marker, route + marker, 1)
+          main_path.write_text(main, encoding="utf-8")
+
+          api_path = Path("backend/app/mission_intelligence/api.py")
+          api = api_path.read_text(encoding="utf-8")
+          if "from .fictional_demo import fictional_demo_catalog, fictional_demo_mission" not in api:
+              api = api.replace(
+                  "from .engine import ENGINE_VERSION\n",
+                  "from .engine import ENGINE_VERSION\nfrom .fictional_demo import fictional_demo_catalog, fictional_demo_mission\n",
+                  1,
+              )
+          if '@public_router.get("/demo/fictional/missions")' not in api:
+              marker = '''@public_router.get("/demo/missions/{mission_code}")\ndef get_demo_mission(mission_code: str) -> dict:\n'''
+              routes = '''@public_router.get("/demo/fictional/missions")\ndef list_fictional_demo_missions() -> dict:\n    return fictional_demo_catalog()\n\n\n@public_router.get("/demo/fictional/missions/{mission_code}")\ndef get_fictional_demo_mission(mission_code: str) -> dict:\n    mission = fictional_demo_mission(mission_code)\n    if mission is None:\n        raise HTTPException(status_code=404, detail="Mission not found")\n    return mission\n\n\n'''
+              if marker not in api:
+                  raise RuntimeError("Public demo API insertion marker not found")
+              api = api.replace(marker, routes + marker, 1)
+          api_path.write_text(api, encoding="utf-8")
+
+          Path("frontend/tests/public_demonstration_contract.test.js").write_text(r'''import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const html=fs.readFileSync('frontend/pilot-v1/demonstracao.html','utf8');
+          const css=fs.readFileSync('frontend/pilot-v1/demonstracao.css','utf8');
+          const js=fs.readFileSync('frontend/pilot-v1/demonstracao.js','utf8');
+          const main=fs.readFileSync('backend/app/main.py','utf8');
+          const api=fs.readFileSync('backend/app/mission_intelligence/api.py','utf8');
+          const data=fs.readFileSync('backend/app/mission_intelligence/fictional_demo.py','utf8');
+
+          test('public Tourism Advance demonstration remains a first-class read-only route',()=>{
+            assert.match(main,/@app\.get\("\/demonstracao"/);
+            assert.ok(main.indexOf('@app.get("/demonstracao"')<main.indexOf('app.mount("/", StaticFiles'));
+            assert.match(html,/Demonstração pública · Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios/);
+            assert.match(html,/ALOJAMENTO · SUSTENTABILIDADE · EFICIÊNCIA DE RECURSOS/);
+            assert.match(html,/\/demonstracao\.css/);
+            assert.match(html,/\/demonstracao\.js/);
+            assert.match(css,/\.fictional-banner/);
+          });
+
+          test('the demonstration uses an isolated fictional catalog and public API',()=>{
+            assert.match(api,/from \.fictional_demo import fictional_demo_catalog, fictional_demo_mission/);
+            assert.match(api,/@public_router\.get\("\/demo\/fictional\/missions"\)/);
+            assert.match(js,/\/api\/mission-intelligence\/demo\/fictional\/missions/);
+            assert.match(data,/"DEMO-TA-001"/);
+            assert.match(data,/Hotel Horizonte Verde \(unidade fictícia\)/);
+            assert.match(data,/Caso exclusivamente demonstrativo/);
+            assert.match(data,/resultados são fictícios/);
+          });
+          ''', encoding="utf-8")
+          PY
+
+      - name: Validate route and data contract
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[test]"
+          python -m compileall -q backend/app
+          node --check frontend/pilot-v1/demonstracao.js
+          node --test frontend/tests/public_demonstration_contract.test.js
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from app.main import app
+
+          client = TestClient(app)
+          page = client.get("/demonstracao")
+          assert page.status_code == 200, page.text
+          assert "Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios" in page.text
+          catalog = client.get("/api/mission-intelligence/demo/fictional/missions")
+          assert catalog.status_code == 200, catalog.text
+          mission = catalog.json()["missions"]["DEMO-TA-001"]
+          assert mission["organization"] == "Hotel Horizonte Verde (unidade fictícia)"
+          assert len(mission["situation"]["chain"]) == 8
+          print("Public demonstration route and fictional API verified")
+          PY
+
+      - name: Commit restoration and remove temporary workflows
+        run: |
+          git rm .github/workflows/restore-public-demonstration.yml
+          git rm .github/workflows/restore-public-demonstration-retry.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/main.py backend/app/mission_intelligence/api.py backend/app/mission_intelligence/fictional_demo.py frontend/pilot-v1/demonstracao.html frontend/pilot-v1/demonstracao.css frontend/pilot-v1/demonstracao.js frontend/tests/public_demonstration_contract.test.js
+          git diff --cached --check
+          git commit -m "fix: restore public Tourism Advance demonstration alongside the app"
+          git push origin HEAD:pilot-v1-september-2026
