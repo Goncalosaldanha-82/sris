@@ -176,14 +176,12 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "Requerem atenção",
         "Resultados pendentes",
         "Aprendizagens publicadas",
-        "Observação",
+        "MOMENTO 1 DE 5",
+        "Contexto",
         "Evidência",
-        "Hipótese",
-        "Alternativa",
         "Decisão",
-        "Ação",
-        "Resultado",
-        "Aprendizagem",
+        "Medição",
+        "Memória",
         "Pressupostos",
         "Restrições",
         "Lacunas",
@@ -238,10 +236,25 @@ def test_pilot_runtime_contracts_are_stable_and_honest() -> None:
     assert payload["measurable_validation"] is True
     assert payload["tourism_advance_profile"] is True
     assert payload["baseline_and_result_comparison"] is True
-    assert payload["canonical_mission_chain"] == [
-        "context", "observation", "evidence", "hypothesis", "alternatives",
-        "decision", "action", "measurement", "outcome", "learning", "memory",
+    assert payload["user_moments"] == [
+        "context", "evidence", "decision", "measurement", "memory",
     ]
+    assert payload["canonical_records"] == [
+        "observation", "evidence", "hypothesis", "alternative",
+        "decision", "action", "outcome", "learning",
+    ]
+    assert payload["canonical_mission_chain"] == payload["canonical_records"]
+    assert payload["profile_count"] == 6
+    assert payload["configurable_sector_profiles"] == [
+        "cross_sector",
+        "hospitality",
+        "public_sector",
+        "industrial_operations",
+        "territorial_lab",
+        "research_and_innovation",
+    ]
+    assert "tourism_advance" in payload["program_sources"]
+    assert "hospitality_open_innovation" in payload["program_sources"]
     assert "billing_mode" not in payload
     assert payload["live_business_case"] is True
     assert payload["scenario_financial_analysis"] is True
