@@ -12,6 +12,7 @@ It does not assert deployment to Railway. The Railway service `sris-pilot-v1` re
 - Candidate build: `20260901-pilot-mission-intelligence-rc1`
 - Branch: `pilot-v1-september-2026`
 - Deployment status: not deployed to the public Pilot V1 service
+- Repository hygiene: diagnostic connector probes, upload-path probes and one-shot repair workflows are absent from the candidate tree
 
 ## Methodological contract
 
