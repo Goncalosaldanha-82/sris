@@ -13,19 +13,13 @@ let workspaceSummary=null;
 let releaseReadiness=null;
 let missionOpenSequence=0;
 const missionRuntime={attachments:[],graph:null,validation:null,businessCase:null,cycles:[],readiness:null,dialogues:[],memory:[],extraction:null};
-const CANONICAL_MISSION_CHAIN_PT='Contexto → Observação → Evidência → Hipótese → Alternativas → Decisão → Ação → Medição → Resultado → Aprendizagem → Memória';
+const CANONICAL_MISSION_CHAIN_PT='Observação → Evidência → Hipótese → Alternativa → Decisão → Ação → Resultado → Aprendizagem';
 const MISSION_CYCLE_STEPS=[
-  {label:'Contexto',description:'Definir o problema, o objetivo e as condições em que a decisão existe.',tab:'summary'},
-  {label:'Observação',description:'Registar o que foi diretamente observado, sem o converter ainda numa explicação.',tab:'graph'},
-  {label:'Evidência',description:'Ligar fontes verificáveis ao que pode ser sustentado.',tab:'graph'},
-  {label:'Hipótese',description:'Explicitar explicações provisórias que ainda precisam de teste.',tab:'graph'},
-  {label:'Alternativas',description:'Comparar caminhos reais, incluindo a opção de não agir.',tab:'comparison'},
-  {label:'Decisão',description:'Registar a escolha humana, os fundamentos e os limites.',tab:'cycle'},
-  {label:'Ação',description:'Converter a decisão em execução, responsabilidade e prazo.',tab:'cycle'},
-  {label:'Medição',description:'Definir baseline, indicador, método e critério de sucesso.',tab:'validation'},
-  {label:'Resultado',description:'Registar o que aconteceu, separado do que era esperado.',tab:'cycle'},
-  {label:'Aprendizagem',description:'Extrair uma conclusão condicionada pela evidência e pelo contexto.',tab:'learning'},
-  {label:'Memória',description:'Preservar conhecimento reutilizável, sujeito a validade e revalidação.',tab:'memory'},
+  {label:'Contexto',description:'Enquadrar o problema, o objetivo, o decisor, os pressupostos e as restrições.',tab:'summary'},
+  {label:'Evidência',description:'Reunir Observação, Evidência e Hipótese sem confundir facto, explicação e lacuna.',tab:'graph'},
+  {label:'Decisão',description:'Comparar Alternativas e registar a Decisão humana, o fundamento, o risco e a reversibilidade.',tab:'comparison'},
+  {label:'Medição',description:'Executar a Ação, observar o Resultado e comparar baseline, objetivo, efeitos e limitações.',tab:'validation'},
+  {label:'Memória',description:'Rever e publicar a Aprendizagem, preservando validade, contexto e condições de revalidação.',tab:'memory'},
 ];
 
 const titles={
@@ -860,7 +854,7 @@ function installDecisionCycleNavigator(){
       if(!button.id)button.id=`cycle-step-tab-${index}`;
     });
     panel.setAttribute('aria-labelledby',tabs[activeIndex].id);
-    setText('#cycle-position',`ETAPA ${activeIndex+1} DE ${MISSION_CYCLE_STEPS.length}`);
+    setText('#cycle-position',`MOMENTO ${activeIndex+1} DE ${MISSION_CYCLE_STEPS.length}`);
     setText('#cycle-title',step.label);
     setText('#cycle-description',step.description);
     const open=$('#cycle-open-step');
@@ -885,7 +879,7 @@ function installDecisionCycleNavigator(){
     const step=MISSION_CYCLE_STEPS[activeIndex];
     await go('mission');
     if(!selectedMission){
-      showAppMessage('Crie ou abra uma missão para trabalhar esta etapa.');
+      showAppMessage('Crie ou abra uma missão para trabalhar este momento.');
       return;
     }
     activateMissionTab(step.tab);

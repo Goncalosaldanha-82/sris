@@ -36,8 +36,10 @@ test('five user moments and eight persistent records stay distinct',()=>{
 
 test('sector profiles configure one universal core instead of forking products',()=>{
   assert.match(domain,/universal_core_configurable_profiles/);
-  for(const profile of ['cross_sector','hospitality','public_sector','industrial_operations','territorial_lab'])assert.match(domain,new RegExp(profile));
-  for(const template of ['hospitality_resource_efficiency','hospitality_operational_intelligence','public_service_improvement','investment_validation'])assert.match(domain,new RegExp(template));
+  for(const profile of ['cross_sector','hospitality','public_sector','industrial_operations','territorial_lab','research_and_innovation'])assert.match(domain,new RegExp(profile));
+  for(const template of ['hospitality_resource_efficiency','hospitality_operational_intelligence','public_service_improvement','investment_validation','research_and_innovation_validation'])assert.match(domain,new RegExp(template));
+  assert.match(domain,/PROFILE_CATALOG_VERSION/);
+  assert.match(domain,/EXPECTED_PROFILE_KEYS/);
   assert.match(domain,/program_source/);
   assert.match(domain,/tourism_advance/);
   assert.match(platform,/hospitality_open_innovation/);

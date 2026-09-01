@@ -14,6 +14,7 @@ from app.mission_intelligence.memory_api import router as organizational_memory_
 from app.mission_intelligence import memory_models  # noqa: F401
 from app.pilot_capabilities import PILOT_BUILD, router as pilot_capabilities_router
 from app.pilot_platform import router as pilot_platform_router
+from app.pilot_value import router as pilot_value_router
 from app.pilot_product_secure import router as pilot_product_router
 from app.pilot_intelligence import router as pilot_intelligence_router
 from app.pilot_alternative_matrix import router as pilot_alternative_matrix_router
@@ -33,6 +34,7 @@ app.include_router(organizational_learning_router)
 app.include_router(organizational_memory_router)
 app.include_router(pilot_capabilities_router)
 app.include_router(pilot_platform_router)
+app.include_router(pilot_value_router)
 app.include_router(pilot_product_router)
 app.include_router(pilot_intelligence_router)
 app.include_router(pilot_alternative_matrix_router)
@@ -90,11 +92,14 @@ def _frontend_html(filename: str) -> str:
         1,
     )
     if filename == "index.html":
-        html = html.replace(
-            "</body>",
-            f'<script src="/pilot-platform-v1.js?v={PILOT_BUILD}" defer></script>\n</body>',
-            1,
+        runtime_scripts = "\n".join(
+            (
+                f'<script src="/pilot-platform-v1.js?v={PILOT_BUILD}" defer></script>',
+                f'<script src="/pilot-value-v1.js?v={PILOT_BUILD}" defer></script>',
+                f'<script src="/pilot-mission-bridge-v1.js?v={PILOT_BUILD}" defer></script>',
+            )
         )
+        html = html.replace("</body>", f"{runtime_scripts}\n</body>", 1)
     return html
 
 

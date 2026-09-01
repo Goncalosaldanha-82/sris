@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import os
 from uuid import uuid4
+
+os.environ.setdefault("SRIS_PILOT_MODE", "true")
+os.environ.setdefault("SRIS_PUBLIC_SIGNUP_ENABLED", "true")
 
 from fastapi.testclient import TestClient
 
@@ -15,7 +19,7 @@ def _workspace() -> tuple[dict[str, str], str]:
     response = client.post(
         "/api/pilot/register",
         json={
-            "email": f"pilot-platform-{marker}@example.test",
+            "email": f"pilot-platform-{marker}@example.com",
             "full_name": "Pilot Platform Tester",
             "password": "A-secure-password-1234",
             "organization_name": f"Pilot Platform {marker[:8]}",
@@ -49,6 +53,9 @@ def test_pilot_platform_exposes_five_moments_and_eight_canonical_records() -> No
         "learning",
     ]
     assert payload["pilot_portfolio"] is True
+    assert payload["profile_count"] == 6
+    assert "research_and_innovation" in payload["configurable_sector_profiles"]
+    assert "tourism_advance" in payload["program_sources"]
     assert "hospitality_resource_efficiency" in payload["hospitality_templates"]
 
 
@@ -65,6 +72,7 @@ def test_hospitality_pilot_is_created_without_invented_results_and_generates_rep
         "hospitality_operational_intelligence",
         "public_service_improvement",
         "investment_validation",
+        "research_and_innovation_validation",
     } <= keys
 
     created = client.post(

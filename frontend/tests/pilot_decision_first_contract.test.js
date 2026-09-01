@@ -126,8 +126,8 @@ test('entry page uses the valid institutional sunrise and survives the iPhone ke
 });
 
 test('overview exposes an accessible and actionable canonical cycle navigator',()=>{
-  assert.equal((index.match(/data-cycle-step="\d+"/g)||[]).length,11);
-  assert.match(index,/role="tablist" aria-label="Etapas da cadeia canónica/);
+  assert.equal((index.match(/data-cycle-step="\d+"/g)||[]).length,5);
+  assert.match(index,/role="tablist" aria-label="Cinco momentos do percurso de missão/);
   assert.match(index,/id="cycle-prev"/);
   assert.match(index,/id="cycle-next"/);
   assert.match(index,/id="cycle-open-step"/);

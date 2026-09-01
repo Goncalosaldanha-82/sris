@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
-from fastapi import APIRouter
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth_delivery import auth_email_delivery_ready
+from app.atlas_platform.database import get_db
+from app.pilot_platform import (
+    PROFILE_CATALOG_VERSION,
+    PROGRAM_SOURCES,
+    SECTOR_PROFILES,
+)
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260901-pilot-mission-platform-v31"
+PILOT_BUILD = "20260901-pilot-mission-intelligence-rc1"
 
 USER_MOMENTS = [
     "context",
@@ -74,13 +85,15 @@ def pilot_capabilities() -> dict:
         "pilot_scorecard": True,
         "pilot_outcome_report": True,
         "pilot_scale_recommendation": True,
-        "configurable_sector_profiles": [
-            "cross_sector",
-            "hospitality",
-            "public_sector",
-            "industrial_operations",
-            "territorial_lab",
-        ],
+        "pilot_value_case": True,
+        "pilot_collaboration": True,
+        "pilot_collaboration_roles": True,
+        "pilot_report_suite": True,
+        "direct_pilot_to_mission_creation": True,
+        "configurable_sector_profiles": list(SECTOR_PROFILES),
+        "profile_catalog_version": PROFILE_CATALOG_VERSION,
+        "profile_count": len(SECTOR_PROFILES),
+        "program_sources": list(PROGRAM_SOURCES),
         "hospitality_templates": [
             "hospitality_resource_efficiency",
             "hospitality_operational_intelligence",
@@ -117,6 +130,42 @@ def pilot_capabilities() -> dict:
     }
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _migration_heads() -> list[str]:
+    configuration = Config(str(PROJECT_ROOT / "alembic.ini"))
+    return sorted(ScriptDirectory.from_config(configuration).get_heads())
+
+
 @router.get("/build")
 def pilot_build() -> dict[str, str]:
-    return {"build": PILOT_BUILD, "product": "SRIS Pilot & Mission Intelligence"}
+    return {
+        "build": PILOT_BUILD,
+        "product": "SRIS Pilot & Mission Intelligence",
+        "branch": os.getenv("RAILWAY_GIT_BRANCH", "local"),
+        "commit_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA", "local"),
+    }
+
+
+@router.get("/release-state")
+def pilot_release_state(db: Session = Depends(get_db)) -> dict:
+    database_revisions = list(
+        db.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num"))
+        .scalars()
+        .all()
+    )
+    return {
+        "build": PILOT_BUILD,
+        "service": os.getenv("RAILWAY_SERVICE_NAME", "local"),
+        "environment": os.getenv("RAILWAY_ENVIRONMENT_NAME", "local"),
+        "branch": os.getenv("RAILWAY_GIT_BRANCH", "local"),
+        "commit_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA", "local"),
+        "database_revisions": database_revisions,
+        "migration_heads": _migration_heads(),
+        "database_at_head": sorted(database_revisions) == _migration_heads(),
+        "profile_catalog_version": PROFILE_CATALOG_VERSION,
+        "profile_count": len(SECTOR_PROFILES),
+        "profile_keys": list(SECTOR_PROFILES),
+        "program_source_keys": list(PROGRAM_SOURCES),
+    }

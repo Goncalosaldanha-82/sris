@@ -19,7 +19,7 @@ def _workspace(prefix: str) -> tuple[dict[str, str], str]:
     response = client.post(
         "/api/pilot/register",
         json={
-            "email": f"{prefix}-{marker}@example.test",
+            "email": f"{prefix.lower().replace(' ', '-')}-{marker}@example.com",
             "full_name": f"{prefix} Owner",
             "password": "A-secure-password-1234",
             "organization_name": f"{prefix} {marker[:8]}",

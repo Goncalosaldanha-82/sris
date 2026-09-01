@@ -19,7 +19,7 @@ def _pilot() -> tuple[dict[str, str], str, dict]:
     registration = client.post(
         "/api/pilot/register",
         json={
-            "email": f"pilot-value-{marker}@example.test",
+            "email": f"pilot-value-{marker}@example.com",
             "full_name": "Pilot Value Tester",
             "password": "A-secure-password-1234",
             "organization_name": f"Pilot Value {marker[:8]}",
@@ -121,7 +121,7 @@ def test_pilot_team_and_report_suite_are_scoped_to_the_pilot() -> None:
         json={
             "role_key": "program_mentor",
             "display_name": "Mentor do programa",
-            "email": "mentor@example.test",
+            "email": "mentor@example.com",
             "organization_name": "Programa de inovação",
             "can_edit": False,
             "can_review": True,

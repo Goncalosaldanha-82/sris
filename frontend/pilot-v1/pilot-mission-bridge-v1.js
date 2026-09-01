@@ -81,7 +81,7 @@
 
   function bindMissionSubmit(){
     const form=$('#mission-form');if(!form||submitBoundTo===form)return;submitBoundTo=form;
-    form.addEventListener('submit',()=>{const pending=readPending();if(!pending)return;pending.submitted=true;pending.submittedAt=Date.now();writePending(pending);},{capture:true});
+    form.addEventListener('submit',()=>{const pending=readPending();if(!pending)return;writePending({...pending,submitted:true,submittedAt:Date.now()});},{capture:true});
   }
 
   async function linkCreatedMission(){

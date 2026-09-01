@@ -90,6 +90,13 @@ def test_upgrade_and_downgrade_initial_schema() -> None:
             "pilot_decision_cycles",
             "pilot_mission_governance_policies",
             "pilot_mission_module_reviews",
+            "sris_pilot_collaborators",
+            "sris_pilot_value_items",
+            "sris_pilot_work_items",
+            "sris_pilot_data_sources",
+            "sris_pilot_metrics",
+            "sris_pilot_missions",
+            "sris_pilots",
         }
 
         assert expected.issubset(tables)
@@ -477,3 +484,41 @@ def test_contextual_learning_migration_preserves_hot_legacy_tables() -> None:
         # Idempotence is enforced by Alembic's revision ledger: a second
         # upgrade must be a no-op and preserve the migrated review semantics.
         run_alembic(repo_root, "upgrade", "head", database_url=database_url)
+
+
+def test_existing_0022_staging_schema_upgrades_to_current_head() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    revision_files = {path.name for path in (repo_root / "migrations" / "versions").glob("*.py")}
+    assert not any("20260831_0023" in name for name in revision_files)
+    assert "20260901_0023_pilot_mission_platform.py" in revision_files
+    assert "20260901_0024_pilot_value_collaboration_reports.py" in revision_files
+
+    with TemporaryDirectory(prefix="atlas-staging-0022-upgrade-") as tmp:
+        database_path = Path(tmp) / "staging-at-0022.db"
+        database_url = f"sqlite+pysqlite:///{database_path.as_posix()}"
+        run_alembic(repo_root, "upgrade", "20260827_0022", database_url=database_url)
+
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "20260827_0022"
+        finally:
+            engine.dispose()
+
+        run_alembic(repo_root, "upgrade", "head", database_url=database_url)
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "20260901_0024"
+        finally:
+            engine.dispose()
+
+        assert {
+            "sris_pilots",
+            "sris_pilot_missions",
+            "sris_pilot_metrics",
+            "sris_pilot_data_sources",
+            "sris_pilot_work_items",
+            "sris_pilot_value_items",
+            "sris_pilot_collaborators",
+        }.issubset(table_names(database_url))
