@@ -21,3 +21,18 @@ if '"pilot_collaboration_roles": True' not in text:
     print("updated backend/app/pilot_capabilities.py")
 else:
     print("pilot collaboration capability already aligned")
+
+# email-validator correctly rejects the special-use .test suffix in the
+# currently resolved dependency set. Use the standards-reserved example.com
+# domain so integration tests exercise registration rather than invalid input.
+for relative in (
+    "backend/tests/test_pilot_platform.py",
+    "backend/tests/test_pilot_value.py",
+    "backend/tests/test_pilot_tenant_isolation.py",
+):
+    path = ROOT / relative
+    source = path.read_text(encoding="utf-8")
+    updated = source.replace("@example.test", "@example.com")
+    if updated != source:
+        path.write_text(updated, encoding="utf-8")
+        print(f"updated {relative}")
