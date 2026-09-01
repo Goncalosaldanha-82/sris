@@ -53,3 +53,13 @@ if 'os.environ.setdefault("SRIS_PILOT_MODE", "true")' not in source:
     )
     platform_test.write_text(source, encoding="utf-8")
     print("updated backend/tests/test_pilot_platform.py pilot flags")
+
+# Tenant labels contain spaces for readability; email local-parts must not.
+tenant_test = ROOT / "backend" / "tests" / "test_pilot_tenant_isolation.py"
+source = tenant_test.read_text(encoding="utf-8")
+old_email = '"email": f"{prefix}-{marker}@example.com",'
+new_email = '"email": f"{prefix.lower().replace(\' \', \'-\')}-{marker}@example.com",'
+if old_email in source:
+    source = source.replace(old_email, new_email, 1)
+    tenant_test.write_text(source, encoding="utf-8")
+    print("updated backend/tests/test_pilot_tenant_isolation.py tenant email")
