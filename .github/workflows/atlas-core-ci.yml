@@ -37,6 +37,7 @@ jobs:
       - name: Apply the authorized reconciliation
         run: |
           python tools/pilot_release_repair.py
+          python tools/pilot_release_repair_post.py
           git checkout -- .github/workflows/atlas-core-ci.yml
 
       - name: Install validation dependencies
