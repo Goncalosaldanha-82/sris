@@ -1,4 +1,4 @@
-name: Validate approved Pilot V1 UX artifact
+name: Promote validated Pilot V1 UX alignment
 
 on:
   push:
@@ -6,21 +6,21 @@ on:
       - pilot-v1-september-2026
     paths:
       - ".github/workflows/validate-pilot-ux-artifact.yml"
-      - "tools/apply_pilot_ux_alignment.py"
 
 permissions:
-  contents: read
+  contents: write
 
 env:
-  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-ux-artifact/sris.db
-  ATLAS_REPOSITORY_ROOT: /tmp/sris-ux-artifact/repository
-  ATLAS_JWT_SECRET: sris-ux-artifact-secret-change-before-production
+  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-ux-promotion/sris.db
+  ATLAS_REPOSITORY_ROOT: /tmp/sris-ux-promotion/repository
+  ATLAS_JWT_SECRET: sris-ux-promotion-secret-change-before-production
   ATLAS_ENV: test
   SRIS_PILOT_MODE: "true"
   SRIS_PUBLIC_SIGNUP_ENABLED: "true"
 
 jobs:
-  validate-artifact:
+  promote:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -37,12 +37,19 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out the candidate branch
+        uses: actions/checkout@v4
+        with:
+          ref: pilot-v1-september-2026
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-      - name: Apply approved alignment
+
+      - name: Apply the already validated product alignment
         run: |
           python tools/apply_pilot_ux_alignment.py
           python - <<'PY'
@@ -62,46 +69,22 @@ jobs:
           if old not in source:
               raise RuntimeError("Obsolete mission-portfolio copy assertion not found")
           runtime_test.write_text(source.replace(old, new, 1), encoding="utf-8")
-          PY
-      - name: Install dependencies
-        run: |
-          mkdir -p /tmp/sris-ux-artifact/repository
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install -e ".[test]"
-      - name: Validate product, data path and regressions
-        run: |
-          python -m compileall -q backend/app backend/tests migrations
-          node --check frontend/pilot-v1/app.js
-          node --check frontend/pilot-v1/pilot-platform-v1.js
-          node --check frontend/pilot-v1/pilot-value-v1.js
-          node --check frontend/pilot-v1/pilot-mission-bridge-v1.js
-          node --check frontend/pilot-v1/business-case-v1.js
-          node --test frontend/tests/*.test.js
-          rm -f /tmp/sris-ux-artifact/sris.db
-          python -m alembic upgrade head
-          python -m pytest -q backend/tests/test_alembic_migrations.py
-          python -m pytest -q backend/tests/test_pilot_v1_contract.py
-          python -m pytest -q backend/tests/test_pilot_platform.py
-          python -m pytest -q backend/tests/test_pilot_value.py
-          python -m pytest -q backend/tests/test_pilot_business_case.py
-          python -m pytest -q backend/tests/test_pilot_tenant_isolation.py
-          python -m pytest -q backend/tests/test_identity_lifecycle.py
-      - name: Validate PostgreSQL staging upgrade path
-        env:
-          ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas-ci-password@127.0.0.1:5432/atlas_ci
-        run: |
-          python -m alembic upgrade 20260827_0022
-          python -m alembic upgrade head
-          python -m alembic current -v
-          python -m alembic heads -v
-      - name: Upload validated files
+
+          ci = Path(".github/workflows/atlas-core-ci.yml")
+          source = ci.read_text(encoding="utf-8")
+          temporary_apply = '''      - name: Apply approved Pilot V1 alignment in the validation workspace
+        if: github.ref == 'refs/heads/pilot-v1-september-2026'
+        run: python tools/apply_pilot_ux_alignment.py
+
+'''
+          temporary_upload = '''      - name: Upload validated Pilot V1 alignment
+        if: github.ref == 'refs/heads/pilot-v1-september-2026'
         uses: actions/upload-artifact@v4
         with:
           name: pilot-v1-ux-alignment
           if-no-files-found: error
           path: |
             backend/app/pilot_capabilities.py
-            backend/tests/test_pilot_v1_contract.py
             frontend/pilot-v1/demonstracao.html
             frontend/pilot-v1/demonstracao.css
             frontend/pilot-v1/index.html
@@ -111,3 +94,82 @@ jobs:
             frontend/tests/pilot_release_hardening_contract.test.js
             frontend/tests/pilot_platform_contract.test.js
             frontend/tests/pilot_value_contract.test.js
+'''
+          if temporary_apply not in source or temporary_upload not in source:
+              raise RuntimeError("Temporary ATLAS Core CI validation steps not found")
+          source = source.replace(temporary_apply, "", 1).replace(temporary_upload, "", 1)
+          ci.write_text(source, encoding="utf-8")
+          PY
+
+      - name: Install validation dependencies
+        run: |
+          mkdir -p /tmp/sris-ux-promotion/repository
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[test]"
+
+      - name: Revalidate syntax, contracts, business case and migrations
+        run: |
+          python -m compileall -q backend/app backend/tests migrations
+          node --check frontend/pilot-v1/app.js
+          node --check frontend/pilot-v1/pilot-platform-v1.js
+          node --check frontend/pilot-v1/pilot-value-v1.js
+          node --check frontend/pilot-v1/pilot-mission-bridge-v1.js
+          node --check frontend/pilot-v1/business-case-v1.js
+          node --test frontend/tests/*.test.js
+          rm -f /tmp/sris-ux-promotion/sris.db
+          python -m alembic upgrade head
+          python -m pytest -q backend/tests/test_alembic_migrations.py
+          python -m pytest -q backend/tests/test_pilot_v1_contract.py
+          python -m pytest -q backend/tests/test_pilot_platform.py
+          python -m pytest -q backend/tests/test_pilot_value.py
+          python -m pytest -q backend/tests/test_pilot_business_case.py
+          python -m pytest -q backend/tests/test_pilot_tenant_isolation.py
+          python -m pytest -q backend/tests/test_identity_lifecycle.py
+
+      - name: Revalidate the real PostgreSQL staging migration path
+        env:
+          ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas-ci-password@127.0.0.1:5432/atlas_ci
+        run: |
+          python -m alembic upgrade 20260827_0022
+          python -m alembic upgrade head
+          python -m alembic current -v
+          python -m alembic heads -v
+
+      - name: Assert the exact release change set
+        run: |
+          git rm .github/workflows/validate-pilot-ux-artifact.yml
+          git rm tools/apply_pilot_ux_alignment.py
+          python - <<'PY'
+          import subprocess
+
+          expected = {
+              ".github/workflows/atlas-core-ci.yml",
+              ".github/workflows/validate-pilot-ux-artifact.yml",
+              "tools/apply_pilot_ux_alignment.py",
+              "backend/app/pilot_capabilities.py",
+              "backend/tests/test_pilot_v1_contract.py",
+              "frontend/pilot-v1/demonstracao.css",
+              "frontend/pilot-v1/demonstracao.html",
+              "frontend/pilot-v1/index.html",
+              "frontend/pilot-v1/pilot-platform-v1.js",
+              "frontend/pilot-v1/pilot-value-v1.js",
+              "frontend/tests/pilot_platform_contract.test.js",
+              "frontend/tests/pilot_release_hardening_contract.test.js",
+              "frontend/tests/pilot_value_contract.test.js",
+              "frontend/tests/public_demonstration_contract.test.js",
+          }
+          output = subprocess.check_output(["git", "status", "--short"], text=True)
+          actual = {line[3:] for line in output.splitlines() if line.strip()}
+          if actual != expected:
+              raise SystemExit(f"Unexpected release change set. Missing={sorted(expected-actual)} Extra={sorted(actual-expected)}")
+          print("Exact release change set confirmed")
+          PY
+
+      - name: Commit the approved alignment
+        run: |
+          git add -A
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: align site links and expose economics across Pilot V1"
+          git push origin HEAD:pilot-v1-september-2026
