@@ -1,0 +1,31 @@
+name: SRIS staging quick probe
+
+on:
+  push:
+    branches:
+      - qa-staging-deep-audit-20260902
+    paths:
+      - ".github/workflows/staging-quick-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe live staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://sris-pilot-v1-staging.up.railway.app"
+          for path in / /app /account.html /demonstracao /health /api/pilot/capabilities /api/pilot/build /api/pilot/release-state /openapi.json; do
+            echo "===== $path ====="
+            curl --connect-timeout 10 --max-time 30 -sS -D /tmp/h -o /tmp/b "$base$path" || true
+            sed -n '1,30p' /tmp/h || true
+            echo "bytes=$(wc -c < /tmp/b 2>/dev/null || echo 0)"
+            head -c 1200 /tmp/b 2>/dev/null || true
+            echo
+          done
