@@ -50,6 +50,7 @@ jobs:
               raise RuntimeError("Workspace continuity assertion was not generated as expected")
           test_path.write_text(test.replace(old_assertion, new_assertion, 1), encoding="utf-8")
           PY
+          git checkout -- .github/workflows/atlas-core-ci.yml
 
       - name: Prepare validation environment
         run: |
@@ -68,12 +69,10 @@ jobs:
           python -m pytest -q backend/tests/test_workspace_selection.py
           python -m pytest -q backend/tests/test_pilot_v1_contract.py
 
-      - name: Commit validated repair and remove temporary machinery
+      - name: Commit validated application repair
         run: |
-          git rm .github/workflows/workspace-continuity-repair.yml
           git rm tools/workspace_continuity_repair.py
           git add \
-            .github/workflows/atlas-core-ci.yml \
             backend/app/atlas_platform/database.py \
             backend/app/atlas_platform/workspace_scope.py \
             backend/app/main.py \
