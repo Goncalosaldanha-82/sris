@@ -191,4 +191,4 @@ jobs:
           git add .
           git diff --cached --check
           git commit -m "fix: harden identity, demo consistency and staging release surface"
-          git push origin HEAD:fix-staging-audit-20260902
+          git push origin HEAD:fix-staging-audit-validated-20260902
