@@ -69,28 +69,6 @@ jobs:
           if old not in source:
               raise RuntimeError("Obsolete mission-portfolio copy assertion not found")
           runtime_test.write_text(source.replace(old, new, 1), encoding="utf-8")
-
-          ci = Path(".github/workflows/atlas-core-ci.yml")
-          lines = ci.read_text(encoding="utf-8").splitlines(keepends=True)
-
-          def remove_step(step_name: str) -> None:
-              start = next(
-                  (index for index, line in enumerate(lines)
-                   if line.strip() == f"- name: {step_name}"),
-                  None,
-              )
-              if start is None:
-                  raise RuntimeError(f"Temporary CI step not found: {step_name}")
-              end = next(
-                  (index for index in range(start + 1, len(lines))
-                   if lines[index].startswith("      - name:")),
-                  len(lines),
-              )
-              del lines[start:end]
-
-          remove_step("Apply approved Pilot V1 alignment in the validation workspace")
-          remove_step("Upload validated Pilot V1 alignment")
-          ci.write_text("".join(lines).rstrip() + "\n", encoding="utf-8")
           PY
 
       - name: Install validation dependencies
@@ -127,16 +105,13 @@ jobs:
           python -m alembic current -v
           python -m alembic heads -v
 
-      - name: Assert the exact release change set
+      - name: Assert the exact product change set
         run: |
-          git rm .github/workflows/validate-pilot-ux-artifact.yml
           git rm tools/apply_pilot_ux_alignment.py
           python - <<'PY'
           import subprocess
 
           expected = {
-              ".github/workflows/atlas-core-ci.yml",
-              ".github/workflows/validate-pilot-ux-artifact.yml",
               "tools/apply_pilot_ux_alignment.py",
               "backend/app/pilot_capabilities.py",
               "backend/tests/test_pilot_v1_contract.py",
@@ -153,11 +128,11 @@ jobs:
           output = subprocess.check_output(["git", "status", "--short"], text=True)
           actual = {line[3:] for line in output.splitlines() if line.strip()}
           if actual != expected:
-              raise SystemExit(f"Unexpected release change set. Missing={sorted(expected-actual)} Extra={sorted(actual-expected)}")
-          print("Exact release change set confirmed")
+              raise SystemExit(f"Unexpected product change set. Missing={sorted(expected-actual)} Extra={sorted(actual-expected)}")
+          print("Exact product change set confirmed")
           PY
 
-      - name: Commit the approved alignment
+      - name: Commit the approved product alignment
         run: |
           git add -A
           git diff --cached --check
