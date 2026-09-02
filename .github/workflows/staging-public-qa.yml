@@ -1,0 +1,44 @@
+name: SRIS staging public browser QA
+
+on:
+  push:
+    branches:
+      - qa-staging-deep-audit-20260902
+    paths:
+      - ".github/workflows/staging-public-qa.yml"
+      - "tools/live_staging_public_qa.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SRIS_STAGING_URL: https://sris-pilot-v1-staging.up.railway.app
+  SRIS_EXPECTED_BUILD: 20260902-workspace-continuity-v36
+  QA_OUTPUT_DIR: qa-public-artifacts
+
+jobs:
+  public-browser-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out QA branch
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Chromium audit dependencies
+        run: |
+          npm install --no-save playwright @axe-core/playwright
+          npx playwright install --with-deps chromium
+      - name: Run public browser audit
+        run: node tools/live_staging_public_qa.mjs
+      - name: Upload public audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sris-staging-public-qa-${{ github.run_number }}
+          path: qa-public-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
