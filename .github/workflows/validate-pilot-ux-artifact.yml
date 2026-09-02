@@ -71,34 +71,26 @@ jobs:
           runtime_test.write_text(source.replace(old, new, 1), encoding="utf-8")
 
           ci = Path(".github/workflows/atlas-core-ci.yml")
-          source = ci.read_text(encoding="utf-8")
-          temporary_apply = '''      - name: Apply approved Pilot V1 alignment in the validation workspace
-        if: github.ref == 'refs/heads/pilot-v1-september-2026'
-        run: python tools/apply_pilot_ux_alignment.py
+          lines = ci.read_text(encoding="utf-8").splitlines(keepends=True)
 
-'''
-          temporary_upload = '''      - name: Upload validated Pilot V1 alignment
-        if: github.ref == 'refs/heads/pilot-v1-september-2026'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pilot-v1-ux-alignment
-          if-no-files-found: error
-          path: |
-            backend/app/pilot_capabilities.py
-            frontend/pilot-v1/demonstracao.html
-            frontend/pilot-v1/demonstracao.css
-            frontend/pilot-v1/index.html
-            frontend/pilot-v1/pilot-platform-v1.js
-            frontend/pilot-v1/pilot-value-v1.js
-            frontend/tests/public_demonstration_contract.test.js
-            frontend/tests/pilot_release_hardening_contract.test.js
-            frontend/tests/pilot_platform_contract.test.js
-            frontend/tests/pilot_value_contract.test.js
-'''
-          if temporary_apply not in source or temporary_upload not in source:
-              raise RuntimeError("Temporary ATLAS Core CI validation steps not found")
-          source = source.replace(temporary_apply, "", 1).replace(temporary_upload, "", 1)
-          ci.write_text(source, encoding="utf-8")
+          def remove_step(step_name: str) -> None:
+              start = next(
+                  (index for index, line in enumerate(lines)
+                   if line.strip() == f"- name: {step_name}"),
+                  None,
+              )
+              if start is None:
+                  raise RuntimeError(f"Temporary CI step not found: {step_name}")
+              end = next(
+                  (index for index in range(start + 1, len(lines))
+                   if lines[index].startswith("      - name:")),
+                  len(lines),
+              )
+              del lines[start:end]
+
+          remove_step("Apply approved Pilot V1 alignment in the validation workspace")
+          remove_step("Upload validated Pilot V1 alignment")
+          ci.write_text("".join(lines).rstrip() + "\n", encoding="utf-8")
           PY
 
       - name: Install validation dependencies
