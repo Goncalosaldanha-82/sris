@@ -6,6 +6,8 @@ on:
       - fix-staging-audit-20260902
     paths:
       - ".github/workflows/staging-audit-fix-final.yml"
+      - "tools/apply_staging_audit_fixes.py"
+      - "tools/reconcile_staging_audit_contracts.py"
   workflow_dispatch:
 
 permissions:
