@@ -29,7 +29,19 @@ jobs:
           fetch-depth: 0
 
       - name: Apply workspace continuity repair
-        run: python tools/workspace_continuity_repair.py
+        run: |
+          python tools/workspace_continuity_repair.py
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("frontend/pilot-v1/index.html")
+          text = path.read_text(encoding="utf-8")
+          old = "Este portefólio mostra as missões do workspace selecionado. Missões de outro workspace aparecem quando esse espaço é escolhido."
+          new = "As missões anteriores permanecem preservadas no respetivo workspace. Este portefólio mostra apenas as missões do espaço selecionado; para consultar outro, escolha-o no seletor de workspace."
+          if text.count(old) != 1:
+              raise RuntimeError("Workspace continuity copy was not generated as expected")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
 
       - name: Prepare validation environment
         run: |
