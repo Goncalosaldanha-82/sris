@@ -34,13 +34,21 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("frontend/pilot-v1/index.html")
-          text = path.read_text(encoding="utf-8")
-          old = "Este portefólio mostra as missões do workspace selecionado. Missões de outro workspace aparecem quando esse espaço é escolhido."
-          new = "As missões anteriores permanecem preservadas no respetivo workspace. Este portefólio mostra apenas as missões do espaço selecionado; para consultar outro, escolha-o no seletor de workspace."
-          if text.count(old) != 1:
+          html_path = Path("frontend/pilot-v1/index.html")
+          html = html_path.read_text(encoding="utf-8")
+          old_copy = "Este portefólio mostra as missões do workspace selecionado. Missões de outro workspace aparecem quando esse espaço é escolhido."
+          new_copy = "As missões anteriores permanecem preservadas no respetivo workspace. Este portefólio mostra apenas as missões do espaço selecionado; para consultar outro, escolha-o no seletor de workspace."
+          if html.count(old_copy) != 1:
               raise RuntimeError("Workspace continuity copy was not generated as expected")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          html_path.write_text(html.replace(old_copy, new_copy, 1), encoding="utf-8")
+
+          test_path = Path("frontend/tests/workspace_selection_contract.test.js")
+          test = test_path.read_text(encoding="utf-8")
+          old_assertion = "assert.match(html, /workspace selecionado/);"
+          new_assertion = "assert.match(html, /espaço selecionado/);"
+          if test.count(old_assertion) != 1:
+              raise RuntimeError("Workspace continuity assertion was not generated as expected")
+          test_path.write_text(test.replace(old_assertion, new_assertion, 1), encoding="utf-8")
           PY
 
       - name: Prepare validation environment
