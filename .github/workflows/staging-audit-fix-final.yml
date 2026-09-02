@@ -180,15 +180,14 @@ jobs:
       - name: Verify installed dependency graph
         run: python -m pip check
 
-      - name: Commit validated repair candidate
+      - name: Commit validated product candidate
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout HEAD -- .github/workflows/atlas-core-ci.yml
           git rm tools/apply_staging_audit_fixes.py
           git rm tools/reconcile_staging_audit_contracts.py
-          git rm .github/workflows/staging-audit-fix.yml
-          git rm .github/workflows/staging-audit-fix-final.yml
           git add .
           git diff --cached --check
           git commit -m "fix: harden identity, demo consistency and staging release surface"
-          git push origin HEAD:fix-staging-audit-validated-20260902
+          git push origin HEAD:fix-staging-audit-validated-20260902-v2
