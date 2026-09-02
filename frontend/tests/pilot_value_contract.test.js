@@ -17,7 +17,8 @@ test('value, collaboration and reports are part of the integrated app',()=>{
   assert.match(server,/from app\.pilot_value import router as pilot_value_router/);
   assert.match(server,/app\.include_router\(pilot_value_router\)/);
   assert.match(server,/pilot-value-v1\.js/);
-  assert.match(ui,/PILOT VALUE CASE/);
+  assert.match(ui,/VALOR DO PILOTO/);
+  assert.match(ui,/Valor do piloto/);
   assert.match(ui,/EQUIPA DO PILOTO/);
   assert.match(ui,/REPORT SUITE/);
   assert.match(capabilities,/"pilot_value_case": True/);

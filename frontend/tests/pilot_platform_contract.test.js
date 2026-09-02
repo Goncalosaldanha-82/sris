@@ -42,7 +42,10 @@ test('sector profiles configure one universal core instead of forking products',
   assert.match(domain,/EXPECTED_PROFILE_KEYS/);
   assert.match(domain,/program_source/);
   assert.match(domain,/tourism_advance/);
-  assert.match(platform,/hospitality_open_innovation/);
+  assert.match(platform,/research_and_innovation:'Investigação e inovação'/);
+  assert.match(platform,/catalog\.program_sources/);
+  assert.match(platform,/programSourceOptions/);
+  assert.doesNotMatch(platform,/\.slice\(0,4\)/);
 });
 
 test('pilot value remains evidence-backed and does not invent results',()=>{

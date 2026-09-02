@@ -17,6 +17,10 @@ test('public Tourism Advance demonstration remains a first-class read-only route
   assert.match(html,/\/demonstracao\.css/);
   assert.match(html,/\/demonstracao\.js/);
   assert.match(css,/\.fictional-banner/);
+  assert.match(html,/Voltar ao site SRIS/);
+  assert.match(html,/https:\/\/www\.sris\.io\//);
+  assert.match(html,/https:\/\/sris-mission-intelligence\.up\.railway\.app\/#contacto/);
+  assert.match(html,/Entrar na aplicação/);
 });
 
 test('the demonstration uses an isolated fictional catalog and public API',()=>{

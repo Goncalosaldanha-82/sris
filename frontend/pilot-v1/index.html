@@ -21,6 +21,7 @@
         <button data-mission-area="graph">◇ <span>Evidência</span></button>
         <button data-mission-area="validation">↗ <span>Medição e impacto</span></button>
         <button data-mission-area="cycle">✓ <span>Decisões e resultados</span></button>
+        <button data-mission-area="economics">€ <span>Economia e recursos</span></button>
         <button data-mission-area="learning">↻ <span>Memória</span></button>
         <button data-section="account">○ <span>Conta</span></button>
       </div>
@@ -110,8 +111,9 @@
     <section class="section" id="mission">
       <div class="mission-layout">
         <aside class="mission-rail card" id="mission-rail">
-          <div class="card-head"><div><h2>Missões</h2><div class="note">Portefólio persistente</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div>
+          <div class="card-head"><div><h2>Missões</h2><div class="note">Histórico persistente deste workspace</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div>
           <input id="mission-search" class="input" placeholder="Pesquisar missões…" autocomplete="off">
+          <div class="note mission-continuity-note">As missões anteriores permanecem preservadas. Só pertencem a um piloto quando são ligadas explicitamente.</div>
           <div id="mission-list" class="mission-list"><div class="note">A sincronizar missões…</div></div>
         </aside>
 
@@ -212,7 +214,7 @@
             <div class="answer-box empty" id="mission-answer">A análise assistida é opcional. A missão, a evidência, a decisão e a memória permanecem canónicas independentemente da sua utilização.</div>
             <nav class="mission-tab-navigation" aria-label="Navegação da missão">
               <div class="mission-tab-context" aria-live="polite"><span id="mission-tab-code">MISSÃO</span><strong id="mission-tab-title">Missão</strong></div>
-              <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="summary">Resumo</button><button type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="validation">Medição</button><button type="button" data-mission-tab="history">Auditoria</button></div>
+              <div class="mission-tabs" aria-label="Áreas da missão"><button class="active" type="button" data-mission-tab="summary">Resumo</button><button type="button" data-mission-tab="documents">Documentos</button><button type="button" data-mission-tab="economics">Economia e recursos</button><button type="button" data-mission-tab="validation">Medição</button><button type="button" data-mission-tab="history">Auditoria</button></div>
             </nav>
             <div class="mission-tab active" id="mission-tab-summary">
               <div class="mission-command-head"><div><div class="eyebrow">ESTADO OPERACIONAL</div><h3>Do contexto à aprendizagem</h3><p class="note">O progresso é calculado a partir dos registos persistentes, não de uma conclusão automática.</p></div><div class="mission-progress"><strong id="mission-progress-value">0%</strong><span>percurso completo</span></div></div>
@@ -234,6 +236,9 @@
               </div>
               <div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div>
               <section id="attachment-extraction-panel" class="document-extraction hidden" aria-live="polite"></section>
+            </div>
+            <div class="mission-tab" id="mission-tab-economics">
+              <div id="business-case-root" class="business-case-root"><div class="note">A sincronizar o Business Case Vivo…</div></div>
             </div>
             <div class="mission-tab" id="mission-tab-validation">
               <div id="validation-root" class="validation-root"><div class="note">A sincronizar o protocolo mensurável da missão…</div></div>

@@ -37,6 +37,10 @@ test('navigation is direct, accessible and closes deterministically',()=>{
   assert.match(app,/function setMenu\(open\)/);
   assert.match(app,/event\.key==='Escape'/);
   assert.match(app,/setAttribute\('aria-expanded'/);
+  assert.match(index,/data-mission-area="economics"/);
+  assert.match(index,/data-mission-tab="economics"/);
+  assert.match(index,/id="business-case-root"/);
+  assert.match(index,/missões anteriores permanecem preservadas/i);
 });
 
 test('runtime truth disables unconfigured assistance without blocking missions',()=>{

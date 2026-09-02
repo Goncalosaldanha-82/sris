@@ -19,7 +19,7 @@ from app.pilot_platform import (
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260901-pilot-mission-intelligence-rc1"
+PILOT_BUILD = "20260902-pilot-navigation-economics-v35"
 
 USER_MOMENTS = [
     "context",
@@ -72,6 +72,10 @@ def pilot_capabilities() -> dict:
     return {
         "build": PILOT_BUILD,
         "product": "SRIS Pilot & Mission Intelligence",
+        "site_urls": [
+            "https://www.sris.io/",
+            "https://sris-mission-intelligence.up.railway.app/",
+        ],
         "architecture": "universal_core_configurable_profiles",
         "public_signup": _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True),
         "password_reset": True,

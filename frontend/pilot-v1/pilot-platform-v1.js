@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const BUILD='20260901-pilot-mission-platform-v31';
+  const BUILD=document.querySelector('meta[name="sris-pilot-build"]')?.content||'integrated';
   const $=(selector,root=document)=>root.querySelector(selector);
   const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
   const esc=(value='')=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -10,9 +10,17 @@
   const orgId=()=>localStorage.getItem('sris_org_id')||window.SRISProfile?.organization?.id||'';
   const api=(path,options={})=>window.SRISApi?.request?window.SRISApi.request(path,options):fallbackApi(path,options);
 
-  const state={pilots:[],selected:null,templates:[],profiles:[],missions:[],activeTab:'charter',loading:false,installed:false};
+  const state={pilots:[],selected:null,templates:[],profiles:[],programSources:[],missions:[],activeTab:'charter',loading:false,installed:false};
   const lifecycleLabels={draft:'Em preparação',discovery:'Discovery',design:'Desenho',baseline:'Baseline',active:'Em execução',evaluating:'Em avaliação',scale_review:'Decisão de escala',completed:'Concluído',suspended:'Suspenso',cancelled:'Cancelado'};
-  const profileLabels={cross_sector:'Transversal',hospitality:'Hospitality',public_sector:'Setor público',industrial_operations:'Operações industriais',territorial_lab:'Laboratório territorial'};
+  const profileLabels={cross_sector:'Transversal',hospitality:'Hospitality',public_sector:'Setor público',industrial_operations:'Operações industriais',territorial_lab:'Laboratório territorial',research_and_innovation:'Investigação e inovação'};
+  const legacyProgramLabels={corporate_program:'Programa corporate',other:'Outro'};
+  const profileLabel=key=>state.profiles.find(item=>item.key===key)?.label||profileLabels[key]||key||'Transversal';
+  const programLabel=key=>state.programSources.find(item=>item.key===key)?.label||legacyProgramLabels[key]||key||'Piloto direto';
+  function programSourceOptions(selected='direct'){
+    const rows=[...state.programSources];
+    if(selected&&!rows.some(item=>item.key===selected))rows.push({key:selected,label:legacyProgramLabels[selected]||`Outro / legado · ${selected}`});
+    return rows.map(item=>`<option value="${esc(item.key)}" ${item.key===selected?'selected':''}>${esc(item.label)}</option>`).join('');
+  }
   const sourceStateLabels={identified:'Identificada',requested:'Solicitada',received:'Recebida',mapped:'Mapeada',validated:'Validada',unavailable:'Indisponível'};
   const qualityLabels={unknown:'Por avaliar',weak:'Fraca',usable:'Utilizável',strong:'Forte'};
   const workStateLabels={planned:'Planeado',in_progress:'Em execução',blocked:'Bloqueado',completed:'Concluído',cancelled:'Cancelado'};
@@ -152,17 +160,17 @@
     if(state.loading)return;state.loading=true;message('A sincronizar o portefólio de pilotos…','working');
     try{
       const [catalog,pilots,missions,summary]=await Promise.all([api(`${base()}/templates`),api(base()),api(`/api/organizations/${encodeURIComponent(orgId())}/mission-intelligence/missions`),api(`${base()}/summary`)]);
-      state.templates=catalog.templates||[];state.profiles=catalog.profiles||[];state.pilots=pilots||[];state.missions=missions||[];renderTemplates();renderPilotList();renderOverview(summary);if(state.selected){const exists=state.pilots.some(p=>p.id===state.selected.id);if(exists)await openPilot(state.selected.id);else state.selected=null;}showEmptyOrDetail();message('','');
+      state.templates=catalog.templates||[];state.profiles=catalog.profiles||[];state.programSources=catalog.program_sources||[];state.pilots=pilots||[];state.missions=missions||[];renderTemplates();renderPilotList();renderOverview(summary);if(state.selected){const exists=state.pilots.some(p=>p.id===state.selected.id);if(exists)await openPilot(state.selected.id);else state.selected=null;}showEmptyOrDetail();message('','');
     }catch(error){message(error.message,'error');const list=$('#pp-list');if(list)list.innerHTML=`<div class="note">${esc(error.message)}</div>`;}
     finally{state.loading=false;}
   }
 
   function renderOverview(summary={}){$('#pp-kpi-total')&&($('#pp-kpi-total').textContent=summary.total??0);$('#pp-kpi-active')&&($('#pp-kpi-active').textContent=summary.active??0);$('#pp-kpi-ready')&&($('#pp-kpi-ready').textContent=summary.ready_for_execution??0);$('#pp-kpi-attention')&&($('#pp-kpi-attention').textContent=summary.require_attention??0);}
-  function renderTemplates(){const root=$('#pp-empty-templates');if(!root)return;root.innerHTML=(state.templates||[]).slice(0,4).map((template,index)=>`<button class="pp-template-card" type="button" data-template-key="${esc(template.key)}"><b>${String(index+1).padStart(2,'0')} · ${esc(profileLabels[template.sector_profile]||template.sector_profile)}</b><strong>${esc(template.label)}</strong><span>${esc(template.description)}</span></button>`).join('');}
+  function renderTemplates(){const root=$('#pp-empty-templates');if(!root)return;root.innerHTML=(state.templates||[]).map((template,index)=>`<button class="pp-template-card" type="button" data-template-key="${esc(template.key)}"><b>${String(index+1).padStart(2,'0')} · ${esc(profileLabel(template.sector_profile))}</b><strong>${esc(template.label)}</strong><span>${esc(template.description)}</span></button>`).join('');}
   function renderPilotList(){
     const root=$('#pp-list');if(!root)return;const query=String($('#pp-search')?.value||'').trim().toLowerCase();const rows=state.pilots.filter(row=>[row.code,row.title,row.partner_name,row.context_name,row.program_source].join(' ').toLowerCase().includes(query));
     if(!rows.length){root.innerHTML='<div class="note">Ainda não existem pilotos neste filtro.</div>';return;}
-    root.innerHTML=rows.map(row=>`<button class="pp-list-button ${state.selected?.id===row.id?'active':''}" type="button" data-pilot-id="${row.id}"><span>${esc(row.code)} · ${esc(lifecycleLabels[row.lifecycle_state]||row.lifecycle_state)}</span><strong>${esc(row.title)}</strong><small>${esc(row.context_name||row.partner_name||profileLabels[row.sector_profile]||'Contexto por definir')}</small><span class="pp-list-meta"><small>${esc(row.program_source||'direto')}</small><small class="pp-list-score">${row.readiness?.score??0}%</small></span></button>`).join('');
+    root.innerHTML=rows.map(row=>`<button class="pp-list-button ${state.selected?.id===row.id?'active':''}" type="button" data-pilot-id="${row.id}"><span>${esc(row.code)} · ${esc(lifecycleLabels[row.lifecycle_state]||row.lifecycle_state)}</span><strong>${esc(row.title)}</strong><small>${esc(row.context_name||row.partner_name||profileLabel(row.sector_profile)||'Contexto por definir')}</small><span class="pp-list-meta"><small>${esc(programLabel(row.program_source))}</small><small class="pp-list-score">${row.readiness?.score??0}%</small></span></button>`).join('');
   }
 
   function showEmptyOrDetail(){
@@ -179,10 +187,10 @@
     root.innerHTML=`<div class="pp-editor-head"><div class="eyebrow">${isEdit?'REVER CONTRATO DO PILOTO':'NOVO PILOTO'}</div><h2>${isEdit?'Alinhar o contrato operacional.':'Começar pelo problema real.'}</h2><p class="note">O perfil adapta o contexto; o núcleo metodológico e a autoridade humana mantêm-se iguais.</p></div>
       <form id="pp-pilot-form" class="stack-form">
         <input type="hidden" name="pilot_id" value="${esc(pilot?.id||'')}"><input type="hidden" name="revision" value="${pilot?.revision||1}">
-        <div class="pp-template-grid wide" id="pp-editor-templates">${state.templates.map(item=>`<label class="pp-template-card ${item.key===(pilot?.template_key||selectedTemplate.key)?'selected':''}"><input type="radio" name="template_key" value="${esc(item.key)}" ${item.key===(pilot?.template_key||selectedTemplate.key)?'checked':''} style="position:absolute;opacity:0"><b>${esc(profileLabels[item.sector_profile]||item.sector_profile)}</b><strong>${esc(item.label)}</strong><span>${esc(item.description)}</span></label>`).join('')}</div>
+        <div class="pp-template-grid wide" id="pp-editor-templates">${state.templates.map(item=>`<label class="pp-template-card ${item.key===(pilot?.template_key||selectedTemplate.key)?'selected':''}"><input type="radio" name="template_key" value="${esc(item.key)}" ${item.key===(pilot?.template_key||selectedTemplate.key)?'checked':''} style="position:absolute;opacity:0"><b>${esc(profileLabel(item.sector_profile))}</b><strong>${esc(item.label)}</strong><span>${esc(item.description)}</span></label>`).join('')}</div>
         <div class="pp-form-grid">
           <div class="field wide"><label>Título do piloto</label><input name="title" required minlength="3" value="${esc(pilot?.title||'')}" placeholder="Ex.: Reduzir consumo de água sem degradar a experiência"></div>
-          <div class="field"><label>Origem / programa</label><select name="program_source"><option value="direct">Relação direta</option><option value="tourism_advance">Tourism Advance</option><option value="hospitality_open_innovation">Hospitality Open Innovation</option><option value="public_program">Programa público</option><option value="corporate_program">Programa corporate</option><option value="academic_partnership">Parceria académica</option><option value="other">Outro</option></select></div>
+          <div class="field"><label>Origem / programa</label><select name="program_source">${programSourceOptions(pilot?.program_source||'direct')}</select></div>
           <div class="field"><label>Parceiro / cliente</label><input name="partner_name" value="${esc(pilot?.partner_name||'')}" placeholder="Organização parceira"></div>
           <div class="field"><label>Unidade, serviço ou território</label><input name="context_name" value="${esc(pilot?.context_name||'')}" placeholder="Ex.: Hotel · Unidade de Coimbra"></div>
           <div class="field"><label>Tipo de contexto</label><select name="context_type"><option value="unit">Unidade</option><option value="department">Departamento</option><option value="site">Instalação</option><option value="service">Serviço</option><option value="territory">Território</option><option value="project">Projeto</option></select></div>
@@ -226,7 +234,7 @@
     const pilot=state.selected,root=$('#pp-detail');if(!pilot||!root)return;
     const attention=pilot.readiness?.attention?.[0]||'O estado atual não apresenta bloqueios metodológicos imediatos.';
     root.innerHTML=`
-      <section class="pp-hero"><div class="pp-hero-head"><div><div class="eyebrow">${esc(pilot.code)} · ${esc(profileLabels[pilot.sector_profile]||pilot.sector_profile)}</div><h2>${esc(pilot.title)}</h2><p>${esc(pilot.problem_statement)}</p><div class="pp-context-line"><span>${esc(lifecycleLabels[pilot.lifecycle_state]||pilot.lifecycle_state)}</span><span>${esc(pilot.program_source||'direto')}</span><span>${esc(pilot.partner_name||'parceiro por definir')}</span><span>${esc(pilot.context_name||'contexto por definir')}</span></div></div><div class="pp-hero-actions"><button class="btn btn-secondary compact" type="button" data-action="edit-pilot">Editar contrato</button><button class="btn btn-secondary compact" type="button" data-action="export-report" data-format="html">Relatório</button></div></div><div class="pp-progress-shell"><span>Prontidão global</span><div class="pp-progress"><i style="width:${Math.max(0,Math.min(100,pilot.readiness?.score||0))}%"></i></div><strong>${pilot.readiness?.score||0}%</strong></div></section>
+      <section class="pp-hero"><div class="pp-hero-head"><div><div class="eyebrow">${esc(pilot.code)} · ${esc(profileLabel(pilot.sector_profile))}</div><h2>${esc(pilot.title)}</h2><p>${esc(pilot.problem_statement)}</p><div class="pp-context-line"><span>${esc(lifecycleLabels[pilot.lifecycle_state]||pilot.lifecycle_state)}</span><span>${esc(programLabel(pilot.program_source))}</span><span>${esc(pilot.partner_name||'parceiro por definir')}</span><span>${esc(pilot.context_name||'contexto por definir')}</span></div></div><div class="pp-hero-actions"><button class="btn btn-secondary compact" type="button" data-action="edit-pilot">Editar contrato</button><button class="btn btn-secondary compact" type="button" data-action="export-report" data-format="html">Relatório</button></div></div><div class="pp-progress-shell"><span>Prontidão global</span><div class="pp-progress"><i style="width:${Math.max(0,Math.min(100,pilot.readiness?.score||0))}%"></i></div><strong>${pilot.readiness?.score||0}%</strong></div></section>
       <div class="pp-readiness">${readinessCards(pilot)}</div>
       <div class="pp-attention"><span>!</span><div><strong>Próximo passo determinístico</strong><p>${esc(attention)}</p></div></div>
       <nav class="pp-tabs" aria-label="Áreas do piloto">${[['charter','Contrato'],['data','Dados e baseline'],['missions','Missões'],['delivery','Implementação'],['outcomes','Resultados e escala']].map(([key,label])=>`<button type="button" class="${state.activeTab===key?'active':''}" data-pp-tab="${key}">${label}</button>`).join('')}</nav>

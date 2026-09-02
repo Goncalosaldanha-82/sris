@@ -187,7 +187,7 @@ def test_pilot_workspace_loads_only_the_canonical_runtime() -> None:
         "Lacunas",
         "Proveniência",
         "Confiança",
-        "Portefólio persistente",
+        "Histórico persistente deste workspace",
         "+ Sub-missão",
         "Inteligência documental",
         "Medição e impacto",
