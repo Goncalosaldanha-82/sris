@@ -5,7 +5,8 @@ WORKDIR /workspace
 COPY . .
 
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && python -m pip install --no-cache-dir -e "."
+    && python -m pip install --no-cache-dir -r requirements.lock \
+    && python -m pip install --no-cache-dir --no-deps -e "."
 
 EXPOSE 8000
 

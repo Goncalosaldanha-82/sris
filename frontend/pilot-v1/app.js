@@ -30,6 +30,22 @@ const titles={
   account:'Conta',
 };
 
+const missionAreaEmptyCopy={
+  mission:{eyebrow:'ESPAÇO DE MISSÃO',title:'Comece pela decisão que precisa de ficar melhor fundamentada.',description:'Uma missão não é uma conversa descartável. O contexto, os documentos, os pressupostos, as decisões, os resultados e a aprendizagem permanecem ligados ao trabalho.'},
+  graph:{eyebrow:'EVIDÊNCIA',title:'Selecione ou crie uma missão para estruturar a evidência.',description:'Observações, fontes, hipóteses e lacunas só fazem sentido dentro do contexto de uma missão identificada.'},
+  validation:{eyebrow:'MEDIÇÃO E IMPACTO',title:'Selecione ou crie uma missão para definir a baseline e medir o impacto.',description:'A medição liga uma ação a um resultado comparável, com método, período, fonte, confiança e limitações explícitas.'},
+  cycle:{eyebrow:'DECISÕES E RESULTADOS',title:'Selecione ou crie uma missão para comparar, decidir e acompanhar resultados.',description:'Alternativas, decisão, ação e resultado permanecem ligados à mesma missão e à respetiva fundamentação.'},
+  economics:{eyebrow:'ECONOMIA E RECURSOS',title:'Selecione ou crie uma missão para abrir o Business Case Vivo.',description:'Custos, benefícios, tempo, pessoas, materiais, cenários e retorno pertencem a uma decisão concreta.'},
+  learning:{eyebrow:'MEMÓRIA',title:'Selecione ou crie uma missão para rever e preservar aprendizagem.',description:'A aprendizagem só pode ser publicada, revalidada e reutilizada quando conserva o contexto que lhe dá validade.'},
+};
+
+function renderMissionEmpty(area='mission'){
+  const copy=missionAreaEmptyCopy[area]||missionAreaEmptyCopy.mission;
+  setText('#mission-empty-eyebrow',copy.eyebrow);
+  setText('#mission-empty-title',copy.title);
+  setText('#mission-empty-description',copy.description);
+}
+
 const roleLabels={
   owner:'Proprietário e administrador',
   admin:'Administrador',
@@ -311,6 +327,7 @@ function setAssistanceState(ready){
 }
 
 function go(section){
+  if(section==='mission'&&!selectedMission)renderMissionEmpty('mission');
   $$('.section').forEach(node=>node.classList.toggle('active',node.id===section));
   $$('.nav button').forEach(button=>button.classList.toggle('active',button.dataset.section===section));
   setText('#page-title',titles[section]||'SRIS');
@@ -328,9 +345,15 @@ function go(section){
 $$('.nav button[data-section]').forEach(button=>button.addEventListener('click',()=>{void go(button.dataset.section);}));
 $$('.nav button[data-mission-area]').forEach(button=>button.addEventListener('click',async()=>{
   await go('mission');
-  normaliseMissionTabs();
-  const tab=$(`[data-mission-tab="${button.dataset.missionArea}"]`);
-  if(tab)tab.click();
+  const area=button.dataset.missionArea;
+  if(!selectedMission){
+    renderMissionEmpty(area);
+    showMissionMode('empty');
+  }else{
+    normaliseMissionTabs();
+    const tab=$(`[data-mission-tab="${area}"]`);
+    if(tab)tab.click();
+  }
   $$('.nav button').forEach(item=>item.classList.toggle('active',item===button));
   setText('#page-title',button.querySelector('span')?.textContent||'Espaço de missão');
 }));
@@ -811,6 +834,7 @@ async function loadMissions({openFirst=false}={}){
     updateMissionCTA();
     if(!missions.length){
       selectedMission=null;
+      renderMissionEmpty('mission');
       if($('#mission')?.dataset.mode!=='editor')showMissionMode('empty');
       updateCopilotContext();
       return;

@@ -11,6 +11,7 @@ from app.atlas_platform.audit import record_audit
 from app.pilot_mission_state import governed_ai_context
 
 from .attachments import (
+    AttachmentError,
     attachment_chunk_counts,
     backfill_mission_archive_index,
     prepare_turn_attachment_rows,

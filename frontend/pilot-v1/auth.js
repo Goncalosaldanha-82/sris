@@ -103,6 +103,12 @@
     return'Introduza o email associado à conta. O pedido será registado sem revelar se a conta existe.';
   }
 
+  function loginSubtitle(){
+    if(capabilities?.public_signup===false)return'Entre no seu workspace. O acesso de novas organizações é feito por convite.';
+    if(capabilities?.public_signup===true)return'Entre no seu workspace ou crie uma conta para estruturar a primeira missão.';
+    return'Entre no seu workspace para continuar.';
+  }
+
   function mode(name){
     clearMessage();
     ['login-form','register-form','reset-request-form','reset-confirm-form'].forEach(id=>$('#'+id)?.classList.add('hidden'));
@@ -115,7 +121,7 @@
     $('#trial-box')?.classList.toggle('hidden',!['login','register'].includes(name));
 
     const copy={
-      login:['Bem-vindo','Entre no seu workspace ou crie uma conta para estruturar a primeira missão.','login-form'],
+      login:['Bem-vindo',loginSubtitle(),'login-form'],
       register:['Criar conta','Crie um workspace individual e comece pela primeira decisão real.','register-form'],
       'reset-request':['Recuperar acesso',resetSubtitle(),'reset-request-form'],
       'reset-confirm':['Nova palavra-passe','Defina uma nova credencial. A alteração invalida as sessões anteriores.','reset-confirm-form'],
@@ -194,7 +200,7 @@
       return;
     }
     submit(event.currentTarget,'A atualizar…',async()=>{
-      await api('/api/pilot/password-reset/confirm',{
+      await api('/api/auth/password-reset/confirm',{
         method:'POST',
         body:JSON.stringify({token:$('#reset-token').value,new_password:$('#new-password').value}),
       });
@@ -205,11 +211,12 @@
 
   function applyResetTokenFromURL(){
     const url=new URL(location.href);
-    const resetToken=url.searchParams.get('reset_token');
+    const fragment=new URLSearchParams(url.hash.replace(/^#/,''));
+    const resetToken=fragment.get('reset')||url.searchParams.get('reset_token');
     if(!resetToken)return false;
     $('#reset-token').value=resetToken;
     url.searchParams.delete('reset_token');
-    history.replaceState({},document.title,url.pathname+url.search+url.hash);
+    history.replaceState({},document.title,url.pathname+url.search);
     mode('reset-confirm');
     return true;
   }
@@ -259,9 +266,20 @@
     $('#trial-copy').textContent='Facto, inferência e incerteza permanecem distintos; a decisão continua a exigir revisão humana.';
     try{
       capabilities=await api('/api/pilot/capabilities');
+      const registerTab=$('#register-tab');
       if(!capabilities.public_signup){
-        $('#register-tab').disabled=true;
-        $('#register-tab').title='Criação pública de conta temporariamente fechada';
+        registerTab.disabled=true;
+        registerTab.tabIndex=-1;
+        registerTab.setAttribute('aria-disabled','true');
+        registerTab.title='Criação pública de conta temporariamente fechada; o acesso é atribuído por convite.';
+      }else{
+        registerTab.disabled=false;
+        registerTab.removeAttribute('aria-disabled');
+        registerTab.tabIndex=0;
+        registerTab.title='';
+      }
+      if(!document.body.dataset.authMode||document.body.dataset.authMode==='login'){
+        $('#auth-subtitle').textContent=loginSubtitle();
       }
     }catch(error){console.warn('Pilot capabilities unavailable on entry:',error.message);}
     if(applyResetTokenFromURL())return;

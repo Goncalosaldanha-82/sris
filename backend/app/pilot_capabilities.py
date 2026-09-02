@@ -9,8 +9,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.atlas_platform.auth import current_user
 from app.atlas_platform.auth_delivery import auth_email_delivery_ready
 from app.atlas_platform.database import get_db
+from app.atlas_platform.models import User
 from app.pilot_platform import (
     PROFILE_CATALOG_VERSION,
     PROGRAM_SOURCES,
@@ -19,7 +21,7 @@ from app.pilot_platform import (
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260902-workspace-continuity-v36"
+PILOT_BUILD = "20260902-staging-audit-hardening-v37"
 
 USER_MOMENTS = [
     "context",
@@ -65,6 +67,14 @@ def _password_reset_delivery() -> str:
     return "configuration-required"
 
 
+def _public_signup_enabled() -> bool:
+    # Mirror the actual authentication gate; retain the historical Pilot flag
+    # only as a fallback for older local environments.
+    if os.getenv("ATLAS_SELF_REGISTRATION_ENABLED") is not None:
+        return _flag("ATLAS_SELF_REGISTRATION_ENABLED", False)
+    return _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True)
+
+
 @router.get("/capabilities")
 def pilot_capabilities() -> dict:
     """Public, non-sensitive description of the active Pilot surface."""
@@ -77,7 +87,7 @@ def pilot_capabilities() -> dict:
             "https://sris-mission-intelligence.up.railway.app/",
         ],
         "architecture": "universal_core_configurable_profiles",
-        "public_signup": _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True),
+        "public_signup": _public_signup_enabled(),
         "password_reset": True,
         "password_reset_delivery": _password_reset_delivery(),
         "transactional_email_ready": auth_email_delivery_ready(),
@@ -144,18 +154,19 @@ def _migration_heads() -> list[str]:
     return sorted(ScriptDirectory.from_config(configuration).get_heads())
 
 
-@router.get("/build")
+@router.get("/build", include_in_schema=False)
 def pilot_build() -> dict[str, str]:
     return {
         "build": PILOT_BUILD,
         "product": "SRIS Pilot & Mission Intelligence",
-        "branch": os.getenv("RAILWAY_GIT_BRANCH", "local"),
-        "commit_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA", "local"),
     }
 
 
-@router.get("/release-state")
-def pilot_release_state(db: Session = Depends(get_db)) -> dict:
+@router.get("/release-state", include_in_schema=False)
+def pilot_release_state(
+    _user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
     database_revisions = list(
         db.execute(text("SELECT version_num FROM alembic_version ORDER BY version_num"))
         .scalars()

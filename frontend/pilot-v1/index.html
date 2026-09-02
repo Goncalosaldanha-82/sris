@@ -75,7 +75,7 @@
         <summary>Como o SRIS fecha um ciclo de decisão</summary>
         <div class="decision-cycle-shell" id="decision-cycle-navigator">
           <div class="cycle-controls">
-            <button class="cycle-arrow" id="cycle-prev" type="button" aria-label="Selecionar etapa anterior">←</button>
+            <button class="cycle-arrow" id="cycle-prev" type="button" aria-label="Selecionar momento anterior">←</button>
             <div class="decision-chain" role="tablist" aria-label="Cinco momentos do percurso de missão do SRIS">
               <button class="active" type="button" role="tab" aria-selected="true" aria-controls="cycle-step-panel" tabindex="0" data-cycle-step="0">Contexto</button>
               <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="1">Evidência</button>
@@ -83,7 +83,7 @@
               <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="3">Medição</button>
               <button type="button" role="tab" aria-selected="false" aria-controls="cycle-step-panel" tabindex="-1" data-cycle-step="4">Memória</button>
             </div>
-            <button class="cycle-arrow" id="cycle-next" type="button" aria-label="Selecionar etapa seguinte">→</button>
+            <button class="cycle-arrow" id="cycle-next" type="button" aria-label="Selecionar momento seguinte">→</button>
           </div>
           <div class="cycle-step-panel" id="cycle-step-panel" role="tabpanel" tabindex="0" aria-live="polite">
             <div class="cycle-step-copy"><span class="product-index" id="cycle-position">MOMENTO 1 DE 5</span><h3 id="cycle-title">Contexto</h3><p id="cycle-description">Definir o problema, o objetivo e as condições em que a decisão existe.</p></div>
@@ -115,7 +115,7 @@
       <div class="mission-layout">
         <aside class="mission-rail card" id="mission-rail">
           <div class="card-head"><div><h2>Missões</h2><div class="note">Histórico persistente deste workspace</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div>
-          <input id="mission-search" class="input" placeholder="Pesquisar missões…" autocomplete="off">
+          <input id="mission-search" class="input" aria-label="Pesquisar missões" placeholder="Pesquisar missões…" autocomplete="off">
           <div class="note mission-continuity-note">As missões anteriores permanecem preservadas no respetivo workspace. Este portefólio mostra apenas as missões do espaço selecionado; para consultar outro, escolha-o no seletor de workspace.</div>
           <div id="mission-list" class="mission-list"><div class="note">A sincronizar missões…</div></div>
         </aside>
@@ -124,9 +124,9 @@
           <div id="mission-empty">
             <div class="empty-state">
               <img class="brand-mark-image large" src="/sris-mark-dark.svg?v=__PILOT_BUILD__" alt="" width="62" height="70" aria-hidden="true">
-              <div class="eyebrow">ESPAÇO DE MISSÃO</div>
-              <h2>Comece pela decisão que precisa de ficar melhor fundamentada.</h2>
-              <p>Uma missão não é uma conversa descartável. O contexto, os documentos, os pressupostos, as decisões, os resultados e a aprendizagem permanecem ligados ao trabalho.</p>
+              <div class="eyebrow" id="mission-empty-eyebrow">ESPAÇO DE MISSÃO</div>
+              <h2 id="mission-empty-title">Comece pela decisão que precisa de ficar melhor fundamentada.</h2>
+              <p id="mission-empty-description">Uma missão não é uma conversa descartável. O contexto, os documentos, os pressupostos, as decisões, os resultados e a aprendizagem permanecem ligados ao trabalho.</p>
 
               <div class="template-heading"><div><span class="product-index">COMEÇAR COM ESTRUTURA</span><h3>Escolha um ponto de partida ou crie livremente.</h3></div><button class="btn btn-primary" id="empty-new-btn">Criar missão livre</button></div>
               <div class="mission-template-grid">
@@ -234,7 +234,7 @@
               <div class="card-head"><div><h3>Inteligência documental</h3><div class="note">Uploads com extração, proveniência e recuperação híbrida.</div></div></div>
               <div class="upload-zone" id="upload-drop-zone">
                 <div class="upload-zone-head"><div><h4>Carregar documentos</h4><p>Selecione ou arraste vários ficheiros. Cada documento fica associado à missão, com extração e proveniência.</p></div><span class="pill">PDF · Office · imagem · texto</span></div>
-                <div class="upload-row"><input type="file" id="mission-file" multiple accept=".pdf,.html,.htm,.md,.markdown,.txt,.csv,.tsv,.xlsx,.xls,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif"><button class="btn btn-primary" type="button" id="upload-file-btn">Carregar documentos</button></div>
+                <div class="upload-row"><input type="file" id="mission-file" multiple aria-label="Selecionar documentos da missão" accept=".pdf,.html,.htm,.md,.markdown,.txt,.csv,.tsv,.xlsx,.xls,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif"><button class="btn btn-primary" type="button" id="upload-file-btn">Carregar documentos</button></div>
                 <div class="upload-progress" id="upload-progress" role="status" aria-live="polite"></div>
               </div>
               <div id="attachment-list" class="list-block"><div class="note">Sem documentos carregados.</div></div>

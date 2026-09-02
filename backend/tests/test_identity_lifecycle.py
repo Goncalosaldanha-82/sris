@@ -660,7 +660,8 @@ def test_identity_frontend_exposes_invite_and_recovery_flows() -> None:
 
     assert 'id="forgot-link"' in login
     assert "/api/auth/password-reset/request" in auth
-    assert "/api/pilot/password-reset/confirm" in auth
+    assert "/api/auth/password-reset/confirm" in auth
+    assert "/api/pilot/password-reset/confirm" not in auth
     assert "/api/auth/password-reset/request" in account
     assert "/api/auth/password-reset/confirm" in account
     assert "/api/auth/invitations/accept" in account
