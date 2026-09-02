@@ -1,0 +1,43 @@
+name: SRIS staging public data QA v2
+
+on:
+  push:
+    branches:
+      - qa-staging-deep-audit-20260902
+    paths:
+      - ".github/workflows/staging-public-data-qa-v2.yml"
+      - "tools/live_staging_public_data_qa_v2.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SRIS_STAGING_URL: https://sris-pilot-v1-staging.up.railway.app
+  QA_OUTPUT_DIR: qa-public-data-v2-artifacts
+
+jobs:
+  public-data-v2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out QA branch
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Run corrected data audit
+        run: node tools/live_staging_public_data_qa_v2.mjs
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sris-staging-public-data-v2-${{ github.run_number }}
+          path: qa-public-data-v2-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
