@@ -129,6 +129,9 @@ jobs:
       - name: Run Pilot V1 contract tests
         run: python -m pytest -q backend/tests/test_pilot_v1_contract.py
 
+      - name: Run workspace continuity tests
+        run: python -m pytest -q backend/tests/test_workspace_selection.py
+
       - name: Run Pilot and Mission Intelligence platform tests
         run: python -m pytest -q backend/tests/test_pilot_platform.py
 
