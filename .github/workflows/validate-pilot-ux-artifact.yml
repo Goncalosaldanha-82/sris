@@ -47,12 +47,21 @@ jobs:
           python tools/apply_pilot_ux_alignment.py
           python - <<'PY'
           from pathlib import Path
-          path = Path("frontend/tests/pilot_platform_contract.test.js")
-          source = path.read_text(encoding="utf-8")
+
+          platform_test = Path("frontend/tests/pilot_platform_contract.test.js")
+          source = platform_test.read_text(encoding="utf-8")
           obsolete = "  assert.match(platform,/hospitality_open_innovation/);\n"
           if obsolete not in source:
               raise RuntimeError("Obsolete platform-literal assertion not found")
-          path.write_text(source.replace(obsolete, "", 1), encoding="utf-8")
+          platform_test.write_text(source.replace(obsolete, "", 1), encoding="utf-8")
+
+          runtime_test = Path("backend/tests/test_pilot_v1_contract.py")
+          source = runtime_test.read_text(encoding="utf-8")
+          old = '        "Portefólio persistente",\n'
+          new = '        "Histórico persistente deste workspace",\n'
+          if old not in source:
+              raise RuntimeError("Obsolete mission-portfolio copy assertion not found")
+          runtime_test.write_text(source.replace(old, new, 1), encoding="utf-8")
           PY
       - name: Install dependencies
         run: |
@@ -92,6 +101,7 @@ jobs:
           if-no-files-found: error
           path: |
             backend/app/pilot_capabilities.py
+            backend/tests/test_pilot_v1_contract.py
             frontend/pilot-v1/demonstracao.html
             frontend/pilot-v1/demonstracao.css
             frontend/pilot-v1/index.html
