@@ -6,6 +6,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
+from app.atlas_platform.workspace_scope import (
+    reset_active_organization_id,
+    set_active_organization_id,
+)
 from app.pilot_epistemic import router as evidence_graph_router
 from app.learning_lineage import router as learning_lineage_router
 from app.mission_intelligence.evolution_api import router as organizational_learning_router
@@ -52,7 +56,13 @@ app.add_middleware(PilotRateLimitMiddleware)
 @app.middleware("http")
 async def security_and_trace_headers(request: Request, call_next):
     request_id = request.headers.get("x-request-id") or str(uuid4())
-    response = await call_next(request)
+    workspace_token = set_active_organization_id(
+        request.headers.get("x-sris-organization")
+    )
+    try:
+        response = await call_next(request)
+    finally:
+        reset_active_organization_id(workspace_token)
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"

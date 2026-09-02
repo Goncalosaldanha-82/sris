@@ -19,7 +19,7 @@ from app.pilot_platform import (
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260902-pilot-navigation-economics-v35"
+PILOT_BUILD = "20260902-workspace-continuity-v36"
 
 USER_MOMENTS = [
     "context",
@@ -83,6 +83,8 @@ def pilot_capabilities() -> dict:
         "transactional_email_ready": auth_email_delivery_ready(),
         "invitations_enabled": auth_email_delivery_ready(),
         "workspace_profile_endpoint": "/api/pilot/profile",
+        "explicit_workspace_selection": True,
+        "workspace_continuity_resolution": "requested_then_persistent_mission_activity",
         "pilot_portfolio": True,
         "pilot_charter": True,
         "pilot_data_readiness": True,

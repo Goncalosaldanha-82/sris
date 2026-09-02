@@ -2,6 +2,7 @@ const $=(selector,root=document)=>root.querySelector(selector);
 const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
 const token=()=>localStorage.getItem('sris_access_token');
 const refreshToken=()=>localStorage.getItem('sris_refresh_token');
+const manuallySelectedWorkspace=()=>localStorage.getItem('sris_workspace_selection')==='manual'?localStorage.getItem('sris_org_id'):'';
 
 let profile=null;
 let missions=[];
@@ -95,7 +96,7 @@ const missionTemplates={
 };
 
 function logout(){
-  ['sris_access_token','sris_refresh_token','sris_org_id','sris_user_id','sris_user_email'].forEach(key=>localStorage.removeItem(key));
+  ['sris_access_token','sris_refresh_token','sris_org_id','sris_workspace_selection','sris_user_id','sris_user_email'].forEach(key=>localStorage.removeItem(key));
   location.assign('/');
 }
 
@@ -141,8 +142,10 @@ async function renewSession(){
 }
 
 async function rawApi(path,options={}){
-  const {retryAuth=true,timeoutMs,...fetchOptions}=options;
+  const {retryAuth=true,timeoutMs,skipWorkspace=false,...fetchOptions}=options;
   const headers={...(fetchOptions.headers||{})};
+  const activeWorkspaceId=localStorage.getItem('sris_org_id');
+  if(!skipWorkspace&&activeWorkspaceId)headers['X-SRIS-Organization']=activeWorkspaceId;
   if(!(fetchOptions.body instanceof FormData))headers['Content-Type']='application/json';
   if(token())headers.Authorization=`Bearer ${token()}`;
   const controller=new AbortController();
@@ -232,6 +235,28 @@ function displayWorkspaceName(name){
 
 function displayRole(role){
   return roleLabels[String(role||'member').toLowerCase()]||String(role||'Membro');
+}
+
+function renderWorkspaceSelector(payload,organization){
+  const wrapper=$('#workspace-switcher');
+  const selector=$('#workspace-selector');
+  if(!wrapper||!selector)return;
+  const workspaces=Array.isArray(payload?.workspaces)?payload.workspaces:[];
+  selector.replaceChildren();
+  workspaces.forEach(workspace=>{
+    const option=document.createElement('option');
+    option.value=workspace.id;
+    const count=Number(workspace.mission_count||0);
+    option.textContent=`${workspace.name} · ${count} ${count===1?'missão':'missões'}`;
+    selector.appendChild(option);
+  });
+  if(organization?.id)selector.value=organization.id;
+  wrapper.classList.toggle('hidden',workspaces.length<2);
+  selector.disabled=workspaces.length<2;
+  const selection=payload?.workspace_selection||{};
+  wrapper.title=selection.selected_by==='mission_activity'
+    ?'O SRIS recuperou o workspace com atividade persistente. Pode mudar explicitamente neste seletor.'
+    :'Escolha o workspace cujos pilotos, missões e memória pretende consultar.';
 }
 
 function setWorkspaceState(label,state='ready'){
@@ -329,9 +354,17 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape')setMenu(fals
 window.matchMedia('(min-width: 801px)').addEventListener?.('change',event=>{if(event.matches)setMenu(false);});
 $('#logout-btn')?.addEventListener('click',logout);
 $('#logout-btn-2')?.addEventListener('click',logout);
+$('#workspace-selector')?.addEventListener('change',event=>{
+  const workspaceId=String(event.target.value||'').trim();
+  if(!workspaceId||workspaceId===profile?.organization?.id)return;
+  localStorage.setItem('sris_org_id',workspaceId);
+  localStorage.setItem('sris_workspace_selection','manual');
+  location.reload();
+});
 
 function renderProfile(payload){
   profile=payload;
+  window.SRISProfile=payload;
   profileAvailable=true;
   const user=payload.user||{};
   const organization=payload.organization||{};
@@ -342,6 +375,7 @@ function renderProfile(payload){
 
   const workspaceName=displayWorkspaceName(organization.name);
   const role=displayRole(organization.role);
+  renderWorkspaceSelector(payload,organization);
   setText('#mini-name',user.full_name||user.email||'Utilizador');
   setText('#mini-org',workspaceName);
   setText('#avatar',initials(user.full_name||user.email));
@@ -380,7 +414,9 @@ function renderDegradedProfile(){
 }
 
 async function refresh(){
-  const data=await api('/api/pilot/profile');
+  const preferred=manuallySelectedWorkspace();
+  const suffix=preferred?`?organization_id=${encodeURIComponent(preferred)}`:'';
+  const data=await api(`/api/pilot/profile${suffix}`,{skipWorkspace:true});
   renderProfile(data);
   return data;
 }

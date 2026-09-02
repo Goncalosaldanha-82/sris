@@ -11,15 +11,17 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Organization, Role, User
+from app.atlas_platform.workspace_scope import get_active_organization_id
+from app.mission_intelligence.models import CanonicalMission
 from app.atlas_platform.security import (
     create_access_token,
     create_refresh_token,
@@ -127,13 +129,110 @@ def _hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def _membership_for_user(db: Session, user_id: str) -> Membership | None:
-    return (
+def _workspace_entries(db: Session, user_id: str) -> list[dict]:
+    memberships = (
         db.query(Membership)
         .filter(Membership.user_id == user_id)
         .order_by(Membership.created_at.asc())
-        .first()
+        .all()
     )
+    if not memberships:
+        return []
+
+    organization_ids = [membership.organization_id for membership in memberships]
+    organizations = {
+        organization.id: organization
+        for organization in (
+            db.query(Organization)
+            .filter(Organization.id.in_(organization_ids))
+            .all()
+        )
+    }
+    mission_stats = {
+        organization_id: {
+            "mission_count": int(mission_count or 0),
+            "latest_mission_at": latest_mission_at,
+        }
+        for organization_id, mission_count, latest_mission_at in (
+            db.query(
+                CanonicalMission.organization_id,
+                func.count(CanonicalMission.id),
+                func.max(CanonicalMission.updated_at),
+            )
+            .filter(CanonicalMission.organization_id.in_(organization_ids))
+            .group_by(CanonicalMission.organization_id)
+            .all()
+        )
+    }
+
+    entries: list[dict] = []
+    for membership in memberships:
+        organization = organizations.get(membership.organization_id)
+        if organization is None:
+            continue
+        stats = mission_stats.get(
+            organization.id,
+            {"mission_count": 0, "latest_mission_at": None},
+        )
+        entries.append(
+            {
+                "membership": membership,
+                "organization": organization,
+                "mission_count": stats["mission_count"],
+                "latest_mission_at": stats["latest_mission_at"],
+            }
+        )
+    return entries
+
+
+def _select_workspace(
+    entries: list[dict],
+    requested_organization_id: str | None = None,
+) -> tuple[dict | None, str]:
+    requested = str(requested_organization_id or "").strip()
+    if requested:
+        selected = next(
+            (
+                entry
+                for entry in entries
+                if entry["organization"].id == requested
+            ),
+            None,
+        )
+        if selected is not None:
+            return selected, "requested"
+
+    if not entries:
+        return None, "none"
+
+    entries_with_missions = [
+        entry for entry in entries if entry["mission_count"] > 0
+    ]
+    if entries_with_missions:
+        selected = max(
+            entries_with_missions,
+            key=lambda entry: (
+                entry["mission_count"],
+                _coerce_datetime(entry["latest_mission_at"]).timestamp()
+                if entry["latest_mission_at"] is not None
+                else 0,
+            ),
+        )
+        return selected, "mission_activity"
+
+    return entries[0], "membership_order"
+
+
+def _membership_for_user(
+    db: Session,
+    user_id: str,
+    organization_id: str | None = None,
+) -> Membership | None:
+    selected, _ = _select_workspace(
+        _workspace_entries(db, user_id),
+        organization_id or get_active_organization_id(),
+    )
+    return selected["membership"] if selected is not None else None
 
 
 def _ensure_pilot_schema(db: Session) -> None:
@@ -444,9 +543,19 @@ def pilot_password_reset_confirm(payload: PilotPasswordResetConfirm, db: Session
 
 
 @router.get("/profile")
-def pilot_profile(user: User = Depends(current_user), db: Session = Depends(get_db)) -> dict:
-    membership = _membership_for_user(db, user.id)
-    organization = db.get(Organization, membership.organization_id) if membership else None
+def pilot_profile(
+    organization_id: str | None = Query(default=None),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    entries = _workspace_entries(db, user.id)
+    requested_organization_id = organization_id or get_active_organization_id()
+    selected, selected_by = _select_workspace(
+        entries,
+        requested_organization_id,
+    )
+    membership = selected["membership"] if selected is not None else None
+    organization = selected["organization"] if selected is not None else None
     wallet = None
     policy = None
     usage = None
@@ -501,12 +610,37 @@ def pilot_profile(user: User = Depends(current_user), db: Session = Depends(get_
             for row in rows
         ]
 
+    requested_is_valid = any(
+        entry["organization"].id == requested_organization_id
+        for entry in entries
+    ) if requested_organization_id else False
     return {
         "user": {"id": user.id, "email": user.email, "full_name": user.full_name},
         "organization": (
             {"id": organization.id, "name": organization.name, "slug": organization.slug, "role": membership.role}
             if organization and membership else None
         ),
+        "workspaces": [
+            {
+                "id": entry["organization"].id,
+                "name": entry["organization"].name,
+                "slug": entry["organization"].slug,
+                "role": entry["membership"].role,
+                "mission_count": entry["mission_count"],
+                "latest_mission_at": _iso_datetime(entry["latest_mission_at"]),
+                "selected": bool(
+                    organization
+                    and entry["organization"].id == organization.id
+                ),
+            }
+            for entry in entries
+        ],
+        "workspace_selection": {
+            "selected_by": selected_by,
+            "requested_organization_id": requested_organization_id,
+            "requested_is_valid": requested_is_valid,
+            "multiple": len(entries) > 1,
+        },
         "ai": {
             "provider_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
             "runtime_enabled": _flag("SRIS_AI_ENABLED", False),

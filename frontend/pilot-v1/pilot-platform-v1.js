@@ -38,6 +38,7 @@
     const headers={...(options.headers||{})};
     if(!(options.body instanceof FormData))headers['Content-Type']='application/json';
     if(token())headers.Authorization=`Bearer ${token()}`;
+    if(orgId())headers['X-SRIS-Organization']=orgId();
     const response=await fetch(path,{...options,headers,cache:'no-store'});
     let data={};try{data=await response.json()}catch{}
     if(!response.ok){const detail=data?.detail;throw new Error(typeof detail==='string'?detail:(detail?.message||detail?.code||`Erro ${response.status}`));}

@@ -38,7 +38,10 @@
     <header class="topbar">
       <button class="menu-btn" id="menu-btn" type="button" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">☰</button>
       <h1 id="page-title">Visão geral</h1>
-      <div class="topbar-actions"><span class="status-pill" id="provider-state">Workspace a sincronizar</span><button class="ghost-btn" id="logout-btn">Sair</button></div>
+      <div class="topbar-actions">
+        <label class="workspace-switcher hidden" id="workspace-switcher" for="workspace-selector"><span>Workspace</span><select id="workspace-selector" aria-label="Selecionar workspace"></select></label>
+        <span class="status-pill" id="provider-state">Workspace a sincronizar</span><button class="ghost-btn" id="logout-btn">Sair</button>
+      </div>
     </header>
     <div id="app-message" class="app-message alert hidden" role="status" aria-live="polite"></div>
 
@@ -113,7 +116,7 @@
         <aside class="mission-rail card" id="mission-rail">
           <div class="card-head"><div><h2>Missões</h2><div class="note">Histórico persistente deste workspace</div></div><button class="btn btn-primary compact" id="new-mission-btn">+ Nova</button></div>
           <input id="mission-search" class="input" placeholder="Pesquisar missões…" autocomplete="off">
-          <div class="note mission-continuity-note">As missões anteriores permanecem preservadas. Só pertencem a um piloto quando são ligadas explicitamente.</div>
+          <div class="note mission-continuity-note">As missões anteriores permanecem preservadas no respetivo workspace. Este portefólio mostra apenas as missões do espaço selecionado; para consultar outro, escolha-o no seletor de workspace.</div>
           <div id="mission-list" class="mission-list"><div class="note">A sincronizar missões…</div></div>
         </aside>
 
