@@ -1,0 +1,321 @@
+name: Independently verify and finalize staging audit candidate
+
+on:
+  push:
+    branches:
+      - fix-staging-audit-20260902
+    paths:
+      - ".github/workflows/staging-audit-final-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: staging-audit-independent-finalization
+  cancel-in-progress: true
+
+env:
+  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-independent-final/atlas.db
+  ATLAS_REPOSITORY_ROOT: /tmp/sris-independent-final/repository
+  ATLAS_JWT_SECRET: staging-independent-final-secret-with-more-than-thirty-two-bytes
+  ATLAS_ENV: test
+  SRIS_PILOT_MODE: "true"
+  SRIS_PUBLIC_SIGNUP_ENABLED: "true"
+  ATLAS_SELF_REGISTRATION_ENABLED: "true"
+
+jobs:
+  verify-and-finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas-ci-password
+          POSTGRES_DB: atlas_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas -d atlas_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out current repair candidate
+        uses: actions/checkout@v4
+        with:
+          ref: fix-staging-audit-20260902
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Apply pending audited source changes when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f tools/apply_staging_audit_fixes.py ]]; then
+            python tools/apply_staging_audit_fixes.py
+          else
+            echo "Audited source changes are already materialized in this branch."
+          fi
+
+      - name: Reconcile secure identity and frontend contracts idempotently
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import re
+          from pathlib import Path
+
+          test_path = Path("backend/tests/test_pilot_v1_contract.py")
+          text = test_path.read_text(encoding="utf-8")
+          text = text.replace(
+              '"/api/pilot/password-reset/request"',
+              '"/api/auth/password-reset/request"',
+          ).replace(
+              '"/api/pilot/password-reset/confirm"',
+              '"/api/auth/password-reset/confirm"',
+          )
+
+          identity_import = "from app.atlas_platform import identity\n"
+          config_import = (
+              "from app.atlas_platform.config import Settings, configured_database_url, "
+              "validate_security_settings\n"
+          )
+          if identity_import not in text:
+              if config_import not in text:
+                  raise RuntimeError("Could not locate the Pilot V1 import block")
+              text = text.replace(config_import, identity_import + config_import, 1)
+
+          start = text.find("def test_account_to_persistent_mission_journey(monkeypatch) -> None:")
+          if start < 0:
+              raise RuntimeError("Could not locate the persistent mission journey")
+          end = text.find("\ndef ", start + 5)
+          if end < 0:
+              end = len(text)
+          journey = text[start:end]
+
+          capture = '''    captured_reset_tokens: list[str] = []
+              monkeypatch.setattr(identity, "auth_email_delivery_ready", lambda: True)
+              monkeypatch.setattr(
+                  identity,
+                  "_send_password_reset_email",
+                  lambda _reset_id, raw_token: captured_reset_tokens.append(raw_token),
+              )
+          '''
+          # The literal above is dedented deliberately before insertion.
+          capture = "\n".join(line[4:] if line.startswith("    ") else line for line in capture.splitlines()) + "\n"
+          if "captured_reset_tokens: list[str]" not in journey:
+              marker = '    monkeypatch.setenv("SRIS_PILOT_SHOW_RESET_LINK", "true")\n'
+              if marker not in journey:
+                  raise RuntimeError("Could not locate the Pilot journey environment setup")
+              journey = journey.replace(marker, marker + capture, 1)
+
+          journey = re.sub(
+              r"    assert (reset(?:_start)?)\.status_code == 200, \1\.text\n",
+              r"    assert \1.status_code == 202, \1.text\n",
+              journey,
+              count=1,
+          )
+          journey = re.sub(
+              r"    assert (reset(?:_start)?)\.json\(\)\.get\(\"reset_token\"\)\n",
+              "    assert captured_reset_tokens\n",
+              journey,
+              count=1,
+          )
+          journey = re.sub(
+              r'(reset(?:_start)?)\.json\(\)\[\"reset_token\"\]',
+              "captured_reset_tokens[-1]",
+              journey,
+          )
+          if '"/api/auth/password-reset/request"' not in journey:
+              raise RuntimeError("The journey is not using the canonical reset request route")
+          if '"/api/auth/password-reset/confirm"' not in journey:
+              raise RuntimeError("The journey is not using the canonical reset confirm route")
+          if "assert captured_reset_tokens" not in journey:
+              raise RuntimeError("The journey does not capture the delivered one-time token")
+          text = text[:start] + journey + text[end:]
+          test_path.write_text(text, encoding="utf-8")
+
+          index_path = Path("frontend/pilot-v1/index.html")
+          index = index_path.read_text(encoding="utf-8")
+          old = 'id="mission-file" aria-label="Selecionar documentos da missão" multiple'
+          desired = 'id="mission-file" multiple aria-label="Selecionar documentos da missão"'
+          if old in index:
+              index = index.replace(old, desired, 1)
+          elif desired not in index:
+              raise RuntimeError("Could not locate the accessible mission-file control")
+          index_path.write_text(index, encoding="utf-8")
+
+          Path("frontend/tests/staging_audit_hardening_contract.test.js").write_text(
+              r'''import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const read=(path)=>fs.readFileSync(new URL(`../../${path}`,import.meta.url),'utf8');
+
+          test('entry copy follows the runtime signup gate and reset uses one route family',()=>{
+            const auth=read('frontend/pilot-v1/auth.js');
+            const home=read('frontend/pilot-v1/home.html');
+            assert.match(auth,/function loginSubtitle\(\)/);
+            assert.match(auth,/acesso de novas organizações é feito por convite/);
+            assert.match(auth,/\/api\/auth\/password-reset\/request/);
+            assert.match(auth,/\/api\/auth\/password-reset\/confirm/);
+            assert.doesNotMatch(auth,/\/api\/pilot\/password-reset\/confirm/);
+            assert.match(home,/Entre no seu workspace para continuar\./);
+          });
+
+          test('account and mission controls use the active build and accessible names',()=>{
+            const account=read('frontend/pilot-v1/account.html');
+            const index=read('frontend/pilot-v1/index.html');
+            assert.match(account,/pilot\.css\?v=__PILOT_BUILD__/);
+            assert.match(account,/sris-logo-compact-dark\.svg\?v=__PILOT_BUILD__/);
+            assert.doesNotMatch(account,/20260828-brand-system-v30/);
+            assert.match(index,/id="mission-search"[^>]+aria-label="Pesquisar missões"/);
+            assert.match(index,/id="mission-file"[^>]+aria-label="Selecionar documentos da missão"/);
+          });
+
+          test('empty mission-dependent areas explain their own prerequisite',()=>{
+            const app=read('frontend/pilot-v1/app.js');
+            for(const phrase of [
+              'Selecione ou crie uma missão para estruturar a evidência.',
+              'Selecione ou crie uma missão para definir a baseline e medir o impacto.',
+              'Selecione ou crie uma missão para abrir o Business Case Vivo.',
+              'Selecione ou crie uma missão para rever e preservar aprendizagem.',
+            ])assert.ok(app.includes(phrase),phrase);
+          });
+
+          test('entry contrast override is explicit',()=>{
+            const css=read('frontend/pilot-v1/pilot.css');
+            assert.match(css,/#auth-subtitle,#trial-copy\{color:#5f7068\}/);
+          });
+          ''',
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Generate deterministic dependency locks
+        run: |
+          python -m pip install --upgrade pip setuptools wheel pip-tools
+          python -m piptools compile --quiet --resolver=backtracking --strip-extras --output-file=requirements.lock pyproject.toml
+          python -m piptools compile --quiet --resolver=backtracking --strip-extras --extra=test --output-file=requirements-test.lock pyproject.toml
+
+      - name: Install the locked test environment
+        run: |
+          mkdir -p /tmp/sris-independent-final/repository
+          python -m pip install -r requirements-test.lock
+          python -m pip install --no-deps -e ".[test]"
+
+      - name: Verify Python and JavaScript syntax
+        shell: bash
+        run: |
+          python -m compileall -q backend/app backend/tests migrations
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find frontend/pilot-v1 frontend/tests -type f -name '*.js' -print0)
+
+      - name: Validate a clean SQLite migration to head
+        run: |
+          rm -f /tmp/sris-independent-final/atlas.db
+          python -m alembic upgrade head
+          python -m alembic current -v
+          python -m alembic heads -v
+
+      - name: Validate the actual staging PostgreSQL upgrade path
+        env:
+          ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas-ci-password@127.0.0.1:5432/atlas_ci
+        run: |
+          python -m alembic upgrade 20260827_0022
+          python -m alembic upgrade head
+          python -m alembic current -v
+          python -m alembic heads -v
+
+      - name: Run every frontend contract
+        run: node --test frontend/tests/*.test.js | tee qa-frontend-contracts.txt
+
+      - name: Run every backend module against an isolated migrated database
+        id: backend-regression
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > qa-backend-regression.txt
+          for test_file in backend/tests/test_*.py; do
+            module="$(basename "$test_file" .py)"
+            database="/tmp/sris-independent-final/${module}.db"
+            repository="/tmp/sris-independent-final/repository-${module}"
+            rm -f "$database"
+            rm -rf "$repository"
+            mkdir -p "$repository"
+            export ATLAS_DATABASE_URL="sqlite+pysqlite:///${database}"
+            export ATLAS_REPOSITORY_ROOT="$repository"
+            echo "===== $test_file =====" | tee -a qa-backend-regression.txt
+            python -m alembic upgrade head 2>&1 | tee -a qa-backend-regression.txt
+            python -m pytest -q "$test_file" --tb=short 2>&1 | tee -a qa-backend-regression.txt
+          done
+
+      - name: Upload independent validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-audit-independent-validation-${{ github.run_number }}
+          path: |
+            qa-frontend-contracts.txt
+            qa-backend-regression.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce backend regression result
+        if: steps.backend-regression.outcome == 'failure'
+        run: |
+          tail -n 500 qa-backend-regression.txt
+          exit 1
+
+      - name: Verify the installed dependency graph
+        run: python -m pip check
+
+      - name: Record auditable validation evidence
+        run: |
+          mkdir -p qa
+          cat > qa/STAGING_AUDIT_VALIDATED.md <<EOF
+          # Staging audit repair — validated candidate
+
+          This branch was independently validated by GitHub Actions before publication.
+
+          - Workflow run: ${GITHUB_RUN_ID}
+          - Source commit validated: ${GITHUB_SHA}
+          - Alembic: clean SQLite migration to the single head passed
+          - Staging path: PostgreSQL upgrade from 20260827_0022 to head passed
+          - Frontend: every contract in frontend/tests passed
+          - Backend: every backend/tests/test_*.py module passed against an isolated migrated database
+          - Dependency graph: pip check passed
+          - Product scope: repair candidate only; no deployment performed by this workflow
+          EOF
+
+      - name: Commit only the independently validated candidate
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f --ignore-unmatch \
+            tools/apply_staging_audit_fixes.py \
+            tools/reconcile_staging_audit_contracts.py \
+            tools/reconcile_staging_audit_contracts_v2.py \
+            .github/workflows/staging-audit-fix.yml \
+            .github/workflows/staging-audit-fix-final.yml \
+            .github/workflows/staging-audit-fix-final-v2.yml \
+            .github/workflows/staging-audit-final-verification.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: finalize independently validated staging audit hardening"
+          git push origin HEAD:fix-staging-audit-20260902
