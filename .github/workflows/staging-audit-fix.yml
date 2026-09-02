@@ -166,7 +166,28 @@ jobs:
         run: node --test frontend/tests/*.test.js
 
       - name: Run complete backend regression
-        run: python -m pytest -q
+        id: backend-regression
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q --tb=short --maxfail=50 2>&1 | tee qa-backend-regression.txt
+
+      - name: Upload backend regression diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-audit-backend-regression-${{ github.run_number }}
+          path: qa-backend-regression.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce backend regression result
+        if: steps.backend-regression.outcome == 'failure'
+        run: |
+          echo "Backend regression failed. Tail follows:"
+          tail -n 350 qa-backend-regression.txt
+          exit 1
 
       - name: Verify installed dependency graph
         run: python -m pip check
