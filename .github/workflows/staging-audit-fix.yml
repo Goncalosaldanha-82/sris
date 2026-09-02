@@ -60,6 +60,30 @@ jobs:
       - name: Apply audited source changes
         run: python tools/apply_staging_audit_fixes.py
 
+      - name: Reconcile existing frontend contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          index_path = Path("frontend/pilot-v1/index.html")
+          index = index_path.read_text(encoding="utf-8")
+          index = index.replace(
+              'id="mission-file" aria-label="Selecionar documentos da missão" multiple',
+              'id="mission-file" multiple aria-label="Selecionar documentos da missão"',
+          )
+          index_path.write_text(index, encoding="utf-8")
+
+          test_path = Path("frontend/tests/staging_audit_hardening_contract.test.js")
+          test = test_path.read_text(encoding="utf-8")
+          test = test.replace(
+              "  ])assert.match(app,new RegExp(text.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')));",
+              "  ])assert.ok(app.includes(text),text);",
+          )
+          if "new RegExp(text.replace" in test:
+              raise RuntimeError("The generated hardening test still contains the invalid dynamic regex.")
+          test_path.write_text(test, encoding="utf-8")
+          PY
+
       - name: Generate deterministic dependency locks
         run: |
           python -m pip install --upgrade pip setuptools wheel pip-tools
