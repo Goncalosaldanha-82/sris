@@ -6,7 +6,7 @@ from copy import deepcopy
 _CATALOG = {
     "schema": "sris_fictional_demo_catalog",
     "schema_version": "1.0",
-    "catalog_version": "2026-08",
+    "catalog_version": "2026-09-02",
     "notice": (
         "Demonstração pública com dados integralmente fictícios. Qualquer semelhança "
         "com entidades, pessoas, locais ou projetos reais é coincidência."
@@ -61,7 +61,7 @@ _CATALOG = {
                     {"number": "01", "label": "Observação", "value": "+15% água · +9% energia", "note": "Variações totais registadas num período com atividade diferente.", "state": "completed"},
                     {"number": "02", "label": "Evidência", "value": "Baseline operacional", "note": "Faturas, contadores, ocupação, lavandaria, rega, manutenção e ocorrências.", "state": "completed"},
                     {"number": "03", "label": "Hipótese", "value": "Causas concorrentes", "note": "Ocupação, fuga, rega, lavandaria e procedimentos permanecem separados.", "state": "completed"},
-                    {"number": "04", "label": "Alternativas", "value": "3 comparadas", "note": "Substituição de equipamentos, protocolo operacional ou lavandaria externa.", "state": "completed"},
+                    {"number": "04", "label": "Alternativa", "value": "3 comparadas", "note": "Substituição de equipamentos, protocolo operacional ou lavandaria externa.", "state": "completed"},
                     {"number": "05", "label": "Decisão", "value": "Medição dirigida", "note": "Piloto de oito semanas antes de investimento generalizado.", "state": "completed"},
                     {"number": "06", "label": "Ação", "value": "Instrumentar e testar", "note": "Submedição, inspeção de fugas e protocolo operacional controlado.", "state": "open"},
                     {"number": "07", "label": "Resultado", "value": "Ainda não demonstrado", "note": "Água e energia serão comparadas por atividade, custo e qualidade do serviço.", "state": "pending"},
@@ -92,7 +92,6 @@ _CATALOG = {
                 "decision_matrix": {
                     "scale": "1 = fraco · 5 = forte",
                     "criteria": [
-                        {"id": "traceability", "label": "Rastreabilidade"},
                         {"id": "effectiveness", "label": "Eficácia"},
                         {"id": "cost", "label": "Custo"},
                         {"id": "risk", "label": "Risco controlado"},
@@ -101,9 +100,9 @@ _CATALOG = {
                         {"id": "robustness", "label": "Robustez"},
                     ],
                     "rows": [
-                        {"alternative_id": "ALT-TA-001", "label": "Substituição geral", "scores": [2, 4, 2, 2, 1, 3, 2], "total": 16},
-                        {"alternative_id": "ALT-TA-002", "label": "Medição dirigida", "scores": [5, 4, 4, 4, 5, 4, 5], "total": 31},
-                        {"alternative_id": "ALT-TA-003", "label": "Lavandaria externa", "scores": [2, 3, 3, 2, 3, 3, 2], "total": 18},
+                        {"alternative_id": "ALT-TA-001", "label": "Substituição geral", "scores": [4, 2, 2, 1, 3, 2], "total": 14},
+                        {"alternative_id": "ALT-TA-002", "label": "Medição dirigida", "scores": [4, 4, 4, 5, 4, 5], "total": 26},
+                        {"alternative_id": "ALT-TA-003", "label": "Lavandaria externa", "scores": [3, 3, 2, 3, 3, 2], "total": 16},
                     ],
                 },
             },

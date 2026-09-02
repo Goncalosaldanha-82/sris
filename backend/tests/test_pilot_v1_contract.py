@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy import text
 
+from app.atlas_platform import identity
 from app.atlas_platform.config import Settings, configured_database_url, validate_security_settings
 from app.atlas_platform.database import SessionLocal
 from app.main import app
@@ -393,8 +394,8 @@ def test_pilot_openapi_exposes_the_operational_scope() -> None:
         "/api/pilot/capabilities",
         "/api/pilot/release-readiness",
         "/api/pilot/release-readiness/checks/{check_key}",
-        "/api/pilot/password-reset/request",
-        "/api/pilot/password-reset/confirm",
+        "/api/auth/password-reset/request",
+        "/api/auth/password-reset/confirm",
         "/api/pilot/intelligence/ask",
         "/api/pilot/decision-cycles",
         "/api/pilot/decision-cycles/{cycle_id}/reopen",
@@ -491,6 +492,13 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     monkeypatch.setenv("SRIS_PUBLIC_SIGNUP_ENABLED", "true")
     monkeypatch.setenv("SRIS_PILOT_MODE", "true")
     monkeypatch.setenv("SRIS_PILOT_SHOW_RESET_LINK", "true")
+    captured_reset_tokens: list[str] = []
+    monkeypatch.setattr(identity, "auth_email_delivery_ready", lambda: True)
+    monkeypatch.setattr(
+        identity,
+        "_send_password_reset_email",
+        lambda _reset_id, raw_token: captured_reset_tokens.append(raw_token),
+    )
 
     suffix = uuid4().hex[:10]
     email = f"pilot-journey-{suffix}@example.com"
@@ -1792,15 +1800,16 @@ def test_account_to_persistent_mission_journey(monkeypatch) -> None:
     assert renewed.status_code == 200, renewed.text
 
     reset = client.post(
-        "/api/pilot/password-reset/request",
+        "/api/auth/password-reset/request",
         json={"email": email},
     )
-    assert reset.status_code == 200, reset.text
-    assert reset.json().get("reset_token")
+    assert reset.status_code == 202, reset.text
+    assert reset.json()["status"] == "accepted"
+    assert captured_reset_tokens
     confirmed = client.post(
-        "/api/pilot/password-reset/confirm",
+        "/api/auth/password-reset/confirm",
         json={
-            "token": reset.json()["reset_token"],
+            "token": captured_reset_tokens[-1],
             "new_password": new_password,
         },
     )

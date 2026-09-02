@@ -135,6 +135,17 @@ def pilot_app() -> HTMLResponse:
     )
 
 
+@app.get("/account.html", include_in_schema=False)
+def pilot_account() -> HTMLResponse:
+    return HTMLResponse(
+        _frontend_html("account.html"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-SRIS-Pilot-Build": PILOT_BUILD,
+        },
+    )
+
+
 @app.get("/demonstracao", include_in_schema=False)
 def public_demo() -> HTMLResponse:
     return HTMLResponse(
