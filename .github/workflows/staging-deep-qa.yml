@@ -1,0 +1,48 @@
+name: SRIS staging deep QA
+
+on:
+  push:
+    branches:
+      - qa-staging-deep-audit-20260902
+    paths:
+      - ".github/workflows/staging-deep-qa.yml"
+      - "tools/live_staging_deep_qa.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SRIS_STAGING_URL: https://sris-pilot-v1-staging.up.railway.app
+  SRIS_EXPECTED_BUILD: 20260902-workspace-continuity-v36
+  QA_OUTPUT_DIR: qa-artifacts
+
+jobs:
+  live-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out QA branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install browser audit dependencies
+        run: |
+          npm install --no-save playwright @axe-core/playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run live staging audit
+        run: node tools/live_staging_deep_qa.mjs
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sris-staging-deep-qa-${{ github.run_number }}
+          path: qa-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
