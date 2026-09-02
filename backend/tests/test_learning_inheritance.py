@@ -281,3 +281,48 @@ def test_revalidation_or_invalidation_requires_context_change() -> None:
         },
     )
     assert response.status_code == 422
+
+
+def test_archived_mission_rejects_canonical_learning_mutations() -> None:
+    headers, organization_id = _owner()
+    mission = _create_mission(
+        headers=headers,
+        organization_id=organization_id,
+        title="Missão arquivada para prova de imutabilidade",
+        context="Uma versão terminal tem de permanecer legível, mas não pode ser reescrita.",
+    )
+    archived = client.patch(
+        (
+            f"/api/organizations/{organization_id}/mission-intelligence/missions/"
+            f"{mission['id']}"
+        ),
+        headers=headers,
+        json={
+            "expected_revision": mission["revision"],
+            "lifecycle_state": "archived",
+            "change_note": "Arquivo explícito para preservar a versão governada.",
+        },
+    )
+    assert archived.status_code == 200, archived.text
+
+    blocked = client.post(
+        (
+            f"/api/organizations/{organization_id}/mission-intelligence/missions/"
+            f"{mission['id']}/learnings"
+        ),
+        headers=headers,
+        json={
+            "expected_revision": archived.json()["revision"],
+            "title": "Aprendizagem tardia indevida",
+            "description": (
+                "Esta aprendizagem não pode ser acrescentada enquanto a missão "
+                "permanecer numa versão terminal."
+            ),
+            "based_on_ids": [],
+            "validity_conditions": [],
+            "invalidation_triggers": [],
+            "confidence": "moderate",
+        },
+    )
+    assert blocked.status_code == 409, blocked.text
+    assert blocked.json()["detail"]["code"] == "mission_reactivation_required"

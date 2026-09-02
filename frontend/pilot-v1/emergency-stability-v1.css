@@ -1,0 +1,110 @@
+/* SRIS Pilot V1 — emergency stability and canonical identity */
+:root{
+  --sris-emergency-green:#0b3028;
+  --sris-emergency-gold:#d6ad58;
+  --sris-emergency-cream:#f5f0e4;
+}
+
+/* Render the self-contained territory photograph as a background so its
+   visibility does not depend on the previous negative-z-index image stack. */
+.auth-page .auth-visual.auth-visual-photo{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  background:
+    linear-gradient(90deg,rgba(3,18,14,.86) 0%,rgba(3,18,14,.56) 58%,rgba(3,18,14,.28) 100%),
+    linear-gradient(0deg,rgba(3,18,14,.76),rgba(3,18,14,.04) 64%),
+    url('/sunrise.svg?v=20260824-staging-stable-v1') center 52%/cover no-repeat !important;
+}
+.auth-page .auth-visual>.sunrise-photo{display:none!important}
+.auth-page .auth-visual:before,
+.auth-page .auth-visual:after{content:none!important;display:none!important}
+.auth-page .auth-visual>.brand-lockup,
+.auth-page .auth-visual>.hero-copy,
+.auth-page .auth-visual>.hero-foot{position:relative!important;z-index:2!important}
+
+/* Canonical SRIS symbol: circle, vertical stem and upper point. */
+.brand-emblem{
+  position:relative!important;
+  display:inline-block!important;
+  width:46px!important;
+  height:46px!important;
+  flex:0 0 46px!important;
+  border:1.8px solid currentColor!important;
+  border-radius:50%!important;
+  color:var(--sris-emergency-gold)!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.brand-emblem:before{
+  content:""!important;
+  position:absolute!important;
+  left:50%!important;
+  top:10px!important;
+  width:2px!important;
+  height:28px!important;
+  transform:translateX(-50%)!important;
+  border:0!important;
+  border-radius:999px!important;
+  background:currentColor!important;
+  box-shadow:none!important;
+}
+.brand-emblem:after{
+  content:""!important;
+  position:absolute!important;
+  left:50%!important;
+  top:7px!important;
+  width:8px!important;
+  height:8px!important;
+  transform:translateX(-50%)!important;
+  border:0!important;
+  border-radius:50%!important;
+  background:currentColor!important;
+  box-shadow:0 0 0 4px rgba(214,173,88,.10)!important;
+}
+.sidebar .brand-emblem{
+  width:40px!important;
+  height:40px!important;
+  flex-basis:40px!important;
+}
+.sidebar .brand-emblem:before{top:8px!important;height:25px!important}
+.sidebar .brand-emblem:after{top:6px!important;width:7px!important;height:7px!important}
+.brand-emblem.large{
+  width:58px!important;
+  height:58px!important;
+  flex-basis:58px!important;
+}
+.brand-emblem.large:before{top:12px!important;height:36px!important}
+.brand-emblem.large:after{top:9px!important;width:9px!important;height:9px!important}
+
+/* Bring the same territory identity into the first authenticated view. */
+#overview .hero-card{
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+  color:#fff!important;
+  background:
+    linear-gradient(90deg,rgba(4,23,18,.94) 0%,rgba(4,23,18,.78) 48%,rgba(4,23,18,.42) 100%),
+    url('/sunrise.svg?v=20260824-staging-stable-v1') center 54%/cover no-repeat !important;
+  border-color:rgba(214,173,88,.28)!important;
+}
+#overview .hero-card:before,
+#overview .hero-card:after{pointer-events:none!important}
+#overview .hero-card>*{position:relative!important;z-index:2!important}
+#overview .hero-card h2,
+#overview .hero-card p,
+#overview .hero-card .eyebrow{color:#fff!important}
+#overview .hero-card .eyebrow{color:#f0ca7e!important}
+#overview .hero-card .btn-light{background:#fff!important;color:#103d32!important}
+#overview .hero-card .btn-outline-light{color:#fff!important;border-color:rgba(255,255,255,.42)!important}
+
+/* Keep the workspace usable while optional services are unavailable. */
+#provider-state[data-state="degraded"]{background:#f3ead7!important;color:#75581e!important}
+
+@media(max-width:760px){
+  .auth-page .auth-visual.auth-visual-photo{
+    min-height:52vh!important;
+    background-position:62% 50%!important;
+  }
+  #overview .hero-card{background-position:62% 52%!important}
+}

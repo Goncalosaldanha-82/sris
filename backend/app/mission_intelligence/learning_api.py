@@ -25,6 +25,7 @@ from .contracts import (
     RecordKind,
 )
 from .models import CanonicalMission, MissionRevision
+from .lifecycle import require_mutable_mission
 
 
 router = APIRouter(
@@ -110,6 +111,7 @@ def _persist_document(
     audit_action: str,
     audit_payload: dict[str, Any],
 ) -> None:
+    require_mutable_mission(row)
     document_json = _json(document.model_dump(mode="json"))
     content_hash = _hash(document)
     row.document_json = document_json
@@ -392,7 +394,6 @@ def create_canonical_learning(
             Role.OWNER.value,
             Role.ADMIN.value,
             Role.REVIEWER.value,
-            Role.CONTRIBUTOR.value,
         )
     ),
     db: Session = Depends(get_db),
@@ -493,7 +494,6 @@ def review_inherited_learning(
             Role.OWNER.value,
             Role.ADMIN.value,
             Role.REVIEWER.value,
-            Role.CONTRIBUTOR.value,
         )
     ),
     db: Session = Depends(get_db),

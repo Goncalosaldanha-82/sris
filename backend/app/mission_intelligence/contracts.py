@@ -130,6 +130,11 @@ class MissionCreateRequest(StrictModel):
     priority: Literal["critical", "strategic", "standard", "exploratory"] = "strategic"
     horizon: str = Field(default="", max_length=120)
     stakeholders: list[str] = Field(default_factory=list, max_length=50)
+    validation_profile: Literal[
+        "none",
+        "measurable_decision",
+        "tourism_advance_resource_efficiency",
+    ] = "none"
 
 
 class MissionUpdateRequest(StrictModel):
@@ -147,6 +152,11 @@ class MissionUpdateRequest(StrictModel):
     priority: Literal["critical", "strategic", "standard", "exploratory"] | None = None
     horizon: str | None = Field(default=None, max_length=120)
     stakeholders: list[str] | None = Field(default=None, max_length=50)
+    validation_profile: Literal[
+        "none",
+        "measurable_decision",
+        "tourism_advance_resource_efficiency",
+    ] | None = None
     lifecycle_state: Literal["active", "paused", "completed", "archived"] | None = None
     change_note: str = Field(min_length=3, max_length=1000)
 
@@ -393,6 +403,7 @@ class MIInteractionIntent(StrEnum):
     DESIGN_EXPERIMENT = "design_experiment"
     COMPARE_OPTIONS = "compare_options"
     SYNTHESIZE = "synthesize"
+    BUILD_MISSION_PATH = "build_mission_path"
 
 
 class MIQuestionAnswer(StrictModel):
@@ -574,6 +585,76 @@ class MIRecommendedAction(StrictModel):
     based_on_ids: list[str] = Field(min_length=1, max_length=50)
 
 
+class MIMissionPathStage(StrictModel):
+    """One AI-prepared stage of the mission, never authority by itself."""
+
+    proposal_id: str = Field(pattern=r"^PATH-AI-[A-Z0-9][A-Z0-9_-]{1,110}$")
+    stage: Literal[
+        "evidence",
+        "hypotheses",
+        "alternatives",
+        "economics",
+        "decision",
+        "action",
+        "measurement",
+        "outcome",
+        "learning",
+        "memory",
+    ]
+    title: str = Field(min_length=1, max_length=500)
+    proposal: str = Field(min_length=1, max_length=10000)
+    output_kind: Literal[
+        "fact_candidate",
+        "hypothesis",
+        "alternative",
+        "economic_assumption",
+        "decision_recommendation",
+        "action_plan",
+        "measurement_plan",
+        "expected_outcome",
+        "learning_candidate",
+        "memory_candidate",
+        "evidence_gap",
+    ]
+    readiness: Literal["ready_for_review", "conditional", "blocked_by_gap"]
+    confidence: ConfidenceLevel
+    based_on_ids: list[str] = Field(min_length=1, max_length=50)
+    assumptions: list[str] = Field(default_factory=list, max_length=20)
+    uncertainties: list[str] = Field(default_factory=list, max_length=20)
+    source_requirements: list[str] = Field(default_factory=list, max_length=20)
+    human_gate: str = Field(min_length=1, max_length=3000)
+    epistemic_status: Literal["ai_proposal_pending_human_validation"] = (
+        "ai_proposal_pending_human_validation"
+    )
+
+
+class MIMissionPathPlan(StrictModel):
+    """Fixed end-to-end path so no mission stage disappears in prose."""
+
+    evidence: MIMissionPathStage
+    hypotheses: MIMissionPathStage
+    alternatives: MIMissionPathStage
+    economics: MIMissionPathStage
+    decision: MIMissionPathStage
+    action: MIMissionPathStage
+    measurement: MIMissionPathStage
+    outcome: MIMissionPathStage
+    learning: MIMissionPathStage
+    memory: MIMissionPathStage
+
+    @model_validator(mode="after")
+    def stages_match_their_fields(self) -> "MIMissionPathPlan":
+        for field_name in type(self).model_fields:
+            if getattr(self, field_name).stage != field_name:
+                raise ValueError(f"Mission path field {field_name} contains the wrong stage")
+        proposal_ids = [
+            getattr(self, field_name).proposal_id for field_name in type(self).model_fields
+        ]
+        if len(proposal_ids) != len(set(proposal_ids)):
+            raise ValueError("Mission path proposal IDs must be unique")
+        return self
+
+
 class MIInteractionBoundary(StrictModel):
     human_review_required: Literal[True] = True
     canonical_mutation: Literal["prohibited_without_explicit_human_promotion"] = (
@@ -611,6 +692,7 @@ class MIInteractiveOutput(StrictModel):
         default_factory=list,
         max_length=10,
     )
+    mission_path: MIMissionPathPlan | None = None
     recommended_next_move: str = Field(min_length=1, max_length=5000)
     boundary: MIInteractionBoundary
 
@@ -624,6 +706,14 @@ class MIInteractiveOutput(StrictModel):
             *(item.proposal_id for item in self.experiment_proposals),
             *(item.challenge_id for item in self.challenges),
             *(item.action_id for item in self.recommended_actions),
+            *(
+                [
+                    getattr(self.mission_path, field_name).proposal_id
+                    for field_name in type(self.mission_path).model_fields
+                ]
+                if self.mission_path
+                else []
+            ),
         ]
         if len(generated) != len(set(generated)):
             raise ValueError("Interactive output IDs must be unique within a turn")
@@ -636,7 +726,12 @@ class MIInteractiveResearchBundle(StrictModel):
 
 
 class MIProposalReviewRequest(StrictModel):
-    decision: Literal["accepted_as_draft", "rejected", "deferred"]
+    decision: Literal[
+        "accepted_as_draft",
+        "human_validated",
+        "rejected",
+        "deferred",
+    ]
     comment: str = Field(min_length=3, max_length=10000)
 
 

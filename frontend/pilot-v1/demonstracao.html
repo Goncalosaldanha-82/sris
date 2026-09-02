@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b241d">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="/sris-favicon.svg" type="image/svg+xml">
+  <title>Demonstração para alojamento — SRIS Mission Intelligence</title>
+  <meta name="description" content="Demonstração pública, só de leitura, do SRIS Mission Intelligence aplicada ao alojamento e à eficiência de recursos, com dados fictícios.">
+  <link rel="stylesheet" href="/demonstracao.css?v=__PILOT_BUILD__">
+</head>
+<body>
+  <header class="demo-header">
+    <a href="https://www.sris.io/" aria-label="Voltar ao site SRIS"><img src="/sris-logo-compact-light.svg?v=__PILOT_BUILD__" alt="SRIS — Mission Intelligence"></a>
+    <nav><span class="readonly">Só de leitura</span><a class="site-return" href="https://www.sris.io/">Voltar ao site SRIS</a><a href="/">Entrar na aplicação</a></nav>
+  </header>
+  <div class="fictional-banner">Demonstração pública · Todos os dados, entidades, pessoas, locais e resultados apresentados são fictícios.</div>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">ALOJAMENTO · SUSTENTABILIDADE · EFICIÊNCIA DE RECURSOS</p>
+      <h1 id="mission-title">A carregar demonstração…</h1>
+      <p id="mission-subtitle" class="lead"></p>
+      <div class="meta" id="mission-meta"></div>
+      <div id="property-profile" class="property-profile" aria-label="Dimensão da unidade fictícia"></div>
+    </section>
+
+    <section class="summary-grid" aria-label="Resumo da missão">
+      <article><span>Estado</span><strong id="mission-status">—</strong></article>
+      <article><span>Confiança</span><strong id="mission-confidence">—</strong><small id="confidence-definition" class="summary-note"></small></article>
+      <article><span>Decisão atual</span><strong id="mission-decision">—</strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading"><p class="eyebrow">01 · SITUAÇÃO</p><h2>O que estava em causa</h2></div>
+      <p id="situation-summary" class="body-copy"></p>
+      <div id="attention-list" class="card-grid"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading"><p class="eyebrow">02 · CADEIA DE DECISÃO</p><h2>Do sinal à aprendizagem</h2></div>
+      <div id="decision-chain" class="chain"></div>
+    </section>
+
+    <section class="panel split">
+      <div>
+        <div class="section-heading"><p class="eyebrow">03 · QUESTÃO</p><h2>A pergunta que orientou o piloto</h2></div>
+        <p id="central-question" class="body-copy"></p>
+        <h3>O que estava disponível</h3><p id="available-evidence" class="body-copy small"></p>
+        <h3>O que continuou desconhecido</h3><p id="unknowns" class="body-copy small"></p>
+      </div>
+      <div>
+        <div class="section-heading"><p class="eyebrow">04 · ALTERNATIVAS</p><h2>Opções comparadas</h2></div>
+        <div id="alternatives-list" class="stack"></div>
+      </div>
+      <div class="product-surface matrix-surface">
+        <div class="product-bar"><span>VISTA DA PLATAFORMA</span><strong>Matriz de alternativas</strong><small id="matrix-scale"></small></div>
+        <p class="mobile-scroll-hint">Deslize horizontalmente para consultar todos os critérios →</p>
+        <div class="table-scroll" tabindex="0" aria-label="Matriz com deslocamento horizontal"><table class="decision-matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading"><p class="eyebrow">05 · EVIDÊNCIA</p><h2>Registos com método e limitação</h2></div>
+      <div id="evidence-list" class="evidence-grid"></div>
+      <div class="product-surface graph-surface">
+        <div class="product-bar"><span>VISTA DA PLATAFORMA</span><strong>Grafo de evidência</strong><small>Selecione um nó para consultar proveniência e limitação</small></div>
+        <div id="evidence-graph" class="evidence-graph" aria-label="Grafo de evidência interativo"></div>
+        <div id="graph-detail" class="graph-detail" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel economy-panel">
+      <div class="section-heading"><p class="eyebrow">06 · ECONOMIA E RECURSOS</p><h2>Business Case Vivo: antes, durante e depois</h2></div>
+      <p id="business-case-notice" class="business-case-notice"></p>
+      <div class="scenario-heading"><div><span>CENÁRIOS</span><strong>Teste os pressupostos, não apenas o resultado</strong></div><div id="scenario-controls" class="scenario-controls" role="group" aria-label="Cenário económico"></div></div>
+      <div id="business-case-timeline" class="economy-timeline"></div>
+      <div class="resource-grid">
+        <article class="resource-card"><p class="eyebrow">RECURSOS HUMANOS</p><h3>Tempo interno previsto</h3><div id="human-resources" class="resource-list"></div></article>
+        <article class="resource-card"><p class="eyebrow">RECURSOS MATERIAIS</p><h3>Meios necessários</h3><div id="material-resources" class="resource-list"></div></article>
+      </div>
+      <div class="formula-box"><strong>Como são calculadas as projeções</strong><ul id="business-case-formulas"></ul></div>
+    </section>
+
+    <section class="panel learning-panel">
+      <div class="section-heading"><p class="eyebrow">07 · APRENDIZAGEM</p><h2>O que fica reutilizável</h2></div>
+      <div id="learning-list" class="card-grid"></div>
+    </section>
+
+    <section class="cta">
+      <p class="eyebrow">ÁREA INSTITUCIONAL</p>
+      <h2>Os pilotos reais permanecem separados desta demonstração.</h2>
+      <p>O acesso é criado por convite e cada organização trabalha no seu próprio espaço.</p>
+      <a href="https://sris-mission-intelligence.up.railway.app/#contacto">Solicitar contacto institucional</a>
+    </section>
+  </main>
+  <footer>SRIS — Mission Intelligence · Demonstração fictícia · Atualizada em agosto de 2026</footer>
+  <div id="demo-error" class="error hidden" role="alert"></div>
+  <script src="/demonstracao.js?v=__PILOT_BUILD__" defer></script>
+</body>
+</html>

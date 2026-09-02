@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import os
 import smtplib
 import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 from email.utils import formataddr
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
+from urllib.request import Request, urlopen
 
 
 class AuthDeliveryError(RuntimeError):
@@ -24,6 +27,16 @@ class SMTPConfiguration:
     from_name: str
     public_base_url: str
     timeout_seconds: int
+
+
+@dataclass(frozen=True)
+class AuthDeliveryConfiguration:
+    provider: str
+    from_email: str
+    from_name: str
+    public_base_url: str
+    timeout_seconds: int
+    smtp: SMTPConfiguration | None = None
 
 
 def _bounded_integer(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -103,11 +116,60 @@ def smtp_configuration() -> SMTPConfiguration | None:
 
 
 def auth_email_delivery_ready() -> bool:
-    return smtp_configuration() is not None
+    return auth_delivery_configuration() is not None
+
+
+def _api_delivery_configuration(provider: str) -> AuthDeliveryConfiguration | None:
+    public_base_url = _normalized_base_url(os.getenv("SRIS_PUBLIC_BASE_URL", ""))
+    from_email = os.getenv("SRIS_EMAIL_FROM", "").strip()
+    from_name = _clean_header(os.getenv("SRIS_EMAIL_FROM_NAME", "SRIS")) or "SRIS"
+    key_name = "RESEND_API_KEY" if provider == "resend" else "BREVO_API_KEY"
+    if not os.getenv(key_name, "").strip() or not public_base_url or "@" not in from_email:
+        return None
+    if _managed_or_production() and not public_base_url.startswith("https://"):
+        return None
+    return AuthDeliveryConfiguration(
+        provider=provider,
+        from_email=from_email,
+        from_name=from_name,
+        public_base_url=public_base_url,
+        timeout_seconds=_bounded_integer("SRIS_EMAIL_TIMEOUT_SECONDS", 12, 3, 30),
+    )
+
+
+def auth_delivery_configuration() -> AuthDeliveryConfiguration | None:
+    """Resolve exactly one transactional-email transport and fail closed.
+
+    The identity lifecycle uses this single resolver for invitations and
+    password recovery.  Provider and credentials remain server-side details.
+    """
+
+    available: dict[str, AuthDeliveryConfiguration] = {}
+    smtp = smtp_configuration()
+    if smtp is not None:
+        available["smtp"] = AuthDeliveryConfiguration(
+            provider="smtp",
+            from_email=smtp.from_email,
+            from_name=smtp.from_name,
+            public_base_url=smtp.public_base_url,
+            timeout_seconds=smtp.timeout_seconds,
+            smtp=smtp,
+        )
+    for provider in ("resend", "brevo"):
+        configured = _api_delivery_configuration(provider)
+        if configured is not None:
+            available[provider] = configured
+
+    selected = os.getenv("SRIS_EMAIL_PROVIDER", "").strip().lower()
+    if selected:
+        return available.get(selected) if selected in {"smtp", "resend", "brevo"} else None
+    if len(available) != 1:
+        return None
+    return next(iter(available.values()))
 
 
 def build_auth_link(flow: str, raw_token: str) -> str:
-    configuration = smtp_configuration()
+    configuration = auth_delivery_configuration()
     if configuration is None:
         raise AuthDeliveryError("Authentication email is not configured")
     if flow not in {"invite", "reset"}:
@@ -127,8 +189,41 @@ def send_transactional_email(
     text_body: str,
     html_body: str,
 ) -> None:
-    configuration = smtp_configuration()
+    configuration = auth_delivery_configuration()
     if configuration is None:
+        raise AuthDeliveryError("Authentication email is not configured")
+
+    if configuration.provider == "resend":
+        _send_api_email(
+            configuration,
+            "https://api.resend.com/emails",
+            {
+                "from": formataddr((configuration.from_name, configuration.from_email)),
+                "to": [_clean_header(recipient)],
+                "subject": _clean_header(subject),
+                "text": text_body,
+                "html": html_body,
+            },
+            {"Authorization": f"Bearer {os.environ['RESEND_API_KEY'].strip()}"},
+        )
+        return
+    if configuration.provider == "brevo":
+        _send_api_email(
+            configuration,
+            "https://api.brevo.com/v3/smtp/email",
+            {
+                "sender": {"name": configuration.from_name, "email": configuration.from_email},
+                "to": [{"email": _clean_header(recipient)}],
+                "subject": _clean_header(subject),
+                "textContent": text_body,
+                "htmlContent": html_body,
+            },
+            {"api-key": os.environ["BREVO_API_KEY"].strip()},
+        )
+        return
+
+    smtp_configuration_value = configuration.smtp
+    if smtp_configuration_value is None:
         raise AuthDeliveryError("Authentication email is not configured")
 
     message = EmailMessage()
@@ -142,26 +237,49 @@ def send_transactional_email(
 
     tls_context = ssl.create_default_context()
     try:
-        if configuration.security == "ssl":
+        if smtp_configuration_value.security == "ssl":
             smtp: smtplib.SMTP = smtplib.SMTP_SSL(
-                configuration.host,
-                configuration.port,
-                timeout=configuration.timeout_seconds,
+                smtp_configuration_value.host,
+                smtp_configuration_value.port,
+                timeout=smtp_configuration_value.timeout_seconds,
                 context=tls_context,
             )
         else:
             smtp = smtplib.SMTP(
-                configuration.host,
-                configuration.port,
-                timeout=configuration.timeout_seconds,
+                smtp_configuration_value.host,
+                smtp_configuration_value.port,
+                timeout=smtp_configuration_value.timeout_seconds,
             )
         with smtp:
             smtp.ehlo()
-            if configuration.security == "starttls":
+            if smtp_configuration_value.security == "starttls":
                 smtp.starttls(context=tls_context)
                 smtp.ehlo()
-            if configuration.username:
-                smtp.login(configuration.username, configuration.password)
+            if smtp_configuration_value.username:
+                smtp.login(smtp_configuration_value.username, smtp_configuration_value.password)
             smtp.send_message(message)
     except (OSError, smtplib.SMTPException) as exc:
+        raise AuthDeliveryError("Authentication email delivery failed") from exc
+
+
+def _send_api_email(
+    configuration: AuthDeliveryConfiguration,
+    url: str,
+    payload: dict,
+    authorization_headers: dict[str, str],
+) -> None:
+    request = Request(
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json", **authorization_headers},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=configuration.timeout_seconds) as response:
+            status_code = int(getattr(response, "status", 0) or 0)
+            if status_code < 200 or status_code >= 300:
+                raise AuthDeliveryError("Authentication email delivery failed")
+    except AuthDeliveryError:
+        raise
+    except (HTTPError, URLError, OSError, ValueError) as exc:
         raise AuthDeliveryError("Authentication email delivery failed") from exc

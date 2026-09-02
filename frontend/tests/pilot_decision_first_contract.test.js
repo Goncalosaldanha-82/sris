@@ -1,0 +1,286 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const here=path.dirname(fileURLToPath(import.meta.url));
+const pilot=path.resolve(here,'../pilot-v1');
+const read=name=>fs.readFileSync(path.join(pilot,name),'utf8');
+
+const index=read('index.html');
+const home=read('home.html');
+const css=read('pilot.css');
+const loaded={
+  app:read('app.js'),
+  auth:read('auth.js'),
+  workspace:read('mission-workspace-v2.js'),
+  graph:read('evidence-graph.js'),
+  comparison:read('alternative-matrix-v1.js'),
+  businessCase:read('business-case-v1.js'),
+  validation:read('validation-protocol.js'),
+  learning:read('learning-lineage.js'),
+  decision:read('decision-cycle-v1.js'),
+  admin:read('admin-accounts.js'),
+  missionState:read('mission-state-v1.js'),
+};
+
+test('the Pilot has one explicit browser composition',()=>{
+  for(const [name,source] of Object.entries(loaded)){
+    assert.doesNotThrow(()=>new Function(source),`${name} must parse`);
+    assert.doesNotMatch(source,/new MutationObserver\s*\(/,`${name} must not rewrite the DOM through a broad observer`);
+    assert.doesNotMatch(source,/window\.fetch\s*=/,`${name} must not replace global fetch`);
+    assert.doesNotMatch(source,/\b(?:prompt|alert|confirm)\s*\(/,`${name} must use governed in-product forms`);
+  }
+  assert.equal((home.match(/rel="stylesheet"/g)||[]).length,1);
+  assert.equal((index.match(/rel="stylesheet"/g)||[]).length,1);
+  assert.match(home,/pilot\.css\?v=__PILOT_BUILD__/);
+  for(const asset of ['app.js','mission-workspace-v2.js','evidence-graph.js','alternative-matrix-v1.js','business-case-v1.js','validation-protocol.js','learning-lineage.js','decision-cycle-v1.js','admin-accounts.js']){
+    assert.equal((index.match(new RegExp(asset.replace('.','\\.'),'g'))||[]).length,1);
+  }
+  for(const obsolete of ['pilot-integration-v3.js','mission-experience-v1.js','release-hardening-v2.js','decision-workbench-v1.js','intelligence-v2.js']){
+    assert.doesNotMatch(index,new RegExp(obsolete.replaceAll('.','\\.')));
+  }
+});
+
+test('alternative comparison is multicriteria, persistent and decision-neutral',()=>{
+  for(const marker of ['Eficácia','Custo','Risco','Reversibilidade','Impacto no utilizador / beneficiário','Robustez da evidência']){
+    assert.match(loaded.comparison,new RegExp(marker));
+  }
+  assert.match(index,/data-open-mission-tab="comparison"/);
+  assert.match(loaded.comparison,/20–100 pontos/);
+  assert.match(loaded.comparison,/data-acm-live-total/);
+  assert.match(loaded.comparison,/Guardar nova revisão/);
+  assert.match(loaded.comparison,/Confirmar revisão humana/);
+  assert.match(loaded.comparison,/Nenhuma alternativa é selecionada automaticamente/);
+  assert.match(loaded.comparison,/— · por atribuir/);
+  assert.match(loaded.comparison,/nenhuma pontuação é presumida/);
+  assert.match(loaded.comparison,/complete\?weightedTotal\.toFixed\(1\):'—'/);
+  assert.match(loaded.comparison,/const ranking = state\.matrix &&/);
+  assert.match(loaded.comparison,/sris:alternative-matrix-updated/);
+  assert.match(loaded.comparison,/Duplicado exato detetado/);
+  assert.match(loaded.comparison,/Retirar duplicado/);
+  assert.match(loaded.comparison,/if \(addingAlternative\) return/);
+  assert.match(loaded.comparison,/alternative_change\?\.created/);
+  assert.match(loaded.comparison,/\/alternatives\/\$\{encodeURIComponent\(alternativeId\)\}\/duplicate/);
+});
+
+test('the live business case follows money, time and resources without fake precision',()=>{
+  for(const marker of ['BUSINESS CASE VIVO · CÁLCULO DETERMINÍSTICO','Custo previsto à conclusão','Benefício realizado','ROI projetado','Prazo de recuperação','Horas humanas','Recursos bloqueados','Encargo anual posterior','Financiamento identificado','Conclusão automática auditável','Valor conservador','Valor favorável','Valor unitário × quantidade prevista','Estado operacional','Bloqueio operacional','Origem do valor','Evidência da missão','Confirmar revisão humana']){
+    assert.match(loaded.businessCase,new RegExp(marker));
+  }
+  assert.match(index,/data-open-mission-tab="economics"/);
+  assert.match(index,/business-case-v1\.js\?v=__PILOT_BUILD__/);
+  assert.match(loaded.businessCase,/sris:mission-opened/);
+  assert.match(loaded.businessCase,/loadSequence/);
+  assert.match(loaded.businessCase,/sris:business-case-updated/);
+  assert.match(loaded.businessCase,/A pontuação mede completude e rastreabilidade; não transforma estimativas em factos/);
+  assert.match(loaded.businessCase,/Rastreabilidade das linhas monetárias/);
+  assert.match(loaded.businessCase,/Completude estrutural/);
+  assert.match(loaded.businessCase,/Estado de revisão/);
+  assert.match(loaded.businessCase,/metricKnown\(financialGroup\).*row\.roi_pct == null/s);
+  assert.match(loaded.businessCase,/alternative_node_id/);
+  assert.match(loaded.comparison,/Economia e recursos por alternativa/);
+  assert.match(loaded.comparison,/economic_alignment/);
+  assert.match(loaded.app,/live_business_case/);
+  assert.match(loaded.app,/businessCaseReportHtml/);
+  assert.match(loaded.app,/sris\.pilot\.mission-export\.v3/);
+});
+
+test('decision foundation uses the human document title instead of a technical UUID',()=>{
+  assert.match(loaded.decision,/const foundationLabel=row\.evidence_label/);
+  assert.match(loaded.decision,/summaryField\('Fundamento',foundationLabel/);
+  assert.doesNotMatch(loaded.decision,/summaryField\('Fundamento',row\.evidence_node_id\?`Evidência/);
+});
+
+test('Mission Workspace remains the product centre and assistance is secondary',()=>{
+  assert.match(index,/O que precisa de atenção agora\./);
+  assert.match(index,/Retomar trabalho/);
+  assert.match(index,/FILA DE ATENÇÃO/);
+  assert.match(index,/Análise assistida, não centro do produto\./);
+  assert.match(index,/Humana obrigatória/i);
+  assert.doesNotMatch(index,/data-section="billing"|Créditos e planos|gpt-5\.6-terra/);
+  assert.doesNotMatch(loaded.workspace,/model_or_system|embedding_model|credit_eur/);
+  for(const marker of ['Eficiência de recursos','Problema operacional','Investimento ou alteração','Critério de sucesso']){
+    assert.match(index,new RegExp(marker));
+  }
+});
+
+test('entry page uses the valid institutional sunrise and survives the iPhone keyboard',()=>{
+  assert.match(home,/class="auth-photo"/);
+  assert.match(home,/territory-sunrise\.webp\?v=__PILOT_BUILD__/);
+  assert.match(home,/data-mode="register">Criar conta<\/button>/);
+  assert.match(home,/linha de decisão reconstruível/);
+  assert.match(home,/Decisões reconstruíveis/);
+  assert.match(home,/Memória revalidável/);
+  assert.match(home,/PILOTO V1 · VALIDAÇÃO OPERACIONAL/);
+  assert.match(home,/id="login-submit"/);
+  assert.match(css,/\.keyboard-open \.auth-visual\{display:none\}/);
+  assert.match(css,/env\(safe-area-inset-bottom\)/);
+  assert.match(css,/font-size:16px/);
+  assert.match(css,/\.report-actions button,.mission-tabs button,.attachment-actions button\{min-height:44px;touch-action:manipulation\}/);
+  assert.match(css,/\.mission-tab-navigation\{[^}]*max-width:100vw/);
+  assert.match(loaded.auth,/visualViewport/);
+  assert.match(loaded.auth,/scrollIntoView/);
+  assert.match(loaded.auth,/location\.assign\('\/app'\)/);
+});
+
+test('overview exposes an accessible and actionable canonical cycle navigator',()=>{
+  assert.equal((index.match(/data-cycle-step="\d+"/g)||[]).length,5);
+  assert.match(index,/role="tablist" aria-label="Cinco momentos do percurso de missão/);
+  assert.match(index,/id="cycle-prev"/);
+  assert.match(index,/id="cycle-next"/);
+  assert.match(index,/id="cycle-open-step"/);
+  assert.match(loaded.app,/function installDecisionCycleNavigator\(\)/);
+  assert.match(loaded.app,/ArrowLeft:activeIndex-1/);
+  assert.match(loaded.app,/ArrowRight:activeIndex\+1/);
+  assert.match(loaded.app,/activateMissionTab\(step\.tab\)/);
+  assert.match(loaded.app,/installDecisionCycleNavigator\(\)/);
+});
+
+test('technical identifiers stay behind explicit integrity details',()=>{
+  assert.doesNotMatch(loaded.missionState,/críticos · SHA/);
+  assert.match(loaded.missionState,/Integridade verificada · supervisão humana obrigatória/);
+  assert.match(loaded.missionState,/Prova|SHA-256/);
+  assert.doesNotMatch(loaded.workspace,/\$\{health\} · \$\{hash\}/);
+  assert.match(index,/class="mission-integrity"/);
+  assert.match(loaded.app,/Prova técnica das revisões/);
+  assert.match(loaded.app,/integridade verificada/);
+  assert.match(loaded.app,/lifecycleChange=note\.match/);
+  assert.match(loaded.app,/toLocaleLowerCase\('pt-PT'\)/);
+});
+
+test('sessions refresh once before protected work is abandoned',()=>{
+  assert.match(loaded.app,/async function renewSession/);
+  assert.match(loaded.app,/\/api\/auth\/refresh/);
+  assert.match(loaded.app,/response\.status===401&&retryAuth&&refreshToken\(\)/);
+  assert.match(loaded.app,/return rawApi\(path,\{\.\.\.options,retryAuth:false\}\)/);
+  for(const name of ['workspace','graph','validation','learning','decision','admin']){
+    assert.match(loaded[name],/window\.SRISApi\?\.request/);
+  }
+});
+
+test('documents and auditable report exports are canonical actions',()=>{
+  assert.match(index,/id="mission-file" multiple/);
+  assert.match(index,/id="upload-drop-zone"/);
+  assert.match(index,/id="attachment-extraction-panel"/);
+  assert.match(index,/data-report="print"/);
+  assert.match(index,/data-report="html"/);
+  assert.match(index,/data-report="json"/);
+  assert.match(index,/data-report="md"/);
+  assert.match(loaded.app,/async function uploadFiles/);
+  assert.match(loaded.app,/async function loadAttachmentExtraction/);
+  assert.match(loaded.app,/document-evidence/);
+  assert.match(loaded.app,/EXTRAÇÃO DOCUMENTAL · SEM IA/);
+  assert.match(loaded.app,/data-download-attachment/);
+  assert.match(loaded.app,/function completeReportHtml/);
+  assert.match(loaded.app,/function exportReport/);
+  assert.match(loaded.app,/Relatório Markdown gerado/);
+  assert.match(loaded.app,/downloadBlob\(.*30000/s);
+  assert.match(loaded.app,/async function reportSnapshot/);
+  assert.match(loaded.app,/crypto\.subtle\.digest/);
+});
+
+test('canonical transverse objects retain human provenance',()=>{
+  for(const id of ['mission-assumptions','mission-constraints','mission-success'])assert.match(index,new RegExp(`id="${id}"`));
+  assert.match(loaded.app,/createGraphNode\(mission\.code,'assumption'/);
+  assert.match(loaded.app,/createGraphNode\(mission\.code,'constraint'/);
+  assert.match(loaded.app,/source:'mission_onboarding'/);
+  assert.match(loaded.graph,/value="gap"/);
+  assert.match(loaded.graph,/value="alternative"/);
+});
+
+test('evidence relations confirm persistence where the user creates them',()=>{
+  for(const marker of ['id="eg-edge-preview"','id="eg-edge-swap"','id="eg-edge-submit"','id="eg-edge-status"','id="eg-relations"','id="eg-relations-count"']){
+    assert.match(loaded.graph,new RegExp(marker));
+  }
+  assert.match(loaded.graph,/primeiro objeto \+ relação \+ segundo objeto/);
+  assert.match(loaded.graph,/é condicionado\/a por/);
+  assert.match(loaded.graph,/Exemplo: “Hipótese é condicionada por Restrição”/);
+  assert.match(loaded.graph,/Possível direção invertida/);
+  assert.match(loaded.graph,/data-edge-reverse/);
+  assert.match(loaded.graph,/data-edge-delete/);
+  assert.match(loaded.graph,/data-edge-confirm/);
+  assert.match(loaded.graph,/data-edge-cancel/);
+  assert.match(loaded.graph,/Confirmar inversão/);
+  assert.match(loaded.graph,/Confirmar eliminação/);
+  assert.match(loaded.graph,/method:'DELETE'/);
+  assert.match(loaded.graph,/\/reverse/);
+  assert.match(loaded.graph,/operação ficará registada na auditoria/);
+  assert.match(loaded.graph,/A guardar e a confirmar a relação no servidor/);
+  assert.match(loaded.graph,/Relação criada e confirmada/);
+  assert.match(loaded.graph,/Relação já existente e confirmada/);
+  assert.match(loaded.graph,/O servidor não devolveu a relação no grafo persistente/);
+  assert.match(loaded.graph,/from_node_id===from&&edge\.to_node_id===to&&edge\.edge_type===edgeType/);
+  assert.match(loaded.graph,/data-eg-review="accepted"/);
+  assert.match(loaded.graph,/data-eg-review="verified"/);
+  assert.match(loaded.graph,/Aceitar após revisão/);
+  assert.match(loaded.graph,/Verificar factual/);
+  assert.match(loaded.graph,/A decisão continua sob autoridade humana/);
+});
+
+test('learning reuse is reviewed in-product and shows active inherited context',()=>{
+  assert.match(loaded.learning,/data-review-form/);
+  assert.match(loaded.learning,/active-context/);
+  assert.match(loaded.learning,/Revisão de aplicabilidade nesta missão/);
+  assert.match(loaded.learning,/sris:mission-opened/);
+  assert.match(loaded.learning,/loadSequence/);
+  assert.match(loaded.learning,/code!==missionCode\(\)/);
+  assert.doesNotMatch(loaded.learning,/Aprendizagem já revista neste contexto/);
+  assert.match(loaded.learning,/apenas aprendizagens publicadas por outras missões/);
+  assert.match(loaded.learning,/evitar reutilização circular/);
+  assert.match(loaded.learning,/sris:learning-reviewed/);
+  assert.match(loaded.learning,/Reutilizar nesta missão/);
+  assert.match(loaded.learning,/Revalidar antes de reutilizar/);
+  assert.match(loaded.learning,/Não aplicável a esta missão/);
+  assert.match(loaded.learning,/canonicamente válida/);
+  assert.match(loaded.learning,/validade suspensa/);
+  assert.match(loaded.learning,/Origem suspensa/);
+  assert.match(loaded.learning,/suspended\?'ll-suspended'/);
+  assert.match(loaded.learning,/data-applicability/);
+  assert.match(loaded.learning,/Que diferenças existem entre os contextos\?/);
+  assert.match(loaded.learning,/pointerup.*ensureMobileEditorFocus/);
+  assert.match(loaded.learning,/pointer-events:auto!important/);
+  assert.match(loaded.learning,/enterkeyhint="next"/);
+  assert.match(loaded.learning,/enterkeyhint="done"/);
+  assert.doesNotMatch(loaded.learning,/O que mudou no contexto\?/);
+  assert.doesNotMatch(loaded.learning,/data-disposition/);
+});
+
+test('mission changes clear every active module before loading the next context',()=>{
+  assert.match(loaded.workspace,/state\.contextVersion\+=1/);
+  assert.match(loaded.workspace,/state\.sessionId=null;state\.turns=\[\];state\.attachments=\[\];state\.pendingQuestions=\[\];clearMissionIntelligence\(mission\)/);
+  assert.match(loaded.workspace,/requestedMissionId!==state\.missionId\|\|requestedVersion!==state\.contextVersion/);
+  assert.match(loaded.workspace,/requestedVersion!==state\.contextVersion\|\|requestedCode!==missionCode\(\)/);
+  assert.match(loaded.workspace,/memoryStateLabels/);
+  assert.match(loaded.workspace,/suspended:'Suspenso'/);
+  assert.match(loaded.workspace,/A trocar o contexto da missão de forma atómica/);
+  assert.match(loaded.learning,/candidates\?\.summary\?\.reusable_count/);
+  assert.match(loaded.learning,/candidates\?\.summary\?\.requires_revalidation_count/);
+  assert.match(loaded.app,/let missionOpenSequence=0/);
+  assert.match(loaded.app,/if\(openSequence!==missionOpenSequence\)return/);
+  assert.match(loaded.app,/if\(!selectedMission\|\|selectedMission\.id!==missionId\)return/);
+  assert.match(loaded.app,/setMissionContextLoading\(true,targetMission\)/);
+  assert.match(loaded.app,/waitForGovernedMissionContext\(mission\.code,openSequence\)/);
+  assert.match(loaded.app,/event\.detail\?\.mission\?\.code===code/);
+  assert.match(index,/id="mission-context-loading"/);
+  assert.match(css,/mission-context-loading-active>:not\(#mission-context-loading\)/);
+  assert.match(loaded.graph,/graphLoadSequence/);
+  assert.match(loaded.graph,/sris:mission-opened/);
+  assert.match(loaded.comparison,/loadSequence/);
+  assert.match(loaded.comparison,/A trocar o contexto da missão de forma atómica/);
+  assert.match(loaded.decision,/loading=false;\s*rows=\[\];\s*evidenceNodes=\[\];\s*render\(\)/s);
+});
+
+test('rejected decisions, identity and legacy copy reconcile visibly',()=>{
+  assert.match(loaded.decision,/statusSelect\.value=row\.status\|\|'proposed'/);
+  assert.match(loaded.app,/sris_user_email/);
+  assert.match(loaded.admin,/profileEmail\.value=current\.email/);
+  assert.match(loaded.app,/Entrada de análise aceite como nova revisão canónica da missão\./);
+  assert.match(loaded.validation,/PRONTIDÃO OPERACIONAL DO PROTOCOLO/);
+  assert.match(loaded.validation,/incluindo revisão das evidências/);
+  assert.match(loaded.missionState,/Execução governada e prova da ação em falta/);
+  assert.match(loaded.graph,/Estado legado suspenso/);
+  assert.match(loaded.decision,/Estado legado suspenso/);
+  assert.match(loaded.decision,/sris:mission-state-updated/);
+});

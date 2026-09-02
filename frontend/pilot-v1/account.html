@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#103d32">
+  <link rel="icon" href="/sris-favicon.svg" type="image/svg+xml">
+  <title>Acesso ao workspace · SRIS Pilot</title>
+  <link rel="stylesheet" href="/pilot.css?v=__PILOT_BUILD__">
+  <style>
+    .access-page{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:minmax(320px,.85fr) minmax(430px,1.15fr);background:var(--paper)}
+    .access-context{display:flex;min-height:100%;flex-direction:column;justify-content:space-between;padding:clamp(30px,6vw,78px);background:linear-gradient(145deg,var(--forest-deep),var(--forest));color:#fff}.access-context .brand-lockup{color:var(--gold-light)}.access-context h1{max-width:620px;margin:22px 0 14px;color:#fff;font-size:clamp(45px,6vw,76px);line-height:.98}.access-context p{max-width:540px;color:rgba(255,255,255,.75)}
+    .access-surface{display:grid;place-items:center;padding:clamp(20px,5vw,70px)}.access-card{width:min(590px,100%);border-top:4px solid var(--gold);border-radius:3px;background:#fff;padding:clamp(25px,5vw,52px);box-shadow:var(--shadow)}.access-card h2{margin:8px 0 10px}.access-card .btn{width:100%}.access-summary{margin:15px 0;border-left:3px solid var(--forest);background:#f1f5f2;padding:14px}.access-summary strong,.access-summary span{display:block}.access-summary span{margin-top:4px;color:var(--muted);font-size:11px}.access-message{min-height:24px;margin-top:13px;color:var(--muted);font-size:12px}.access-message.error{color:var(--danger)}.access-message.success{border:1px solid #c8ddd1;background:#eef8f2;color:var(--success);padding:11px}.access-note{margin-top:20px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:10px}
+    @media(max-width:800px){.access-page{display:block}.access-context{min-height:205px;padding:25px 22px}.access-context-copy{display:none}.access-surface{display:block;padding:20px 15px calc(80px + env(safe-area-inset-bottom))}.access-card{padding:27px 21px}.access-card h2{font-size:38px}}
+  </style>
+</head>
+<body>
+  <div class="access-page">
+    <aside class="access-context">
+      <div class="brand-lockup"><img class="brand-lockup-image" src="/sris-logo-compact-dark.svg?v=__PILOT_BUILD__" alt="SRIS — Mission Intelligence" width="240" height="53"></div>
+      <div class="access-context-copy"><div class="eyebrow" style="color:var(--gold-light)">IDENTIDADE E CONTINUIDADE</div><h1>Acesso pessoal. Trabalho preservado.</h1><p>Convites e recuperações são temporários e de utilização única. Depois de entrar, cada missão regressa ao mesmo workspace, com revisões, evidência, decisões e memória.</p></div>
+      <small>SRIS Pilot V1 · validação operacional</small>
+    </aside>
+    <main class="access-surface">
+      <section class="access-card">
+        <div id="request-view" class="hidden">
+          <div class="eyebrow">RECUPERAR ACESSO</div><h2>Definir uma nova palavra-passe</h2><p class="muted">Se a conta estiver ativa e o email transacional configurado, receberá um link temporário.</p>
+          <form id="request-form"><div class="field"><label for="request-email">Email</label><input id="request-email" type="email" autocomplete="email" required></div><button class="btn btn-primary" id="request-submit" type="submit">Enviar instruções</button></form>
+          <div class="access-message" id="request-message" aria-live="polite"></div>
+          <a class="btn btn-secondary" href="/">Voltar ao início de sessão</a>
+        </div>
+        <div id="invite-view" class="hidden">
+          <div class="eyebrow">CONVITE PARA O WORKSPACE</div><h2>Ativar acesso</h2><p class="muted" id="invite-intro">A validar o convite…</p><div class="access-summary hidden" id="invite-summary"></div>
+          <form id="invite-form" class="hidden"><div class="field" id="invite-name-field"><label for="invite-name">Nome completo</label><input id="invite-name" minlength="2" maxlength="200" autocomplete="name" required></div><div class="field"><label for="invite-password" id="invite-password-label">Criar palavra-passe</label><input id="invite-password" type="password" minlength="12" maxlength="200" autocomplete="new-password" required></div><div class="field" id="invite-confirm-field"><label for="invite-confirm">Confirmar palavra-passe</label><input id="invite-confirm" type="password" minlength="12" maxlength="200" autocomplete="new-password" required></div><button class="btn btn-primary" type="submit">Ativar conta e entrar</button></form>
+          <div class="access-message" id="invite-message" aria-live="polite"></div><a class="btn btn-secondary" href="/">Voltar ao início de sessão</a>
+        </div>
+        <div id="reset-view" class="hidden">
+          <div class="eyebrow">NOVA PALAVRA-PASSE</div><h2>Recuperar a conta</h2><p class="muted">Defina uma palavra-passe nova, com pelo menos 12 caracteres.</p>
+          <form id="reset-form"><div class="field"><label for="reset-password">Nova palavra-passe</label><input id="reset-password" type="password" minlength="12" maxlength="200" autocomplete="new-password" required></div><div class="field"><label for="reset-confirm">Confirmar nova palavra-passe</label><input id="reset-confirm" type="password" minlength="12" maxlength="200" autocomplete="new-password" required></div><button class="btn btn-primary" type="submit">Guardar nova palavra-passe</button></form>
+          <div class="access-message" id="reset-message" aria-live="polite"></div><a class="btn btn-secondary" href="/">Voltar ao início de sessão</a>
+        </div>
+        <div class="access-note">Nunca partilhe a palavra-passe nem o link pessoal. O SRIS não solicita palavras-passe por email ou telefone.</div>
+      </section>
+    </main>
+  </div>
+  <script>
+  (()=>{
+    'use strict';
+    const $=selector=>document.querySelector(selector);
+    const roleLabels={admin:'Administrador',reviewer:'Revisor',contributor:'Colaborador',observer:'Observador'};
+    let inviteToken='';let resetToken='';let invitation=null;
+    const show=id=>['request-view','invite-view','reset-view'].forEach(view=>$('#'+view).classList.toggle('hidden',view!==id));
+    const message=(id,text,type='')=>{const node=$(id);node.textContent=text;node.className=`access-message ${type}`.trim()};
+    async function request(url,options={}){const response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})},cache:'no-store'});const data=await response.json().catch(()=>({}));if(!response.ok){const detail=data.detail;throw new Error(typeof detail==='string'?detail:(detail?.message||detail?.code||'Não foi possível concluir o pedido.'))}return data}
+    function readFragment(){const params=new URLSearchParams(location.hash.replace(/^#/,''));inviteToken=params.get('invite')||'';resetToken=params.get('reset')||'';if(location.hash)history.replaceState(null,'',location.pathname+location.search)}
+    async function loadInvitation(){show('invite-view');try{invitation=await request('/api/auth/invitations/inspect',{method:'POST',body:JSON.stringify({token:inviteToken})});$('#invite-intro').textContent=invitation.existing_account?'A conta já existe. Confirme a palavra-passe atual para aceitar o acesso a este workspace.':'Confirme os dados e crie a palavra-passe da sua conta.';const summary=$('#invite-summary');summary.replaceChildren();const summaryName=document.createElement('strong');summaryName.textContent=invitation.organization_name;const summaryMeta=document.createElement('span');summaryMeta.textContent=`${invitation.email} · ${roleLabels[invitation.role]||invitation.role}`;summary.append(summaryName,summaryMeta);summary.classList.remove('hidden');$('#invite-name').value=invitation.full_name||'';$('#invite-name-field').classList.toggle('hidden',invitation.existing_account);$('#invite-name').required=!invitation.existing_account;$('#invite-password-label').textContent=invitation.existing_account?'Palavra-passe atual':'Criar palavra-passe';$('#invite-password').autocomplete=invitation.existing_account?'current-password':'new-password';$('#invite-confirm-field').classList.toggle('hidden',invitation.existing_account);$('#invite-confirm').required=!invitation.existing_account;$('#invite-form').classList.remove('hidden')}catch(error){$('#invite-intro').textContent='Não foi possível validar este convite.';message('#invite-message',error.message,'error')}}
+    $('#request-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;message('#request-message','A processar…');try{const data=await request('/api/auth/password-reset/request',{method:'POST',body:JSON.stringify({email:$('#request-email').value.trim()})});event.target.reset();message('#request-message',data.message||'Se a conta existir, receberá instruções por email.','success')}catch(error){message('#request-message',error.message,'error')}finally{button.disabled=false}});
+    $('#invite-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const password=$('#invite-password').value;if(!invitation?.existing_account&&password!==$('#invite-confirm').value){message('#invite-message','As duas palavras-passe não coincidem.','error');button.disabled=false;return}message('#invite-message','A ativar a conta…');try{const data=await request('/api/auth/invitations/accept',{method:'POST',body:JSON.stringify({token:inviteToken,password,full_name:invitation?.existing_account?null:$('#invite-name').value.trim()})});localStorage.setItem('sris_access_token',data.access_token);localStorage.setItem('sris_refresh_token',data.refresh_token);localStorage.setItem('sris_org_id',data.organization_id);message('#invite-message','Conta ativada. A abrir o workspace…','success');setTimeout(()=>location.replace('/app'),500)}catch(error){message('#invite-message',error.message,'error');button.disabled=false}});
+    $('#reset-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const password=$('#reset-password').value;if(password!==$('#reset-confirm').value){message('#reset-message','As duas palavras-passe não coincidem.','error');button.disabled=false;return}message('#reset-message','A guardar…');try{await request('/api/auth/password-reset/confirm',{method:'POST',body:JSON.stringify({token:resetToken,new_password:password})});event.target.classList.add('hidden');message('#reset-message','Palavra-passe alterada. As sessões anteriores foram encerradas; já pode entrar.','success')}catch(error){message('#reset-message',error.message,'error');button.disabled=false}});
+    async function loadCapabilities(){try{const data=await request('/api/auth/capabilities');if(!data.password_reset_enabled){$('#request-submit').disabled=true;message('#request-message','A recuperação por email ainda não está configurada neste staging. Contacte o administrador do workspace.','error')}}catch{}}
+    readFragment();if(inviteToken)loadInvitation();else if(resetToken)show('reset-view');else{show('request-view');loadCapabilities()}
+  })();
+  </script>
+</body>
+</html>

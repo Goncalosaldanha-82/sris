@@ -1,0 +1,32 @@
+/* SRIS Pilot & Mission Intelligence — integrated product surface */
+html[data-sris-product="pilot-mission-intelligence"] #account [id*="credit"],
+html[data-sris-product="pilot-mission-intelligence"] #account [class*="credit"],
+html[data-sris-product="pilot-mission-intelligence"] #account [id*="wallet"],
+html[data-sris-product="pilot-mission-intelligence"] #account [class*="wallet"],
+html[data-sris-product="pilot-mission-intelligence"] #account [id*="billing"],
+html[data-sris-product="pilot-mission-intelligence"] #account [class*="billing"],
+html[data-sris-product="pilot-mission-intelligence"] #account [id*="topup"],
+html[data-sris-product="pilot-mission-intelligence"] #account [class*="topup"],
+html[data-sris-product="pilot-mission-intelligence"] #account [data-pilot-billing],
+html[data-sris-product="pilot-mission-intelligence"] #account [data-test-topup] {
+  display: none !important;
+}
+
+html[data-sris-product="pilot-mission-intelligence"] .auth-release::after {
+  content: " · PILOT & MISSION INTELLIGENCE";
+}
+
+html[data-sris-product="pilot-mission-intelligence"] .pp-nav-button {
+  isolation: isolate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-sris-product="pilot-mission-intelligence"] *,
+  html[data-sris-product="pilot-mission-intelligence"] *::before,
+  html[data-sris-product="pilot-mission-intelligence"] *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
