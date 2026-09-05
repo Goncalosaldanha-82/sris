@@ -1,0 +1,193 @@
+name: Prepare SRIS site measured-mission release
+
+on:
+  push:
+    branches:
+      - site-release-90d-measured-mission-20260905
+    paths:
+      - ".github/workflows/apply-site-measured-mission-release.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out temporary release branch
+        uses: actions/checkout@v4
+        with:
+          ref: site-release-90d-measured-mission-20260905
+          fetch-depth: 0
+
+      - name: Apply exact site changes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          index = Path('site/index.html')
+          text = index.read_text(encoding='utf-8')
+
+          replacements = {
+              'href="https://sris-pilot-v1-staging.up.railway.app/demonstracao"': 'href="/demonstracao"',
+              '<article><span>Duração</span><strong>90 dias</strong><p>Até 3 missões, com âmbito, critérios de sucesso e condições de revisão definidos antes do arranque.</p></article>': '<article><span>Duração</span><strong>90 dias · 1 missão medida</strong><p>Até 3 missões estruturadas. A primeira vai até ao resultado medido, porque só assim o efeito pode ser atribuído. As restantes são estruturadas até à decisão e abrem para medição em ciclo próprio.</p></article>',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'Expected one site marker, found {count}: {old}')
+              text = text.replace(old, new, 1)
+
+          assert '<link rel="canonical" href="https://sris.io/">' in text
+          assert 'contact@sris.io' in text
+          assert '4.800 € + IVA' in text
+          assert '<strong>Contratação autónoma</strong>' in text
+          index.write_text(text, encoding='utf-8')
+
+          server = Path('contact_server.py')
+          source = server.read_text(encoding='utf-8')
+
+          marker = 'MAX_FORM_TIME_MS = 24 * 60 * 60 * 1_000\n'
+          insert = '''MAX_FORM_TIME_MS = 24 * 60 * 60 * 1_000
+DEMO_UPSTREAM_DEFAULT = "https://sris-pilot-v1-staging.up.railway.app"
+DEMO_PROXY_PATHS = {
+    "/demonstracao",
+    "/demonstracao/",
+    "/demonstracao.css",
+    "/demonstracao.js",
+    "/sris-favicon.svg",
+    "/api/mission-intelligence/demo/fictional/missions",
+}
+'''
+          if marker not in source:
+              raise RuntimeError('Contact server constants marker missing')
+          source = source.replace(marker, insert, 1)
+
+          class_marker = 'class ContactHandler(SimpleHTTPRequestHandler):\n    server_version = "SRISWebsite/1.0"\n'
+          class_insert = '''class ContactHandler(SimpleHTTPRequestHandler):
+    server_version = "SRISWebsite/1.0"
+
+    @staticmethod
+    def _is_demo_proxy_path(path: str) -> bool:
+        return path in DEMO_PROXY_PATHS or path.startswith(
+            "/api/mission-intelligence/demo/fictional/missions/"
+        )
+
+    def _proxy_demo(self, *, head_only: bool = False) -> None:
+        upstream = os.environ.get("SRIS_DEMO_ORIGIN", DEMO_UPSTREAM_DEFAULT).rstrip("/")
+        request_path = self.path
+        if request_path.split("?", 1)[0] == "/demonstracao/":
+            request_path = "/demonstracao" + (
+                "?" + request_path.split("?", 1)[1] if "?" in request_path else ""
+            )
+        request = Request(
+            upstream + request_path,
+            headers={
+                "Accept": self.headers.get("Accept", "*/*"),
+                "User-Agent": "SRIS-Site-Demo-Proxy/1.0",
+            },
+        )
+        try:
+            with urlopen(request, timeout=12) as response:
+                body = response.read(4_000_000)
+                status = response.status
+                content_type = response.headers.get("Content-Type", "application/octet-stream")
+        except (HTTPError, URLError, TimeoutError) as error:
+            LOGGER.error("Public demonstration proxy failed: %s", error)
+            self.send_error(HTTPStatus.BAD_GATEWAY, "Demonstração temporariamente indisponível.")
+            return
+
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        if request_path.split("?", 1)[0] in {"/demonstracao", "/api/mission-intelligence/demo/fictional/missions"}:
+            self.send_header("Cache-Control", "no-store")
+        else:
+            self.send_header("Cache-Control", "public, max-age=300")
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(body)
+'''
+          if class_marker not in source:
+              raise RuntimeError('Contact handler marker missing')
+          source = source.replace(class_marker, class_insert, 1)
+
+          get_marker = '''        path = self.path.split("?", 1)[0]
+        if path == "/health":
+'''
+          get_insert = '''        path = self.path.split("?", 1)[0]
+        if self._is_demo_proxy_path(path):
+            self._proxy_demo()
+            return
+        if path == "/health":
+'''
+          if get_marker not in source:
+              raise RuntimeError('GET marker missing')
+          source = source.replace(get_marker, get_insert, 1)
+
+          head_marker = '''        path = self.path.split("?", 1)[0]
+        if path == "/backups" or path.startswith("/backups/"):
+'''
+          head_insert = '''        path = self.path.split("?", 1)[0]
+        if self._is_demo_proxy_path(path):
+            self._proxy_demo(head_only=True)
+            return
+        if path == "/backups" or path.startswith("/backups/"):
+'''
+          # The first occurrence belongs to do_HEAD after the do_GET block was already changed.
+          occurrences = source.count(head_marker)
+          if occurrences != 1:
+              raise RuntimeError(f'Expected one HEAD marker, found {occurrences}')
+          source = source.replace(head_marker, head_insert, 1)
+
+          compile(source, 'contact_server.py', 'exec')
+          server.write_text(source, encoding='utf-8')
+          PY
+
+      - name: Validate site and proxy locally
+        run: |
+          python -m unittest -q test_contact_server.py
+          python -m py_compile contact_server.py
+          python - <<'PY'
+          from pathlib import Path
+          index = Path('site/index.html').read_text(encoding='utf-8')
+          server = Path('contact_server.py').read_text(encoding='utf-8')
+          required = [
+              '90 dias · 1 missão medida',
+              'Até 3 missões estruturadas.',
+              'href="/demonstracao"',
+              'contact@sris.io',
+              'https://sris.io/',
+              'DEMO_UPSTREAM_DEFAULT',
+              'def _proxy_demo',
+          ]
+          for value in required:
+              assert value in index or value in server, value
+          forbidden = [
+              'href="https://sris-pilot-v1-staging.up.railway.app/demonstracao"',
+              '<strong>90 dias</strong><p>Até 3 missões,',
+          ]
+          for value in forbidden:
+              assert value not in index, value
+          PY
+          PORT=8091 SITE_DIR=site python contact_server.py >/tmp/sris-site.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:8091/health >/dev/null && break
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:8091/ | grep -F '90 dias · 1 missão medida'
+          curl -fsS http://127.0.0.1:8091/demonstracao | grep -F 'Demonstração para alojamento'
+          curl -fsS http://127.0.0.1:8091/api/mission-intelligence/demo/fictional/missions | grep -F 'DEMO-TA-001'
+
+      - name: Commit clean release candidate
+        run: |
+          git rm .github/workflows/apply-site-measured-mission-release.yml
+          git add site/index.html contact_server.py
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: align site pilot scope and canonical demo route"
+          git push origin HEAD:site-release-90d-measured-mission-20260905
