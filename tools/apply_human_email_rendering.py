@@ -27,7 +27,7 @@ js_path.write_text(js, encoding="utf-8")
 
 test_path = Path("test_contact_server.py")
 tests = test_path.read_text(encoding="utf-8")
-assertion_marker = '        self.assertIn("As restantes são estruturadas até à decisão", page)\n'
+assertion_marker = '        self.assertIn("Até 3 missões estruturadas", page)\n'
 new_assertions = assertion_marker + '''        self.assertIn("data-contact-email", page)\n        self.assertNotIn("contact@sris.io", page)\n        script = Path("site/site.js").read_text(encoding="utf-8")\n        self.assertIn('["contact", "sris.io"].join("@")', script)\n'''
 if tests.count(assertion_marker) != 1:
     raise RuntimeError(f"Expected one site-alignment assertion marker, found {tests.count(assertion_marker)}")
