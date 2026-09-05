@@ -6,7 +6,7 @@ from copy import deepcopy
 _CATALOG = {
     "schema": "sris_fictional_demo_catalog",
     "schema_version": "1.0",
-    "catalog_version": "2026-09-02",
+    "catalog_version": "2026-09-05",
     "notice": (
         "Demonstração pública com dados integralmente fictícios. Qualquer semelhança "
         "com entidades, pessoas, locais ou projetos reais é coincidência."
@@ -62,7 +62,7 @@ _CATALOG = {
                     {"number": "02", "label": "Evidência", "value": "Baseline operacional", "note": "Faturas, contadores, ocupação, lavandaria, rega, manutenção e ocorrências.", "state": "completed"},
                     {"number": "03", "label": "Hipótese", "value": "Causas concorrentes", "note": "Ocupação, fuga, rega, lavandaria e procedimentos permanecem separados.", "state": "completed"},
                     {"number": "04", "label": "Alternativa", "value": "3 comparadas", "note": "Substituição de equipamentos, protocolo operacional ou lavandaria externa.", "state": "completed"},
-                    {"number": "05", "label": "Decisão", "value": "Medição dirigida", "note": "Piloto de oito semanas antes de investimento generalizado.", "state": "completed"},
+                    {"number": "05", "label": "Decisão", "value": "Medição dirigida", "note": "Piloto de medição de oito semanas, dentro do acompanhamento de 90 dias.", "state": "completed"},
                     {"number": "06", "label": "Ação", "value": "Instrumentar e testar", "note": "Submedição, inspeção de fugas e protocolo operacional controlado.", "state": "open"},
                     {"number": "07", "label": "Resultado", "value": "Ainda não demonstrado", "note": "Água e energia serão comparadas por atividade, custo e qualidade do serviço.", "state": "pending"},
                     {"number": "08", "label": "Aprendizagem", "value": "Pendente de execução", "note": "Nenhuma conclusão é publicada antes da medição e revisão humana.", "state": "learning"},
@@ -118,7 +118,7 @@ _CATALOG = {
                     {"id": "EVD-TA-003", "kind": "Evidência", "label": "Qualidade do serviço", "detail": "Conforto, higiene e reclamações funcionam como condições de decisão, ainda com amostra limitada."},
                     {"id": "HYP-TA-001", "kind": "Hipótese", "label": "Causas concorrentes", "detail": "Ocupação, fuga, rega, lavandaria e procedimento continuam separados até existir medição dirigida."},
                     {"id": "ALT-TA-002", "kind": "Alternativa", "label": "Medição dirigida", "detail": "Alternativa preferida sob validação porque preserva comparação, rastreabilidade e reversibilidade."},
-                    {"id": "DEC-TA-003", "kind": "Decisão", "label": "Autorizar piloto", "detail": "Piloto de oito semanas aprovado; não constitui prova de poupança nem decisão de investimento generalizado."},
+                    {"id": "DEC-TA-003", "kind": "Decisão", "label": "Autorizar piloto", "detail": "Piloto de medição de oito semanas, dentro do acompanhamento de 90 dias, aprovado; não constitui prova de poupança nem decisão de investimento generalizado."},
                 ],
                 "links": [
                     {"from": "EVD-TA-001", "to": "HYP-TA-001"},
@@ -144,13 +144,14 @@ _CATALOG = {
                     "annual_resource_spend_eur": 142000,
                     "annual_resource_spend_basis": "12 meses de faturas fictícias de água e energia.",
                     "avoidable_operating_loss_eur": 18600,
-                    "avoidable_operating_loss_basis": "Horas de manutenção, desperdício e indisponibilidade operacional estimados.",
+                    "avoidable_operating_loss_basis": "Horas de manutenção, desperdício e indisponibilidade operacional estimados. Não incluída no benefício projetado.",
                     "revenue_at_risk_eur": 9000,
                     "revenue_at_risk_basis": "Compensações, indisponibilidade de quartos e incidentes de serviço possíveis; não realizados.",
                 },
                 "pilot": {
                     "status": "Orçamento fictício",
                     "duration_weeks": 8,
+                    "duration_context": "dentro do piloto SRIS de 90 dias",
                     "investment_eur": 12800,
                     "equipment_eur": 8900,
                     "internal_people_cost_eur": 3900,
@@ -201,7 +202,7 @@ _CATALOG = {
                         "energy_tariff_eur_per_kwh": 0.22,
                         "direct_savings_eur_per_year": 13600,
                         "protected_revenue_eur_per_year": 4200,
-                        "protected_revenue_basis": "Três incidentes evitados × 1 400 € de receita sob risco.",
+                        "protected_revenue_basis": "Três de cerca de seis incidentes anuais estimados × 1 400 € de receita sob risco.",
                         "recurring_cost_eur_per_year": 2400,
                         "recurring_cost_basis": "Monitorização, calibração e manutenção anual.",
                         "net_benefit_eur_per_year": 15400,

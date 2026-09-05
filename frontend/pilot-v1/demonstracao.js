@@ -45,7 +45,7 @@
         ${metric('Investimento do piloto',money(pilot.investment_eur))}
         ${metric('Equipamento e instrumentação',money(pilot.equipment_eur))}
         ${metric('Custo interno da equipa',money(pilot.internal_people_cost_eur))}
-        ${metric('Duração e esforço',`${esc(pilot.duration_weeks)} semanas · ${esc(pilot.internal_hours)} h`)}
+        ${metric('Duração e esforço',`${esc(pilot.duration_weeks)} semanas · ${esc(pilot.internal_hours)} h`,pilot.duration_context)}
         ${metric('Interrupção planeada',`≤ ${esc(pilot.planned_interruption_hours)} h`)}
       </article>
       <article class="economy-phase projection"><div class="phase-heading"><span>DEPOIS · CENÁRIO ${esc(projection.label||'CENTRAL').toUpperCase()}</span><strong>${esc(projection.status)}</strong></div>

@@ -146,3 +146,25 @@ def test_legacy_pilot_reset_urls_delegate_to_the_canonical_token_store(monkeypat
         "/api/auth/login",
         json={"email": email, "password": replacement},
     ).status_code == 200
+
+
+def test_public_demo_matches_the_90_day_measured_mission_offer() -> None:
+    mission = fictional_demo_catalog()["missions"]["DEMO-TA-001"]
+    decision = mission["situation"]["chain"][4]
+    assert decision["note"] == (
+        "Piloto de medição de oito semanas, dentro do acompanhamento de 90 dias."
+    )
+    business_case = mission["business_case"]
+    assert business_case["pilot"]["duration_context"] == (
+        "dentro do piloto SRIS de 90 dias"
+    )
+    assert business_case["baseline"]["avoidable_operating_loss_basis"].endswith(
+        "Não incluída no benefício projetado."
+    )
+    central = next(
+        item for item in business_case["scenarios"] if item["id"] == "central"
+    )
+    assert central["protected_revenue_basis"] == (
+        "Três de cerca de seis incidentes anuais estimados × 1 400 € "
+        "de receita sob risco."
+    )

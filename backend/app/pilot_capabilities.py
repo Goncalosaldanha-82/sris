@@ -21,7 +21,7 @@ from app.pilot_platform import (
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260902-staging-audit-hardening-v37"
+PILOT_BUILD = "20260905-demo-measured-mission-v38"
 
 USER_MOMENTS = [
     "context",
@@ -83,7 +83,7 @@ def pilot_capabilities() -> dict:
         "build": PILOT_BUILD,
         "product": "SRIS Pilot & Mission Intelligence",
         "site_urls": [
-            "https://www.sris.io/",
+            "https://sris.io/",
             "https://sris-mission-intelligence.up.railway.app/",
         ],
         "architecture": "universal_core_configurable_profiles",
