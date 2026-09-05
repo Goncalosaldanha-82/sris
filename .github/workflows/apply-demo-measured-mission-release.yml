@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/apply-demo-measured-mission-release.yml"
       - "tools/apply_demo_measured_mission_release.py"
+      - "tools/fix_demo_test_contract.py"
 
 permissions:
   contents: write
@@ -23,7 +24,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply exact demonstration changes
-        run: python tools/apply_demo_measured_mission_release.py
+        run: |
+          python tools/apply_demo_measured_mission_release.py
+          python tools/fix_demo_test_contract.py
 
       - name: Validate source contracts
         run: |
@@ -35,6 +38,7 @@ jobs:
         run: |
           git rm .github/workflows/apply-demo-measured-mission-release.yml
           git rm tools/apply_demo_measured_mission_release.py
+          git rm tools/fix_demo_test_contract.py
           git add backend frontend
           git diff --cached --check
           git config user.name "github-actions[bot]"
