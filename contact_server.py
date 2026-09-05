@@ -28,6 +28,15 @@ RATE_LIMIT_COUNT = 5
 RATE_LIMIT_WINDOW = 60 * 60
 MIN_FORM_TIME_MS = 1_200
 MAX_FORM_TIME_MS = 24 * 60 * 60 * 1_000
+DEMO_UPSTREAM_DEFAULT = "https://sris-pilot-v1-staging.up.railway.app"
+DEMO_PROXY_PATHS = {
+    "/demonstracao",
+    "/demonstracao/",
+    "/demonstracao.css",
+    "/demonstracao.js",
+    "/sris-favicon.svg",
+    "/api/mission-intelligence/demo/fictional/missions",
+}
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 CONTACT_PURPOSES = {
     "presentation": "Agendar apresentação",
@@ -282,6 +291,48 @@ def send_contact_email(data: dict[str, object]) -> None:
 class ContactHandler(SimpleHTTPRequestHandler):
     server_version = "SRISWebsite/1.0"
 
+    @staticmethod
+    def _is_demo_proxy_path(path: str) -> bool:
+        return path in DEMO_PROXY_PATHS or path.startswith(
+            "/api/mission-intelligence/demo/fictional/missions/"
+        )
+
+    def _proxy_demo(self, *, head_only: bool = False) -> None:
+        upstream = os.environ.get("SRIS_DEMO_ORIGIN", DEMO_UPSTREAM_DEFAULT).rstrip("/")
+        request_path = self.path
+        if request_path.split("?", 1)[0] == "/demonstracao/":
+            query = "?" + request_path.split("?", 1)[1] if "?" in request_path else ""
+            request_path = "/demonstracao" + query
+        request = Request(
+            upstream + request_path,
+            headers={
+                "Accept": self.headers.get("Accept", "*/*"),
+                "User-Agent": "SRIS-Site-Demo-Proxy/1.0",
+            },
+        )
+        try:
+            with urlopen(request, timeout=12) as response:
+                body = response.read(4_000_000)
+                status = response.status
+                content_type = response.headers.get(
+                    "Content-Type", "application/octet-stream"
+                )
+        except (HTTPError, URLError, TimeoutError) as error:
+            LOGGER.error("Public demonstration proxy failed: %s", error)
+            self.send_error(
+                HTTPStatus.BAD_GATEWAY,
+                "Demonstração temporariamente indisponível.",
+            )
+            return
+
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(body)
+
     def __init__(self, *args, **kwargs):
         site_dir = os.environ.get("SITE_DIR") or str(Path(__file__).with_name("site"))
         super().__init__(*args, directory=site_dir, **kwargs)
@@ -300,6 +351,9 @@ class ContactHandler(SimpleHTTPRequestHandler):
         if self._redirect_www():
             return
         path = self.path.split("?", 1)[0]
+        if self._is_demo_proxy_path(path):
+            self._proxy_demo()
+            return
         if path == "/health":
             self._json(HTTPStatus.OK, {"status": "ok"})
             return
@@ -314,6 +368,9 @@ class ContactHandler(SimpleHTTPRequestHandler):
         if self._redirect_www():
             return
         path = self.path.split("?", 1)[0]
+        if self._is_demo_proxy_path(path):
+            self._proxy_demo(head_only=True)
+            return
         if path == "/backups" or path.startswith("/backups/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return

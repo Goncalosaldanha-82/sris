@@ -167,7 +167,8 @@ class SiteAlignmentTests(unittest.TestCase):
         page = Path("site/index.html").read_text(encoding="utf-8")
         self.assertIn("Alojamento · sustentabilidade · eficiência de recursos", page)
         self.assertIn("Ver demonstração para alojamento", page)
-        self.assertIn("Condições definidas antes do início", page)
+        self.assertIn("90 dias · 1 missão medida", page)
+        self.assertIn("Até 3 missões estruturadas", page)
         self.assertNotIn("Diagnóstico inicial sem custo", page)
         self.assertNotIn("gratuit", page.lower())
 
