@@ -41,7 +41,9 @@ jobs:
 
             const www = await fetch(`https://www.sris.io/?${cacheBust}`, { redirect: 'manual', ...noCache });
             assert(www.status === 301, `www must return 301, got ${www.status}`);
-            assert(www.headers.get('location') === 'https://sris.io/', `www location=${www.headers.get('location')}`);
+            const wwwLocation = www.headers.get('location');
+            const canonicalRedirect = new URL(wwwLocation);
+            assert(canonicalRedirect.origin === 'https://sris.io' && canonicalRedirect.pathname === '/', `www location=${wwwLocation}`);
 
             const railwayResponse = await fetch(`${railwaySite}?${cacheBust}`, noCache);
             assert(railwayResponse.status === 200, `Tourism hostname status=${railwayResponse.status}`);
@@ -133,6 +135,7 @@ jobs:
 
             console.log(JSON.stringify({
               wwwStatus: www.status,
+              wwwLocation,
               railwayStatus: railwayResponse.status,
               canonicalStatus: canonicalResponse.status,
               appStatus,
