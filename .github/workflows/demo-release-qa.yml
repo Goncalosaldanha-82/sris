@@ -1,0 +1,108 @@
+name: Validate measured-mission demonstration candidate
+
+on:
+  push:
+    branches:
+      - demo-release-qa-20260905
+    paths:
+      - ".github/workflows/demo-release-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-demo-qa.db
+      ATLAS_REPOSITORY_ROOT: /tmp/sris-demo-qa-repository
+      ATLAS_ENV: test
+      SRIS_PILOT_MODE: "true"
+      SRIS_PUBLIC_SIGNUP_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install project and browser
+        run: |
+          mkdir -p /tmp/sris-demo-qa-repository
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[test]"
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Run contracts and migrations
+        run: |
+          python -m compileall -q backend/app backend/tests migrations
+          node --check frontend/pilot-v1/demonstracao.js
+          node --test frontend/tests/*.test.js
+          rm -f /tmp/sris-demo-qa.db
+          python -m alembic upgrade head
+          python -m pytest -q backend/tests/test_staging_audit_hardening.py
+      - name: Exercise anonymous slow mobile rendering
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ATLAS_JWT_SECRET="$(python -c 'print("demo-qa-" + "x"*40)')"
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8093 >/tmp/demo-server.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:8093/health >/dev/null && break
+            sleep 0.5
+          done
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'pt-PT'});
+          const page=await context.newPage();
+          const errors=[];
+          page.on('pageerror',e=>errors.push(String(e)));
+          page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+          await page.route('**/api/mission-intelligence/demo/fictional/missions',async route=>{
+            await new Promise(resolve=>setTimeout(resolve,2600));
+            await route.continue();
+          });
+          const session=await context.newCDPSession(page);
+          await session.send('Network.enable');
+          await session.send('Network.emulateNetworkConditions',{offline:false,latency:650,downloadThroughput:23040,uploadThroughput:11520,connectionType:'cellular3g'});
+          await page.goto('http://127.0.0.1:8093/demonstracao',{waitUntil:'domcontentloaded',timeout:60000});
+          const initial=(await page.locator('#mission-title').innerText()).trim();
+          if(!initial.includes('A carregar demonstração'))throw new Error(`loading state missing: ${initial}`);
+          await page.waitForFunction(()=>{const t=document.querySelector('#mission-title')?.textContent||'';return t&&!t.includes('A carregar demonstração')},null,{timeout:60000});
+          await page.waitForSelector('#business-case-timeline .financial-metric',{timeout:30000});
+          const body=(await page.locator('body').innerText()).replace(/\s+/g,' ');
+          for(const required of [
+            'Piloto de medição de oito semanas, dentro do acompanhamento de 90 dias',
+            'dentro do piloto SRIS de 90 dias',
+            'Não incluída no benefício projetado.',
+            'Três de cerca de seis incidentes anuais estimados × 1 400 € de receita sob risco.'
+          ])if(!body.includes(required))throw new Error(`missing: ${required}`);
+          const app=await page.getByRole('link',{name:'Entrar na aplicação'}).getAttribute('href');
+          const contact=await page.getByRole('link',{name:'Solicitar contacto institucional'}).getAttribute('href');
+          const site=await page.getByRole('link',{name:'Voltar ao site SRIS'}).getAttribute('href');
+          if(app!=='https://app.sris.io/')throw new Error(`app link: ${app}`);
+          if(contact!=='https://sris.io/#contacto')throw new Error(`contact link: ${contact}`);
+          if(site!=='https://sris.io/')throw new Error(`site link: ${site}`);
+          if(await page.locator('#demo-error:not(.hidden)').isVisible().catch(()=>false))throw new Error(await page.locator('#demo-error').innerText());
+          const dimensions=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));
+          if(dimensions.scroll>dimensions.client+2)throw new Error(`horizontal overflow ${JSON.stringify(dimensions)}`);
+          if(errors.length)throw new Error(errors.join(' | '));
+          await page.screenshot({path:'demo-mobile-slow.png',fullPage:true});
+          await context.close();await browser.close();
+          console.log('slow anonymous mobile demo passed');
+          JS
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-mobile-slow
+          path: demo-mobile-slow.png
+          if-no-files-found: warn
+          retention-days: 7
