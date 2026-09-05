@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# Temporary staging-only audit. Performs no email send and no data mutation.
+
 import json
 import os
 from datetime import datetime, timezone
