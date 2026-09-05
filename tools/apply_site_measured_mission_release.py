@@ -133,4 +133,14 @@ server = replace_once(
 compile(server, str(server_path), "exec")
 server_path.write_text(server, encoding="utf-8")
 
+test_path = ROOT / "test_contact_server.py"
+test_source = test_path.read_text(encoding="utf-8")
+test_source = replace_once(
+    test_source,
+    '        self.assertIn("Condições definidas antes do início", page)\n',
+    '        self.assertIn("90 dias · 1 missão medida", page)\n        self.assertIn("Até 3 missões estruturadas", page)\n',
+    label="site commercial-boundary test",
+)
+test_path.write_text(test_source, encoding="utf-8")
+
 print("site measured-mission release applied")
