@@ -1,0 +1,30 @@
+name: SRIS current live AI status probe
+
+on:
+  push:
+    branches:
+      - qa-live-deep-audit-20260905
+    paths:
+      - ".github/workflows/current-live-ai-status-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe public capability/status endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://sris-pilot-v1-staging.up.railway.app"
+          for path in /api/mission-intelligence/status /api/pilot/capabilities /health; do
+            echo "===== $path ====="
+            curl --connect-timeout 10 --max-time 20 -sS -D /tmp/h "$base$path" -o /tmp/b
+            sed -n '1,25p' /tmp/h
+            cat /tmp/b
+            echo
+          done
