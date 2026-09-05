@@ -14,18 +14,26 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
-      - name: Probe live staging
+      - name: Probe public domains and candidate routes
         shell: bash
         run: |
-          set -euo pipefail
-          base="https://sris-pilot-v1-staging.up.railway.app"
-          for path in / /app /account.html /demonstracao /health /api/pilot/capabilities /api/pilot/build /api/pilot/release-state /openapi.json; do
-            echo "===== $path ====="
-            curl --connect-timeout 10 --max-time 30 -sS -D /tmp/h -o /tmp/b "$base$path" || true
-            sed -n '1,30p' /tmp/h || true
-            echo "bytes=$(wc -c < /tmp/b 2>/dev/null || echo 0)"
-            head -c 1200 /tmp/b 2>/dev/null || true
+          set -u
+          urls=(
+            "https://sris.io/"
+            "https://www.sris.io/"
+            "https://app.sris.io/"
+            "https://app.sris.io/demonstracao"
+            "https://sris-mission-intelligence.up.railway.app/"
+            "https://sris-pilot-v1-staging.up.railway.app/"
+            "https://sris-pilot-v1-staging.up.railway.app/demonstracao"
+          )
+          for url in "${urls[@]}"; do
+            echo "===== $url ====="
+            curl --connect-timeout 10 --max-time 35 -sS -L --max-redirs 6 -D /tmp/h -o /tmp/b -w 'FINAL_URL=%{url_effective}\nSTATUS=%{http_code}\nTIME=%{time_total}\n' "$url" || true
+            sed -n '1,35p' /tmp/h || true
+            echo "BODY_BYTES=$(wc -c < /tmp/b 2>/dev/null || echo 0)"
+            head -c 500 /tmp/b 2>/dev/null | tr '\n' ' ' || true
             echo
           done
