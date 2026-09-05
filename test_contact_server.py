@@ -169,6 +169,10 @@ class SiteAlignmentTests(unittest.TestCase):
         self.assertIn("Ver demonstração para alojamento", page)
         self.assertIn("90 dias · 1 missão medida", page)
         self.assertIn("Até 3 missões estruturadas", page)
+        self.assertIn("data-contact-email", page)
+        self.assertNotIn("contact@sris.io", page)
+        script = Path("site/site.js").read_text(encoding="utf-8")
+        self.assertIn('["contact", "sris.io"].join("@")', script)
         self.assertNotIn("Diagnóstico inicial sem custo", page)
         self.assertNotIn("gratuit", page.lower())
 

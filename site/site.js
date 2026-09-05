@@ -1,6 +1,12 @@
 (() => {
   "use strict";
 
+  const institutionalEmail = ["contact", "sris.io"].join("@");
+  document.querySelectorAll("[data-contact-email]").forEach((element) => {
+    element.textContent = institutionalEmail;
+    element.setAttribute("aria-label", institutionalEmail);
+  });
+
   const steps = [
     {
       title: "Contexto",
