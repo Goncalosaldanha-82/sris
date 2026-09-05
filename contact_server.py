@@ -35,6 +35,7 @@ DEMO_PROXY_PATHS = {
     "/demonstracao.css",
     "/demonstracao.js",
     "/sris-favicon.svg",
+    "/sris-logo-compact-light.svg",
     "/api/mission-intelligence/demo/fictional/missions",
 }
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
