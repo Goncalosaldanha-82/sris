@@ -1,0 +1,50 @@
+name: Remove pilot credit policy from institutional site
+
+on:
+  push:
+    branches:
+      - sris-institutional-site
+    paths:
+      - ".github/workflows/remove-pilot-credit-policy.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  align-pricing:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out institutional site branch
+        uses: actions/checkout@v4
+        with:
+          ref: sris-institutional-site
+          fetch-depth: 0
+
+      - name: Replace credit language with autonomous contracting
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("site/index.html")
+          text = path.read_text(encoding="utf-8")
+          old = '<article><span>Crédito Core</span><strong>100% creditado</strong><p>O valor do piloto é creditado no primeiro ano da subscrição Core.</p></article>'
+          new = '<article><span>Continuidade</span><strong>Contratação autónoma</strong><p>Core, Governance e missões adicionais são contratados separadamente após o piloto.</p></article>'
+          if old not in text:
+              raise RuntimeError("A formulação antiga de crédito não foi encontrada uma única vez.")
+          if text.count(old) != 1:
+              raise RuntimeError(f"Foram encontradas {text.count(old)} ocorrências da formulação antiga.")
+          text = text.replace(old, new, 1)
+          if "100% creditado" in text or "creditado no primeiro ano" in text:
+              raise RuntimeError("Permaneceu linguagem de desconto/crédito no site.")
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Remove the one-shot workflow and commit
+        run: |
+          git rm .github/workflows/remove-pilot-credit-policy.yml
+          git add site/index.html
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: make pilot and subscriptions autonomous contracts"
+          git push origin HEAD:sris-institutional-site
