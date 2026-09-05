@@ -1,0 +1,88 @@
+name: Publish Net Me Up pilot pricing
+
+on:
+  push:
+    branches:
+      - sris-institutional-site
+    paths:
+      - ".github/workflows/publish-netmeup-pilot-price.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out institutional site branch
+        uses: actions/checkout@v4
+        with:
+          ref: sris-institutional-site
+          fetch-depth: 0
+
+      - name: Align the public pilot offer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("site/index.html")
+          text = path.read_text(encoding="utf-8")
+
+          old = '''        <div class="pilot-terms" aria-label="Condições recomendadas do piloto SRIS">
+          <article><span>Duração</span><strong>8 semanas</strong><p>Âmbito fechado, critérios de sucesso e condições de revisão definidos antes do arranque.</p></article>
+          <article><span>Esforço da organização</span><strong>6–8 horas</strong><p>Reunião inicial de 90 minutos, acompanhamento semanal de 45 minutos e um ou dois interlocutores.</p></article>
+          <article><span>Enquadramento</span><strong>Condições definidas antes do início</strong><p>Reunião inicial, âmbito do piloto e critérios de sucesso acordados antes de qualquer trabalho na plataforma.</p></article>
+          <article><span>Entregáveis</span><strong>Decisão reconstruível</strong><p>Configuração do caso, registo estruturado, síntese de evidência e relatório final com próximos passos.</p></article>
+        </div>'''
+
+          new = '''        <div class="pilot-terms" aria-label="Condições comerciais do piloto SRIS">
+          <article><span>Duração</span><strong>90 dias</strong><p>Até 3 missões, com âmbito, critérios de sucesso e condições de revisão definidos antes do arranque.</p></article>
+          <article><span>Preço de tabela</span><strong>4.800 € + IVA</strong><p>Piloto assistido com onboarding, configuração e acompanhamento até à medição.</p></article>
+          <article><span>Crédito Core</span><strong>100% creditado</strong><p>O valor do piloto é creditado no primeiro ano da subscrição Core.</p></article>
+          <article><span>Entregáveis</span><strong>Decisão reconstruível</strong><p>Configuração do caso, registo estruturado, síntese de evidência e relatório final com próximos passos.</p></article>
+        </div>'''
+
+          if old not in text:
+              raise SystemExit("The expected pilot terms block was not found; no blind edit was made.")
+          updated = text.replace(old, new, 1)
+          if updated.count("4.800 € + IVA") != 1:
+              raise SystemExit("Pilot price validation failed.")
+          if "8 semanas" in updated:
+              raise SystemExit("Obsolete pilot duration remains.")
+          path.write_text(updated, encoding="utf-8")
+          PY
+
+      - name: Validate the institutional site
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          class Parser(HTMLParser):
+              pass
+
+          text = Path("site/index.html").read_text(encoding="utf-8")
+          Parser().feed(text)
+          required = (
+              "90 dias",
+              "4.800 € + IVA",
+              "100% creditado",
+              "O valor do piloto é creditado no primeiro ano da subscrição Core.",
+              "contact@sris.io",
+              "https://sris-pilot-v1-staging.up.railway.app/demonstracao",
+          )
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit(f"Missing required institutional content: {missing}")
+          print("Institutional pilot offer validated.")
+          PY
+
+      - name: Remove one-shot workflow and commit
+        run: |
+          git rm .github/workflows/publish-netmeup-pilot-price.yml
+          git add site/index.html
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: publish 4800 euro pilot list price"
+          git push origin HEAD:sris-institutional-site
