@@ -303,6 +303,9 @@ class ContactHandler(SimpleHTTPRequestHandler):
         if path == "/health":
             self._json(HTTPStatus.OK, {"status": "ok"})
             return
+        if path == "/demonstracao":
+            self._redirect_demo()
+            return
         if path == "/backups" or path.startswith("/backups/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -314,6 +317,9 @@ class ContactHandler(SimpleHTTPRequestHandler):
         if self._redirect_www():
             return
         path = self.path.split("?", 1)[0]
+        if path == "/demonstracao":
+            self._redirect_demo()
+            return
         if path == "/backups" or path.startswith("/backups/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -387,6 +393,17 @@ class ContactHandler(SimpleHTTPRequestHandler):
         if forwarded:
             return forwarded.split(",", 1)[0].strip()[:64]
         return self.client_address[0]
+
+    def _redirect_demo(self) -> None:
+        target = os.environ.get(
+            "SRIS_PUBLIC_DEMO_URL", "https://app.sris.io/demonstracao"
+        ).strip()
+        if not target.startswith("https://"):
+            target = "https://app.sris.io/demonstracao"
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", target)
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
 
     def _redirect_www(self) -> bool:
         host = (self.headers.get("Host") or "").split(":", 1)[0].lower()
