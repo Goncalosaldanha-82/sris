@@ -1,0 +1,93 @@
+name: SRIS current static security and quality
+
+on:
+  push:
+    branches:
+      - qa-live-deep-audit-20260905
+    paths:
+      - ".github/workflows/current-static-security-quality.yml"
+      - "tools/current_static_quality_audit.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out QA branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install project and audit tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements.lock
+          python -m pip install --no-deps -e .
+          python -m pip install pip-audit bandit ruff detect-secrets
+      - name: Verify Python environment and source syntax
+        run: |
+          mkdir -p qa-current-static
+          python -m pip check | tee qa-current-static/pip-check.txt
+          python -m compileall -q backend/app backend/tests migrations
+      - name: Verify all frontend JavaScript parses
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find frontend/pilot-v1 frontend/tests -type f -name '*.js' -print0)
+      - name: Run deterministic quality audit
+        run: python tools/current_static_quality_audit.py
+      - name: Audit dependencies for known vulnerabilities
+        continue-on-error: true
+        run: pip-audit --format json --output qa-current-static/pip-audit.json
+      - name: Run Bandit security scan
+        continue-on-error: true
+        run: bandit -r backend/app -f json -o qa-current-static/bandit.json -ll
+      - name: Run Ruff diagnostics
+        continue-on-error: true
+        run: ruff check backend/app backend/tests --output-format=json > qa-current-static/ruff.json
+      - name: Scan tree for likely committed secrets
+        continue-on-error: true
+        run: detect-secrets scan --all-files > qa-current-static/detect-secrets.json
+      - name: Summarize machine reports
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('qa-current-static')
+          print('===== CURRENT_MACHINE_AUDIT =====')
+          for name in ('pip-audit.json','bandit.json','ruff.json','detect-secrets.json'):
+              p=root/name
+              if not p.exists(): print(name,'missing'); continue
+              try: d=json.loads(p.read_text())
+              except Exception as e: print(name,'unreadable',e); continue
+              if name=='pip-audit.json':
+                  print(name,'vulnerabilities=',sum(len(x.get('vulns',[])) for x in d.get('dependencies',[])) if isinstance(d,dict) else 'unknown')
+              elif name=='bandit.json':
+                  rows=d.get('results',[]) if isinstance(d,dict) else []
+                  print(name,'results=',len(rows),'high=',sum(r.get('issue_severity')=='HIGH' for r in rows),'medium=',sum(r.get('issue_severity')=='MEDIUM' for r in rows))
+              elif name=='ruff.json': print(name,'diagnostics=',len(d) if isinstance(d,list) else 'unknown')
+              else: print(name,'files_with_candidates=',len(d.get('results',{})) if isinstance(d,dict) else 'unknown')
+          print('===== CURRENT_MACHINE_AUDIT_END =====')
+          PY
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sris-current-static-security-quality-${{ github.run_number }}
+          path: qa-current-static/
+          if-no-files-found: warn
+          retention-days: 14
