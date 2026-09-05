@@ -86,7 +86,7 @@ jobs:
           ])if(!body.includes(required))throw new Error(`missing: ${required}`);
           const app=await page.getByRole('link',{name:'Entrar na aplicação'}).getAttribute('href');
           const contact=await page.getByRole('link',{name:'Solicitar contacto institucional'}).getAttribute('href');
-          const site=await page.getByRole('link',{name:'Voltar ao site SRIS'}).getAttribute('href');
+          const site=await page.locator('a.site-return').getAttribute('href');
           if(app!=='https://app.sris.io/')throw new Error(`app link: ${app}`);
           if(contact!=='https://sris.io/#contacto')throw new Error(`contact link: ${contact}`);
           if(site!=='https://sris.io/')throw new Error(`site link: ${site}`);
