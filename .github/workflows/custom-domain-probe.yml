@@ -1,0 +1,39 @@
+name: SRIS app.sris.io custom-domain probe
+
+on:
+  push:
+    branches:
+      - qa-live-deep-audit-20260905
+    paths:
+      - ".github/workflows/custom-domain-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe DNS and HTTPS
+        shell: bash
+        run: |
+          set +e
+          echo '=== DNS getent ==='
+          getent ahosts app.sris.io
+          echo '=== DNS nslookup ==='
+          nslookup app.sris.io
+          echo '=== Railway reference ==='
+          curl --connect-timeout 10 --max-time 20 -sS -o /dev/null -D - https://sris-pilot-v1-staging.up.railway.app/health
+          for p in / /health /demonstracao /api/pilot/build; do
+            echo "=== app.sris.io$p ==="
+            curl --connect-timeout 10 --max-time 20 -sS -o /tmp/body -D /tmp/headers -w 'curl_exit=%{exitcode} http_code=%{http_code} remote_ip=%{remote_ip} ssl_verify=%{ssl_verify_result} time_total=%{time_total}\n' "https://app.sris.io$p"
+            code=$?
+            cat /tmp/headers 2>/dev/null
+            head -c 300 /tmp/body 2>/dev/null; echo
+            echo "shell_exit=$code"
+          done
+          echo '=== TLS openssl ==='
+          echo | openssl s_client -connect app.sris.io:443 -servername app.sris.io -brief 2>&1 | head -80
+          exit 0
