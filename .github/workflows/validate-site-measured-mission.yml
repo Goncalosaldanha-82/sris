@@ -1,0 +1,96 @@
+name: Validate canonical site measured-mission release
+
+on:
+  push:
+    branches:
+      - qa-site-measured-mission-20260905
+    paths:
+      - ".github/workflows/validate-site-measured-mission.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Run unit and source contract tests
+        run: |
+          python -m unittest -v test_contact_server.py
+          python -m py_compile contact_server.py
+          grep -F '<link rel="canonical" href="https://sris.io/">' site/index.html
+          grep -F 'href="/demonstracao">Ver demonstração para alojamento' site/index.html
+          grep -F '90 dias · 1 missão medida' site/index.html
+          grep -F 'Até 3 missões estruturadas.' site/index.html
+          grep -F 'A primeira vai até ao resultado medido' site/index.html
+          grep -F 'As restantes são estruturadas até à decisão' site/index.html
+          grep -F 'contact@sris.io' site/index.html
+          ! grep -F 'sris-pilot-v1-staging.up.railway.app/demonstracao' site/index.html
+
+      - name: Exercise canonical redirects and complete demo proxy locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/demo_upstream.py <<'PY'
+          from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+          import json
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  path=self.path.split('?',1)[0]
+                  payloads={
+                      '/demonstracao': ('text/html; charset=utf-8', b'<!doctype html><title>Demo upstream</title><h1>DEMO_OK</h1><script src="/demonstracao.js"></script>'),
+                      '/demonstracao.css': ('text/css; charset=utf-8', b'body{color:#123}'),
+                      '/demonstracao.js': ('application/javascript; charset=utf-8', b'window.DEMO_OK=true;'),
+                      '/sris-favicon.svg': ('image/svg+xml', b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'),
+                      '/sris-logo-compact-light.svg': ('image/svg+xml', b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'),
+                      '/api/mission-intelligence/demo/fictional/missions': ('application/json', json.dumps({'missions': {'DEMO-TA-001': {'title':'DEMO_OK'}}}).encode()),
+                  }
+                  if path not in payloads:
+                      self.send_response(404); self.end_headers(); return
+                  ctype,body=payloads[path]
+                  self.send_response(200)
+                  self.send_header('Content-Type',ctype)
+                  self.send_header('Content-Length',str(len(body)))
+                  self.end_headers()
+                  self.wfile.write(body)
+              def log_message(self,*args):
+                  pass
+
+          ThreadingHTTPServer(('127.0.0.1',8766),Handler).serve_forever()
+          PY
+          python /tmp/demo_upstream.py >/tmp/demo-upstream.log 2>&1 &
+          upstream_pid=$!
+          SITE_DIR=site PORT=8765 SRIS_DEMO_ORIGIN=http://127.0.0.1:8766 python contact_server.py >/tmp/site.log 2>&1 &
+          site_pid=$!
+          trap 'kill $site_pid $upstream_pid 2>/dev/null || true' EXIT
+          for attempt in {1..40}; do
+            curl -fsS http://127.0.0.1:8765/health >/dev/null && break
+            sleep 0.25
+          done
+
+          test "$(curl -sS -o /tmp/home -w '%{http_code}' -H 'Host: sris.io' http://127.0.0.1:8765/)" = "200"
+          grep -F '90 dias · 1 missão medida' /tmp/home
+          grep -F 'contact@sris.io' /tmp/home
+          ! grep -F 'data-cfemail' /tmp/home
+
+          test "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: www.sris.io' http://127.0.0.1:8765/)" = "301"
+          test "$(curl -sS -o /dev/null -w '%{redirect_url}' -H 'Host: www.sris.io' http://127.0.0.1:8765/)" = "https://sris.io/"
+
+          test "$(curl -sS -o /tmp/demo -w '%{http_code}' -H 'Host: sris.io' http://127.0.0.1:8765/demonstracao)" = "200"
+          grep -F 'DEMO_OK' /tmp/demo
+          test "$(curl -sS -o /tmp/demo-js -w '%{http_code}' -H 'Host: sris.io' http://127.0.0.1:8765/demonstracao.js)" = "200"
+          grep -F 'window.DEMO_OK=true' /tmp/demo-js
+          test "$(curl -sS -o /tmp/demo-api -w '%{http_code}' -H 'Host: sris.io' http://127.0.0.1:8765/api/mission-intelligence/demo/fictional/missions)" = "200"
+          grep -F 'DEMO-TA-001' /tmp/demo-api
+
+          test "$(curl -sS -o /tmp/railway-home -w '%{http_code}' -H 'Host: sris-mission-intelligence.up.railway.app' http://127.0.0.1:8765/)" = "200"
+          grep -F 'contact@sris.io' /tmp/railway-home
