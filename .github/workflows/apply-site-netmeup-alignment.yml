@@ -23,7 +23,25 @@ jobs:
           fetch-depth: 0
 
       - name: Apply coordinated site changes
-        run: python tools/apply_site_alignment.py
+        run: |
+          python tools/apply_site_alignment.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('test_contact_server.py')
+          text = path.read_text(encoding='utf-8')
+          obsolete = '        self.assertIn("Condições definidas antes do início", page)\n'
+          if text.count(obsolete) != 1:
+              raise RuntimeError(f'Expected one obsolete assertion, found {text.count(obsolete)}')
+          text = text.replace(obsolete, '', 1)
+          text = text.replace(
+              '        self.assertNotIn("Diagnóstico inicial sem custo", page)\n',
+              '        self.assertIn("4.800 € + IVA", page)\n'
+              '        self.assertIn("Contratação autónoma", page)\n'
+              '        self.assertNotIn("Diagnóstico inicial sem custo", page)\n',
+              1,
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
 
       - name: Run site tests and local routing probes
         shell: bash
