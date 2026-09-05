@@ -1,0 +1,147 @@
+name: Verify final anonymous SRIS public journey
+
+on:
+  push:
+    branches:
+      - qa-demo-measured-mission-20260905
+    paths:
+      - ".github/workflows/final-live-public-journey.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-journey:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Exercise Tourism Advance hostname, canonical site, demo and contact
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          const assert = (condition, message) => { if (!condition) throw new Error(message); };
+          const normal = value => String(value || '').replace(/\s+/g, ' ').trim();
+
+          (async () => {
+            const railwaySite = 'https://sris-mission-intelligence.up.railway.app/';
+            const canonicalSite = 'https://sris.io/';
+            const appDomain = 'https://app.sris.io/';
+
+            const www = await fetch('https://www.sris.io/', { redirect: 'manual' });
+            assert(www.status === 301, `www must return 301, got ${www.status}`);
+            assert(www.headers.get('location') === 'https://sris.io/', `www location=${www.headers.get('location')}`);
+
+            const railwayResponse = await fetch(railwaySite);
+            assert(railwayResponse.status === 200, `Tourism hostname status=${railwayResponse.status}`);
+            const railwayHtml = await railwayResponse.text();
+            assert(railwayHtml.includes('90 dias · 1 missão medida'), 'Updated duration missing from Tourism hostname');
+            assert(railwayHtml.includes('href="/demonstracao"'), 'Canonical demonstration path missing from Tourism hostname');
+            assert(railwayHtml.includes('contact@sris.io'), 'Institutional email missing from Tourism hostname');
+
+            const canonicalResponse = await fetch(canonicalSite);
+            assert(canonicalResponse.status === 200, `sris.io status=${canonicalResponse.status}`);
+            const canonicalHtml = await canonicalResponse.text();
+            assert(canonicalHtml.includes('<link rel="canonical" href="https://sris.io/">'), 'Canonical metadata incorrect');
+            assert(canonicalHtml.includes('contact@sris.io'), 'Human-readable contact email missing');
+            assert(!canonicalHtml.includes('data-cfemail'), 'Cloudflare email obfuscation markup present');
+            assert(!canonicalHtml.includes('[email protected]'), 'Email is visibly obfuscated');
+
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({
+              viewport: { width: 390, height: 844 },
+              isMobile: true,
+              hasTouch: true,
+              locale: 'pt-PT',
+            });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', error => errors.push(String(error)));
+            page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+
+            await page.goto(railwaySite, { waitUntil: 'networkidle', timeout: 45000 });
+            assert(normal(await page.locator('body').innerText()).includes('90 dias · 1 missão medida'), 'Railway site does not show updated pilot duration');
+
+            const demoLink = page.getByRole('link', { name: /Ver demonstração para alojamento/i });
+            assert(await demoLink.count() === 1, 'Demonstration link not found');
+            await demoLink.click();
+            await page.waitForURL(/\/demonstracao$/, { timeout: 30000 });
+
+            await page.route('**/api/mission-intelligence/demo/fictional/missions', async route => {
+              await new Promise(resolve => setTimeout(resolve, 3500));
+              await route.continue();
+            }).catch(() => {});
+
+            await page.waitForFunction(() => {
+              const value = (document.querySelector('#mission-title')?.textContent || '').trim();
+              return value && !value.includes('A carregar demonstração');
+            }, null, { timeout: 20000 });
+
+            const demoBody = normal(await page.locator('body').innerText());
+            for (const required of [
+              'Piloto de medição de oito semanas, dentro do acompanhamento de 90 dias.',
+              'dentro do piloto SRIS de 90 dias',
+              'Não incluída no benefício projetado.',
+              'Três de cerca de seis incidentes anuais estimados × 1 400 € de receita sob risco.',
+            ]) assert(demoBody.includes(required), `Demo text missing: ${required}`);
+
+            const contactHref = await page.getByRole('link', { name: /Solicitar contacto institucional/i }).getAttribute('href');
+            assert(contactHref === 'https://sris.io/#contacto', `Contact href=${contactHref}`);
+            const appHref = await page.getByRole('link', { name: /Entrar na aplicação/i }).getAttribute('href');
+            assert(appHref === 'https://app.sris.io/', `App href=${appHref}`);
+
+            const dimensions = await page.evaluate(() => ({
+              clientWidth: document.documentElement.clientWidth,
+              scrollWidth: document.documentElement.scrollWidth,
+              title: document.querySelector('#mission-title')?.textContent || '',
+            }));
+            assert(dimensions.scrollWidth <= dimensions.clientWidth + 2, `Mobile overflow: ${JSON.stringify(dimensions)}`);
+            assert(errors.length === 0, `Browser errors: ${JSON.stringify(errors)}`);
+            await page.screenshot({ path: '/tmp/final-public-demo-mobile.png', fullPage: true });
+
+            await page.getByRole('link', { name: /Solicitar contacto institucional/i }).click();
+            await page.waitForURL('https://sris.io/#contacto', { timeout: 30000 });
+            const contactText = normal(await page.locator('body').innerText());
+            assert(contactText.includes('contact@sris.io'), 'Contact page does not expose institutional email to a human');
+            assert(!contactText.includes('[email protected]'), 'Contact page email remains obfuscated');
+
+            let appStatus = null;
+            let appError = null;
+            try {
+              const appResponse = await fetch(appDomain, { redirect: 'follow' });
+              appStatus = appResponse.status;
+            } catch (error) {
+              appError = String(error);
+            }
+            assert(appStatus === 200, `app.sris.io is not operational; status=${appStatus}; error=${appError}`);
+
+            console.log(JSON.stringify({
+              wwwStatus: www.status,
+              railwayStatus: railwayResponse.status,
+              canonicalStatus: canonicalResponse.status,
+              appStatus,
+              contactHref,
+              appHref,
+              dimensions,
+            }, null, 2));
+            await browser.close();
+          })().catch(error => { console.error(error); process.exit(1); });
+          NODE
+
+      - name: Upload live mobile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-public-demo-mobile
+          path: /tmp/final-public-demo-mobile.png
+          if-no-files-found: warn
+          retention-days: 14
