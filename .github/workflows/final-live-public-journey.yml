@@ -36,25 +36,27 @@ jobs:
             const railwaySite = 'https://sris-mission-intelligence.up.railway.app/';
             const canonicalSite = 'https://sris.io/';
             const appDomain = 'https://app.sris.io/';
+            const cacheBust = `qa=${Date.now()}`;
+            const noCache = { headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } };
 
-            const www = await fetch('https://www.sris.io/', { redirect: 'manual' });
+            const www = await fetch(`https://www.sris.io/?${cacheBust}`, { redirect: 'manual', ...noCache });
             assert(www.status === 301, `www must return 301, got ${www.status}`);
             assert(www.headers.get('location') === 'https://sris.io/', `www location=${www.headers.get('location')}`);
 
-            const railwayResponse = await fetch(railwaySite);
+            const railwayResponse = await fetch(`${railwaySite}?${cacheBust}`, noCache);
             assert(railwayResponse.status === 200, `Tourism hostname status=${railwayResponse.status}`);
             const railwayHtml = await railwayResponse.text();
             assert(railwayHtml.includes('90 dias · 1 missão medida'), 'Updated duration missing from Tourism hostname');
             assert(railwayHtml.includes('href="/demonstracao"'), 'Canonical demonstration path missing from Tourism hostname');
-            assert(railwayHtml.includes('contact@sris.io'), 'Institutional email missing from Tourism hostname');
+            assert(railwayHtml.includes('data-contact-email'), 'Cloudflare-safe contact placeholder missing from Tourism hostname');
 
-            const canonicalResponse = await fetch(canonicalSite);
+            const canonicalResponse = await fetch(`${canonicalSite}?${cacheBust}`, noCache);
             assert(canonicalResponse.status === 200, `sris.io status=${canonicalResponse.status}`);
             const canonicalHtml = await canonicalResponse.text();
             assert(canonicalHtml.includes('<link rel="canonical" href="https://sris.io/">'), 'Canonical metadata incorrect');
-            assert(canonicalHtml.includes('contact@sris.io'), 'Human-readable contact email missing');
-            assert(!canonicalHtml.includes('data-cfemail'), 'Cloudflare email obfuscation markup present');
-            assert(!canonicalHtml.includes('[email protected]'), 'Email is visibly obfuscated');
+            assert(canonicalHtml.includes('data-contact-email'), 'Cloudflare-safe contact placeholder missing');
+            assert(!canonicalHtml.includes('data-cfemail'), 'Cloudflare email-obfuscation markup still present');
+            assert(!canonicalHtml.includes('[email protected]'), 'Obfuscated replacement visible in source');
 
             const browser = await chromium.launch({ headless: true });
             const context = await browser.newContext({
@@ -68,19 +70,23 @@ jobs:
             page.on('pageerror', error => errors.push(String(error)));
             page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
-            await page.goto(railwaySite, { waitUntil: 'networkidle', timeout: 45000 });
-            assert(normal(await page.locator('body').innerText()).includes('90 dias · 1 missão medida'), 'Railway site does not show updated pilot duration');
+            await page.route('**/api/mission-intelligence/demo/fictional/missions', async route => {
+              await new Promise(resolve => setTimeout(resolve, 3500));
+              await route.continue();
+            });
+
+            await page.goto(`${railwaySite}?${cacheBust}`, { waitUntil: 'networkidle', timeout: 45000 });
+            const railwayBody = normal(await page.locator('body').innerText());
+            assert(railwayBody.includes('90 dias · 1 missão medida'), 'Railway site does not show updated pilot duration');
+            assert(railwayBody.includes('contact@sris.io'), 'Railway site does not render contact@sris.io for a human');
 
             const demoLink = page.getByRole('link', { name: /Ver demonstração para alojamento/i });
             assert(await demoLink.count() === 1, 'Demonstration link not found');
             await demoLink.click();
             await page.waitForURL(/\/demonstracao$/, { timeout: 30000 });
 
-            await page.route('**/api/mission-intelligence/demo/fictional/missions', async route => {
-              await new Promise(resolve => setTimeout(resolve, 3500));
-              await route.continue();
-            }).catch(() => {});
-
+            const loadingState = (await page.locator('#mission-title').textContent() || '').trim();
+            assert(loadingState.includes('A carregar demonstração'), `Expected loading state, got: ${loadingState}`);
             await page.waitForFunction(() => {
               const value = (document.querySelector('#mission-title')?.textContent || '').trim();
               return value && !value.includes('A carregar demonstração');
@@ -110,6 +116,7 @@ jobs:
 
             await page.getByRole('link', { name: /Solicitar contacto institucional/i }).click();
             await page.waitForURL('https://sris.io/#contacto', { timeout: 30000 });
+            await page.waitForFunction(() => (document.querySelector('[data-contact-email]')?.textContent || '').trim() === 'contact@sris.io', null, { timeout: 10000 });
             const contactText = normal(await page.locator('body').innerText());
             assert(contactText.includes('contact@sris.io'), 'Contact page does not expose institutional email to a human');
             assert(!contactText.includes('[email protected]'), 'Contact page email remains obfuscated');
@@ -117,7 +124,7 @@ jobs:
             let appStatus = null;
             let appError = null;
             try {
-              const appResponse = await fetch(appDomain, { redirect: 'follow' });
+              const appResponse = await fetch(`${appDomain}?${cacheBust}`, { redirect: 'follow', ...noCache });
               appStatus = appResponse.status;
             } catch (error) {
               appError = String(error);
@@ -131,6 +138,7 @@ jobs:
               appStatus,
               contactHref,
               appHref,
+              loadingState,
               dimensions,
             }, null, 2));
             await browser.close();
