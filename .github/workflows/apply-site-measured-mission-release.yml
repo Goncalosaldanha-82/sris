@@ -73,7 +73,7 @@ jobs:
           set -euo pipefail
           git rm .github/workflows/apply-site-measured-mission-release.yml
           git rm tools/apply_site_measured_mission_release.py
-          git add site/index.html contact_server.py
+          git add site/index.html contact_server.py test_contact_server.py
           git diff --cached --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
