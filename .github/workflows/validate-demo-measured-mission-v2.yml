@@ -1,0 +1,138 @@
+name: Validate measured-mission demo release v2
+
+on:
+  push:
+    branches:
+      - qa-demo-measured-mission-20260905
+    paths:
+      - ".github/workflows/validate-demo-measured-mission-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-demo-qa-v2.db
+  ATLAS_REPOSITORY_ROOT: /tmp/sris-demo-qa-v2-repository
+  ATLAS_JWT_SECRET: demo-qa-v2-0123456789
+  ATLAS_ENV: test
+  SRIS_PILOT_MODE: "true"
+  SRIS_PUBLIC_SIGNUP_ENABLED: "true"
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install application
+        run: |
+          mkdir -p /tmp/sris-demo-qa-v2-repository
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[test]"
+      - name: Validate source, migration and frontend contracts
+        run: |
+          python -m compileall -q backend/app backend/tests migrations
+          node --check frontend/pilot-v1/demonstracao.js
+          rm -f /tmp/sris-demo-qa-v2.db
+          python -m alembic upgrade head
+          node --test frontend/tests/*.test.js
+      - name: Staging hardening
+        run: python -m pytest -q backend/tests/test_staging_audit_hardening.py
+      - name: Pilot V1
+        run: python -m pytest -q backend/tests/test_pilot_v1_contract.py
+      - name: Pilot platform
+        run: python -m pytest -q backend/tests/test_pilot_platform.py
+      - name: Pilot value
+        run: python -m pytest -q backend/tests/test_pilot_value.py
+      - name: Tenant isolation in fresh interpreter
+        run: python -m pytest -q backend/tests/test_pilot_tenant_isolation.py
+
+  mobile-slow-network:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install application and Chromium
+        run: |
+          mkdir -p /tmp/sris-demo-qa-v2-repository
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[test]"
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          rm -f /tmp/sris-demo-qa-v2.db
+          python -m alembic upgrade head
+      - name: Exercise anonymous demonstration over delayed API
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8765 >/tmp/sris-demo-uvicorn.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:8765/health >/dev/null; then break; fi
+            sleep 0.25
+          done
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,locale:'pt-PT'});
+            const page=await context.newPage();
+            const errors=[];
+            page.on('pageerror',error=>errors.push(String(error)));
+            page.on('console',message=>{if(message.type()==='error')errors.push(message.text())});
+            await page.route('**/api/mission-intelligence/demo/fictional/missions',async route=>{
+              await new Promise(resolve=>setTimeout(resolve,3500));
+              await route.continue();
+            });
+            await page.goto('http://127.0.0.1:8765/demonstracao',{waitUntil:'domcontentloaded',timeout:30000});
+            const initial=(await page.locator('#mission-title').textContent()||'').trim();
+            if(!initial.includes('A carregar demonstração')) throw new Error(`Estado inicial inesperado: ${initial}`);
+            await page.waitForFunction(()=>{
+              const value=(document.querySelector('#mission-title')?.textContent||'').trim();
+              return value && !value.includes('A carregar demonstração');
+            },null,{timeout:15000});
+            const finalTitle=(await page.locator('#mission-title').textContent()||'').trim();
+            if(!finalTitle.includes('Eficiência Hoteleira')) throw new Error(`Demonstração não carregou: ${finalTitle}`);
+            const enterHref=await page.locator('a:has-text("Entrar na aplicação")').getAttribute('href');
+            const contactHref=await page.locator('a:has-text("Solicitar contacto institucional")').getAttribute('href');
+            if(enterHref!=='https://app.sris.io/') throw new Error(`Link da APP incorreto: ${enterHref}`);
+            if(contactHref!=='https://sris.io/#contacto') throw new Error(`Link de contacto incorreto: ${contactHref}`);
+            const body=(await page.locator('body').innerText()).replace(/\s+/g,' ');
+            for(const required of [
+              'Piloto de medição de oito semanas, dentro do acompanhamento de 90 dias.',
+              'dentro do piloto SRIS de 90 dias',
+              'Não incluída no benefício projetado.',
+              'Três de cerca de seis incidentes anuais estimados × 1 400 € de receita sob risco.',
+            ]) if(!body.includes(required)) throw new Error(`Texto em falta: ${required}`);
+            if(errors.length) throw new Error(`Erros de browser: ${JSON.stringify(errors)}`);
+            const metrics=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,title:document.querySelector('#mission-title')?.textContent||''}));
+            if(metrics.scrollWidth>metrics.clientWidth+2) throw new Error(`Overflow horizontal: ${JSON.stringify(metrics)}`);
+            await page.screenshot({path:'/tmp/demo-mobile-slow.png',fullPage:true});
+            console.log(JSON.stringify({initial,finalTitle,enterHref,contactHref,metrics}));
+            await browser.close();
+          })().catch(error=>{console.error(error);process.exit(1)});
+          NODE
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-mobile-slow-network-v2
+          path: /tmp/demo-mobile-slow.png
+          if-no-files-found: warn
+          retention-days: 14
