@@ -120,11 +120,68 @@ def _frontend_html(filename: str) -> str:
         1,
     )
     if filename == "index.html":
+        html = html.replace(
+            "</head>",
+            '  <link rel="stylesheet" href="/analytics-ui-v1.css?v=analytics-management-v1">\n</head>',
+            1,
+        )
+
+        navigation_marker = '    </nav>\n    <div class="mini-profile">'
+        analytics_navigation = """      <div class="nav-group hidden" id="analytics-nav-group">
+        <div class="nav-group-label">Gestão</div>
+        <button id="analytics-nav" type="button">▥ <span>Analytics</span></button>
+      </div>
+"""
+        if navigation_marker not in html:
+            raise RuntimeError("Analytics navigation injection target not found")
+        html = html.replace(
+            navigation_marker,
+            f"{analytics_navigation}    </nav>\n    <div class=\"mini-profile\">",
+            1,
+        )
+
+        analytics_panel = """      <article class="card analytics-overview hidden" id="analytics-overview" aria-label="Leitura privada de interesse">
+        <div class="card-head">
+          <div>
+            <div class="eyebrow">INTERESSE OBSERVADO · USO INTERNO</div>
+            <h3>Site → demonstração → aplicação</h3>
+            <div class="analytics-overview-copy">Leitura first-party e agregada do interesse público no SRIS. Sem contador público, cookies de tracking, IP bruto ou perfis pessoais.</div>
+          </div>
+          <div class="analytics-overview-actions">
+            <span class="pill" id="analytics-period">Últimos 30 dias</span>
+            <button class="btn btn-secondary compact" id="analytics-refresh" type="button">Atualizar</button>
+            <button class="btn btn-primary compact" id="analytics-open" type="button">Abrir analytics</button>
+          </div>
+        </div>
+        <div class="analytics-overview-grid">
+          <div class="analytics-stat"><span>Site</span><strong id="analytics-site">—</strong><small>visualizações</small></div>
+          <div class="analytics-stat"><span>Demonstração</span><strong id="analytics-demo">—</strong><small>visualizações</small></div>
+          <div class="analytics-stat"><span>Aplicação</span><strong id="analytics-app">—</strong><small>visualizações</small></div>
+          <div class="analytics-stat"><span>Logins</span><strong id="analytics-login">—</strong><small>sessões autenticadas</small></div>
+        </div>
+        <div class="analytics-funnel">
+          <div><span>Site → Demonstração</span><strong id="analytics-site-demo">—</strong></div>
+          <div><span>Demonstração → APP</span><strong id="analytics-demo-app">—</strong></div>
+        </div>
+        <div class="analytics-state" id="analytics-state">A sincronizar leitura de interesse…</div>
+      </article>
+
+"""
+        overview_marker = '      <div class="command-grid">'
+        if overview_marker not in html:
+            raise RuntimeError("Analytics overview injection target not found")
+        html = html.replace(
+            overview_marker,
+            f"{analytics_panel}{overview_marker}",
+            1,
+        )
+
         runtime_scripts = "\n".join(
             (
                 f'<script src="/pilot-platform-v1.js?v={PILOT_BUILD}" defer></script>',
                 f'<script src="/pilot-value-v1.js?v={PILOT_BUILD}" defer></script>',
                 f'<script src="/pilot-mission-bridge-v1.js?v={PILOT_BUILD}" defer></script>',
+                '<script src="/analytics-ui-v1.js?v=analytics-management-v1" defer></script>',
             )
         )
         html = html.replace("</body>", f"{runtime_scripts}\n</body>", 1)
