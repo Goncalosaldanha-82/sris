@@ -60,11 +60,10 @@
 
       <form id="register-form" class="auth-form hidden" novalidate>
         <div class="field"><label for="reg-name">Nome</label><input id="reg-name" name="name" required minlength="2" autocomplete="name" placeholder="O seu nome"></div>
-        <div class="field"><label for="reg-org">Organização / projeto</label><input id="reg-org" name="organization" minlength="2" autocomplete="organization" placeholder="Ex.: Unidade de alojamento"></div>
-        <div class="field"><label for="reg-email">Email</label><input id="reg-email" name="email" type="email" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="email" required placeholder="nome@empresa.pt"></div>
-        <div class="field"><label for="reg-password">Palavra-passe</label><input id="reg-password" name="password" type="password" minlength="12" autocomplete="new-password" required placeholder="Mínimo 12 caracteres"></div>
-        <button class="btn btn-primary auth-submit" id="register-submit" type="submit">Criar conta e entrar</button>
-        <div class="note">A conta cria um workspace individual para estruturar missões, evidência, decisões e aprendizagem.</div>
+        <div class="field"><label for="reg-org">Organização / projeto</label><input id="reg-org" name="organization" required minlength="2" autocomplete="organization" placeholder="Ex.: Unidade de alojamento"></div>
+        <div class="field"><label for="reg-email">Email profissional</label><input id="reg-email" name="email" type="email" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="email" required placeholder="nome@empresa.pt"></div>
+        <button class="btn btn-primary auth-submit" id="register-submit" type="submit">Pedir acesso</button>
+        <div class="note">O pedido é analisado pelo SRIS. Depois da aprovação, receberá um convite pessoal e de utilização única para definir a palavra-passe e entrar no workspace atribuído.</div>
       </form>
 
       <form id="reset-request-form" class="auth-form hidden" novalidate>

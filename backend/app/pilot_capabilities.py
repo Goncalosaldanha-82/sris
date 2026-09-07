@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.auth_delivery import auth_email_delivery_ready
+from app.atlas_platform.commercial_access_models import commercial_gate_enforced
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import User
 from app.pilot_platform import (
@@ -21,7 +22,7 @@ from app.pilot_platform import (
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "pilot-create-interaction-v39"
+PILOT_BUILD = "pilot-commercial-access-lifecycle-v40"
 
 USER_MOMENTS = [
     "context",
@@ -68,8 +69,8 @@ def _password_reset_delivery() -> str:
 
 
 def _public_signup_enabled() -> bool:
-    # Mirror the actual authentication gate; retain the historical Pilot flag
-    # only as a fallback for older local environments.
+    # Compatibility signal only. The Pilot entry point no longer turns this
+    # into immediate account creation; new organizations use access requests.
     if os.getenv("ATLAS_SELF_REGISTRATION_ENABLED") is not None:
         return _flag("ATLAS_SELF_REGISTRATION_ENABLED", False)
     return _flag("SRIS_PUBLIC_SIGNUP_ENABLED", True)
@@ -88,10 +89,18 @@ def pilot_capabilities() -> dict:
         ],
         "architecture": "universal_core_configurable_profiles",
         "public_signup": _public_signup_enabled(),
+        "account_creation": "approval_then_invitation",
+        "access_request_enabled": True,
+        "access_request_endpoint": "/api/access-requests",
+        "password_created_on_invitation_acceptance": True,
         "password_reset": True,
         "password_reset_delivery": _password_reset_delivery(),
         "transactional_email_ready": auth_email_delivery_ready(),
         "invitations_enabled": auth_email_delivery_ready(),
+        "workspace_assignment_governed": True,
+        "commercial_entitlement": True,
+        "commercial_entitlement_enforced": commercial_gate_enforced(),
+        "commercial_renewal": "sris_approval",
         "workspace_profile_endpoint": "/api/pilot/profile",
         "explicit_workspace_selection": True,
         "workspace_continuity_resolution": "requested_then_persistent_mission_activity",
