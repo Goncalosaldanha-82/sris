@@ -17,6 +17,7 @@ report = {
     "started_at": datetime.now(timezone.utc).isoformat(),
     "configuration": {},
     "provider_probe": {},
+    "approver_check": {},
     "reset_history": [],
     "findings": [],
 }
@@ -199,6 +200,74 @@ if DB_URL:
             conn.execute(text("SET LOCAL statement_timeout='10s'"))
         inspector = inspect(conn)
         tables = set(inspector.get_table_names())
+
+        approver_emails = {
+            item.strip().lower()
+            for name in (
+                "SRIS_ACCESS_APPROVER_EMAILS",
+                "SRIS_PLATFORM_ADMIN_EMAILS",
+            )
+            for item in os.getenv(name, "").split(",")
+            if item.strip()
+        }
+        active_account_matches = 0
+        privileged_membership_matches = 0
+        if approver_emails and {"users", "memberships"}.issubset(tables):
+            user_columns = {
+                c["name"] for c in inspector.get_columns("users")
+            }
+            active_column = "is_active" if "is_active" in user_columns else (
+                "active" if "active" in user_columns else None
+            )
+            for email in sorted(approver_emails):
+                active_clause = (
+                    f"AND u.{active_column} IS TRUE" if active_column else ""
+                )
+                active_account_matches += int(
+                    conn.execute(
+                        text(
+                            f"""
+                            SELECT COUNT(*)
+                            FROM users u
+                            WHERE LOWER(u.email)=:email
+                            {active_clause}
+                            """
+                        ),
+                        {"email": email},
+                    ).scalar()
+                    or 0
+                )
+                privileged_membership_matches += int(
+                    conn.execute(
+                        text(
+                            f"""
+                            SELECT COUNT(*)
+                            FROM users u
+                            JOIN memberships m ON m.user_id=u.id
+                            WHERE LOWER(u.email)=:email
+                              AND m.role IN ('owner','admin')
+                              {active_clause}
+                            """
+                        ),
+                        {"email": email},
+                    ).scalar()
+                    or 0
+                )
+        report["approver_check"] = {
+            "configured_count": len(approver_emails),
+            "active_account_matches": active_account_matches,
+            "privileged_membership_matches": privileged_membership_matches,
+            "authenticated_approver_ready": bool(active_account_matches),
+        }
+        if approver_emails and not active_account_matches:
+            report["findings"].append(
+                {
+                    "severity": "critical",
+                    "title": "Configured SRIS access approver has no active application account",
+                    "detail": "No email values are emitted by this audit.",
+                }
+            )
+
         if "password_reset_tokens" in tables:
             cols = {
                 c["name"]
