@@ -21,7 +21,7 @@ from app.pilot_platform import (
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "20260905-demo-measured-mission-v38"
+PILOT_BUILD = "pilot-create-interaction-v39"
 
 USER_MOMENTS = [
     "context",
