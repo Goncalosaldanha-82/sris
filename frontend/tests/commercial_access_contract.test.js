@@ -18,6 +18,13 @@ test('Create account starts a governed access request instead of collecting a pa
   assert.match(auth, /tab\.disabled=false/);
 });
 
+test('Access request keeps a stable form reference across the asynchronous submission', () => {
+  const auth = read('../pilot-v1/auth.js');
+  assert.match(auth, /const form=e\.currentTarget/);
+  assert.match(auth, /form\.reset\(\)/);
+  assert.doesNotMatch(auth, /e\.currentTarget\.reset\(\)/);
+});
+
 test('Workspace administration stays separate from commercial platform administration', () => {
   const loader = read('../pilot-v1/admin-accounts.js');
   const entitlement = read('../pilot-v1/commercial-entitlement-ui.js');
