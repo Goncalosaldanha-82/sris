@@ -2,7 +2,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
@@ -80,7 +80,7 @@ async def security_and_trace_headers(request: Request, call_next):
 
     path = request.url.path
     is_frontend_asset = path.endswith((".js", ".css", ".svg", ".webp", ".png", ".jpg", ".jpeg"))
-    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao"}:
+    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao", "/pilot-platform-v1.js"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -111,6 +111,47 @@ def _frontend_html(filename: str) -> str:
         )
         html = html.replace("</body>", f"{runtime_scripts}\n</body>", 1)
     return html
+
+
+def _pilot_platform_javascript() -> str:
+    """Serve the pilot UI with a surgical fix for the create-editor reload race."""
+    script = (FRONTEND_DIR / "pilot-platform-v1.js").read_text(encoding="utf-8")
+
+    open_section_old = """  function openPilotSection(){
+    $$('.section').forEach(section=>section.classList.toggle('active',section.id==='pilots'));$$('.nav button').forEach(button=>button.classList.toggle('active',button.classList.contains('pp-nav-button')));$('#page-title')&&($('#page-title').textContent='Pilotos');$('#sidebar')?.classList.remove('open');$('#menu-btn')?.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open');window.scrollTo({top:0,behavior:'smooth'});loadAll();
+  }"""
+    open_section_new = """  function openPilotSection(reload=true){
+    $$('.section').forEach(section=>section.classList.toggle('active',section.id==='pilots'));$$('.nav button').forEach(button=>button.classList.toggle('active',button.classList.contains('pp-nav-button')));$('#page-title')&&($('#page-title').textContent='Pilotos');$('#sidebar')?.classList.remove('open');$('#menu-btn')?.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open');window.scrollTo({top:0,behavior:'smooth'});if(reload)loadAll();
+  }"""
+    show_create_old = """  function showCreate(templateKey=''){
+    openPilotSection();state.selected=null;"""
+    show_create_new = """  function showCreate(templateKey=''){
+    openPilotSection(false);state.selected=null;"""
+    primary_cta_old = "button.addEventListener('click',()=>{openPilotSection();showCreate()})"
+    primary_cta_new = "button.addEventListener('click',()=>showCreate())"
+
+    replacements = (
+        (open_section_old, open_section_new, "openPilotSection"),
+        (show_create_old, show_create_new, "showCreate"),
+        (primary_cta_old, primary_cta_new, "primary pilot CTA"),
+    )
+    for old, new, label in replacements:
+        if old not in script:
+            raise RuntimeError(f"Pilot platform patch target not found: {label}")
+        script = script.replace(old, new, 1)
+    return script
+
+
+@app.get("/pilot-platform-v1.js", include_in_schema=False)
+def pilot_platform_javascript() -> Response:
+    return Response(
+        _pilot_platform_javascript(),
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-SRIS-Pilot-Build": PILOT_BUILD,
+        },
+    )
 
 
 @app.get("/", include_in_schema=False)
