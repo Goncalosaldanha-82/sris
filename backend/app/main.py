@@ -1,3 +1,4 @@
+from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
@@ -98,7 +99,7 @@ async def security_and_trace_headers(request: Request, call_next):
             safe_track_request(request, event_name="mission_created", surface="app")
 
     is_frontend_asset = path.endswith((".js", ".css", ".svg", ".webp", ".png", ".jpg", ".jpeg"))
-    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao", "/pilot-platform-v1.js", "/admin/analytics", "/go/app"}:
+    if path.endswith(".js") or path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao", "/pilot-platform-v1.js", "/admin/analytics", "/go/app"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -114,6 +115,14 @@ if ASSETS_DIR.exists():
 def _frontend_html(filename: str) -> str:
     html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
     html = html.replace("__PILOT_BUILD__", PILOT_BUILD)
+    if filename == "home.html":
+        # A release label can remain unchanged during a hotfix. Fingerprint the
+        # actual script so a browser with the old immutable URL fetches the fix.
+        auth_digest = sha256((FRONTEND_DIR / "auth.js").read_bytes()).hexdigest()[:16]
+        html = html.replace(
+            f'/auth.js?v={PILOT_BUILD}',
+            f'/auth.js?v={PILOT_BUILD}-{auth_digest}',
+        )
     html = html.replace(
         "<head>",
         f'<head>\n  <meta name="sris-pilot-build" content="{PILOT_BUILD}">',
