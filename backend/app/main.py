@@ -2,7 +2,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.atlas_platform.api import app
@@ -91,9 +91,14 @@ async def security_and_trace_headers(request: Request, call_next):
             safe_track_request(request, event_name="login_success", surface="app")
         elif path.startswith("/api/organizations/") and path.endswith("/pilots"):
             safe_track_request(request, event_name="pilot_created", surface="app")
+        elif (
+            path.startswith("/api/organizations/")
+            and path.endswith("/mission-intelligence/missions")
+        ):
+            safe_track_request(request, event_name="mission_created", surface="app")
 
     is_frontend_asset = path.endswith((".js", ".css", ".svg", ".webp", ".png", ".jpg", ".jpeg"))
-    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao", "/pilot-platform-v1.js", "/admin/analytics"}:
+    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao", "/pilot-platform-v1.js", "/admin/analytics", "/go/app"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -123,6 +128,12 @@ def _frontend_html(filename: str) -> str:
             )
         )
         html = html.replace("</body>", f"{runtime_scripts}\n</body>", 1)
+    elif filename == "demonstracao.html":
+        html = html.replace(
+            'href="https://app.sris.io/">Entrar na aplicação</a>',
+            'href="https://app.sris.io/go/app?src=demo">Entrar na aplicação</a>',
+            1,
+        )
     return html
 
 
@@ -179,11 +190,15 @@ def pilot_home(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/go/app", include_in_schema=False)
+def demo_to_app(request: Request) -> RedirectResponse:
+    safe_track_request(request, event_name="demo_to_app", surface="app")
+    return RedirectResponse(url="/", status_code=302)
+
+
 @app.get("/app", include_in_schema=False)
 def pilot_app(request: Request) -> HTMLResponse:
     safe_track_request(request, event_name="app_view", surface="app")
-    if (request.query_params.get("src") or "").lower() == "demo":
-        safe_track_request(request, event_name="demo_to_app", surface="app")
     return HTMLResponse(
         _frontend_html("index.html"),
         headers={
