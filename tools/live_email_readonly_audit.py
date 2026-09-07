@@ -24,9 +24,18 @@ report = {
 cfg = auth_delivery_configuration()
 if cfg is None:
     report["configuration"] = {"ready": False}
-    report["findings"].append({"severity": "critical", "title": "Transactional email configuration does not resolve"})
+    report["findings"].append(
+        {
+            "severity": "critical",
+            "title": "Transactional email configuration does not resolve",
+        }
+    )
 else:
-    from_domain = cfg.from_email.rsplit("@", 1)[-1].lower() if "@" in cfg.from_email else ""
+    from_domain = (
+        cfg.from_email.rsplit("@", 1)[-1].lower()
+        if "@" in cfg.from_email
+        else ""
+    )
     report["configuration"] = {
         "ready": True,
         "provider": cfg.provider,
@@ -38,11 +47,24 @@ else:
     if cfg.provider == "resend":
         key = os.getenv("RESEND_API_KEY", "").strip()
         if not key:
-            report["provider_probe"] = {"provider": "resend", "ok": False, "reason": "key_missing"}
+            report["provider_probe"] = {
+                "provider": "resend",
+                "ok": False,
+                "reason": "key_missing",
+            }
+            report["findings"].append(
+                {
+                    "severity": "critical",
+                    "title": "Resend API key is missing",
+                }
+            )
         else:
             req = Request(
                 "https://api.resend.com/domains",
-                headers={"Authorization": f"Bearer {key}", "User-Agent": "SRIS-readonly-audit/1.0"},
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "User-Agent": "SRIS-readonly-audit/1.1",
+                },
                 method="GET",
             )
             try:
@@ -57,35 +79,117 @@ else:
                         }
                         for item in domains
                     ]
-                    matching = [item for item in sanitized if item["name"] == from_domain or from_domain.endswith("." + item["name"])]
+                    matching = [
+                        item
+                        for item in sanitized
+                        if item["name"] == from_domain
+                        or from_domain.endswith("." + item["name"])
+                    ]
                     report["provider_probe"] = {
                         "provider": "resend",
-                        "ok": 200 <= int(getattr(response, "status", 0) or 0) < 300,
-                        "http_status": int(getattr(response, "status", 0) or 0),
+                        "ok": 200
+                        <= int(getattr(response, "status", 0) or 0)
+                        < 300,
+                        "http_status": int(
+                            getattr(response, "status", 0) or 0
+                        ),
                         "configured_domain_count": len(sanitized),
                         "matching_from_domain": matching,
                     }
                     if not matching:
-                        report["findings"].append({"severity": "critical", "title": "SRIS_EMAIL_FROM domain is not present in the Resend domain inventory", "detail": from_domain})
-                    elif not any(str(item.get("status", "")).lower() == "verified" for item in matching):
-                        report["findings"].append({"severity": "critical", "title": "SRIS_EMAIL_FROM domain exists in Resend but is not verified", "detail": json.dumps(matching)})
+                        report["findings"].append(
+                            {
+                                "severity": "critical",
+                                "title": "SRIS_EMAIL_FROM domain is not present in the Resend domain inventory",
+                                "detail": from_domain,
+                            }
+                        )
+                    elif not any(
+                        str(item.get("status", "")).lower() == "verified"
+                        for item in matching
+                    ):
+                        report["findings"].append(
+                            {
+                                "severity": "critical",
+                                "title": "SRIS_EMAIL_FROM domain exists in Resend but is not verified",
+                                "detail": json.dumps(matching),
+                            }
+                        )
             except HTTPError as exc:
                 body = ""
                 try:
                     body = exc.read().decode("utf-8", errors="replace")[:500]
                 except Exception:
                     pass
-                report["provider_probe"] = {"provider": "resend", "ok": False, "http_status": exc.code, "error": body}
-                report["findings"].append({"severity": "critical", "title": "Resend API credentials/domain probe failed", "detail": f"HTTP {exc.code}"})
+                body_lower = body.lower()
+                send_only_key = (
+                    exc.code in {401, 403}
+                    and (
+                        "restricted_api_key" in body_lower
+                        or "restricted to only send emails" in body_lower
+                        or "send emails" in body_lower
+                    )
+                )
+                if send_only_key:
+                    # A send-only API key is intentionally unable to list domains.
+                    # This makes the non-sending inventory probe inconclusive; it
+                    # is not evidence that transactional delivery is broken.
+                    report["provider_probe"] = {
+                        "provider": "resend",
+                        "ok": None,
+                        "http_status": exc.code,
+                        "reason": "send_only_key_cannot_list_domains",
+                    }
+                    report["findings"].append(
+                        {
+                            "severity": "info",
+                            "title": "Resend key is send-only; domain inventory probe skipped",
+                            "detail": "Least-privilege key retained; delivery must be evidenced by invitation/reset delivery status.",
+                        }
+                    )
+                else:
+                    report["provider_probe"] = {
+                        "provider": "resend",
+                        "ok": False,
+                        "http_status": exc.code,
+                        "reason": "provider_probe_rejected",
+                    }
+                    report["findings"].append(
+                        {
+                            "severity": "critical",
+                            "title": "Resend API credentials/domain probe failed",
+                            "detail": f"HTTP {exc.code}",
+                        }
+                    )
             except (URLError, OSError, ValueError) as exc:
-                report["provider_probe"] = {"provider": "resend", "ok": False, "error": type(exc).__name__}
-                report["findings"].append({"severity": "critical", "title": "Resend API could not be reached", "detail": type(exc).__name__})
+                report["provider_probe"] = {
+                    "provider": "resend",
+                    "ok": False,
+                    "error": type(exc).__name__,
+                }
+                report["findings"].append(
+                    {
+                        "severity": "critical",
+                        "title": "Resend API could not be reached",
+                        "detail": type(exc).__name__,
+                    }
+                )
     elif cfg.provider == "brevo":
-        report["provider_probe"] = {"provider": "brevo", "ok": None, "reason": "non_sending_probe_not_implemented"}
+        report["provider_probe"] = {
+            "provider": "brevo",
+            "ok": None,
+            "reason": "non_sending_probe_not_implemented",
+        }
     elif cfg.provider == "smtp":
-        report["provider_probe"] = {"provider": "smtp", "ok": None, "reason": "no_network_write_attempt_performed"}
+        report["provider_probe"] = {
+            "provider": "smtp",
+            "ok": None,
+            "reason": "no_network_write_attempt_performed",
+        }
 
-DB_URL = (os.getenv("ATLAS_DATABASE_URL") or os.getenv("DATABASE_URL") or "").strip()
+DB_URL = (
+    os.getenv("ATLAS_DATABASE_URL") or os.getenv("DATABASE_URL") or ""
+).strip()
 if DB_URL:
     engine = create_engine(DB_URL, pool_pre_ping=True)
     with engine.connect() as conn:
@@ -96,18 +200,28 @@ if DB_URL:
         inspector = inspect(conn)
         tables = set(inspector.get_table_names())
         if "password_reset_tokens" in tables:
-            cols = {c["name"] for c in inspector.get_columns("password_reset_tokens")}
+            cols = {
+                c["name"]
+                for c in inspector.get_columns("password_reset_tokens")
+            }
             date_col = "created_at" if "created_at" in cols else None
             if date_col and "delivery_status" in cols:
                 report["reset_history"] = [
                     dict(row)
-                    for row in conn.execute(text(f"""
-                        SELECT DATE_TRUNC('day', {date_col}) AS day, delivery_status, COUNT(*) AS total,
-                               MIN({date_col}) AS first_at, MAX({date_col}) AS last_at
-                        FROM password_reset_tokens
-                        GROUP BY DATE_TRUNC('day', {date_col}), delivery_status
-                        ORDER BY day DESC, delivery_status
-                    """)).mappings().all()
+                    for row in conn.execute(
+                        text(
+                            f"""
+                            SELECT DATE_TRUNC('day', {date_col}) AS day,
+                                   delivery_status,
+                                   COUNT(*) AS total,
+                                   MIN({date_col}) AS first_at,
+                                   MAX({date_col}) AS last_at
+                            FROM password_reset_tokens
+                            GROUP BY DATE_TRUNC('day', {date_col}), delivery_status
+                            ORDER BY day DESC, delivery_status
+                            """
+                        )
+                    ).mappings().all()
                 ]
         tx.rollback()
 
