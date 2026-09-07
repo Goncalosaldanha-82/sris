@@ -10,6 +10,11 @@ from app.atlas_platform.workspace_scope import (
     reset_active_organization_id,
     set_active_organization_id,
 )
+from app.internal_analytics import (
+    dashboard_router as internal_analytics_dashboard_router,
+    router as internal_analytics_router,
+    safe_track_request,
+)
 from app.pilot_epistemic import router as evidence_graph_router
 from app.learning_lineage import router as learning_lineage_router
 from app.mission_intelligence.evolution_api import router as organizational_learning_router
@@ -50,6 +55,8 @@ app.include_router(learning_lineage_router)
 app.include_router(pilot_operations_router)
 app.include_router(pilot_validation_router)
 app.include_router(pilot_release_readiness_router)
+app.include_router(internal_analytics_router)
+app.include_router(internal_analytics_dashboard_router)
 app.add_middleware(PilotRateLimitMiddleware)
 
 
@@ -79,8 +86,14 @@ async def security_and_trace_headers(request: Request, call_next):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
     path = request.url.path
+    if 200 <= response.status_code < 300 and request.method == "POST":
+        if path == "/api/auth/login":
+            safe_track_request(request, event_name="login_success", surface="app")
+        elif path.startswith("/api/organizations/") and path.endswith("/pilots"):
+            safe_track_request(request, event_name="pilot_created", surface="app")
+
     is_frontend_asset = path.endswith((".js", ".css", ".svg", ".webp", ".png", ".jpg", ".jpeg"))
-    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao", "/pilot-platform-v1.js"}:
+    if path.startswith("/api/") or path in {"/", "/app", "/account.html", "/demonstracao", "/pilot-platform-v1.js", "/admin/analytics"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -155,7 +168,8 @@ def pilot_platform_javascript() -> Response:
 
 
 @app.get("/", include_in_schema=False)
-def pilot_home() -> HTMLResponse:
+def pilot_home(request: Request) -> HTMLResponse:
+    safe_track_request(request, event_name="app_entry_view", surface="app")
     return HTMLResponse(
         _frontend_html("home.html"),
         headers={
@@ -166,7 +180,10 @@ def pilot_home() -> HTMLResponse:
 
 
 @app.get("/app", include_in_schema=False)
-def pilot_app() -> HTMLResponse:
+def pilot_app(request: Request) -> HTMLResponse:
+    safe_track_request(request, event_name="app_view", surface="app")
+    if (request.query_params.get("src") or "").lower() == "demo":
+        safe_track_request(request, event_name="demo_to_app", surface="app")
     return HTMLResponse(
         _frontend_html("index.html"),
         headers={
@@ -188,7 +205,8 @@ def pilot_account() -> HTMLResponse:
 
 
 @app.get("/demonstracao", include_in_schema=False)
-def public_demo() -> HTMLResponse:
+def public_demo(request: Request) -> HTMLResponse:
+    safe_track_request(request, event_name="demo_view", surface="demo")
     return HTMLResponse(
         _frontend_html("demonstracao.html"),
         headers={
