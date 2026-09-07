@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# One-shot staging diagnostic: read-only owner lookup, removed after reconciliation.
 import json
 import os
 from sqlalchemy import create_engine, text
