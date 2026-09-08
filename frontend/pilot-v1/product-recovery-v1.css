@@ -1,0 +1,199 @@
+/* SRIS Pilot V1 — Product Recovery
+   Product hierarchy first; AI, wallet and pricing remain secondary utilities. */
+:root{
+  --sr-paper:#f4f1e8;
+  --sr-paper-2:#ebece5;
+  --sr-card:#fffefb;
+  --sr-ink:#0d201a;
+  --sr-muted:#66756e;
+  --sr-line:#d8ded8;
+  --sr-green:#103d32;
+  --sr-green-2:#1e5d49;
+  --sr-mint:#e8f1ec;
+  --sr-gold:#d5a64e;
+  --sr-shadow:0 18px 48px rgba(13,32,26,.08);
+}
+
+html,body{background:var(--sr-paper)!important;color:var(--sr-ink)!important;font-size:16px}
+body{min-width:320px}
+
+/* Authentication — reveal the territory and subordinate technical credit language. */
+.auth-page{background:var(--sr-paper)!important}
+.auth-visual-photo{
+  background-image:url('/sunrise.svg')!important;
+  background-position:center 52%!important;
+  background-size:cover!important;
+}
+.auth-visual-photo:after{
+  background:linear-gradient(90deg,rgba(5,25,20,.72),rgba(5,25,20,.35) 58%,rgba(5,25,20,.15)),linear-gradient(0deg,rgba(5,22,18,.68),rgba(5,22,18,.04) 60%)!important;
+}
+.auth-panel{background:rgba(247,245,238,.98)!important}
+.auth-card{width:min(100%,520px)!important}
+.auth-card h2{font-size:44px!important;color:var(--sr-ink)}
+.auth-card>.muted{font-size:16px;line-height:1.6}
+.trial-box{background:#f1eee4!important;border-color:#ded5bf!important;color:var(--sr-ink)}
+.trial-icon{background:var(--sr-green)!important}
+
+/* Core application shell. */
+.app-shell{grid-template-columns:264px minmax(0,1fr)!important;background:var(--sr-paper)!important}
+.sidebar{
+  width:auto!important;
+  padding:30px 20px 24px!important;
+  background:linear-gradient(180deg,#0a332a 0%,#092a23 100%)!important;
+  box-shadow:14px 0 38px rgba(7,33,27,.08);
+}
+.sidebar-brand{padding:0 10px 8px}
+.sidebar .nav{gap:7px!important}
+.nav-group{display:grid;gap:7px}
+.nav-group+.nav-group{margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,.11)}
+.nav-group-label{padding:0 13px 7px;color:#8eaaa0;font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.sidebar .nav button{
+  min-height:48px;
+  padding:12px 14px!important;
+  border-radius:13px!important;
+  font-size:14px!important;
+  color:#bdd0c8!important;
+}
+.sidebar .nav button.active,.sidebar .nav button:hover{background:rgba(255,255,255,.10)!important;color:#fff!important}
+.sidebar .nav button.secondary-nav{font-size:12px!important;min-height:42px;color:#9fb6ad!important}
+.mini-profile{margin-top:auto!important;padding:18px 8px 0!important;border-top:1px solid rgba(255,255,255,.11)}
+
+.app-main{min-width:0;background:linear-gradient(180deg,#f7f5ef 0,#f1f2ec 100%)!important}
+.topbar{
+  min-height:86px!important;
+  height:auto!important;
+  padding:16px 44px!important;
+  align-items:center!important;
+  background:rgba(247,245,238,.96)!important;
+  border-bottom:1px solid var(--sr-line)!important;
+  box-shadow:0 8px 24px rgba(13,32,26,.035);
+}
+.topbar h1{margin:0!important;text-align:left!important;font-size:31px!important;line-height:1.05!important;color:var(--sr-ink)!important}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.status-pill{font-size:11px!important;padding:8px 11px!important;background:var(--sr-mint)!important;color:#2b6854!important}
+.ghost-btn{background:transparent!important;border:1px solid var(--sr-line)!important;border-radius:12px!important;padding:10px 14px!important;color:var(--sr-ink)!important}
+
+.section{width:min(100%,1500px);margin:0 auto;padding:40px 48px 82px!important}
+.section.active{display:block}
+
+/* Command — product capability and next decision dominate. */
+.hero-card{
+  min-height:310px!important;
+  padding:46px 48px!important;
+  border-radius:24px!important;
+  background:linear-gradient(128deg,#0c3c31 0%,#175d49 72%,#28745b 100%)!important;
+  box-shadow:0 24px 58px rgba(11,54,43,.15)!important;
+  position:relative;
+  overflow:hidden;
+}
+.hero-card:after{content:"";position:absolute;width:520px;height:520px;border:1px solid rgba(255,255,255,.12);border-radius:50%;right:-210px;top:-245px;box-shadow:0 0 0 70px rgba(255,255,255,.025),0 0 0 140px rgba(255,255,255,.018)}
+.hero-card>*{position:relative;z-index:1}
+.hero-card h2{font-family:Georgia,"Times New Roman",serif!important;font-size:clamp(43px,4.5vw,66px)!important;line-height:.98!important;max-width:900px;margin:16px 0 20px!important;font-weight:500!important;letter-spacing:-.035em}
+.hero-card p{max-width:830px!important;font-size:17px!important;line-height:1.65!important;color:rgba(255,255,255,.82)!important}
+.hero-card .button-row{margin-top:28px!important}
+
+.decision-chain{
+  margin-top:18px;
+  display:grid;
+  grid-template-columns:repeat(8,minmax(95px,1fr));
+  gap:8px;
+}
+.decision-chain span{position:relative;padding:14px 10px;border:1px solid var(--sr-line);border-radius:13px;background:rgba(255,255,255,.72);text-align:center;font-size:12px;font-weight:750;color:#365149}
+.decision-chain span:last-child{background:var(--sr-green);border-color:var(--sr-green);color:#fff}
+.decision-chain span:not(:last-child):after{content:"→";position:absolute;right:-10px;top:12px;color:#9b7b3d;z-index:2}
+
+.overview-grid.product-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important;margin-top:18px!important}
+.product-card{min-height:210px;display:flex;flex-direction:column;justify-content:space-between;padding:24px!important}
+.product-card .product-index{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#977127;font-weight:800}
+.product-card h3{font-family:Georgia,"Times New Roman",serif;font-size:27px!important;line-height:1.08;margin:22px 0 10px}
+.product-card p{margin:0;color:var(--sr-muted);font-size:14px;line-height:1.55}
+.product-card .inline-link{margin-top:20px;color:var(--sr-green-2);font-size:13px;font-weight:800}
+
+.card{background:var(--sr-card)!important;border:1px solid var(--sr-line)!important;border-radius:18px!important;box-shadow:0 10px 30px rgba(13,32,26,.04)!important}
+.card h2,.card h3{color:var(--sr-ink)}
+.overview-secondary{margin-top:18px!important;grid-template-columns:1.25fr .75fr!important}
+.memory-primary{padding:28px!important}
+.memory-primary h3{font-family:Georgia,"Times New Roman",serif;font-size:30px!important;margin:4px 0 12px}
+.memory-primary p{max-width:760px;font-size:15px;line-height:1.65;color:var(--sr-muted)}
+
+.technical-details{margin-top:18px;border:1px solid var(--sr-line);border-radius:16px;background:rgba(255,255,255,.58);overflow:hidden}
+.technical-details summary{cursor:pointer;padding:16px 20px;font-size:12px;font-weight:800;color:#49655b;letter-spacing:.04em;list-style:none}
+.technical-details summary::-webkit-details-marker{display:none}
+.technical-details summary:after{content:"+";float:right;font-size:18px;font-weight:500}
+.technical-details[open] summary:after{content:"−"}
+.technical-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--sr-line);border-top:1px solid var(--sr-line)}
+.technical-grid>div{background:#fbfaf6;padding:16px 20px}
+.technical-grid small,.technical-grid strong{display:block}
+.technical-grid small{font-size:10px;color:var(--sr-muted);text-transform:uppercase;letter-spacing:.1em}
+.technical-grid strong{margin-top:6px;font-size:14px}
+
+/* Mission Workspace — the actual product centre. */
+.mission-layout{grid-template-columns:320px minmax(0,1fr)!important;gap:18px!important;align-items:start}
+.mission-rail{position:sticky;top:110px;min-height:calc(100vh - 150px);padding:22px!important}
+.mission-rail h2{font-size:25px!important}
+.mission-workspace{min-height:calc(100vh - 150px);padding:28px!important}
+#mission-empty .empty-state{max-width:920px;margin:0 auto;padding:44px 30px;text-align:left!important}
+#mission-empty .empty-state h2{font-family:Georgia,"Times New Roman",serif;font-size:clamp(38px,4vw,58px)!important;line-height:1.02!important;max-width:760px;margin:12px 0 16px!important}
+#mission-empty .empty-state>p{max-width:760px;font-size:16px;line-height:1.65;color:var(--sr-muted)}
+.mission-start-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:28px 0}
+.mission-start-step{border:1px solid var(--sr-line);border-radius:14px;background:#f8faf7;padding:16px;min-height:130px}
+.mission-start-step b{display:block;color:#9b752d;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.mission-start-step strong{display:block;margin:10px 0 6px;font-size:14px}
+.mission-start-step span{font-size:12px;line-height:1.45;color:var(--sr-muted)}
+.capability-chips,#pilot-capability-surface{display:none!important}
+.mission-tabs{margin-top:24px!important;display:flex!important;gap:5px!important;overflow-x:auto!important;padding-bottom:4px}
+.mission-tabs button{white-space:nowrap!important}
+.mission-tab{padding-top:20px!important}
+.mission-item{min-height:58px!important}
+
+/* AI and service are optional utilities, not the product narrative. */
+#copilot .two-col{grid-template-columns:minmax(0,1.25fr) minmax(270px,.55fr)!important}
+#billing .commercial-reference{margin-top:16px}
+.commercial-reference summary{cursor:pointer;padding:18px 22px;border:1px solid var(--sr-line);background:#f8f8f4;border-radius:16px;font-weight:800;color:#49655b;list-style:none}
+.commercial-reference summary::-webkit-details-marker{display:none}
+.commercial-reference[open] summary{border-radius:16px 16px 0 0}
+.commercial-reference .plan-grid{padding-top:16px}
+.utility-intro{margin-bottom:18px;padding:18px 20px;border-left:4px solid var(--sr-gold);background:#f7f4ea;border-radius:0 14px 14px 0;color:#56655e;line-height:1.55}
+.account-utilities{margin-top:18px}
+
+/* Forms and readable density. */
+.field label{font-size:13px!important}
+.field input,.field textarea,.field select,.input{font-size:14px!important;border-radius:12px!important}
+.btn{border-radius:12px!important}
+.answer-box{font-size:14px!important;line-height:1.65!important}
+
+@media(max-width:1180px){
+  .overview-grid.product-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .decision-chain{grid-template-columns:repeat(4,1fr)}
+  .mission-layout{grid-template-columns:280px minmax(0,1fr)!important}
+  .mission-start-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+@media(max-width:850px){
+  .app-shell{display:block!important}
+  .sidebar{position:fixed!important;width:min(86vw,300px)!important;z-index:80!important}
+  .topbar{padding:14px 18px!important;min-height:76px!important}
+  .topbar h1{font-size:25px!important}
+  .section{padding:24px 18px 64px!important}
+  .hero-card{padding:34px 26px!important;min-height:auto!important}
+  .overview-secondary,#copilot .two-col{grid-template-columns:1fr!important}
+  .technical-grid{grid-template-columns:repeat(2,1fr)}
+  .mission-layout{grid-template-columns:1fr!important}
+  .mission-rail{position:static;min-height:auto}
+  .mission-workspace{min-height:620px}
+}
+
+@media(max-width:560px){
+  .auth-visual{min-height:48vh!important;padding:28px!important}
+  .auth-visual-photo{background-position:61% 50%!important}
+  .auth-visual-photo:after{background:linear-gradient(0deg,rgba(5,22,18,.77),rgba(5,22,18,.18))!important}
+  .auth-panel{padding:28px 20px 42px!important}
+  .auth-card h2{font-size:38px!important}
+  .hero-card h2{font-size:40px!important}
+  .overview-grid.product-grid{grid-template-columns:1fr!important}
+  .decision-chain{grid-template-columns:repeat(2,1fr)}
+  .decision-chain span:nth-child(even):after{display:none}
+  .technical-grid{grid-template-columns:1fr}
+  .mission-start-grid{grid-template-columns:1fr}
+  #mission-empty .empty-state{padding:26px 4px}
+}

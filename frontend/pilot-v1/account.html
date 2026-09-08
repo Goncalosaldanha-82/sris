@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#103d32">
+  <link rel="icon" href="/sris-favicon.svg" type="image/svg+xml">
+  <title>Definir palavra-passe e entrar · SRIS</title>
+  <link rel="stylesheet" href="/pilot.css?v=__PILOT_BUILD__">
+  <style>
+    .activation-page{max-width:760px;margin:0 auto;padding:calc(24px + env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom))}
+    .activation-brand{display:block;width:205px;height:auto;margin:0 0 26px}
+    .activation-card{background:#fff;padding:clamp(22px,5vw,46px);border-radius:8px;border-top:4px solid var(--gold,#be9839);box-shadow:var(--shadow)}
+    .activation-card h1{font-size:clamp(35px,6vw,54px);line-height:1.08;margin:12px 0 20px}
+    .activation-card .btn{width:100%;margin:8px 0;white-space:normal}
+    .activation-summary,.activation-terms,.activation-code{padding:16px;margin:20px 0;background:#f1f6f3;border-left:3px solid var(--forest,#103d32)}
+    .activation-summary strong,.activation-summary span{display:block;overflow-wrap:anywhere}
+    .activation-terms p{margin:8px 0;font-size:14px;line-height:1.6}
+    .activation-message{margin:16px 0;font-size:15px;line-height:1.6;overflow-wrap:anywhere}
+    .activation-message.error{padding:14px;color:#922222;background:#fff2ef;border:1px solid #ecd3ce}
+    .activation-message.success{padding:14px;color:#103d32;background:#edf7f0;border:1px solid #cbded1}
+    .activation-code input{letter-spacing:.2em}.activation-foot{border-top:1px solid var(--line,#ddd);padding-top:18px;margin-top:26px;font-size:13px;line-height:1.6}
+    .activation-card input,.activation-card button{min-height:48px}.activation-card input{font-size:16px}
+    .activation-confirm{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;margin:18px 0}.activation-confirm input{min-height:24px;margin:0;flex:0 0 20px;width:20px}
+    .activation-card .link-btn{text-align:left;min-height:44px;margin-bottom:12px}
+  </style>
+</head>
+<body>
+<main class="activation-page">
+  <img class="activation-brand" src="/sris-logo-compact-light.svg?v=__PILOT_BUILD__" alt="SRIS — Mission Intelligence">
+  <section class="activation-card">
+    <div id="invite-view" class="hidden">
+      <div class="eyebrow">CONVITE PARA O WORKSPACE</div>
+      <h1 id="invite-title">Definir palavra-passe e entrar</h1>
+      <p id="invite-intro" class="muted">A validar o convite…</p>
+      <div id="invite-summary" class="activation-summary hidden"></div>
+      <div id="invite-terms" class="activation-terms hidden" aria-label="Condições do acesso"></div>
+      <div id="mailbox-proof" class="activation-code hidden">
+        <strong>Confirme o seu email</strong>
+        <p>Este email já tem um registo no SRIS. Não precisa de conhecer a palavra-passe anterior: receba um código de confirmação e defina uma nova nesta página.</p>
+        <button id="send-code" type="button" class="btn btn-secondary">Receber código de confirmação</button>
+        <div id="code-message" class="activation-message" role="status" aria-live="polite"></div>
+      </div>
+      <form id="invite-form" class="hidden">
+        <div class="field" id="invite-name-field"><label for="invite-name">Nome completo</label><input id="invite-name" minlength="2" maxlength="200" autocomplete="name" required></div>
+        <div class="field hidden" id="code-field"><label for="activation-code">Código recebido por email</label><input id="activation-code" name="activation_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" minlength="8" maxlength="8" placeholder="8 algarismos"></div>
+        <div class="field"><label id="invite-password-label" for="invite-password">Criar palavra-passe</label><input id="invite-password" type="password" minlength="12" maxlength="200" autocomplete="new-password" required><small>Mínimo de 12 caracteres. Esta é a palavra-passe do SRIS, não do email.</small></div>
+        <div class="field" id="invite-confirm-field"><label for="invite-confirm">Confirmar palavra-passe</label><input id="invite-confirm" type="password" minlength="12" maxlength="200" autocomplete="new-password" required></div>
+        <label class="activation-confirm hidden" id="replace-confirm"><input id="replace-password" type="checkbox"><span>Compreendo que a nova palavra-passe substitui a anterior desta conta SRIS e encerra as sessões antigas. Não altera a validade comercial dos meus workspaces.</span></label>
+        <button id="activate-submit" class="btn btn-primary" type="submit">Criar palavra-passe e entrar</button>
+      </form>
+      <button id="use-existing" class="link-btn hidden" type="button">Já sei a palavra-passe — usar a atual</button>
+      <div class="activation-message" id="invite-message" role="status" aria-live="polite"></div>
+    </div>
+    <div id="request-view" class="hidden">
+      <div class="eyebrow">RECUPERAR ACESSO</div><h1>Definir uma nova palavra-passe</h1>
+      <p class="muted">Receba por email uma ligação temporária para recuperar a sua conta SRIS.</p>
+      <form id="request-form"><div class="field"><label for="request-email">Email</label><input id="request-email" type="email" autocomplete="email" required></div><button class="btn btn-primary" type="submit">Enviar instruções</button></form>
+      <div class="activation-message" id="request-message" role="status" aria-live="polite"></div>
+    </div>
+    <div id="reset-view" class="hidden">
+      <div class="eyebrow">NOVA PALAVRA-PASSE</div><h1>Recuperar a conta</h1>
+      <form id="reset-form"><div class="field"><label for="reset-password">Nova palavra-passe</label><input id="reset-password" type="password" minlength="12" maxlength="200" autocomplete="new-password" required></div><div class="field"><label for="reset-confirm">Confirmar nova palavra-passe</label><input id="reset-confirm" type="password" minlength="12" maxlength="200" autocomplete="new-password" required></div><button class="btn btn-primary" type="submit">Guardar nova palavra-passe</button></form>
+      <div class="activation-message" id="reset-message" role="status" aria-live="polite"></div>
+    </div>
+    <a class="btn btn-secondary" href="/">Voltar ao início de sessão</a>
+    <p class="activation-foot">Nunca partilhe a palavra-passe, o código de confirmação ou o convite pessoal. Criar uma credencial não concede acesso comercial permanente nem autoriza cobranças.</p>
+  </section>
+</main>
+<script src="/activation-v42.js?v=__PILOT_BUILD__" defer></script>
+</body>
+</html>

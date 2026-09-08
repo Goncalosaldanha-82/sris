@@ -43,19 +43,18 @@ body, never in an API path or query string that ordinary access logs record.
 
 ## Required Railway variables
 
-Configure these independently in `staging` and `production`:
+Configure these independently in `staging` and `production`. Select exactly one
+transport. Resend is shown below; `brevo` with `BREVO_API_KEY` is equivalent,
+and the SMTP variables remain supported for institutional relays:
 
 ```text
 ATLAS_SELF_REGISTRATION_ENABLED=false
 ATLAS_ORGANIZATION_CREATION_ENABLED=false
 SRIS_PUBLIC_BASE_URL=https://sris-staging.up.railway.app
-SRIS_SMTP_HOST=<SMTP host>
-SRIS_SMTP_PORT=587
-SRIS_SMTP_SECURITY=starttls
-SRIS_SMTP_USERNAME=<secret>
-SRIS_SMTP_PASSWORD=<secret>
-SRIS_SMTP_FROM_EMAIL=<verified sender>
-SRIS_SMTP_FROM_NAME=SRIS
+SRIS_EMAIL_PROVIDER=resend
+SRIS_EMAIL_FROM=<verified sender>
+SRIS_EMAIL_FROM_NAME=SRIS
+RESEND_API_KEY=<secret>
 SRIS_INVITATION_TTL_HOURS=72
 SRIS_PASSWORD_RESET_TTL_MINUTES=30
 SRIS_PASSWORD_RESET_COOLDOWN_SECONDS=60
@@ -67,7 +66,12 @@ In production, set `SRIS_PUBLIC_BASE_URL` to:
 https://sris-production.up.railway.app
 ```
 
-The sender address must be accepted by the chosen SMTP provider. User passwords
+For Brevo, use `SRIS_EMAIL_PROVIDER=brevo` and `BREVO_API_KEY=<secret>`. For an
+institutional SMTP relay, use `SRIS_EMAIL_PROVIDER=smtp` and the existing
+`SRIS_SMTP_*` variables. If several transports are configured without an
+explicit provider, SRIS fails closed instead of choosing one silently.
+
+The sender address must be accepted by the chosen provider. User passwords
 are never Railway variables and are never chosen by administrators.
 
 ## Deployment verification

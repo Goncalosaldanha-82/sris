@@ -1,31 +1,44 @@
-# SRIS Enterprise — Pilot Candidate v0.9
+# SRIS — Pilot Readiness
 
 ## Estado
-Esta release está preparada para demonstração e piloto controlado. Não é apresentada como produção comercial sem validação em ambiente real, teste de restauro e revisão de segurança externa.
 
-## Capacidade nova
-`Provenance` é agora uma entidade independente. Toda nova evidência criada pela API exige proveniência existente ou criada atomicamente.
+Esta release é candidata a demonstração e piloto controlado. Não é apresentada como produção comercial sem validação em ambiente real, ensaio de restauro, verificação de isolamento e revisão externa de segurança.
 
-### Regras
-- contributos humanos e não humanos seguem o mesmo método epistemológico;
-- origem não humana exige `model_or_system` e `version`;
-- proveniência usa `invalidated`, não `refuted`;
-- evidência legada sem proveniência é detetada pela auditoria estrutural;
-- proveniência fica ligada à evidência no grafo e é visível no Mission Map.
+## Produto
 
-## Ontologia preservada
-Observation → Evidence → Hypothesis → Assumption → Constraint → Alternative → Decision → Implementation → Outcome → Learning.
+O SRIS opera como infraestrutura transversal de **Pilot & Mission Intelligence**:
 
-## Validação desta release
-- 35 testes backend/API aprovados em três execuções isoladas;
-- validação sintática Python concluída;
-- validação sintática JavaScript concluída;
-- RLS incluída na migração PostgreSQL `005_provenance.sql`;
-- pacote limpo de caches, bytecode, base de testes e segredos locais.
+- o Piloto organiza contrato, parceiro, contexto, dados, baseline, implementação, resultado e escala;
+- a Missão organiza o percurso governado da decisão;
+- perfis configuráveis adaptam vocabulário, fontes e métricas ao setor;
+- a Memória preserva aprendizagem e condições de validade entre contextos.
 
-## Antes de cliente pagante em produção
-- executar instalação limpa numa segunda máquina;
-- ensaiar backup e restauro;
-- executar revisão de segurança externa;
-- colocar num endereço HTTPS controlado;
-- observar pelo menos três utilizadores externos no percurso login → missão → evidência → proveniência → decisão.
+Hospitality é o primeiro perfil operacional completo, com modelos de eficiência de recursos e inteligência operacional. Não constitui um produto separado.
+
+## Contrato metodológico
+
+Cinco momentos apresentados ao utilizador:
+
+> Contexto → Evidência → Decisão → Medição → Memória
+
+Oito registos canónicos persistentes:
+
+> Observação → Evidência → Hipótese → Alternativa → Decisão → Ação → Resultado → Aprendizagem
+
+Pressupostos, restrições, lacunas, incerteza, proveniência e confiança qualificam os registos; não são etapas.
+
+## Proveniência e autoridade
+
+Toda a evidência exige proveniência rastreável. Contributos humanos e assistidos obedecem ao mesmo método. Conteúdo assistido permanece proposta até revisão; decisão, autorização de execução, resultado, aprendizagem e escala permanecem humanos.
+
+## Antes de um cliente pagante
+
+- instalação limpa e migração integral numa segunda instância;
+- isolamento negativo entre duas organizações;
+- backup e restauro ensaiados;
+- email, convite, recuperação e revogação testados;
+- revisão de segurança externa;
+- exportações verificadas em dois browsers;
+- iPhone e Android físicos;
+- pelo menos três utilizadores externos observados no percurso piloto → missão → resultado → aprendizagem → escala;
+- nenhuma informação confidencial antes dos gates de segurança e privacidade.

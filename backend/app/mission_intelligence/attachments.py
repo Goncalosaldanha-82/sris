@@ -30,7 +30,7 @@ from .models import (
     MissionDialogueSession,
     MissionDialogueTurn,
 )
-from .mission_archive import index_attachment_text
+from .mission_archive import _decrypt_chunk, index_attachment_text
 
 
 MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
@@ -218,7 +218,12 @@ def _extract_pdf(content: bytes) -> str:
     except ImportError:
         return ""
     reader = PdfReader(io.BytesIO(content))
-    return "\n\n".join((page.extract_text() or "") for page in reader.pages)
+    parts: list[str] = []
+    for index, page in enumerate(reader.pages, start=1):
+        extracted = (page.extract_text() or "").strip()
+        if extracted:
+            parts.append(f"[Página {index}]\n{extracted}")
+    return "\n\n".join(parts)
 
 
 def _extract_docx(content: bytes) -> str:
@@ -306,13 +311,13 @@ def _extract_text(content: bytes, extension: str) -> tuple[str, str, str]:
         if text:
             return text, "ready", ""
         if extension == ".pdf":
-            return "", "provider_ready", "Texto local indisponível; o PDF será lido visualmente pelo modelo."
+            return "", "provider_ready", "Texto local indisponível; a fonte original está preservada para revisão visual humana."
         if extension == ".xls":
-            return "", "provider_ready", "A folha XLS será enviada ao modelo como ficheiro."
+            return "", "provider_ready", "Texto local indisponível; a folha original está preservada para revisão humana."
         return "", "partial", "O ficheiro não contém texto extraível."
     except Exception as exc:
         if extension in {".pdf", ".xls"}:
-            return "", "provider_ready", f"Extração local indisponível ({type(exc).__name__}); leitura pelo modelo ativada."
+            return "", "provider_ready", f"Extração local indisponível ({type(exc).__name__}); fonte original preservada para revisão humana."
         raise AttachmentError(
             "attachment_extraction_failed",
             "Não foi possível ler o conteúdo deste ficheiro.",
@@ -485,6 +490,77 @@ def attachment_views(
         )
         for row in rows
     ]
+
+
+def attachment_extraction_view(
+    db: Session,
+    row: MissionAttachment,
+    *,
+    offset: int = 0,
+    limit: int = 20,
+) -> dict:
+    """Expose encrypted archive excerpts to an authorized human reviewer.
+
+    The original attachment remains authoritative.  Every excerpt carries an
+    exact character range and content hash so it can be promoted to governed
+    evidence without relying on an AI interpretation.
+    """
+
+    query = (
+        db.query(MissionArchiveChunk)
+        .filter(
+            MissionArchiveChunk.organization_id == row.organization_id,
+            MissionArchiveChunk.mission_id == row.mission_id,
+            MissionArchiveChunk.attachment_id == row.id,
+            MissionArchiveChunk.source_type == "attachment",
+        )
+    )
+    total = query.count()
+    chunks = (
+        query.order_by(MissionArchiveChunk.ordinal.asc())
+        .offset(max(0, offset))
+        .limit(max(1, min(50, limit)))
+        .all()
+    )
+    fragments = []
+    for chunk in chunks:
+        try:
+            excerpt = _decrypt_chunk(chunk)
+        except Exception as exc:
+            raise AttachmentError(
+                "attachment_integrity_failed",
+                "Um excerto extraído falhou a verificação de integridade.",
+            ) from exc
+        location_match = re.match(
+            r"^\[(Página|Diapositivo|Folha):?\s*([^\]]+)\]",
+            excerpt,
+            flags=re.IGNORECASE,
+        )
+        location = (
+            f"{location_match.group(1).capitalize()} {location_match.group(2).strip()}"
+            if location_match
+            else f"caracteres {chunk.char_start}–{chunk.char_end}"
+        )
+        fragments.append(
+            {
+                "id": chunk.id,
+                "ordinal": chunk.ordinal,
+                "char_start": chunk.char_start,
+                "char_end": chunk.char_end,
+                "char_count": chunk.char_count,
+                "content_sha256": chunk.content_sha256,
+                "location": location,
+                "excerpt": excerpt,
+            }
+        )
+    return {
+        "attachment": attachment_view(row, archive_chunk_count=total),
+        "source_sha256": row.sha256,
+        "total_fragments": total,
+        "offset": max(0, offset),
+        "limit": max(1, min(50, limit)),
+        "fragments": fragments,
+    }
 
 
 def create_attachment(

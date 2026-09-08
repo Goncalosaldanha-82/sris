@@ -10,6 +10,22 @@ DEFAULT_DATABASE_URL = "sqlite+pysqlite:///./.atlas/atlas_platform.db"
 DEFAULT_JWT_SECRET = "change-me-before-production"
 
 
+def configured_database_url() -> str:
+    """Resolve the database URL used by both the API and Alembic.
+
+    Railway commonly exposes its PostgreSQL reference as ``DATABASE_URL``.
+    ``ATLAS_DATABASE_URL`` remains the explicit override for existing installs.
+    Keeping the resolution in one place prevents migrations and the running API
+    from silently connecting to different databases.
+    """
+
+    return (
+        os.getenv("ATLAS_DATABASE_URL", "").strip()
+        or os.getenv("DATABASE_URL", "").strip()
+        or DEFAULT_DATABASE_URL
+    )
+
+
 def environment_flag(name: str, *, default: bool) -> bool:
     raw = os.getenv(name, "").strip().lower()
     if not raw:
@@ -37,7 +53,7 @@ def ensure_sqlite_parent(database_url: str) -> None:
 @dataclass(frozen=True)
 class Settings:
     database_url: str = field(
-        default_factory=lambda: os.getenv("ATLAS_DATABASE_URL", DEFAULT_DATABASE_URL)
+        default_factory=configured_database_url
     )
     jwt_secret: str = field(
         default_factory=lambda: os.getenv("ATLAS_JWT_SECRET", DEFAULT_JWT_SECRET)
@@ -66,6 +82,12 @@ def validate_security_settings(value: Settings) -> None:
         raise RuntimeError(
             "ATLAS_JWT_SECRET must contain at least 32 bytes and must not use the "
             "default value in production"
+        )
+
+    if (production or managed_railway) and value.database_url.startswith("sqlite"):
+        raise RuntimeError(
+            "ATLAS_DATABASE_URL or DATABASE_URL must reference the Pilot's "
+            "dedicated PostgreSQL database; managed deployments cannot use SQLite"
         )
 
 

@@ -53,21 +53,6 @@ from .security import (
 )
 from .workflow_api import router as workflow_router
 
-app = FastAPI(
-    title="SRIS Mission Intelligence API",
-    version="1.7.3",
-    description=(
-        "Canonical mission intelligence, authentication, organizations, RBAC and "
-        "the unified knowledge workflow."
-    ),
-)
-
-app.include_router(workflow_router)
-app.include_router(public_router)
-app.include_router(organization_router)
-app.include_router(identity_router)
-
-
 def _managed_runtime() -> bool:
     return any(
         os.getenv(name)
@@ -77,6 +62,32 @@ def _managed_runtime() -> bool:
             "RAILWAY_SERVICE_ID",
         )
     )
+
+
+def _public_api_docs_enabled() -> bool:
+    return environment_flag(
+        "SRIS_PUBLIC_API_DOCS_ENABLED",
+        default=not _managed_runtime(),
+    )
+
+
+_api_docs_enabled = _public_api_docs_enabled()
+app = FastAPI(
+    title="SRIS Mission Intelligence API",
+    version="1.7.3",
+    description=(
+        "Canonical mission intelligence, authentication, organizations, RBAC and "
+        "the unified knowledge workflow."
+    ),
+    docs_url="/docs" if _api_docs_enabled else None,
+    redoc_url="/redoc" if _api_docs_enabled else None,
+    openapi_url="/openapi.json" if _api_docs_enabled else None,
+)
+
+app.include_router(workflow_router)
+app.include_router(public_router)
+app.include_router(organization_router)
+app.include_router(identity_router)
 
 
 @app.get("/health")

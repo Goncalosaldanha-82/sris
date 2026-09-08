@@ -122,7 +122,7 @@
       <div class="review">
         <div class="wide choices" data-choice-group>${['still_valid','requires_revalidation','invalidated'].map(v=>`<button type="button" class="choice ${selected===v?'active':''}" data-value="${v}">${esc(choiceLabel(v))}</button>`).join('')}</div>
         <div class="field wide"><label>Fundamentação da revisão</label><textarea data-rationale placeholder="Porque deve, ou não deve, esta aprendizagem ser transportada?">${esc(d.rationale||'')}</textarea></div>
-        <div class="field wide"><label>O que mudou no contexto?</label><textarea data-context-change placeholder="Obrigatório para revalidação ou invalidação">${esc(d.context_change||'')}</textarea></div>
+        <div class="field wide"><label>Que diferenças existem entre os contextos?</label><textarea data-context-change placeholder="Registe as diferenças materiais entre a missão de origem e a missão atual">${esc(d.context_change||'')}</textarea></div>
         <div class="wide"><button type="button" class="btn btn-primary" data-save disabled>Guardar revisão</button></div>
       </div>
     </article>`;

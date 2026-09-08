@@ -161,6 +161,68 @@ def _canonical_analysis(mission_code: str):
     return document, analyze_mission(document)
 
 
+def test_empty_analysis_input_does_not_change_the_canonical_document() -> None:
+    document, _ = _canonical_analysis("M-001")
+
+    unchanged = service.apply_analysis_input(document, AnalysisInput())
+
+    assert unchanged is document
+    assert service._hash(unchanged) == service._hash(document)
+
+
+def test_unconfigured_dialogue_has_no_persistent_side_effects(monkeypatch) -> None:
+    monkeypatch.setenv("SRIS_AI_ENABLED", "false")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    suffix = uuid4().hex[:8]
+    headers, organization_id = _owner_named(f"no-ai-side-effect-{suffix}")
+    base = f"/api/organizations/{organization_id}/mission-intelligence"
+    created = client.post(
+        f"{base}/missions",
+        headers=headers,
+        json={
+            "title": "Missão sem fornecedor de IA",
+            "objective": "Confirmar que disponibilidade técnica não altera o estado governado.",
+            "context": "A missão já existe e deve permanecer exatamente na mesma revisão.",
+            "central_question": "A tentativa de diálogo é realmente isenta de efeitos?",
+            "mission_kind": "mission",
+            "domain": "institutional_innovation",
+            "priority": "strategic",
+        },
+    )
+    assert created.status_code == 201, created.text
+    mission = created.json()
+
+    response = client.post(
+        f"{base}/missions/{mission['code']}/interact",
+        headers=headers,
+        json={
+            "intent": "diagnose",
+            "message": "Analisa esta missão sem alterar o seu estado.",
+            "mission_input": {},
+            "research_context": False,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["ai_status"] == "not_configured"
+    assert payload["session_id"] is None
+    assert payload["turn_id"] is None
+    assert payload["turn_persisted"] is False
+    assert payload["canonical_mutation"] == "none"
+
+    current = client.get(f"{base}/missions/{mission['id']}", headers=headers)
+    assert current.status_code == 200, current.text
+    assert current.json()["revision"] == mission["revision"] == 1
+    assert current.json()["content_hash"] == mission["content_hash"]
+    dialogues = client.get(
+        f"{base}/dialogues?mission_code={mission['code']}",
+        headers=headers,
+    )
+    assert dialogues.status_code == 200, dialogues.text
+    assert dialogues.json() == []
+
+
 def _research_bundle(document) -> AIResearchBundle:
     basis_id = document.records[0].canonical_id
     source_url = "https://example.gov.pt/dragos-study"
@@ -1124,7 +1186,7 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert "Podes criar hipóteses, alternativas, critérios e experiências" in (
         request.instructions
     )
-    assert interactive_ai.INTERACTIVE_PROMPT_VERSION == "sris-mi-interactive-2.6"
+    assert interactive_ai.INTERACTIVE_PROMPT_VERSION == "sris-mi-interactive-2.8"
     assert "ANÁLISE DOCUMENTAL E RELACIONAL" in request.instructions
     assert "«Nascente» significa o ponto cardeal Este" in request.instructions
     assert "não justificam confiança factual moderada ou alta" in request.instructions
@@ -1160,6 +1222,130 @@ def test_interactive_contract_for_m001_adds_real_decision_intelligence() -> None
     assert len(output.experiment_proposals) == 1
     assert output.boundary.facts_added is False
     assert output.boundary.human_review_required is True
+
+
+def test_ai_can_prepare_the_complete_mission_path_but_cannot_validate_it() -> None:
+    document, deterministic = _canonical_analysis("M-001")
+    payload = _interactive_output(
+        document,
+        MIInteractionIntent.BUILD_MISSION_PATH,
+    ).model_dump(mode="json")
+    basis = document.records[0].canonical_id
+    output_kinds = {
+        "evidence": "fact_candidate",
+        "hypotheses": "hypothesis",
+        "alternatives": "alternative",
+        "economics": "economic_assumption",
+        "decision": "decision_recommendation",
+        "action": "action_plan",
+        "measurement": "measurement_plan",
+        "outcome": "expected_outcome",
+        "learning": "learning_candidate",
+        "memory": "memory_candidate",
+    }
+    payload["mission_path"] = {
+        stage: {
+            "proposal_id": f"PATH-AI-{index:02d}",
+            "stage": stage,
+            "title": f"Etapa {stage}",
+            "proposal": f"Proposta condicional para {stage}, sujeita a validação humana.",
+            "output_kind": output_kind,
+            "readiness": "ready_for_review" if stage == "evidence" else "conditional",
+            "confidence": "low",
+            "based_on_ids": [basis],
+            "assumptions": ["O fundamento citado permanece atual."],
+            "uncertainties": ["A etapa ainda não foi validada por uma pessoa."],
+            "source_requirements": ["Confirmar a fonte citada."],
+            "human_gate": "Uma pessoa aceita, edita ou rejeita esta proposta.",
+            "epistemic_status": "ai_proposal_pending_human_validation",
+        }
+        for index, (stage, output_kind) in enumerate(output_kinds.items(), start=1)
+    }
+    output = MIInteractiveOutput.model_validate(payload)
+    request = interactive_ai.prepare_interactive_request(
+        document,
+        deterministic,
+        intent=MIInteractionIntent.BUILD_MISSION_PATH,
+        message="Prepara todo o percurso desta missão para validação humana.",
+        answers=[],
+        history=[],
+        proposal_reviews=[],
+    )
+
+    assert output.mission_path is not None
+    assert output.mission_path.decision.output_kind == "decision_recommendation"
+    assert output.mission_path.outcome.output_kind == "expected_outcome"
+    assert output.boundary.human_review_required is True
+    assert output.boundary.facts_added is False
+    assert request.response_model.model_fields["mission_path"].is_required()
+    assert "A IA pode preparar todo o percurso" in request.instructions
+    assert interactive_ai._quality_failures(
+        output,
+        MIInteractionIntent.BUILD_MISSION_PATH,
+    ) == []
+    interactive_ai._validate_references(output, document)
+
+
+def test_governed_ai_window_preserves_cross_module_sources_and_human_boundary() -> None:
+    governed = {
+        "schema": "sris.governed-ai-context.v1",
+        "state_hash": "a" * 64,
+        "mission": {"code": "MIS-101", "revision": 3},
+        "policy": {"economics_applicability": "required"},
+        "health": {"status": "requires_review"},
+        "modules": [{"key": "documents"}, {"key": "evidence"}, {"key": "economics"}],
+        "dependencies": [{"from": "evidence", "to": "economics", "status": "ready"}],
+        "conflicts": [],
+        "boundary": {
+            "role": "assistive_only",
+            "human_review_required": True,
+            "canonical_mutation": "prohibited_without_explicit_human_promotion",
+        },
+        "objects": [
+            {
+                "citation_id": "DOC:source-1",
+                "module": "documents",
+                "kind": "source",
+                "title": "Documento com hash preservado",
+                "content": "Integridade confirmada; verdade factual ainda não avaliada.",
+                "source_integrity_verified": True,
+                "factual_validation": "not_assessed",
+            },
+            {
+                "citation_id": "GRAPH:evidence-1",
+                "module": "evidence",
+                "kind": "evidence",
+                "title": "Resultado verificado por uma pessoa",
+                "content": "Resultado observado depois da ação.",
+                "status": "verified",
+            },
+            {
+                "citation_id": "BC:case-1",
+                "module": "economics",
+                "kind": "business_case",
+                "title": "Economia e recursos",
+                "content": "Custo e benefício sujeitos a revisão humana.",
+                "status": "reviewed",
+            },
+        ],
+    }
+    view, manifest = interactive_ai._governed_working_set(
+        governed,
+        query_text="Qual é o resultado, o custo e a respetiva fonte?",
+        profile={"governed_objects": 3, "governed_object_bytes": 500},
+    )
+
+    assert view is not None
+    assert view["state_hash"] == governed["state_hash"]
+    assert view["boundary"]["role"] == "assistive_only"
+    assert {item["module"] for item in view["objects"]} == {
+        "documents", "evidence", "economics",
+    }
+    assert manifest["governed_reference_ids"] == [
+        "BC:case-1", "DOC:source-1", "GRAPH:evidence-1",
+    ]
+    assert manifest["governed_confirmed_reference_ids"] == ["GRAPH:evidence-1"]
+    assert manifest["governed_selection_complete"] is True
 
 
 def test_documentary_reasoning_contract_flags_property_relations_and_coordinates() -> None:
@@ -2371,6 +2557,35 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     assert reviewed.json()["decision"] == "accepted_as_draft"
     assert reviewed.json()["canonical_effect"] == "none"
 
+    validated = client.put(
+        review_url,
+        headers=headers,
+        json={
+            "decision": "human_validated",
+            "comment": "Alternativa validada como proposta humana; não como facto ou decisão.",
+        },
+    )
+    assert validated.status_code == 200, validated.text
+    assert validated.json()["decision"] == "human_validated"
+    assert validated.json()["canonical_effect"] == "human_validated_proposal"
+
+    governed_context = client.get(
+        "/api/pilot/mission-state/missions/M-001/ai-context",
+        headers=headers,
+    )
+    assert governed_context.status_code == 200, governed_context.text
+    validated_object = next(
+        item
+        for item in governed_context.json()["objects"]
+        if item.get("proposal_id") == "ALT-AI-001"
+    )
+    assert validated_object["module"] == "comparison"
+    assert validated_object["human_disposition"] == "human_validated"
+    assert validated_object["epistemic_status"] == (
+        "human_validated_as_proposal_not_as_fact"
+    )
+    assert validated_object["current"] is True
+
     second = client.post(
         endpoint,
         headers=headers,
@@ -2440,7 +2655,7 @@ def test_interactive_dialogue_persists_turns_and_reviews_proposals_individually(
     assert len(dialogue.json()["turns"]) == 2
     assert dialogue.json()["turns"][0]["proposal_reviews"][0][
         "canonical_effect"
-    ] == "none"
+    ] == "human_validated_proposal"
 
 
 def test_mission_attachments_are_encrypted_read_and_linked_to_a_turn(monkeypatch) -> None:
@@ -2723,38 +2938,24 @@ def test_failed_interactive_turn_remains_visible_in_session_history(monkeypatch)
 
 
 def test_frontend_and_openapi_expose_the_new_capability() -> None:
-    frontend = client.get("/")
-    assert frontend.status_code == 200
-    assert "UI-R2 · MI-1" in frontend.text
-    assert "Iniciar Mission Intelligence" in frontend.text
-    assert "Mission Intelligence v2" in frontend.text
-    assert "Pensar com a missão, não apenas escrever sobre ela" in frontend.text
-    assert "data-mi-intent=\"design_experiment\"" in frontend.text
-    assert "data-mi-review=\"accepted_as_draft\"" in frontend.text
-    assert "Fronteira canónica" in frontend.text
-    assert '${result.context_dossier?renderContextDossier(result):""}' in frontend.text
-    assert "aiGovernanceStatus?.organization_authorized" in frontend.text
-    assert "Proposta de investigação" in frontend.text
-    assert "Fundamentação declarada" in frontend.text
-    assert "data-review-decision" in frontend.text
-    assert "Decision Confidence" not in frontend.text
-    assert 'id="analysisMode" class="analysis-mode is-unavailable hidden"' in frontend.text
-    assert 'id="analysisResearch" type="checkbox" disabled' in frontend.text
-    assert "contextRequired=mission(activeMissionId)" in frontend.text
-    assert "renderContextDossier(result)" in frontend.text
-    assert "web_search_cost_usd" in frontend.text
-    assert "demonstração pública do" in frontend.text
-    assert "demonstração preparada para o" not in frontend.text
-    assert "Importar visualização" in frontend.text
-    assert "async function refreshAIGovernanceStatus(token)" in frontend.text
-    assert "async function recoverLatestDialogueSession(missionId)" in frontend.text
-    assert "result.ai_usage?.failure_code" in frontend.text
-    submit_dialogue = frontend.text.split(
-        "async function submitMIDialogue()", 1
-    )[1].split("function renderAll()", 1)[0]
-    assert "await refreshAIGovernanceStatus(token);" in submit_dialogue
-    assert "await loadSessionContext(token);" not in submit_dialogue
-    assert "if(data.session_id&&data.turn_id)" in submit_dialogue
+    entry = client.get("/")
+    assert entry.status_code == 200
+    assert "SRIS — Mission Intelligence" in entry.text
+    assert "PILOTO V1 · VALIDAÇÃO OPERACIONAL" in entry.text
+
+    workspace = client.get("/app")
+    assert workspace.status_code == 200
+    assert "SRIS — Espaço de Missão" in workspace.text
+    assert "Análise assistida, não centro do produto." in workspace.text
+    assert "A análise assistida é opcional." in workspace.text
+    assert "/mission-state-v1.js" in workspace.text
+
+    mission_state = client.get("/mission-state-v1.js")
+    assert mission_state.status_code == 200
+    assert "ESTADO GOVERNADO ÚNICO" in mission_state.text
+    assert "todos os módulos abaixo são vistas desta mesma missão" in mission_state.text
+    assert "IA como suporte governado" in mission_state.text
+    assert "supervisão humana obrigatória" in mission_state.text
 
     spec = client.get("/openapi.json")
     assert spec.status_code == 200

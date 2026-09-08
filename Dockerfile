@@ -1,8 +1,13 @@
 FROM python:3.11-slim
+
 WORKDIR /workspace
+
 COPY . .
+
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && python -m pip install --no-cache-dir -e ".[test]" \
-    && python scripts/apply_academic_presentation.py
+    && python -m pip install --no-cache-dir -r requirements.lock \
+    && python -m pip install --no-cache-dir --no-deps -e "."
+
 EXPOSE 8000
-CMD ["sh", "-c", "python -m alembic upgrade head && python scripts/purge_staging_test_mission.py && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+
+CMD ["sh", "-c", "python -m alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

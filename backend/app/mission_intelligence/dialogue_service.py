@@ -8,8 +8,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
+from app.pilot_mission_state import governed_ai_context
 
 from .attachments import (
+    AttachmentError,
     attachment_chunk_counts,
     backfill_mission_archive_index,
     prepare_turn_attachment_rows,
@@ -25,6 +27,8 @@ from .ai import (
     is_context_research_configured,
 )
 from .contracts import MIInteractionInput, MIProposalReviewRequest, MissionDocumentV13
+from .canonical import legacy_to_canonical
+from .catalog import demo_mission
 from .engine import ENGINE_VERSION, analyze_mission
 from .governance import (
     AIGovernanceBlocked,
@@ -37,6 +41,7 @@ from .governance import (
 from .interactive import (
     DEFAULT_INTERACTIVE_OUTPUT_TOKENS,
     DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS,
+    DEFAULT_MISSION_PATH_OUTPUT_TOKENS,
     MIInteractiveExecution,
     analyze_interactively,
     prepare_interactive_request,
@@ -209,7 +214,11 @@ def _proposal_review_view(row: MissionProposalReview) -> dict[str, Any]:
         "reviewed_by_user_id": row.reviewed_by_user_id,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
-        "canonical_effect": "none",
+        "canonical_effect": (
+            "human_validated_proposal"
+            if row.decision == "human_validated"
+            else "none"
+        ),
     }
 
 
@@ -273,6 +282,79 @@ def _base_interaction_result(
     }
 
 
+def _unavailable_interaction_result(
+    db: Session,
+    *,
+    organization_id: str,
+    mission_code: str,
+    payload: MIInteractionInput,
+    code: str,
+    message: str,
+    status: str = "not_configured",
+) -> dict[str, Any]:
+    """Describe an unavailable AI turn without creating canonical state.
+
+    Opening the assistant is a read operation until an actual provider-backed
+    turn can run.  In particular, provider configuration, role or pilot-policy
+    failures must not create a dialogue session or a mission revision.
+    """
+
+    session: MissionDialogueSession | None = None
+    mission: CanonicalMission | None = None
+    if payload.session_id:
+        session, mission, document = _resume_session_or_conflict(
+            db,
+            organization_id=organization_id,
+            mission_code=mission_code,
+            payload=payload,
+        )
+    else:
+        mission = (
+            db.query(CanonicalMission)
+            .filter(
+                CanonicalMission.organization_id == organization_id,
+                CanonicalMission.code == mission_code,
+            )
+            .one_or_none()
+        )
+        if mission is not None:
+            document = MissionDocumentV13.model_validate_json(mission.document_json)
+        else:
+            legacy = demo_mission(mission_code)
+            if legacy is None:
+                raise KeyError(mission_code)
+            document = legacy_to_canonical(legacy, payload.mission_input)
+
+    deterministic = analyze_mission(document)
+    canonical_hash = mission.content_hash if mission is not None else _hash(document)
+    return {
+        "schema": "sris_mission_intelligence_interaction",
+        "schema_version": "2.3",
+        "session_id": session.id if session is not None else None,
+        "turn_id": None,
+        "turn_persisted": False,
+        "mission_id": document.mission_id,
+        "mission_revision": int(mission.revision) if mission is not None else 0,
+        "snapshot_hash": canonical_hash,
+        "canonical_mission_hash": canonical_hash,
+        "execution_mode": "unavailable",
+        "deterministic": deterministic.model_dump(mode="json"),
+        "intelligence": None,
+        "ai_status": status,
+        "ai_governance": {
+            "allowed": False,
+            "code": code,
+            "message": message,
+        },
+        "ai_usage": None,
+        "intent": payload.intent.value,
+        "user_message": payload.message,
+        "attachments": [],
+        "human_review_required": True,
+        "canonical_mutation": "none",
+    }
+
+
 def _apply_execution(
     result: dict[str, Any],
     execution: MIInteractiveExecution,
@@ -287,14 +369,17 @@ def _apply_execution(
             "origin_type": "ai_model",
             "provider": execution.provider,
             "model_or_system": execution.model,
+            "model": execution.model,
             "version": execution.prompt_version,
+            "prompt_version": execution.prompt_version,
             "provider_response_id": execution.provider_response_id,
             "verification_status": "in_review",
             "web_search_calls": execution.web_search_calls,
             "search_queries": list(execution.search_queries),
             "limitations": (
-                "Saída interativa provisória. Hipóteses, alternativas, critérios e "
-                "experiências são propostas; não constituem factos nem alteram a missão."
+                "Saída interativa provisória. Todo o percurso preparado pela IA permanece "
+                "proposta; não constitui facto, decisão, autorização, resultado observado "
+                "ou encerramento e não altera automaticamente a missão."
             ),
         },
         context_manifest=execution.context_manifest or result.get("context_manifest"),
@@ -495,6 +580,45 @@ def run_interactive_turn(
     mission_code: str,
     payload: MIInteractionInput,
 ) -> dict[str, Any]:
+    if user_role not in {"owner", "admin", "reviewer"}:
+        return _unavailable_interaction_result(
+            db,
+            organization_id=organization_id,
+            mission_code=mission_code,
+            payload=payload,
+            code="role_not_allowed",
+            message="A sua função no workspace não tem autorização para consumir orçamento de IA.",
+            status="governance_blocked",
+        )
+    if payload.research_context and not is_context_research_configured():
+        return _unavailable_interaction_result(
+            db,
+            organization_id=organization_id,
+            mission_code=mission_code,
+            payload=payload,
+            code="context_research_not_configured",
+            message="A pesquisa externa governada ainda não está ativa e configurada.",
+        )
+    if not is_ai_configured():
+        return _unavailable_interaction_result(
+            db,
+            organization_id=organization_id,
+            mission_code=mission_code,
+            payload=payload,
+            code="provider_not_configured",
+            message="O fornecedor de IA ainda não está ativo e configurado neste ambiente.",
+        )
+    if not is_ai_organization_authorized(organization_id):
+        return _unavailable_interaction_result(
+            db,
+            organization_id=organization_id,
+            mission_code=mission_code,
+            payload=payload,
+            code="organization_not_authorized",
+            message="Este workspace ainda não está autorizado para o piloto de IA.",
+            status="governance_blocked",
+        )
+
     if payload.session_id:
         session, mission, document = _resume_session_or_conflict(
             db,
@@ -547,39 +671,25 @@ def run_interactive_turn(
         )
         for item in turn_attachment_rows
     ]
-
-    if user_role not in {"owner", "admin", "reviewer"}:
-        return _governance_block(
-            code="role_not_allowed",
-            message="This organizational role cannot consume AI budget",
-            base=result,
-        )
-    if payload.research_context and not is_context_research_configured():
-        result.update(
-            ai_status="not_configured",
-            ai_governance={
-                "allowed": False,
-                "code": "context_research_not_configured",
-                "message": "Governed context research is not enabled and configured",
-            },
-        )
-        return result
-    if not is_ai_configured():
-        result.update(
-            ai_status="not_configured",
-            ai_governance={
-                "allowed": False,
-                "code": "provider_not_configured",
-                "message": "The AI provider is not enabled and configured",
-            },
-        )
-        return result
-    if not is_ai_organization_authorized(organization_id):
-        return _governance_block(
-            code="organization_not_authorized",
-            message="This organization is not authorized for the AI pilot",
-            base=result,
-        )
+    governed_context = governed_ai_context(
+        db,
+        organization_id=organization_id,
+        mission_id=mission.id,
+        mission_code=mission.code,
+    )
+    result["canonical_mission_hash"] = mission.content_hash
+    result["snapshot_hash"] = governed_context["state_hash"]
+    result["governed_mission_state"] = {
+        "schema": governed_context["schema"],
+        "state_hash": governed_context["state_hash"],
+        "health": governed_context["health"],
+        "policy": governed_context["policy"],
+        "modules": governed_context["modules"],
+        "dependencies": governed_context["dependencies"],
+        "conflicts": governed_context["conflicts"],
+        "object_count": len(governed_context["objects"]),
+        "boundary": governed_context["boundary"],
+    }
 
     history = _dialogue_history(db, session.id)
     proposal_reviews = _proposal_reviews_for_prompt(db, session.id)
@@ -640,6 +750,8 @@ def run_interactive_turn(
     requested_output = (
         DEFAULT_INTERACTIVE_RESEARCH_OUTPUT_TOKENS
         if payload.research_context
+        else DEFAULT_MISSION_PATH_OUTPUT_TOKENS
+        if payload.intent.value == "build_mission_path"
         else DEFAULT_INTERACTIVE_OUTPUT_TOKENS
     )
     output_limit = min(
@@ -661,6 +773,7 @@ def run_interactive_turn(
         proposal_reviews=proposal_reviews,
         attachments=direct_attachments,
         archive_context=archive_context,
+        governed_state=governed_context,
         max_output_tokens=output_limit,
         max_input_tokens=input_limit,
         research_context=payload.research_context,
@@ -751,6 +864,7 @@ def run_interactive_turn(
                 proposal_reviews=proposal_reviews,
                 attachments=working_attachments,
                 archive_context=archive_context,
+                governed_state=governed_context,
                 prepared_request=prepared,
                 max_input_tokens=input_limit,
                 research_context=payload.research_context,
@@ -830,6 +944,7 @@ def run_interactive_turn(
             "context_manifest": result.get("context_manifest"),
             "context_retry_count": result.get("context_retry_count", 0),
             "confidence_calibration": result.get("confidence_calibration") or [],
+            "governed_mission_state": result.get("governed_mission_state"),
         }
         if result.get("context_dossier"):
             ai_payload["context_dossier"] = result["context_dossier"]
@@ -847,7 +962,7 @@ def run_interactive_turn(
         provider=provenance.get("provider"),
         model=provenance.get("model_or_system"),
         provider_response_id=provenance.get("provider_response_id"),
-        snapshot_hash=mission.content_hash,
+        snapshot_hash=governed_context["state_hash"],
         input_json=_json(payload.model_dump(mode="json")),
         deterministic_json=_json(result["deterministic"]),
         ai_json=_json(ai_payload) if ai_payload else None,
@@ -886,7 +1001,9 @@ def run_interactive_turn(
             "mission_code": mission_code,
             "intent": payload.intent.value,
             "ai_status": result["ai_status"],
-            "snapshot_hash": mission.content_hash,
+            "snapshot_hash": governed_context["state_hash"],
+            "canonical_mission_hash": mission.content_hash,
+            "governed_state_schema": governed_context["schema"],
             "canonical_mutation": "none",
             "attachment_ids": payload.attachment_ids,
             "context_profile": (result.get("context_manifest") or {}).get(
@@ -902,6 +1019,7 @@ def run_interactive_turn(
     result.update(
         run_id=run.id,
         turn_id=turn.id,
+        turn_persisted=True,
         turn_sequence=turn.sequence,
         review_status=run.review_status,
         proposal_reviews=[],
@@ -932,6 +1050,7 @@ def _turn_view(turn: MissionDialogueTurn) -> dict[str, Any]:
         "context_manifest": ai.get("context_manifest"),
         "context_retry_count": ai.get("context_retry_count", 0),
         "confidence_calibration": ai.get("confidence_calibration") or [],
+        "governed_mission_state": ai.get("governed_mission_state"),
         "deterministic": json.loads(run.deterministic_json),
         "ai_usage": usage_event_view(run.ai_usage_event) if run.ai_usage_event else None,
         "review_status": run.review_status,
@@ -1009,11 +1128,18 @@ def _find_proposal(
         "alternative": "alternative_proposals",
         "criterion": "decision_criteria",
         "experiment": "experiment_proposals",
+        "action": "recommended_actions",
     }
     for proposal_type, section in sections.items():
         for item in intelligence.get(section) or []:
-            if item.get("proposal_id") == proposal_id:
+            item_id = item.get("proposal_id") or item.get("action_id")
+            if item_id == proposal_id:
                 return proposal_type, item
+    mission_path = intelligence.get("mission_path") or {}
+    if isinstance(mission_path, dict):
+        for stage, item in mission_path.items():
+            if isinstance(item, dict) and item.get("proposal_id") == proposal_id:
+                return f"mission_path:{stage}", item
     return None
 
 
@@ -1049,7 +1175,7 @@ def review_dialogue_proposal(
             "proposal_not_found",
             "A proposta não foi encontrada neste turno de diálogo.",
         )
-    proposal_type, _proposal = found
+    proposal_type, proposal = found
     review = (
         db.query(MissionProposalReview)
         .filter(
@@ -1089,7 +1215,14 @@ def review_dialogue_proposal(
             "proposal_id": proposal_id,
             "proposal_type": proposal_type,
             "decision": payload.decision,
-            "canonical_effect": "none",
+            "canonical_effect": (
+                "human_validated_proposal"
+                if payload.decision == "human_validated"
+                else "none"
+            ),
+            "mission_revision": turn.session.mission.revision,
+            "mission_content_hash": turn.session.mission.content_hash,
+            "proposal_snapshot": proposal,
         },
     )
     db.commit()

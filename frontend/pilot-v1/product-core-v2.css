@@ -1,0 +1,139 @@
+/* SRIS Pilot V1 — Decision-first product hierarchy
+   Mission, evidence, decision and memory are primary. Assistance is optional. */
+:root{
+  --pc-forest:#103d32;
+  --pc-forest-dark:#082b24;
+  --pc-forest-soft:#2f6d59;
+  --pc-gold:#d6a24f;
+  --pc-paper:#f5f2e9;
+  --pc-card:#fffefb;
+  --pc-line:#d7dfda;
+  --pc-muted:#687970;
+  --pc-mint:#eaf3ee;
+  --pc-warn:#8b6429;
+}
+
+/* Reliable editorial photograph: real image element, decorative overlays above it. */
+.auth-visual{position:relative;isolation:isolate;overflow:hidden;background:var(--pc-forest-dark)!important}
+.auth-visual-photo{background-image:none!important}
+.auth-visual>.sunrise-photo{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center 49%!important;z-index:0!important;filter:saturate(1.03) contrast(1.02)}
+.auth-visual:before{z-index:1!important;background:linear-gradient(90deg,rgba(4,22,18,.82),rgba(4,22,18,.42) 62%,rgba(4,22,18,.25)),linear-gradient(0deg,rgba(4,20,16,.78),rgba(4,20,16,.08) 64%)!important}
+.auth-visual:after{z-index:1!important;background:radial-gradient(circle at 26% 38%,rgba(235,177,82,.14),transparent 32%)!important}
+.auth-visual>.brand-lockup,.auth-visual>.hero-copy,.auth-visual>.hero-foot{position:relative;z-index:2}
+.auth-release{color:#356655!important;letter-spacing:.17em!important}
+.discipline-box{align-items:flex-start!important}
+.discipline-box .note{line-height:1.5;color:#5f6e67}
+
+/* The app must never foreground the experimental wallet or provider plumbing. */
+#billing,#opv1-panel,#pilot-capability-surface,.capability-chips{display:none!important}
+.nav-group-optional{opacity:.82}
+.nav-group-optional .nav-group-label{color:#91aaa1!important}
+.nav-group-optional button{font-size:12px!important}
+
+.status-pill[data-state="ready"]{background:#e7f1ec!important;color:#2a6a55!important}
+.status-pill[data-state="degraded"]{background:#f4efe3!important;color:#7e622d!important}
+
+/* Epistemic discipline is a visible product layer, not hidden technical copy. */
+.epistemic-layer{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);
+  gap:22px;
+  align-items:center;
+  padding:24px 26px;
+  border:1px solid var(--pc-line);
+  border-radius:18px;
+  background:linear-gradient(135deg,#fffefb,#eef5f1);
+  box-shadow:0 12px 34px rgba(13,32,26,.045);
+}
+.epistemic-layer h3{margin:7px 0 8px;font:400 clamp(25px,2.4vw,35px)/1.08 Georgia,"Times New Roman",serif;color:#0d201a}
+.epistemic-layer p{margin:0;max-width:790px;color:var(--pc-muted);line-height:1.6}
+.epistemic-chips{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.epistemic-chips span{padding:8px 11px;border:1px solid #cddbd4;border-radius:999px;background:#fff;color:#356655;font-size:11px;font-weight:800;letter-spacing:.02em}
+.epistemic-chips.compact{justify-content:flex-start}
+.epistemic-chips.compact span{font-size:10px;padding:6px 9px}
+
+/* Mission templates remove the blank-page problem without fake demo data. */
+.template-heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;margin-top:30px}
+.template-heading h3{margin:6px 0 0;font:400 27px/1.1 Georgia,"Times New Roman",serif;color:#0d201a}
+.mission-template-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:16px 0 28px}
+.mission-template{
+  min-height:156px;
+  padding:17px;
+  border:1px solid var(--pc-line);
+  border-radius:15px;
+  background:#fbfcfa;
+  color:#0d201a;
+  text-align:left;
+  cursor:pointer;
+  transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.mission-template:hover,.mission-template:focus-visible{transform:translateY(-2px);border-color:#8eac9f;box-shadow:0 12px 26px rgba(13,32,26,.07);outline:none}
+.mission-template b{display:block;color:#9a742b;font-size:10px;letter-spacing:.12em}
+.mission-template strong{display:block;margin:13px 0 7px;font-size:15px}
+.mission-template span{display:block;color:var(--pc-muted);font-size:12px;line-height:1.5}
+
+/* The mission form records the transverse contract explicitly. */
+.epistemic-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 0;padding:18px;border:1px solid var(--pc-line);border-radius:16px;background:#f5f8f6}
+.epistemic-form-grid .field{margin:0}
+.epistemic-form-grid textarea{min-height:118px}
+.form-contract-note{margin:9px 0 18px;padding-left:12px;border-left:3px solid var(--pc-gold);color:#5f7068;font-size:11px;line-height:1.55}
+
+.epistemic-summary{margin:18px 0;padding:18px 20px;border:1px solid var(--pc-line);border-radius:15px;background:linear-gradient(135deg,#fafcfb,#edf4f0);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:16px;align-items:center}
+.epistemic-summary h3{margin:6px 0 6px;font-size:21px}
+.epistemic-summary p{margin:0;color:var(--pc-muted);font-size:13px;line-height:1.5}
+
+/* Assistance remains legible and deliberately secondary. */
+.context-note{margin:0 0 16px;padding:11px 13px;border:1px solid var(--pc-line);border-radius:12px;background:#f6f9f7;color:#526a61;font-size:12px;line-height:1.5}
+.provenance-list{margin-top:14px;padding:14px;border:1px solid var(--pc-line);border-radius:13px;background:#f8faf9}
+.provenance-list h4{margin:0 0 8px;font-size:13px}
+.provenance-row{padding:8px 0;border-top:1px dashed var(--pc-line);font-size:11px;line-height:1.45;color:#52665e}
+.provenance-row:first-of-type{border-top:0}
+
+/* Remove accidental link-blue from interface controls. */
+.btn-secondary,.inline-link,.link-btn,#copilot-quick-actions .btn,.account-utilities .btn{color:var(--pc-forest-soft)!important}
+.btn-primary{background:var(--pc-forest)!important;border-color:var(--pc-forest)!important;color:#fff!important}
+.btn-light{color:var(--pc-forest)!important}
+
+/* A single administration surface is appended by admin-accounts.js. */
+#pilot-admin-card{margin-top:18px!important}
+.admin-role{min-width:130px}
+
+/* Desktop density. */
+.technical-grid-product{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#mission-editor{max-width:1060px!important}
+#mission-empty .empty-state{max-width:1040px!important}
+
+@media(max-width:1100px){
+  .epistemic-layer,.epistemic-summary{grid-template-columns:1fr}
+  .epistemic-chips{justify-content:flex-start}
+  .mission-template-grid{grid-template-columns:1fr 1fr}
+  .mission-template:last-child{grid-column:1/-1}
+  .epistemic-form-grid{grid-template-columns:1fr 1fr}
+  .epistemic-form-grid .field:last-child{grid-column:1/-1}
+}
+
+@media(max-width:760px){
+  .template-heading{display:grid;align-items:start}
+  .template-heading .btn{width:100%}
+  .mission-template-grid,.epistemic-form-grid{grid-template-columns:1fr}
+  .mission-template:last-child,.epistemic-form-grid .field:last-child{grid-column:auto}
+  .technical-grid-product{grid-template-columns:1fr 1fr!important}
+  .epistemic-layer{padding:20px}
+  .epistemic-summary{padding:16px}
+}
+
+@media(max-width:560px){
+  .auth-visual{min-height:58vh!important;padding:30px 26px 34px!important}
+  .auth-visual>.sunrise-photo{object-position:58% 50%!important}
+  .auth-visual:before{background:linear-gradient(0deg,rgba(4,20,16,.82),rgba(4,20,16,.24) 70%)!important}
+  .hero-copy h1{font-size:clamp(50px,14vw,66px)!important;line-height:.98!important}
+  .hero-copy p{font-size:17px!important;line-height:1.55!important}
+  .hero-foot{font-size:11px!important;gap:7px!important;flex-wrap:wrap}
+  .auth-panel{padding-top:36px!important}
+  .epistemic-layer h3{font-size:27px}
+  .epistemic-chips span{font-size:10px;padding:7px 9px}
+  .mission-template{min-height:auto}
+  .technical-grid-product{grid-template-columns:1fr!important}
+  #page-title{max-width:52vw!important;overflow-wrap:normal!important}
+}

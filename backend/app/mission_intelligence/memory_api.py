@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import datetime, timezone
@@ -7,17 +8,20 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import or_
+from sqlalchemy import inspect, or_, text
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.audit import record_audit
 from app.atlas_platform.auth import require_org_role
 from app.atlas_platform.database import get_db
 from app.atlas_platform.models import Membership, Role
+from app.pilot_text import normalize_generated_title
+from app.pilot_mission_state import build_mission_state
 
 from .contracts import MissionDocumentV13
 from .memory_models import EvidenceAsset, MemoryItem, MemoryLink
-from .models import CanonicalMission
+from .models import CanonicalMission, MissionAttachment
+from .lifecycle import require_mutable_mission
 
 router = APIRouter(
     prefix="/api/organizations/{organization_id}/mission-intelligence/memory",
@@ -26,7 +30,12 @@ router = APIRouter(
 
 INDEXABLE_KINDS = {
     "observation", "evidence", "hypothesis", "assumption", "alternative",
-    "constraint", "decision", "execution", "outcome", "learning",
+    "constraint", "target", "decision", "execution", "outcome", "learning",
+}
+
+PILOT_MEMORY_KIND = {
+    "claim": "observation",
+    "action": "execution",
 }
 
 
@@ -59,7 +68,7 @@ def _item_view(item: MemoryItem) -> dict[str, Any]:
         "mission_id": item.mission_id,
         "canonical_record_id": item.canonical_record_id,
         "item_type": item.item_type,
-        "title": item.title,
+        "title": normalize_generated_title(item.title),
         "summary": item.summary,
         "state": item.state,
         "confidence": item.confidence,
@@ -106,6 +115,302 @@ def _record_search_text(mission: CanonicalMission, record: Any) -> str:
             _dump(metadata),
         ) if part
     )
+
+
+def _pilot_confidence(value: Any) -> str:
+    if value is None:
+        return "not_evaluable"
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return "not_evaluable"
+    if score >= 0.8:
+        return "high"
+    if score >= 0.5:
+        return "moderate"
+    return "low"
+
+
+def _as_datetime(value: Any) -> datetime | None:
+    if value is None or isinstance(value, datetime):
+        return value
+    clean = str(value).strip().replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(clean)
+    except ValueError:
+        return None
+
+
+def _pilot_memory_hash(
+    node: Any,
+    publication: Any | None,
+    source_governance_state: str | None = None,
+) -> str:
+    payload = {
+        "id": node["id"],
+        "node_type": node["node_type"],
+        "label": normalize_generated_title(node["label"]),
+        "body": node["body"],
+        "status": node["status"],
+        "confidence": node["confidence"],
+        "source_kind": node["source_kind"],
+        "source_id": node["source_id"],
+        "source_sha256": node["source_sha256"],
+        "provenance_json": node["provenance_json"],
+        "published_lineage_sha256": publication["lineage_sha256"] if publication else None,
+        "source_governance_state": source_governance_state,
+    }
+    return hashlib.sha256(_dump(payload).encode("utf-8")).hexdigest()
+
+
+def _sync_pilot_memory(
+    db: Session,
+    *,
+    organization_id: str,
+    missions: list[CanonicalMission],
+    indexed: dict[tuple[str, str], MemoryItem],
+) -> dict[str, int]:
+    """Materialize governed Pilot V1 records into the durable memory index."""
+    inspector = inspect(db.get_bind())
+    if not inspector.has_table("pilot_evidence_graph_nodes"):
+        return {"created": 0, "updated": 0, "links_created": 0, "assets_created": 0}
+
+    mission_by_id = {mission.id: mission for mission in missions}
+    publications: dict[tuple[str, str], Any] = {}
+    if inspector.has_table("pilot_learning_packets"):
+        rows = db.execute(text("""
+            SELECT source_mission_id, source_learning_node_id, lineage_sha256,
+                   created_at, updated_at
+            FROM pilot_learning_packets
+            WHERE organization_id=:org
+        """), {"org": organization_id}).mappings().all()
+        publications = {
+            (str(row["source_mission_id"]), str(row["source_learning_node_id"])): row
+            for row in rows
+        }
+
+    nodes = db.execute(text("""
+        SELECT * FROM pilot_evidence_graph_nodes
+        WHERE organization_id=:org
+          AND status NOT IN ('rejected', 'superseded')
+        ORDER BY created_at ASC
+    """), {"org": organization_id}).mappings().all()
+    created = 0
+    updated = 0
+    links_created = 0
+    pilot_indexed: dict[tuple[str, str], MemoryItem] = {}
+    governance_cache: dict[str, str] = {}
+
+    for node in nodes:
+        mission = mission_by_id.get(str(node["mission_id"]))
+        if mission is None:
+            continue
+        publication = publications.get((mission.id, str(node["id"])))
+        # Learning becomes organizational memory only after explicit human
+        # acceptance and publication with a verifiable lineage snapshot.
+        if node["node_type"] == "learning" and (
+            publication is None or node["status"] not in {"accepted", "verified"}
+        ):
+            continue
+        source_governance_state = None
+        memory_state = str(node["status"])
+        if node["node_type"] == "learning" and publication is not None:
+            if mission.lifecycle_state not in {"completed", "archived"}:
+                source_governance_state = "source_mission_open"
+            else:
+                source_governance_state = governance_cache.get(mission.id)
+                if source_governance_state is None:
+                    governed = build_mission_state(
+                        db,
+                        organization_id=organization_id,
+                        mission_id=mission.id,
+                        mission_code=mission.code,
+                    )
+                    source_governance_state = str(
+                        (governed.get("health") or {}).get("status") or "in_progress"
+                    )
+                    governance_cache[mission.id] = source_governance_state
+            if source_governance_state != "governed":
+                memory_state = "suspended"
+        kind = PILOT_MEMORY_KIND.get(str(node["node_type"]), str(node["node_type"]))
+        if kind not in INDEXABLE_KINDS:
+            continue
+        record_id = f"PILOT-{node['id']}"
+        source_hash = _pilot_memory_hash(node, publication, source_governance_state)
+        display_title = normalize_generated_title(node["label"])
+        provenance = _load(node["provenance_json"], {})
+        metadata = {
+            "source_mission_code": mission.code,
+            "source_mission_title": mission.title,
+            "source_domain": mission.domain,
+            "canonical_source": True,
+            "memory_contract_version": "1.1",
+            "pilot_evidence_graph": True,
+            "pilot_node_id": node["id"],
+            "pilot_node_type": node["node_type"],
+            "source_kind": node["source_kind"],
+            "source_id": node["source_id"],
+            "source_sha256": node["source_sha256"],
+            "provenance": provenance,
+            "source_governance_state": source_governance_state,
+        }
+        if publication:
+            metadata.update(
+                published_learning=True,
+                lineage_sha256=publication["lineage_sha256"],
+            )
+        item = db.query(MemoryItem).filter(
+            MemoryItem.organization_id == organization_id,
+            MemoryItem.mission_id == mission.id,
+            MemoryItem.canonical_record_id == record_id,
+        ).one_or_none()
+        verified_at = _as_datetime(publication["updated_at"]) if publication else (
+            _as_datetime(node["updated_at"]) if node["status"] in {"accepted", "verified"} else None
+        )
+        if item is None:
+            item = MemoryItem(
+                organization_id=organization_id,
+                mission_id=mission.id,
+                canonical_record_id=record_id,
+                item_type=kind,
+                title=display_title,
+                summary=node["body"] or "",
+                state=memory_state,
+                confidence=_pilot_confidence(node["confidence"]),
+                valid_from=_as_datetime(node["created_at"]),
+                last_verified_at=verified_at,
+                source_revision=mission.revision,
+                source_content_hash=source_hash,
+                search_text="\n".join(filter(None, (
+                    mission.code, mission.title, mission.domain, record_id,
+                    kind, display_title, node["body"], _dump(metadata),
+                ))),
+                metadata_json=_dump(metadata),
+                created_by_user_id=node["created_by_user_id"],
+            )
+            db.add(item)
+            db.flush()
+            created += 1
+        elif item.source_content_hash != source_hash or item.state != memory_state:
+            item.item_type = kind
+            item.title = display_title
+            item.summary = node["body"] or ""
+            item.state = memory_state
+            item.confidence = _pilot_confidence(node["confidence"])
+            item.last_verified_at = verified_at or item.last_verified_at
+            item.source_revision = mission.revision
+            item.source_content_hash = source_hash
+            item.search_text = "\n".join(filter(None, (
+                mission.code, mission.title, mission.domain, record_id,
+                kind, display_title, node["body"], _dump(metadata),
+            )))
+            item.metadata_json = _dump(metadata)
+            updated += 1
+        pilot_indexed[(mission.id, str(node["id"]))] = item
+        indexed[(mission.id, record_id)] = item
+
+    active_record_ids = {
+        item.canonical_record_id for item in pilot_indexed.values()
+    }
+    stale_items = db.query(MemoryItem).filter(
+        MemoryItem.organization_id == organization_id,
+        MemoryItem.canonical_record_id.like("PILOT-%"),
+        MemoryItem.state != "superseded",
+    ).all()
+    for item in stale_items:
+        if item.canonical_record_id in active_record_ids:
+            continue
+        metadata = _load(item.metadata_json, {})
+        metadata.update(
+            source_graph_state="superseded",
+            invalidation_reason="A fonte governada foi rejeitada ou substituída.",
+            invalidated_at=_now().isoformat(),
+        )
+        item.state = "superseded"
+        item.source_content_hash = hashlib.sha256(
+            _dump(
+                {
+                    "canonical_record_id": item.canonical_record_id,
+                    "prior_source_content_hash": item.source_content_hash,
+                    "state": "superseded",
+                }
+            ).encode("utf-8")
+        ).hexdigest()
+        item.metadata_json = _dump(metadata)
+        updated += 1
+
+    if inspector.has_table("pilot_evidence_graph_edges"):
+        edges = db.execute(text("""
+            SELECT * FROM pilot_evidence_graph_edges
+            WHERE organization_id=:org
+            ORDER BY created_at ASC
+        """), {"org": organization_id}).mappings().all()
+        for edge in edges:
+            mission_id = str(edge["mission_id"])
+            source = pilot_indexed.get((mission_id, str(edge["from_node_id"])))
+            target = pilot_indexed.get((mission_id, str(edge["to_node_id"])))
+            if source is None or target is None:
+                continue
+            exists = db.query(MemoryLink.id).filter(
+                MemoryLink.organization_id == organization_id,
+                MemoryLink.source_item_id == source.id,
+                MemoryLink.target_item_id == target.id,
+                MemoryLink.relation_type == edge["edge_type"],
+            ).first()
+            if exists:
+                continue
+            db.add(MemoryLink(
+                organization_id=organization_id,
+                source_item_id=source.id,
+                target_item_id=target.id,
+                relation_type=edge["edge_type"],
+                metadata_json=_dump({
+                    "pilot_edge_id": edge["id"],
+                    "provenance": _load(edge["provenance_json"], {}),
+                }),
+            ))
+            links_created += 1
+
+    assets_created = 0
+    attachments = db.query(MissionAttachment).filter(
+        MissionAttachment.organization_id == organization_id,
+    ).order_by(MissionAttachment.created_at.asc()).all()
+    for attachment in attachments:
+        existing = db.query(EvidenceAsset).filter(
+            EvidenceAsset.organization_id == organization_id,
+            EvidenceAsset.sha256 == attachment.sha256,
+        ).one_or_none()
+        if existing is not None:
+            continue
+        db.add(EvidenceAsset(
+            organization_id=organization_id,
+            mission_id=attachment.mission_id,
+            storage_backend="encrypted_database",
+            object_key=f"mi_mission_attachments/{attachment.id}",
+            original_filename=attachment.original_filename,
+            media_type=attachment.media_type,
+            byte_size=attachment.byte_size,
+            sha256=attachment.sha256,
+            state="registered",
+            provenance_json=_dump({
+                "origin": "mission_attachment",
+                "attachment_id": attachment.id,
+                "extraction_status": attachment.extraction_status,
+            }),
+            metadata_json=_dump({
+                "source_mission_code": attachment.mission_code,
+                "encrypted_at_rest": True,
+            }),
+            created_by_user_id=attachment.created_by_user_id,
+        ))
+        assets_created += 1
+
+    return {
+        "created": created,
+        "updated": updated,
+        "links_created": links_created,
+        "assets_created": assets_created,
+    }
 
 
 def sync_organization_memory(
@@ -186,6 +491,16 @@ def sync_organization_memory(
                 updated += 1
             indexed[(mission.id, record.canonical_id)] = item
 
+    pilot_sync = _sync_pilot_memory(
+        db,
+        organization_id=organization_id,
+        missions=missions,
+        indexed=indexed,
+    )
+    created += pilot_sync["created"]
+    updated += pilot_sync["updated"]
+    links_created += pilot_sync["links_created"]
+
     # Create a graph edge only when both canonical endpoints have durable items.
     for mission in missions:
         document = _document(mission)
@@ -254,7 +569,12 @@ def sync_organization_memory(
             links_created += 1
 
     db.commit()
-    return {"created": created, "updated": updated, "links_created": links_created}
+    return {
+        "created": created,
+        "updated": updated,
+        "links_created": links_created,
+        "assets_created": pilot_sync["assets_created"],
+    }
 
 
 class AssetRegisterRequest(BaseModel):
@@ -381,12 +701,13 @@ def register_asset(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     if payload.mission_id:
-        exists = db.query(CanonicalMission.id).filter(
+        mission = db.query(CanonicalMission).filter(
             CanonicalMission.id == payload.mission_id,
             CanonicalMission.organization_id == organization_id,
-        ).first()
-        if not exists:
+        ).one_or_none()
+        if mission is None:
             raise HTTPException(status_code=404, detail="Mission not found")
+        require_mutable_mission(mission)
     sha = payload.sha256.lower()
     existing = db.query(EvidenceAsset).filter(
         EvidenceAsset.organization_id == organization_id,
