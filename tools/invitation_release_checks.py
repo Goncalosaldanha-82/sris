@@ -7,6 +7,7 @@ import sys
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--recover-request")
+parser.add_argument("--inspect-request")
 parser.add_argument("--probe", action="store_true")
 args = parser.parse_args()
 subprocess.run([sys.executable, str(root / "tools/qa_invitation_transport.py")], cwd=root, check=True)
@@ -16,3 +17,5 @@ if args.recover_request:
     if args.probe:
         command.append("--probe")
     subprocess.run(command, cwd=root, check=True)
+if args.inspect_request:
+    subprocess.run([sys.executable, str(root / "tools/inspect_approved_access.py"), "--request-id", args.inspect_request], cwd=root, check=True)
