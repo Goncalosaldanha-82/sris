@@ -9,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, R
 from sqlalchemy.orm import Session
 
 from app.atlas_platform.access_inbox import router as access_inbox_router
+from app.atlas_platform.invitation_activation import router as invitation_activation_router
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.commercial_access import (
     AccessRequestCreate,
@@ -206,3 +207,4 @@ for commercial_route in commercial_access_router.routes:
 
 # include_router also preserves the durable notification worker lifespan.
 router.include_router(access_inbox_router)
+router.include_router(invitation_activation_router)
