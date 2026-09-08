@@ -1,0 +1,198 @@
+name: Apply and validate staging audit fixes
+
+on:
+  push:
+    branches:
+      - fix-staging-audit-20260902
+    paths:
+      - "tools/apply_staging_audit_fixes.py"
+      - ".github/workflows/staging-audit-fix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ATLAS_DATABASE_URL: sqlite+pysqlite:////tmp/sris-audit-fix/atlas.db
+  ATLAS_REPOSITORY_ROOT: /tmp/sris-audit-fix/repository
+  ATLAS_JWT_SECRET: staging-audit-fix-secret-with-more-than-thirty-two-bytes
+  ATLAS_ENV: test
+  SRIS_PILOT_MODE: "true"
+  SRIS_PUBLIC_SIGNUP_ENABLED: "true"
+  ATLAS_SELF_REGISTRATION_ENABLED: "true"
+
+jobs:
+  repair-and-validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas-ci-password
+          POSTGRES_DB: atlas_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas -d atlas_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix-staging-audit-20260902
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Apply audited source changes
+        run: python tools/apply_staging_audit_fixes.py
+
+      - name: Reconcile existing frontend contracts
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          index_path = Path("frontend/pilot-v1/index.html")
+          index = index_path.read_text(encoding="utf-8")
+          index, count = re.subn(
+              r'id="mission-file"\s+aria-label="Selecionar documentos da missão"\s+multiple',
+              'id="mission-file" multiple aria-label="Selecionar documentos da missão"',
+              index,
+              count=1,
+          )
+          if count != 1:
+              raise RuntimeError("Could not preserve the established mission-file attribute order.")
+          index_path.write_text(index, encoding="utf-8")
+
+          Path("frontend/tests/staging_audit_hardening_contract.test.js").write_text(
+              r'''import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const read=(path)=>fs.readFileSync(new URL(`../../${path}`,import.meta.url),'utf8');
+
+          test('entry copy follows the runtime signup gate and reset uses one route family',()=>{
+            const auth=read('frontend/pilot-v1/auth.js');
+            const home=read('frontend/pilot-v1/home.html');
+            assert.match(auth,/function loginSubtitle\(\)/);
+            assert.match(auth,/acesso de novas organizações é feito por convite/);
+            assert.match(auth,/\/api\/auth\/password-reset\/request/);
+            assert.match(auth,/\/api\/auth\/password-reset\/confirm/);
+            assert.doesNotMatch(auth,/\/api\/pilot\/password-reset\/confirm/);
+            assert.match(home,/Entre no seu workspace para continuar\./);
+          });
+
+          test('account and mission controls use the active build and accessible names',()=>{
+            const account=read('frontend/pilot-v1/account.html');
+            const index=read('frontend/pilot-v1/index.html');
+            assert.match(account,/pilot\.css\?v=__PILOT_BUILD__/);
+            assert.match(account,/sris-logo-compact-dark\.svg\?v=__PILOT_BUILD__/);
+            assert.doesNotMatch(account,/20260828-brand-system-v30/);
+            assert.match(index,/id="mission-search"[^>]+aria-label="Pesquisar missões"/);
+            assert.match(index,/id="mission-file"[^>]+aria-label="Selecionar documentos da missão"/);
+          });
+
+          test('empty mission-dependent areas explain their own prerequisite',()=>{
+            const app=read('frontend/pilot-v1/app.js');
+            for(const phrase of [
+              'Selecione ou crie uma missão para estruturar a evidência.',
+              'Selecione ou crie uma missão para definir a baseline e medir o impacto.',
+              'Selecione ou crie uma missão para abrir o Business Case Vivo.',
+              'Selecione ou crie uma missão para rever e preservar aprendizagem.',
+            ])assert.ok(app.includes(phrase),phrase);
+          });
+
+          test('entry contrast override is explicit',()=>{
+            const css=read('frontend/pilot-v1/pilot.css');
+            assert.match(css,/#auth-subtitle,#trial-copy\{color:#5f7068\}/);
+          });
+          ''',
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Generate deterministic dependency locks
+        run: |
+          python -m pip install --upgrade pip setuptools wheel pip-tools
+          python -m piptools compile --quiet --resolver=backtracking --strip-extras --output-file=requirements.lock pyproject.toml
+          python -m piptools compile --quiet --resolver=backtracking --strip-extras --extra=test --output-file=requirements-test.lock pyproject.toml
+
+      - name: Install locked test environment
+        run: |
+          mkdir -p /tmp/sris-audit-fix/repository
+          python -m pip install -r requirements-test.lock
+          python -m pip install --no-deps -e ".[test]"
+
+      - name: Verify source syntax
+        shell: bash
+        run: |
+          python -m compileall -q backend/app backend/tests migrations
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done < <(find frontend/pilot-v1 frontend/tests -type f -name '*.js' -print0)
+
+      - name: Migrate a new SQLite database
+        run: |
+          rm -f /tmp/sris-audit-fix/atlas.db
+          python -m alembic upgrade head
+          python -m alembic current -v
+          python -m alembic heads -v
+
+      - name: Validate the real staging path on PostgreSQL
+        env:
+          ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas-ci-password@127.0.0.1:5432/atlas_ci
+        run: |
+          python -m alembic upgrade 20260827_0022
+          python -m alembic upgrade head
+          python -m alembic current -v
+          python -m alembic heads -v
+
+      - name: Run all frontend contracts
+        run: node --test frontend/tests/*.test.js
+
+      - name: Run every backend module in an isolated migrated database
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_file in backend/tests/test_*.py; do
+            module="$(basename "$test_file" .py)"
+            database="/tmp/sris-audit-fix/${module}.db"
+            repository="/tmp/sris-audit-fix/repository-${module}"
+            rm -f "$database"
+            rm -rf "$repository"
+            mkdir -p "$repository"
+            export ATLAS_DATABASE_URL="sqlite+pysqlite:///${database}"
+            export ATLAS_REPOSITORY_ROOT="$repository"
+            echo "===== $test_file ====="
+            python -m alembic upgrade head >/dev/null
+            python -m pytest -q "$test_file" --tb=short
+          done
+
+      - name: Verify installed dependency graph
+        run: python -m pip check
+
+      - name: Commit validated product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm tools/apply_staging_audit_fixes.py
+          git rm .github/workflows/staging-audit-fix.yml
+          git add .
+          git diff --cached --check
+          git commit -m "fix: harden identity, demo consistency and staging release surface"
+          git push origin HEAD:fix-staging-audit-20260902
