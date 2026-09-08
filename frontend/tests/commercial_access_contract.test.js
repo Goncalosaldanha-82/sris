@@ -28,12 +28,16 @@ test('Access request keeps a stable form reference across the asynchronous submi
 test('Workspace administration stays separate from commercial platform administration', () => {
   const loader = read('../pilot-v1/admin-accounts.js');
   const entitlement = read('../pilot-v1/commercial-entitlement-ui.js');
-  const requests = read('../pilot-v1/commercial-requests-ui.js');
+  const navigation = read('../pilot-v1/commercial-requests-ui.js');
+  const requests = read('../pilot-v1/access-inbox.js');
   assert.match(loader, /admin-workspace-core\.js/);
   assert.match(loader, /commercial-access-admin\.js/);
   assert.match(entitlement, /commercial-entitlement\/renew/);
   assert.match(entitlement, /Entitlement comercial/);
+  assert.match(navigation, /\/api\/admin\/access-requests\/summary/);
+  assert.match(navigation, /access-inbox-nav/);
   assert.match(requests, /\/api\/admin\/access-requests/);
   assert.match(requests, /\/approve/);
   assert.match(requests, /resend-invitation/);
+  assert.match(requests, /response_message/);
 });

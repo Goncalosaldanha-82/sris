@@ -1,10 +1,35 @@
 (()=>{
   'use strict';
-  const $=(s,r=document)=>r.querySelector(s),api=(p,o={})=>window.SRISApi.request(p,o);
-  const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  const plans='<option value="pilot">Pilot</option><option value="professional">Professional</option><option value="organization">Organization</option>';
-  function rows(items){return(items||[]).map(x=>`<div class="ledger-row" data-request="${esc(x.id)}" style="display:block"><strong>${esc(x.full_name)} · ${esc(x.organization_name)}</strong><div class="note">${esc(x.email)} · ${esc(x.status)}${x.requested_at?` · ${new Date(x.requested_at).toLocaleString('pt-PT')}`:''}</div>${x.status==='pending'?`<div class="button-row" style="margin-top:10px"><select data-plan>${plans}</select><input data-days type="number" min="1" max="3650" value="90" aria-label="Dias de entitlement"><button class="btn btn-primary compact" data-approve>Aprovar</button><button class="btn btn-secondary compact" data-reject>Rejeitar</button></div>`:(x.status==='approved'&&x.invitation?.status==='pending'?'<div class="button-row" style="margin-top:10px"><button class="btn btn-secondary compact" data-resend>Reenviar convite inicial</button></div>':'')}</div>`).join('')||'<div class="note">Sem pedidos de acesso.</div>'}
-  async function load(card){const d=await api('/api/admin/access-requests');$('[data-list]',card).innerHTML=rows(d.requests)}
-  async function render(){const section=document.getElementById('account');if(!section||document.getElementById('commercial-requests-card')||!window.SRISApi?.request)return;let d;try{d=await api('/api/admin/access-requests')}catch(e){return}const card=document.createElement('article');card.className='card';card.id='commercial-requests-card';card.innerHTML='<div class="card-title"><div><h3>Pedidos de acesso SRIS</h3><div class="note">Aprovação, workspace, convite inicial e entitlement num único fluxo governado.</div></div><span class="pill">aprovação SRIS</span></div><div data-msg class="alert hidden"></div><div data-list class="ledger">'+rows(d.requests)+'</div>';section.appendChild(card);card.addEventListener('click',async e=>{const b=e.target.closest('button'),r=b?.closest('[data-request]');if(!b||!r)return;const id=r.dataset.request,m=$('[data-msg]',card);try{if(b.hasAttribute('data-approve'))await api(`/api/admin/access-requests/${id}/approve`,{method:'POST',body:JSON.stringify({plan_code:$('[data-plan]',r).value,entitlement_days:Number($('[data-days]',r).value)})});else if(b.hasAttribute('data-reject'))await api(`/api/admin/access-requests/${id}/reject`,{method:'POST',body:'{}'});else if(b.hasAttribute('data-resend'))await api(`/api/admin/access-requests/${id}/resend-invitation`,{method:'POST'});else return;m.textContent=b.hasAttribute('data-approve')?'Acesso aprovado; convite inicial criado.':b.hasAttribute('data-reject')?'Pedido rejeitado.':'Convite inicial renovado e reenviado.';m.className='alert success';await load(card)}catch(x){m.textContent=x.message;m.className='alert error'}})}
-  const boot=()=>setTimeout(()=>render().catch(()=>{}),950);document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot,{once:true}):boot();document.addEventListener('click',e=>{if(e.target.closest('[data-section="account"]'))setTimeout(()=>render().catch(()=>{}),180)});
+  // The inbox has its own URL; it is no longer buried below the account cards.
+  const path='/admin/access-requests';let authorized=false,busy=false;
+  function remove(){document.querySelectorAll('[data-sris-access-inbox]').forEach(n=>n.remove());authorized=false;}
+  async function refresh(){
+    if(busy||document.hidden||!window.SRISApi?.raw)return;busy=true;
+    try{
+      const response=await window.SRISApi.raw('/api/admin/access-requests/summary',{skipWorkspace:true});
+      if([401,403].includes(response.status)){remove();return;}
+      if(!response.ok)throw new Error('Não foi possível atualizar os pedidos de acesso.');
+      const data=await response.json();authorized=true;const count=Number(data.counts?.pending||0);
+      const nav=document.querySelector('.nav');
+      if(nav&&!document.getElementById('access-inbox-nav')){
+        const group=document.createElement('div');group.className='nav-group';group.dataset.srisAccessInbox='nav';
+        group.innerHTML='<div class="nav-group-label">Gestão SRIS</div><button type="button" id="access-inbox-nav"><span>Pedidos de acesso</span> <strong data-access-count></strong></button>';
+        group.querySelector('button').addEventListener('click',()=>location.assign(path));nav.prepend(group);
+      }
+      for(const id of ['overview','account']){
+        const section=document.getElementById(id);if(!section||section.querySelector('[data-sris-access-inbox]'))continue;
+        const card=document.createElement('article');card.className='card';card.dataset.srisAccessInbox=id;
+        const title=document.createElement('h3');title.textContent='Pedidos de acesso';const info=document.createElement('p');info.dataset.accessSummary='';
+        const button=document.createElement('a');button.href=path;button.className='btn btn-primary';button.textContent='Abrir pedidos e decidir';
+        card.append(title,info,button);section.prepend(card);
+      }
+      document.querySelectorAll('[data-access-count]').forEach(n=>n.textContent=String(count));
+      document.querySelectorAll('[data-access-summary]').forEach(n=>n.textContent=count?`${count} ${count===1?'pedido aguarda':'pedidos aguardam'} a sua aprovação. Pode aprovar ou recusar nesta área.`:'Não há pedidos pendentes. Consulte o histórico de decisões nesta área.');
+    }catch(error){if(authorized)document.querySelectorAll('[data-access-summary]').forEach(n=>n.textContent='Não foi possível atualizar o contador. Abra a área para consultar o estado.');}
+    finally{busy=false;}
+  }
+  function boot(){refresh();setInterval(refresh,30000);document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  // App boot and token refresh may finish after this dynamic module loads.
+  setTimeout(refresh,1500);
 })();

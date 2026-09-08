@@ -8,6 +8,7 @@ from collections import defaultdict, deque
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.atlas_platform.access_inbox import router as access_inbox_router
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.commercial_access import (
     AccessRequestCreate,
@@ -199,6 +200,9 @@ def pilot_test_topup(
 
 
 for commercial_route in commercial_access_router.routes:
-    if commercial_route.path == "/api/access-requests":
+    if commercial_route.path in {"/api/access-requests", "/api/admin/access-requests/{request_id}/reject"}:
         continue
     router.routes.append(commercial_route)
+
+# include_router also preserves the durable notification worker lifespan.
+router.include_router(access_inbox_router)

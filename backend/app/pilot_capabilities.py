@@ -22,7 +22,7 @@ from app.pilot_platform import (
 
 router = APIRouter(prefix="/api/pilot", tags=["pilot-capabilities"])
 
-PILOT_BUILD = "pilot-commercial-access-lifecycle-v40"
+PILOT_BUILD = "pilot-access-inbox-v41"
 
 USER_MOMENTS = [
     "context",
