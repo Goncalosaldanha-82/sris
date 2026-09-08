@@ -6,6 +6,8 @@ import os
 import secrets
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -16,9 +18,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
+from app.analytics_access import require_analytics_owner
 from app.atlas_platform.auth import current_user
 from app.atlas_platform.database import Base, SessionLocal, get_db
-from app.atlas_platform.models import Membership, User
+from app.atlas_platform.models import User
 
 LOGGER = logging.getLogger("sris.internal_analytics")
 
@@ -39,7 +42,6 @@ ALLOWED_EVENTS = {
     "mission_created",
 }
 ALLOWED_SURFACES = {"site", "demo", "app"}
-ADMIN_ROLES = {"owner", "admin"}
 
 
 class InternalAnalyticsEvent(Base):
@@ -176,13 +178,8 @@ def safe_track_request(
 
 
 def _require_admin(user: User, db: Session) -> None:
-    membership = (
-        db.query(Membership)
-        .filter(Membership.user_id == user.id, Membership.role.in_(ADMIN_ROLES))
-        .first()
-    )
-    if membership is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
+    # Tenant ownership must never authorize reading platform-wide metrics.
+    require_analytics_owner(user, db)
 
 
 @router.post("/collect", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
@@ -287,19 +284,20 @@ def analytics_summary(
 
 
 _DASHBOARD_HTML = """<!doctype html>
-<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
 <title>SRIS · Analytics interno</title><style>
 :root{color-scheme:light;background:#f5f3ec;color:#102c24;font-family:Inter,system-ui,sans-serif}body{margin:0}.wrap{max-width:1100px;margin:auto;padding:36px 22px 70px}.top{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}h1{font-family:Georgia,serif;font-size:42px;font-weight:500;margin:5px 0}.eyebrow{letter-spacing:.16em;text-transform:uppercase;font-size:12px;color:#9b792f;font-weight:700}.muted{color:#66756f}.controls{display:flex;gap:8px}.controls button{border:1px solid #ccd3ce;background:#fff;border-radius:999px;padding:9px 14px;cursor:pointer}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card,.panel{background:#fff;border:1px solid #dde2de;border-radius:18px;padding:20px;box-shadow:0 8px 25px rgba(16,44,36,.04)}.value{font-family:Georgia,serif;font-size:44px;margin-top:8px}.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:14px;margin-top:14px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #edf0ed}th{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#728079}.funnel{display:grid;gap:12px}.step{padding:14px;border:1px solid #e1e5e2;border-radius:14px}.step b{font-size:24px}.privacy{margin-top:14px;font-size:12px;color:#718079}.error{padding:18px;background:#fff0ed;border:1px solid #efc5bd;border-radius:14px;color:#7d2d20}@media(max-width:760px){.cards,.grid{grid-template-columns:1fr}.top{align-items:start;flex-direction:column}h1{font-size:34px}}
-</style></head><body><main class="wrap"><div class="top"><div><div class="eyebrow">SRIS · uso interno</div><h1>Leitura de interesse</h1><div class="muted">Site → demonstração → aplicação. Sem cookies, IP bruto ou perfis pessoais.</div></div><div class="controls"><button data-days="7">7 dias</button><button data-days="30">30 dias</button><button data-days="90">90 dias</button></div></div><div id="content"><div class="muted">A carregar…</div></div></main><script>
-const token=localStorage.getItem('sris_access_token');const org=localStorage.getItem('sris_org_id');
-async function load(days=30){const el=document.getElementById('content');if(!token){el.innerHTML='<div class="error">Entre primeiro em app.sris.io com uma conta Owner/Admin.</div>';return;}try{const h={Authorization:`Bearer ${token}`};if(org)h['X-SRIS-Organization']=org;const r=await fetch(`/api/internal-analytics/summary?days=${days}`,{headers:h});if(!r.ok)throw new Error(`${r.status}`);const d=await r.json();const rows=d.daily.map(x=>`<tr><td>${x.date}</td><td>${x.site}</td><td>${x.demo}</td><td>${x.app}</td><td>${x.login}</td><td>${x.pilots}</td></tr>`).reverse().join('');const src=d.sources.map(x=>`<tr><td>${x.source}</td><td>${x.views}</td></tr>`).join('');el.innerHTML=`<section class="cards"><div class="card"><div class="eyebrow">Site</div><div class="value">${d.views.site}</div><div class="muted">visualizações</div></div><div class="card"><div class="eyebrow">Demonstração</div><div class="value">${d.views.demo}</div><div class="muted">visualizações</div></div><div class="card"><div class="eyebrow">Aplicação</div><div class="value">${d.views.app}</div><div class="muted">visualizações</div></div></section><section class="grid"><div class="panel"><div class="eyebrow">Evolução diária</div><table><thead><tr><th>Data</th><th>Site</th><th>Demo</th><th>App</th><th>Login</th><th>Pilotos</th></tr></thead><tbody>${rows||'<tr><td colspan="6">Sem dados ainda.</td></tr>'}</tbody></table></div><div class="panel"><div class="eyebrow">Funil observado</div><div class="funnel"><div class="step"><span>Site → Demo</span><br><b>${d.funnel.site_to_demo_events}</b> <span class="muted">eventos · ${d.funnel.site_to_demo_rate_pct}%</span></div><div class="step"><span>Demo → App</span><br><b>${d.funnel.demo_to_app_events}</b> <span class="muted">eventos · ${d.funnel.demo_to_app_rate_pct}%</span></div></div><div class="eyebrow" style="margin-top:24px">Origem</div><table><tbody>${src||'<tr><td>Sem dados</td></tr>'}</tbody></table></div></section><div class="privacy">Período: ${d.period_days} dias · eventos agregados: ${d.total_events} · telemetria própria do SRIS.</div>`;}catch(e){el.innerHTML='<div class="error">Não foi possível carregar os analytics. Confirme que está autenticado como Owner/Admin.</div>';}}
-document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>load(Number(b.dataset.days)));load();
-</script></body></html>"""
+</style></head><body><main class="wrap"><div class="top"><div><div class="eyebrow">SRIS · uso interno</div><h1>Leitura de interesse</h1><div class="muted">Site → demonstração → aplicação. Sem cookies, IP bruto ou perfis pessoais.</div><p><a href="/app">Voltar à aplicação</a></p></div><div class="controls"><button data-days="7">7 dias</button><button data-days="30">30 dias</button><button data-days="90">90 dias</button></div></div><div id="content"><div class="muted">A verificar a autorização do proprietário da plataforma…</div></div></main><script src="/analytics-dashboard-v43.js?v=__ANALYTICS_DIGEST__" defer></script></body></html>"""
 
 
 @dashboard_router.get("/admin/analytics", include_in_schema=False)
 def analytics_dashboard() -> HTMLResponse:
+    # This shell contains no private data. The summary API authenticates and
+    # authorizes every read, including direct navigation to this URL.
+    frontend = Path(__file__).resolve().parents[2] / "frontend" / "pilot-v1"
+    digest = sha256((frontend / "analytics-dashboard-v43.js").read_bytes()).hexdigest()[:16]
     return HTMLResponse(
-        _DASHBOARD_HTML,
-        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+        _DASHBOARD_HTML.replace("__ANALYTICS_DIGEST__", digest),
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                 "X-Robots-Tag": "noindex, nofollow"},
     )

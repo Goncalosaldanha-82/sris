@@ -1,117 +1,66 @@
 (()=>{
   'use strict';
-
-  const ADMIN_ROLES=new Set(['owner','admin']);
   const $=selector=>document.querySelector(selector);
-  let profilePoll=0;
-  let summaryLoading=false;
-
-  function adminRole(){
-    return String(window.SRISProfile?.organization?.role||'').toLowerCase();
+  const token=()=>localStorage.getItem('sris_access_token')||'';
+  const number=value=>new Intl.NumberFormat('pt-PT').format(Number(value||0));
+  const percent=value=>`${new Intl.NumberFormat('pt-PT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(Number(value||0))}%`;
+  let generation=0, controller=null, lastToken=token(), allowed=false;
+  const metrics=['analytics-site','analytics-demo','analytics-app','analytics-login','analytics-site-demo','analytics-demo-app'];
+  function setText(id,value){const node=$('#'+id);if(node)node.textContent=String(value??'—');}
+  function hide(){
+    allowed=false;
+    ['analytics-nav-group','analytics-overview'].forEach(id=>{
+      const node=$('#'+id);if(node){node.classList.add('hidden');node.hidden=true;}
+    });
+    metrics.forEach(id=>setText(id,'—'));
+    setText('analytics-state','');
   }
-
-  function setAccess(allowed){
-    $('#analytics-nav-group')?.classList.toggle('hidden',!allowed);
-    $('#analytics-overview')?.classList.toggle('hidden',!allowed);
+  function invalidate(){generation+=1;controller?.abort();controller=null;hide();}
+  function render(data){
+    const views=data.views||{},events=data.events||{},funnel=data.funnel||{};
+    setText('analytics-site',number(views.site));setText('analytics-demo',number(views.demo));
+    setText('analytics-app',number(views.app));setText('analytics-login',number(events.login_success));
+    setText('analytics-site-demo',percent(funnel.site_to_demo_rate_pct));setText('analytics-demo-app',percent(funnel.demo_to_app_rate_pct));
+    setText('analytics-period',`Últimos ${Number(data.period_days||30)} dias`);
+    setText('analytics-state',data.total_events?`${number(data.total_events)} eventos agregados · telemetria própria do SRIS`:'Recolha ativa · ainda sem volume suficiente para leitura de tendência');
+    ['analytics-nav-group','analytics-overview'].forEach(id=>{
+      const node=$('#'+id);if(node){node.hidden=false;node.classList.remove('hidden');}
+    });
+    allowed=true;
   }
-
-  function setText(selector,value){
-    const node=$(selector);
-    if(node)node.textContent=String(value??'—');
-  }
-
-  function number(value){
-    return new Intl.NumberFormat('pt-PT').format(Number(value||0));
-  }
-
-  function percent(value){
-    return `${new Intl.NumberFormat('pt-PT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(Number(value||0))}%`;
-  }
-
-  function analyticsHeaders(){
-    const headers={};
-    const token=localStorage.getItem('sris_access_token');
-    const organization=localStorage.getItem('sris_org_id');
-    if(token)headers.Authorization=`Bearer ${token}`;
-    if(organization)headers['X-SRIS-Organization']=organization;
-    return headers;
-  }
-
-  function renderSummary(data){
-    const views=data?.views||{};
-    const funnel=data?.funnel||{};
-    const events=data?.events||{};
-    setText('#analytics-site',number(views.site));
-    setText('#analytics-demo',number(views.demo));
-    setText('#analytics-app',number(views.app));
-    setText('#analytics-login',number(events.login_success));
-    setText('#analytics-site-demo',percent(funnel.site_to_demo_rate_pct));
-    setText('#analytics-demo-app',percent(funnel.demo_to_app_rate_pct));
-    setText('#analytics-period',`Últimos ${Number(data?.period_days||30)} dias`);
-    const state=$('#analytics-state');
-    if(state){
-      state.textContent=data?.total_events
-        ?`${number(data.total_events)} eventos agregados · telemetria própria do SRIS`
-        :'Recolha ativa · ainda sem volume suficiente para leitura de tendência';
-      state.dataset.state='ready';
-    }
-  }
-
   async function loadSummary(){
-    if(summaryLoading||!ADMIN_ROLES.has(adminRole()))return;
-    summaryLoading=true;
-    const state=$('#analytics-state');
-    if(state){state.textContent='A atualizar leitura de interesse…';state.dataset.state='loading';}
+    // Workspace roles and client-side profiles never authorize platform analytics.
+    invalidate();lastToken=token();const credentials=lastToken,sequence=generation;
+    if(!credentials||document.hidden)return;
+    const active=new AbortController();controller=active;
+    const timer=setTimeout(()=>active.abort(),15000);
+    const current=()=>sequence===generation&&credentials===token()&&!document.hidden;
     try{
       const response=await fetch('/api/internal-analytics/summary?days=30',{
-        headers:analyticsHeaders(),
-        cache:'no-store',
+        headers:{Authorization:`Bearer ${credentials}`},cache:'no-store',signal:active.signal,
       });
-      if(response.status===401){
-        if(state)state.textContent='Sessão a renovar. Volte a abrir a Visão geral.';
-        return;
-      }
-      if(response.status===403){
-        setAccess(false);
-        return;
-      }
-      if(!response.ok)throw new Error(`HTTP ${response.status}`);
-      renderSummary(await response.json());
-    }catch(error){
-      console.warn('SRIS internal analytics summary unavailable:',error.message);
-      if(state){state.textContent='Analytics temporariamente indisponível.';state.dataset.state='error';}
-    }finally{
-      summaryLoading=false;
-    }
+      if(!response.ok||!current())return;
+      const data=await response.json();
+      if(current())render(data);
+    }catch{if(current())hide();}
+    finally{clearTimeout(timer);if(controller===active)controller=null;}
   }
-
-  function openDashboard(){
-    location.assign('/admin/analytics');
-  }
-
-  function activate(){
-    const role=adminRole();
-    if(!role){
-      profilePoll+=1;
-      if(profilePoll<60)setTimeout(activate,250);
-      return;
-    }
-    const allowed=ADMIN_ROLES.has(role);
-    setAccess(allowed);
-    if(!allowed)return;
-    void loadSummary();
-  }
-
+  function openDashboard(){if(allowed)location.assign('/admin/analytics');}
   $('#analytics-nav')?.addEventListener('click',openDashboard);
   $('#analytics-open')?.addEventListener('click',openDashboard);
   $('#analytics-refresh')?.addEventListener('click',event=>{
-    event.currentTarget.classList.add('loading');
-    Promise.resolve(loadSummary()).finally(()=>event.currentTarget.classList.remove('loading'));
+    const button=event.currentTarget;button.classList.add('loading');
+    void loadSummary().finally(()=>button.classList.remove('loading'));
   });
-
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'&&ADMIN_ROLES.has(adminRole()))void loadSummary();
-  });
-
-  activate();
+  document.addEventListener('click',event=>{
+    if(event.target?.closest('#logout,#logout-btn,[data-logout]'))invalidate();
+  },true);
+  window.addEventListener('storage',event=>{if(event.key===null||event.key==='sris_access_token')void loadSummary();});
+  window.addEventListener('pagehide',invalidate);
+  window.addEventListener('pageshow',()=>void loadSummary());
+  document.addEventListener('visibilitychange',()=>document.hidden?invalidate():void loadSummary());
+  // Also catch same-tab token changes (login/refresh) without trusting profile roles.
+  setInterval(()=>{if(token()!==lastToken){invalidate();lastToken=token();if(!document.hidden)void loadSummary();}},500);
+  setInterval(()=>{if(allowed&&!document.hidden)void loadSummary();},60000);
+  hide();void loadSummary();
 })();

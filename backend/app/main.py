@@ -136,7 +136,7 @@ def _frontend_html(filename: str) -> str:
         )
 
         navigation_marker = '    </nav>\n    <div class="mini-profile">'
-        analytics_navigation = """      <div class="nav-group hidden" id="analytics-nav-group">
+        analytics_navigation = """      <div class="nav-group hidden" id="analytics-nav-group" hidden>
         <div class="nav-group-label">Gestão</div>
         <button id="analytics-nav" type="button">▥ <span>Analytics</span></button>
       </div>
@@ -149,7 +149,7 @@ def _frontend_html(filename: str) -> str:
             1,
         )
 
-        analytics_panel = """      <article class="card analytics-overview hidden" id="analytics-overview" aria-label="Leitura privada de interesse">
+        analytics_panel = """      <article class="card analytics-overview hidden" id="analytics-overview" aria-label="Leitura privada de interesse" hidden>
         <div class="card-head">
           <div>
             <div class="eyebrow">INTERESSE OBSERVADO · USO INTERNO</div>
@@ -185,12 +185,13 @@ def _frontend_html(filename: str) -> str:
             1,
         )
 
+        analytics_digest = sha256((FRONTEND_DIR / "analytics-ui-v1.js").read_bytes()).hexdigest()[:16]
         runtime_scripts = "\n".join(
             (
                 f'<script src="/pilot-platform-v1.js?v={PILOT_BUILD}" defer></script>',
                 f'<script src="/pilot-value-v1.js?v={PILOT_BUILD}" defer></script>',
                 f'<script src="/pilot-mission-bridge-v1.js?v={PILOT_BUILD}" defer></script>',
-                '<script src="/analytics-ui-v1.js?v=analytics-management-v1" defer></script>',
+                f'<script src="/analytics-ui-v1.js?v=analytics-owner-v43-{analytics_digest}" defer></script>',
             )
         )
         html = html.replace("</body>", f"{runtime_scripts}\n</body>", 1)
